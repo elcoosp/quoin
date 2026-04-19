@@ -19,3 +19,8 @@ members = [
 
 [workspace.package]
 edition = "2024"
+[[workspace.metadata.leptos]]
+name = "counter-leptos"
+bin-package = "counter-leptos"
+lib-package = "counter-leptos"
+site-root = "examples/counter-leptos/target/site"
