@@ -17,9 +17,8 @@ impl ReactiveContext for DioxusContext {
     type Executor = DioxusExecutor;
 
     fn create_signal<T: Clone + 'static>(&self, initial: T) -> Self::Signal<T> {
-        // CopyValue is the base storage for all signals in Dioxus 0.7.
-        // Despite the name, it does NOT require T: Copy.
-        let signal = ReadSignal::new(CopyValue::new(initial));
+        // In Dioxus 0.7, Signal::new returns a Signal<T> that is both readable and writable.
+        let signal = dioxus::prelude::Signal::new(initial);
         DioxusSignal { signal }
     }
 
@@ -28,13 +27,13 @@ impl ReactiveContext for DioxusContext {
     }
 
     fn request_update(&self) {
-        // Dioxus is automatically reactive
+        // Dioxus reactivity is automatic.
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct DioxusSignal<T: Clone + 'static> {
-    signal: ReadSignal<T>,
+    signal: dioxus::prelude::Signal<T>,
 }
 
 impl<T: Clone + 'static> Signal<T> for DioxusSignal<T> {
@@ -43,7 +42,7 @@ impl<T: Clone + 'static> Signal<T> for DioxusSignal<T> {
     }
 
     fn with<U>(&self, f: impl FnOnce(&T) -> U) -> U {
-        f(&*self.signal.read())
+        f(&self.signal.read())
     }
 }
 
@@ -72,6 +71,11 @@ impl Executor for DioxusExecutor {
 pub struct DioxusJoinHandle<T> {
     rx: Option<futures::channel::oneshot::Receiver<T>>,
 }
+
+impl<T: Send + 'static> JoinHandle<T> for DioxusJoinHandle<T> {
+    fn abort(&self) {}
+}
+
 impl<T: Send + 'static> std::future::IntoFuture for DioxusJoinHandle<T> {
     type Output = Result<T, futures::channel::oneshot::Canceled>;
     type IntoFuture = Pin<Box<dyn Future<Output = Self::Output> + Send>>;
@@ -85,8 +89,4 @@ impl<T: Send + 'static> std::future::IntoFuture for DioxusJoinHandle<T> {
             }
         })
     }
-}
-
-impl<T: Send + 'static> JoinHandle<T> for DioxusJoinHandle<T> {
-    fn abort(&self) {}
 }
