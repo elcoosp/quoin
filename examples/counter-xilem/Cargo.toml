@@ -4,4 +4,8 @@ version = "0.1.0"
 edition = "2024"
 publish = false
 
-# Placeholder - actual dependencies added in Chunk 5
+[dependencies]
+xilem = "0.4.0"
+counter-lib = { path = "../counter", features = ["xilem"] }
+quoin-xilem = { path = "../../quoin-xilem" }
+winit = "0.30"

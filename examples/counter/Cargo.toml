@@ -1,4 +1,3 @@
-
 [package]
 name = "counter-lib"
 version = "0.1.0"
@@ -12,4 +11,5 @@ quoin = { path = "../../quoin" }
 gpui = ["quoin/gpui"]
 dioxus = ["quoin/dioxus"]
 leptos = ["quoin/leptos"]
-
+xilem = ["quoin/xilem"]
+floem = ["quoin/floem"]
