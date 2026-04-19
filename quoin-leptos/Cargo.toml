@@ -12,7 +12,6 @@ quoin = { path = "../quoin", default-features = false, features = ["leptos"] }
 futures = { version = "0.3", features = ["executor"] }
 leptos = { version = "0.8" }
 send_wrapper = "0.6"
-any_spawner = { version = "0.3", features = ["futures-executor"] }
 [dev-dependencies]
 quoin-conformance = { path = "../quoin-conformance", features = ["leptos"] }
 

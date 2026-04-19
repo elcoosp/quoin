@@ -1,19 +1,44 @@
-use dioxus::prelude::*;
+use dioxus_core::{Element, ScopeId, VNode, VirtualDom};
 use quoin::ReactiveContext;
 use quoin_conformance::ReactiveContextConformance;
 use quoin_dioxus::DioxusContext;
 use tested_trait::test_impl;
 
-#[derive(Clone)]
+fn app() -> Element {
+    VNode::empty()
+}
+
 struct TestHarness {
     context: DioxusContext,
+    vdom: Box<VirtualDom>,
+}
+
+// SAFETY: The test harness is only used on the main thread in the conformance tests.
+unsafe impl Send for TestHarness {}
+unsafe impl Sync for TestHarness {}
+
+impl Clone for TestHarness {
+    fn clone(&self) -> Self {
+        // Create a fresh harness with a new VirtualDom for each clone.
+        Self::new()
+    }
 }
 
 impl TestHarness {
     fn new() -> Self {
-        dioxus::prelude::launch(|| rsx! { div {} });
-        let context = DioxusContext::new();
-        Self { context }
+        let mut vdom = VirtualDom::new(app);
+        vdom.rebuild_in_place();
+        Self {
+            context: DioxusContext::new(),
+            vdom: Box::new(vdom),
+        }
+    }
+
+    fn with_vdom<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce() -> R,
+    {
+        self.vdom.in_scope(ScopeId::ROOT, f)
     }
 }
 
@@ -22,15 +47,15 @@ impl ReactiveContext for TestHarness {
     type Executor = <DioxusContext as ReactiveContext>::Executor;
 
     fn create_signal<T: Clone + 'static>(&self, initial: T) -> Self::Signal<T> {
-        self.context.create_signal(initial)
+        self.with_vdom(|| self.context.create_signal(initial))
     }
 
     fn executor(&self) -> Self::Executor {
-        self.context.executor()
+        self.with_vdom(|| self.context.executor())
     }
 
     fn request_update(&self) {
-        self.context.request_update()
+        self.with_vdom(|| self.context.request_update())
     }
 }
 

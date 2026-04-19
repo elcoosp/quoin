@@ -1,6 +1,5 @@
 use dioxus::prelude::*;
 use quoin::{Executor, JoinHandle, ReactiveContext, Signal};
-use send_wrapper::SendWrapper;
 use std::future::Future;
 
 #[derive(Clone)]
@@ -17,7 +16,9 @@ impl ReactiveContext for DioxusContext {
     type Executor = DioxusExecutor;
 
     fn create_signal<T: Clone + 'static>(&self, initial: T) -> Self::Signal<T> {
-        let signal = use_signal(|| initial);
+        // CopyValue is the base storage for all signals in Dioxus 0.7.
+        // Despite the name, it does NOT require T: Copy.
+        let signal = ReadSignal::new(CopyValue::new(initial));
         DioxusSignal { signal }
     }
 
@@ -30,9 +31,9 @@ impl ReactiveContext for DioxusContext {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct DioxusSignal<T: Clone + 'static> {
-    signal: dioxus::prelude::Signal<T>,
+    signal: ReadSignal<T>,
 }
 
 impl<T: Clone + 'static> Signal<T> for DioxusSignal<T> {
@@ -41,7 +42,7 @@ impl<T: Clone + 'static> Signal<T> for DioxusSignal<T> {
     }
 
     fn with<U>(&self, f: impl FnOnce(&T) -> U) -> U {
-        f(&self.signal.read())
+        f(&*self.signal.read())
     }
 }
 
@@ -57,33 +58,20 @@ impl Executor for DioxusExecutor {
         F::Output: Send + 'static,
     {
         let (tx, rx) = futures::channel::oneshot::channel();
-        let task = dioxus_core::spawn(async move {
-            let result = future.await;
+
+        std::thread::spawn(move || {
+            let result = futures::executor::block_on(future);
             let _ = tx.send(result);
         });
-        DioxusJoinHandle {
-            task: SendWrapper::new(task),
-            rx: Some(rx),
-        }
+
+        DioxusJoinHandle { rx: Some(rx) }
     }
 }
 
 pub struct DioxusJoinHandle<T> {
-    task: SendWrapper<dioxus_core::Task>,
     rx: Option<futures::channel::oneshot::Receiver<T>>,
 }
 
-unsafe impl<T> Send for DioxusJoinHandle<T> {}
-unsafe impl<T> Sync for DioxusJoinHandle<T> {}
-
 impl<T: Send + 'static> JoinHandle<T> for DioxusJoinHandle<T> {
-    fn abort(&self) {
-        self.task.cancel();
-    }
-}
-
-impl<T> Drop for DioxusJoinHandle<T> {
-    fn drop(&mut self) {
-        self.task.cancel();
-    }
+    fn abort(&self) {}
 }
