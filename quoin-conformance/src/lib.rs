@@ -40,8 +40,6 @@
 //! define_conformance_tests!(gpui, TestHarness);
 //! ```
 
-#[cfg(feature = "gpui")]
-use gpui::TestAppContext;
 use quoin::{CancellationToken, Executor, ReactiveContext, Signal};
 use std::future::Future;
 use std::sync::atomic::{AtomicBool, Ordering};
