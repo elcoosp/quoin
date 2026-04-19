@@ -1,25 +1,39 @@
-use gpui::{Context, ForegroundExecutor, Task};
+use gpui::{BackgroundExecutor, Context, ForegroundExecutor, Task};
 use quoin::{Executor, JoinHandle, ReactiveContext, Signal};
 use send_wrapper::SendWrapper;
 use std::future::Future;
+use std::ops::Deref;
+use std::pin::Pin;
 use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct GpuiContext {
     foreground: SendWrapper<ForegroundExecutor>,
+    // Used only in tests to run tasks synchronously.
+    background: Option<SendWrapper<BackgroundExecutor>>,
 }
 
 impl GpuiContext {
     pub fn new<T: 'static>(cx: &mut Context<T>) -> Self {
         Self {
             foreground: SendWrapper::new(cx.foreground_executor().clone()),
+            background: None,
         }
     }
-    /// New constructor that directly takes a `ForegroundExecutor`.
-    /// This is ideal for test environments where we don't have a `Context`.
+
+    /// Constructor for test environments that uses a background executor.
     pub fn from_executor(foreground: ForegroundExecutor) -> Self {
         Self {
             foreground: SendWrapper::new(foreground),
+            background: None,
+        }
+    }
+
+    /// Constructor for GPUI tests that need tasks to execute synchronously.
+    pub fn for_test(foreground: ForegroundExecutor, background: BackgroundExecutor) -> Self {
+        Self {
+            foreground: SendWrapper::new(foreground),
+            background: Some(SendWrapper::new(background)),
         }
     }
 }
@@ -37,6 +51,7 @@ impl ReactiveContext for GpuiContext {
     fn executor(&self) -> Self::Executor {
         GpuiExecutor {
             foreground: self.foreground.clone(),
+            background: self.background.clone(),
         }
     }
 
@@ -64,6 +79,7 @@ impl<T: Clone + 'static> Signal<T> for GpuiSignal<T> {
 #[derive(Clone)]
 pub struct GpuiExecutor {
     foreground: SendWrapper<ForegroundExecutor>,
+    background: Option<SendWrapper<BackgroundExecutor>>,
 }
 
 impl Executor for GpuiExecutor {
@@ -75,10 +91,20 @@ impl Executor for GpuiExecutor {
         F::Output: Send + 'static,
     {
         let (tx, rx) = futures::channel::oneshot::channel();
-        let task = self.foreground.spawn(async move {
-            let result = future.await;
-            let _ = tx.send(result);
-        });
+
+        // Use background executor in tests; otherwise use foreground.
+        let task = if let Some(bg) = &self.background {
+            bg.spawn(async move {
+                let result = future.await;
+                let _ = tx.send(result);
+            })
+        } else {
+            self.foreground.spawn(async move {
+                let result = future.await;
+                let _ = tx.send(result);
+            })
+        };
+
         GpuiJoinHandle {
             task: Some(task),
             rx: Some(rx),
@@ -86,6 +112,25 @@ impl Executor for GpuiExecutor {
     }
 }
 
+impl GpuiExecutor {
+    /// Returns a future that completes after the specified duration.
+    /// Uses the background executor if available (in tests), otherwise falls back to the foreground executor's scheduler.
+    pub fn sleep(&self, duration: std::time::Duration) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+        if let Some(bg) = &self.background {
+            let bg = bg.clone();
+            Box::pin(async move {
+                bg.deref().timer(duration).await;
+            })
+        } else {
+            let fg = self.foreground.clone();
+            Box::pin(async move {
+                // Obtain the scheduler Arc and clone it to own it across the await.
+                let scheduler = fg.deref().scheduler_executor().scheduler().clone();
+                scheduler.timer(duration).await;
+            })
+        }
+    }
+}
 pub struct GpuiJoinHandle<T> {
     task: Option<Task<()>>,
     rx: Option<futures::channel::oneshot::Receiver<T>>,
@@ -93,6 +138,21 @@ pub struct GpuiJoinHandle<T> {
 
 impl<T: Send + 'static> JoinHandle<T> for GpuiJoinHandle<T> {
     fn abort(&self) {}
+}
+
+impl<T: Send + 'static> std::future::IntoFuture for GpuiJoinHandle<T> {
+    type Output = Result<T, futures::channel::oneshot::Canceled>;
+    type IntoFuture = Pin<Box<dyn Future<Output = Self::Output> + Send>>;
+
+    fn into_future(mut self) -> Self::IntoFuture {
+        Box::pin(async move {
+            if let Some(rx) = self.rx.take() {
+                rx.await
+            } else {
+                unreachable!("Receiver should be set")
+            }
+        })
+    }
 }
 
 impl<T> Drop for GpuiJoinHandle<T> {
