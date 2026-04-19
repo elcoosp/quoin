@@ -17,15 +17,16 @@ impl ReactiveContext for XilemContext {
     type Executor = XilemExecutor;
 
     fn create_signal<T: Clone + 'static>(&self, initial: T) -> Self::Signal<T> {
-        todo!()
+        XilemSignal::new(initial)
     }
 
     fn executor(&self) -> Self::Executor {
-        todo!()
+        XilemExecutor
     }
 
     fn request_update(&self) {
-        todo!()
+        // Xilem's reactivity is driven by app state changes, not signal subscriptions.
+        // This method is a no-op; updates happen when the app's state mutates.
     }
 }
 
@@ -34,13 +35,22 @@ pub struct XilemSignal<T: Clone + 'static> {
     inner: Arc<std::sync::RwLock<T>>,
 }
 
+impl<T: Clone + 'static> XilemSignal<T> {
+    fn new(value: T) -> Self {
+        Self {
+            inner: Arc::new(std::sync::RwLock::new(value)),
+        }
+    }
+}
+
 impl<T: Clone + 'static> Signal<T> for XilemSignal<T> {
     fn get(&self) -> T {
-        todo!()
+        self.inner.read().unwrap().clone()
     }
 
     fn with<U>(&self, f: impl FnOnce(&T) -> U) -> U {
-        todo!()
+        let guard = self.inner.read().unwrap();
+        f(&guard)
     }
 }
 
@@ -55,7 +65,14 @@ impl Executor for XilemExecutor {
         F: Future + Send + 'static,
         F::Output: Send + 'static,
     {
-        todo!()
+        let (tx, rx) = futures::channel::oneshot::channel();
+
+        std::thread::spawn(move || {
+            let result = futures::executor::block_on(future);
+            let _ = tx.send(result);
+        });
+
+        XilemJoinHandle { rx: Some(rx) }
     }
 }
 
@@ -65,4 +82,19 @@ pub struct XilemJoinHandle<T> {
 
 impl<T: Send + 'static> JoinHandle<T> for XilemJoinHandle<T> {
     fn abort(&self) {}
+}
+
+impl<T: Send + 'static> std::future::IntoFuture for XilemJoinHandle<T> {
+    type Output = Result<T, futures::channel::oneshot::Canceled>;
+    type IntoFuture = Pin<Box<dyn Future<Output = Self::Output> + Send>>;
+
+    fn into_future(mut self) -> Self::IntoFuture {
+        Box::pin(async move {
+            if let Some(rx) = self.rx.take() {
+                rx.await
+            } else {
+                unreachable!("Receiver should be set")
+            }
+        })
+    }
 }
