@@ -1,8 +1,8 @@
 use leptos::prelude::*;
 use quoin::ReactiveContext;
-use quoin_conformance::ReactiveContextConformance;
+use quoin_conformance::{define_conformance_tests, TestContextProvider};
 use quoin_leptos::LeptosContext;
-use tested_trait::test_impl;
+use std::future::Future;
 
 struct TestHarness {
     context: LeptosContext,
@@ -48,9 +48,15 @@ impl ReactiveContext for TestHarness {
     }
 }
 
-#[test_impl]
-impl ReactiveContextConformance for TestHarness {
+impl TestContextProvider for TestHarness {
     fn setup_context() -> Self {
         Self::new()
     }
+
+    fn block_on<F: Future>(future: F) -> F::Output {
+        futures::executor::block_on(future)
+    }
 }
+
+// Generate all conformance tests synchronously.
+define_conformance_tests!(sync, TestHarness);

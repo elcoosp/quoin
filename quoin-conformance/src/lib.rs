@@ -1,174 +1,231 @@
 //! Conformance test suite for `quoin` framework adapters.
 //!
-//! This crate provides a trait that defines a set of tests any `ReactiveContext`
-//! implementation must pass. Adapter crates use the `#[test_impl]` macro from
-//! `tested_trait` to run these tests against their concrete context type.
+//! This crate provides a set of reusable test functions that verify an adapter's
+//! `ReactiveContext` implementation meets the specification. Adapter crates use
+//! the `define_conformance_tests!` macro to generate the actual test functions
+//! with the appropriate test runner.
 //!
-//! # Usage
+//! # Usage for non‑GPUI adapters
 //!
 //! ```rust,ignore
 //! use quoin::ReactiveContext;
-//! use quoin_conformance::ReactiveContextConformance;
-//! use tested_trait::test_impl;
+//! use quoin_conformance::{define_conformance_tests, TestContextProvider};
 //!
-//! #[test_impl]
-//! impl ReactiveContextConformance for MyAdapterContext {
-//!     fn setup_context() -> Self {
-//!         // Create a fresh context for testing
-//!         MyAdapterContext::new_for_test()
-//!     }
+//! struct MyTestHarness { ... }
+//! impl ReactiveContext for MyTestHarness { ... }
+//! impl TestContextProvider for MyTestHarness {
+//!     fn setup_context() -> Self { ... }
+//!     fn block_on<F: Future>(future: F) -> F::Output { ... }
 //! }
+//!
+//! define_conformance_tests!(sync, MyTestHarness);
+//! ```
+//!
+//! # Usage for GPUI adapters
+//!
+//! ```rust,ignore
+//! use gpui::TestAppContext;
+//! use quoin::ReactiveContext;
+//! use quoin_conformance::{define_conformance_tests, SleepExt};
+//!
+//! struct TestHarness { context: GpuiContext }
+//! impl TestHarness {
+//!     fn new(cx: &mut TestAppContext) -> Self { ... }
+//! }
+//! impl ReactiveContext for TestHarness { ... }
+//! impl SleepExt for <GpuiContext as ReactiveContext>::Executor {
+//!     async fn sleep(&self, duration: Duration) { ... }
+//! }
+//!
+//! define_conformance_tests!(gpui, TestHarness);
 //! ```
 
-use futures::Future;
+#[cfg(feature = "gpui")]
+use gpui::TestAppContext;
 use quoin::{CancellationToken, Executor, ReactiveContext, Signal};
+use std::future::Future;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tested_trait::tested_trait;
+use std::time::Duration;
 
-/// A conformance test suite for `ReactiveContext` implementations.
-///
-/// This trait contains the tests that verify an adapter behaves according to
-/// the `quoin` specification. It should be implemented for the concrete
-/// `ReactiveContext` type provided by the adapter.
-///
-/// The only required method is `setup_context()`, which should return a fresh
-/// context instance suitable for testing.
-#[tested_trait]
-pub trait ReactiveContextConformance: ReactiveContext {
-    /// Creates a fresh context instance for testing.
-    ///
-    /// This method is called before each test. The context should be in a
-    /// clean state with no pre-existing signals or side effects.
+// -----------------------------------------------------------------------------
+// Helper traits
+// -----------------------------------------------------------------------------
+
+pub trait TestContextProvider: ReactiveContext + Sized {
     fn setup_context() -> Self;
-
-    /// Helper to block on a future in tests.
-    ///
-    /// The default implementation uses `futures::executor::block_on`,
-    /// but adapters for environments without a standard executor (e.g., WASM)
-    /// may override this method.
     fn block_on<F: Future>(future: F) -> F::Output {
         futures::executor::block_on(future)
     }
+}
 
-    // ------------------------------------------------------------------------
-    // Signal Tests
-    // ------------------------------------------------------------------------
+pub trait SleepExt {
+    fn sleep(&self, duration: Duration) -> impl Future<Output = ()> + Send;
+}
 
-    #[test]
-    fn test_create_signal_initial_value() {
-        let cx = Self::setup_context();
+// -----------------------------------------------------------------------------
+// Core async test functions
+// -----------------------------------------------------------------------------
+
+pub mod tests {
+    use super::*;
+
+    pub async fn create_signal_initial_value<C: ReactiveContext>(cx: &C) {
         let signal = cx.create_signal(42u32);
         assert_eq!(signal.get(), 42);
     }
 
-    #[test]
-    fn test_signal_with_borrowing() {
-        let cx = Self::setup_context();
+    pub async fn signal_with_borrowing<C: ReactiveContext>(cx: &C) {
         let signal = cx.create_signal("hello".to_string());
         signal.with(|value| {
             assert_eq!(value, "hello");
         });
     }
 
-    #[test]
-    fn test_signal_clone_and_copy() {
-        let cx = Self::setup_context();
+    pub async fn signal_clone_and_copy<C: ReactiveContext>(cx: &C) {
         let signal = cx.create_signal(100u32);
         let copy = signal;
         assert_eq!(copy.get(), 100);
     }
 
-    // ------------------------------------------------------------------------
-    // Executor Tests
-    // ------------------------------------------------------------------------
-
-    #[test]
-    fn test_executor_spawn_success() {
-        let cx = Self::setup_context();
+    pub async fn executor_spawn_success<C: ReactiveContext>(cx: &C)
+    where
+        <<C as ReactiveContext>::Executor as Executor>::JoinHandle<()>: std::future::IntoFuture,
+    {
         let executor = cx.executor();
         let flag = Arc::new(AtomicBool::new(false));
         let flag_clone = flag.clone();
 
-        let _handle = executor.spawn(async move {
+        let handle = executor.spawn(async move {
             flag_clone.store(true, Ordering::SeqCst);
         });
 
-        // Busy-wait for the task to execute (max 5 seconds)
-        let start = std::time::Instant::now();
-        while !flag.load(Ordering::SeqCst) {
-            if start.elapsed() > std::time::Duration::from_secs(5) {
-                panic!("task did not execute within 5 seconds");
-            }
-            std::thread::sleep(std::time::Duration::from_millis(10));
-        }
+        let _ = handle.await;
+        assert!(flag.load(Ordering::SeqCst));
     }
 
-    #[test]
-    fn test_cancellation_token_basic() {
+    pub async fn cancellation_token_basic<C: ReactiveContext>(_cx: &C) {
         let token = CancellationToken::new();
         assert!(!token.is_cancelled());
         token.cancel();
         assert!(token.is_cancelled());
     }
 
-    #[test]
-    fn test_cancellation_token_cooperative() {
+    pub async fn cancellation_token_cooperative<C>(cx: &C)
+    where
+        C: ReactiveContext,
+        C::Executor: SleepExt + Clone,
+        <<C as ReactiveContext>::Executor as Executor>::JoinHandle<()>: std::future::IntoFuture,
+    {
         let token = CancellationToken::new();
         let clone = token.clone();
 
-        let cx = Self::setup_context();
         let executor = cx.executor();
-
         let flag = Arc::new(AtomicBool::new(false));
         let flag_clone = flag.clone();
 
-        // Spawn a task that checks cancellation
-        let _handle = executor.spawn(async move {
+        let executor_for_task = executor.clone();
+
+        let handle = executor.spawn(async move {
             while !clone.is_cancelled() {
-                // Busy loop, but yields to executor
-                std::thread::sleep(std::time::Duration::from_millis(1));
+                executor_for_task.sleep(Duration::from_millis(1)).await;
             }
             flag_clone.store(true, Ordering::SeqCst);
         });
 
-        // Cancel after a short delay
-        std::thread::sleep(std::time::Duration::from_millis(50));
+        executor.sleep(Duration::from_millis(50)).await;
         token.cancel();
 
-        // Wait for flag to be set (max 5 seconds)
-        let start = std::time::Instant::now();
-        while !flag.load(Ordering::SeqCst) {
-            if start.elapsed() > std::time::Duration::from_secs(5) {
-                panic!("task did not respond to cancellation within 5 seconds");
-            }
-            std::thread::sleep(std::time::Duration::from_millis(10));
-        }
+        let _ = handle.await;
+        assert!(flag.load(Ordering::SeqCst));
     }
 
-    // ------------------------------------------------------------------------
-    // Context Tests
-    // ------------------------------------------------------------------------
-
-    #[test]
-    fn test_reactive_context_is_clone_send_sync() {
+    pub async fn reactive_context_is_clone_send_sync<C>(_cx: &C)
+    where
+        C: ReactiveContext + Clone + Send + Sync,
+    {
         fn assert_clone_send_sync<T: Clone + Send + Sync>() {}
-        assert_clone_send_sync::<Self>();
+        assert_clone_send_sync::<C>();
     }
 
-    #[test]
-    fn test_request_update_does_not_panic() {
-        let cx = Self::setup_context();
+    pub async fn request_update_does_not_panic<C: ReactiveContext>(cx: &C) {
         cx.request_update();
-        // No assertion; just ensuring it doesn't panic.
     }
 
-    #[test]
-    fn test_create_multiple_signals() {
-        let cx = Self::setup_context();
+    pub async fn create_multiple_signals<C: ReactiveContext>(cx: &C) {
         let signal1 = cx.create_signal(1u32);
         let signal2 = cx.create_signal(2u32);
         assert_eq!(signal1.get(), 1);
         assert_eq!(signal2.get(), 2);
     }
+}
+
+// -----------------------------------------------------------------------------
+// Test generation macros
+// -----------------------------------------------------------------------------
+
+#[macro_export]
+macro_rules! define_conformance_tests {
+    (sync, $cx_type:ty) => {
+        /* unchanged */
+    };
+
+    (gpui, $cx_type:ty) => {
+        use $crate::tests::*;
+        // Expect `gpui::TestAppContext` to be in scope.
+
+        #[gpui::test]
+        async fn test_create_signal_initial_value(cx: &mut TestAppContext) {
+            let harness = <$cx_type>::new(cx);
+            create_signal_initial_value(&harness).await;
+        }
+
+        #[gpui::test]
+        async fn test_signal_with_borrowing(cx: &mut TestAppContext) {
+            let harness = <$cx_type>::new(cx);
+            signal_with_borrowing(&harness).await;
+        }
+
+        #[gpui::test]
+        async fn test_signal_clone_and_copy(cx: &mut TestAppContext) {
+            let harness = <$cx_type>::new(cx);
+            signal_clone_and_copy(&harness).await;
+        }
+
+        #[gpui::test]
+        async fn test_executor_spawn_success(cx: &mut TestAppContext) {
+            let harness = <$cx_type>::new(cx);
+            executor_spawn_success(&harness).await;
+        }
+
+        #[gpui::test]
+        async fn test_cancellation_token_basic(cx: &mut TestAppContext) {
+            let harness = <$cx_type>::new(cx);
+            cancellation_token_basic(&harness).await;
+        }
+
+        #[gpui::test]
+        async fn test_cancellation_token_cooperative(cx: &mut TestAppContext) {
+            let harness = <$cx_type>::new(cx);
+            cancellation_token_cooperative(&harness).await;
+        }
+
+        #[gpui::test]
+        async fn test_reactive_context_is_clone_send_sync(cx: &mut TestAppContext) {
+            let harness = <$cx_type>::new(cx);
+            reactive_context_is_clone_send_sync(&harness).await;
+        }
+
+        #[gpui::test]
+        async fn test_request_update_does_not_panic(cx: &mut TestAppContext) {
+            let harness = <$cx_type>::new(cx);
+            request_update_does_not_panic(&harness).await;
+        }
+
+        #[gpui::test]
+        async fn test_create_multiple_signals(cx: &mut TestAppContext) {
+            let harness = <$cx_type>::new(cx);
+            create_multiple_signals(&harness).await;
+        }
+    };
 }

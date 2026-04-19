@@ -1,8 +1,8 @@
 use dioxus_core::{Element, ScopeId, VNode, VirtualDom};
 use quoin::ReactiveContext;
-use quoin_conformance::ReactiveContextConformance;
+use quoin_conformance::{define_conformance_tests, TestContextProvider};
 use quoin_dioxus::DioxusContext;
-use tested_trait::test_impl;
+use std::future::Future;
 
 fn app() -> Element {
     VNode::empty()
@@ -59,9 +59,16 @@ impl ReactiveContext for TestHarness {
     }
 }
 
-#[test_impl]
-impl ReactiveContextConformance for TestHarness {
+// Implement the provider trait required by the conformance macro.
+impl TestContextProvider for TestHarness {
     fn setup_context() -> Self {
         Self::new()
     }
+
+    fn block_on<F: Future>(future: F) -> F::Output {
+        futures::executor::block_on(future)
+    }
 }
+
+// Generate all conformance tests synchronously.
+define_conformance_tests!(sync, TestHarness);

@@ -4417,8 +4417,8 @@ name = "quoin-conformance"
 version = "0.1.0"
 dependencies = [
  "futures",
+ "gpui",
  "quoin",
- "tested-trait",
 ]
 
 [[package]]
