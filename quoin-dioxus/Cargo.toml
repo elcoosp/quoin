@@ -14,5 +14,5 @@ futures = "0.3"
 send_wrapper = "0.6"
 
 [dev-dependencies]
-quoin-conformance = { path = "../quoin-conformance" }
+quoin-conformance = { path = "../quoin-conformance", features = ["dioxus"] }
 tested-trait = "0.1"

@@ -7,11 +7,13 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/username/quoin"
 
 [dependencies]
-quoin = { path = "../quoin" }
-leptos = "0.8"
-futures = "0.3"
-send_wrapper = "0.6"
+quoin = { path = "../quoin", default-features = false, features = ["leptos"] }
 
+futures = { version = "0.3", features = ["executor"] }
+leptos = { version = "0.8" }
+send_wrapper = "0.6"
+any_spawner = { version = "0.3", features = ["futures-executor"] }
 [dev-dependencies]
-quoin-conformance = { path = "../quoin-conformance" }
+quoin-conformance = { path = "../quoin-conformance", features = ["leptos"] }
+
 tested-trait = "0.1"

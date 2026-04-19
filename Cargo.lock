@@ -4397,6 +4397,7 @@ dependencies = [
 name = "quoin-leptos"
 version = "0.1.0"
 dependencies = [
+ "any_spawner",
  "futures",
  "leptos",
  "quoin",

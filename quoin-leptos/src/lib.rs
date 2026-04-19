@@ -26,7 +26,7 @@ impl ReactiveContext for LeptosContext {
     }
 
     fn request_update(&self) {
-        // Leptos automatically reactive
+        // Leptos is automatically reactive – nothing needed.
     }
 }
 
@@ -57,10 +57,15 @@ impl Executor for LeptosExecutor {
         F::Output: Send + 'static,
     {
         let (tx, rx) = futures::channel::oneshot::channel();
-        leptos::task::spawn_local(async move {
-            let result = future.await;
+
+        // Spawn on a dedicated thread with a blocking executor.
+        // This avoids any_spawner's thread-local issues while ensuring
+        // the future actually runs to completion.
+        std::thread::spawn(move || {
+            let result = futures::executor::block_on(future);
             let _ = tx.send(result);
         });
+
         LeptosJoinHandle { rx: Some(rx) }
     }
 }

@@ -4,17 +4,30 @@ use quoin_conformance::ReactiveContextConformance;
 use quoin_leptos::LeptosContext;
 use tested_trait::test_impl;
 
-#[derive(Clone)]
 struct TestHarness {
     context: LeptosContext,
+    _owner: Owner,
+}
+
+impl Clone for TestHarness {
+    fn clone(&self) -> Self {
+        Self {
+            context: self.context.clone(),
+            _owner: self._owner.clone(),
+        }
+    }
 }
 
 impl TestHarness {
     fn new() -> Self {
-        // In Leptos 0.8, we can create a runtime with `create_runtime()`
-        let runtime = create_runtime();
+        let owner = Owner::new();
+        owner.set();
+
         let context = LeptosContext::new();
-        Self { context }
+        Self {
+            context,
+            _owner: owner,
+        }
     }
 }
 

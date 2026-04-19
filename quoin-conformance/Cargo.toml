@@ -8,13 +8,16 @@ repository = "https://github.com/username/quoin"
 readme = "README.md"
 
 [dependencies]
-quoin = { path = "../quoin" }
+quoin = { path = "../quoin", default-features = false }
 tested-trait = "0.1"
 futures = "0.3"
 
-[dev-dependencies]
-# No additional dev-dependencies needed; tests run via tested-trait
-
+[features]
+leptos = ["quoin/leptos"]
+gpui   = ["quoin/gpui"]
+dioxus = ["quoin/dioxus"]
+xilem  = ["quoin/xilem"]
+floem  = ["quoin/floem"]
 [lib]
 name = "quoin_conformance"
 path = "src/lib.rs"
