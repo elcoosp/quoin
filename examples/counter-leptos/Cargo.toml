@@ -1,15 +1,34 @@
-
 [package]
 name = "counter-leptos"
 version = "0.1.0"
 edition = "2021"
-publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "server"
+path = "src/main.rs"
 
 [dependencies]
 leptos = "0.8"
-counter-lib = { path = "../counter", features = ["leptos"] }
-quoin-leptos = { path = "../../quoin-leptos" }
 console_error_panic_hook = "0.1"
 console_log = "1.0"
 log = "0.4"
+wasm-bindgen = "0.2"
 
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+leptos = { version = "0.8", features = ["csr"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+leptos_axum = "0.8"
+axum = "0.8"
+tokio = { version = "1", features = ["full"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["fs"] }
+
+[package.metadata.leptos]
+output-name = "counter-leptos"
+site-root = "target/site"
+assets-dir = "public"
+bin-target = "server"

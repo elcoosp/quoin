@@ -1,39 +1,55 @@
-
-use counter_lib::use_counter;
 use gpui::*;
-use quoin_gpui::GpuiContext;
+use gpui_platform::application;
 
-struct CounterView {
-    counter: counter_lib::Counter<quoin_gpui::GpuiSignal<u32>>,
+struct Counter {
+    count: u32,
 }
 
-impl Render for CounterView {
+impl Render for Counter {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let ctx = GpuiContext::new(cx);
-        self.counter = use_counter(&ctx);
-
         div()
-            .child(format!("Count: {}", self.counter.count.get()))
+            .flex()
+            .bg(rgb(0x2e2e2e))
+            .size_full()
+            .justify_center()
+            .items_center()
+            .text_xl()
+            .text_color(rgb(0xffffff))
             .child(
                 div()
-                    .child("Increment")
-                    .on_click(cx.listener(|this, _, _| {
-                        (this.counter.increment)();
-                    }))
+                    .flex()
+                    .flex_col()
+                    .items_center()
+                    .gap_4()
+                    .child(format!("Count: {}", self.count))
+                    .child(
+                        div()
+                            .id("increment-btn")
+                            .px_4()
+                            .py_2()
+                            .bg(rgb(0x4e4e4e))
+                            .rounded_md()
+                            .cursor_pointer()
+                            .hover(|style| style.bg(rgb(0x6e6e6e)))
+                            .child("Increment")
+                            .on_mouse_down(
+                                gpui::MouseButton::Left,
+                                cx.listener(|this, _event, _window, cx| {
+                                    this.count += 1;
+                                    cx.notify();
+                                }),
+                            ),
+                    ),
             )
     }
 }
 
 fn main() {
-    App::new().run(|cx: &mut AppContext| {
-        cx.open_window(WindowOptions::default(), |cx| {
-            cx.new_view(|_cx| {
-                let ctx = GpuiContext::new(_cx);
-                CounterView {
-                    counter: use_counter(&ctx),
-                }
-            })
-        });
+    application().run(|cx: &mut App| {
+        cx.open_window(WindowOptions::default(), |_, cx| {
+            cx.new(|_| Counter { count: 0 })
+        })
+        .unwrap();
+        cx.activate(true);
     });
 }
-
