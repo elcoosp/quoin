@@ -96,6 +96,7 @@ impl CancellationToken {
     /// let token = CancellationToken::new();
     /// assert!(!token.is_cancelled());
     /// ```
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             inner: Arc::new(Inner::new()),
@@ -131,6 +132,7 @@ impl CancellationToken {
     /// token.cancel();
     /// assert!(token.is_cancelled());
     /// ```
+    #[must_use] 
     pub fn is_cancelled(&self) -> bool {
         self.inner.is_cancelled()
     }
@@ -153,6 +155,7 @@ impl CancellationToken {
     /// println!("Token was cancelled");
     /// # };
     /// ```
+    #[must_use] 
     pub fn cancelled(&self) -> Cancelled<'_> {
         Cancelled { token: self }
     }
