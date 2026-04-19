@@ -9,4 +9,4 @@ publish = false
 dioxus = "0.7"
 counter-lib = { path = "../counter", features = ["dioxus"] }
 quoin-dioxus = { path = "../../quoin-dioxus" }
-
+quoin = { path = "../../quoin" }

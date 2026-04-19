@@ -1,6 +1,6 @@
-
 use counter_lib::use_counter;
 use dioxus::prelude::*;
+use quoin::Signal; // <-- Add this
 use quoin_dioxus::DioxusContext;
 
 fn App() -> Element {
@@ -21,4 +21,3 @@ fn App() -> Element {
 fn main() {
     dioxus::launch(App);
 }
-
