@@ -1,0 +1,12 @@
+
+[package]
+name = "counter-gpui"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+gpui = { git = "https://github.com/zed-industries/zed" }
+counter-lib = { path = "../counter", features = ["gpui"] }
+quoin-gpui = { path = "../../quoin-gpui" }
+

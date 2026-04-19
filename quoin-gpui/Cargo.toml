@@ -1,0 +1,17 @@
+[package]
+name = "quoin-gpui"
+version = "0.1.0"
+edition = "2021"
+description = "GPUI adapter for quoin reactive abstraction"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/username/quoin"
+
+[dependencies]
+quoin = { path = "../quoin" }
+gpui = { git = "https://github.com/zed-industries/zed" }
+futures = "0.3"
+send_wrapper = "0.6"
+
+[dev-dependencies]
+quoin-conformance = { path = "../quoin-conformance" }
+tested-trait = "0.1"

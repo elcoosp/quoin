@@ -1,0 +1,12 @@
+
+[package]
+name = "counter-dioxus"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+dioxus = "0.7"
+counter-lib = { path = "../counter", features = ["dioxus"] }
+quoin-dioxus = { path = "../../quoin-dioxus" }
+

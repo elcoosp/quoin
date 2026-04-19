@@ -1,0 +1,18 @@
+[package]
+name = "quoin-dioxus"
+version = "0.1.0"
+edition = "2021"
+description = "Dioxus adapter for quoin reactive abstraction"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/username/quoin"
+
+[dependencies]
+quoin = { path = "../quoin" }
+dioxus = "0.7"
+dioxus-core = "0.7"
+futures = "0.3"
+send_wrapper = "0.6"
+
+[dev-dependencies]
+quoin-conformance = { path = "../quoin-conformance" }
+tested-trait = "0.1"

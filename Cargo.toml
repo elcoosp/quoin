@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["quoin-conformance", "quoin", ]
+members = ["examples/counter", "examples/counter-gpui", "examples/counter-dioxus", "examples/counter-leptos", "quoin-leptos", "quoin-dioxus", "quoin-gpui", "quoin-conformance", "quoin", ]
 
 [workspace.package]
 edition = "2024"

@@ -1,0 +1,15 @@
+
+[package]
+name = "counter-leptos"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+leptos = "0.8"
+counter-lib = { path = "../counter", features = ["leptos"] }
+quoin-leptos = { path = "../../quoin-leptos" }
+console_error_panic_hook = "0.1"
+console_log = "1.0"
+log = "0.4"
+

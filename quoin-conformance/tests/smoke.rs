@@ -5,10 +5,10 @@ use quoin_conformance::ReactiveContextConformance;
 struct DummyContext;
 
 impl ReactiveContext for DummyContext {
-    type Signal<T: 'static> = DummySignal<T>;
+    type Signal<T: Clone + 'static> = DummySignal<T>;
     type Executor = DummyExecutor;
 
-    fn create_signal<T: 'static>(&self, _initial: T) -> Self::Signal<T> {
+    fn create_signal<T: Clone + 'static>(&self, _initial: T) -> Self::Signal<T> {
         unimplemented!()
     }
 
@@ -30,7 +30,7 @@ impl<T> Clone for DummySignal<T> {
     }
 }
 
-impl<T: 'static> quoin::Signal<T> for DummySignal<T> {
+impl<T: Clone + 'static> quoin::Signal<T> for DummySignal<T> {
     fn get(&self) -> T {
         unimplemented!()
     }
