@@ -596,7 +596,6 @@ readme = "README.md"
 
 [dependencies]
 quoin = { path = "../quoin" }
-tested-trait = "0.1"
 futures = "0.3"
 
 [dev-dependencies]
@@ -1017,7 +1016,6 @@ futures = "0.3"
 
 [dev-dependencies]
 quoin-conformance = { path = "../quoin-conformance" }
-tested-trait = "0.1"
 ```
 
 - [ ] **Step 3: Run initial build to fetch dependencies**
@@ -1263,7 +1261,6 @@ futures = "0.3"
 
 [dev-dependencies]
 quoin-conformance = { path = "../quoin-conformance" }
-tested-trait = "0.1"
 dioxus-web = "0.6"  # for testing in WASM? We'll use native for now.
 ```
 
@@ -1442,7 +1439,6 @@ futures = "0.3"
 
 [dev-dependencies]
 quoin-conformance = { path = "../quoin-conformance" }
-tested-trait = "0.1"
 ```
 
 - [ ] **Step 3: Write `src/lib.rs`**

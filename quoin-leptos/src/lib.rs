@@ -2,6 +2,7 @@ use leptos::prelude::*;
 use quoin::{Executor, JoinHandle, ReactiveContext, Signal};
 use send_wrapper::SendWrapper;
 use std::future::Future;
+use std::pin::Pin;
 
 #[derive(Clone, Default)]
 pub struct LeptosContext;
@@ -73,7 +74,20 @@ impl Executor for LeptosExecutor {
 pub struct LeptosJoinHandle<T> {
     rx: Option<futures::channel::oneshot::Receiver<T>>,
 }
+impl<T: Send + 'static> std::future::IntoFuture for LeptosJoinHandle<T> {
+    type Output = Result<T, futures::channel::oneshot::Canceled>;
+    type IntoFuture = Pin<Box<dyn Future<Output = Self::Output> + Send>>;
 
+    fn into_future(mut self) -> Self::IntoFuture {
+        Box::pin(async move {
+            if let Some(rx) = self.rx.take() {
+                rx.await
+            } else {
+                unreachable!("Receiver should be set")
+            }
+        })
+    }
+}
 impl<T: Send + 'static> JoinHandle<T> for LeptosJoinHandle<T> {
     fn abort(&self) {}
 }

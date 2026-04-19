@@ -1,6 +1,7 @@
 use dioxus::prelude::*;
 use quoin::{Executor, JoinHandle, ReactiveContext, Signal};
 use std::future::Future;
+use std::pin::Pin;
 
 #[derive(Clone)]
 pub struct DioxusContext;
@@ -70,6 +71,20 @@ impl Executor for DioxusExecutor {
 
 pub struct DioxusJoinHandle<T> {
     rx: Option<futures::channel::oneshot::Receiver<T>>,
+}
+impl<T: Send + 'static> std::future::IntoFuture for DioxusJoinHandle<T> {
+    type Output = Result<T, futures::channel::oneshot::Canceled>;
+    type IntoFuture = Pin<Box<dyn Future<Output = Self::Output> + Send>>;
+
+    fn into_future(mut self) -> Self::IntoFuture {
+        Box::pin(async move {
+            if let Some(rx) = self.rx.take() {
+                rx.await
+            } else {
+                unreachable!("Receiver should be set")
+            }
+        })
+    }
 }
 
 impl<T: Send + 'static> JoinHandle<T> for DioxusJoinHandle<T> {

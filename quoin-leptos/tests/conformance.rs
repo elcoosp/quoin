@@ -1,8 +1,38 @@
 use leptos::prelude::*;
-use quoin::ReactiveContext;
-use quoin_conformance::{define_conformance_tests, TestContextProvider};
-use quoin_leptos::LeptosContext;
+use quoin::{Executor, ReactiveContext};
+use quoin_conformance::{define_conformance_tests, SleepExt};
+use quoin_leptos::{LeptosContext, LeptosExecutor};
 use std::future::Future;
+use std::time::Duration;
+
+// -----------------------------------------------------------------------------
+// Newtype wrapper to implement SleepExt without orphan rule
+// -----------------------------------------------------------------------------
+
+#[derive(Clone)]
+struct TestExecutor(LeptosExecutor);
+
+impl SleepExt for TestExecutor {
+    fn sleep(&self, duration: Duration) -> impl Future<Output = ()> + Send {
+        futures_timer::Delay::new(duration)
+    }
+}
+
+impl Executor for TestExecutor {
+    type JoinHandle<T: Send + 'static> = <LeptosExecutor as Executor>::JoinHandle<T>;
+
+    fn spawn<F>(&self, future: F) -> Self::JoinHandle<F::Output>
+    where
+        F: Future + Send + 'static,
+        F::Output: Send + 'static,
+    {
+        self.0.spawn(future)
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Test Harness
+// -----------------------------------------------------------------------------
 
 struct TestHarness {
     context: LeptosContext,
@@ -22,10 +52,8 @@ impl TestHarness {
     fn new() -> Self {
         let owner = Owner::new();
         owner.set();
-
-        let context = LeptosContext::new();
         Self {
-            context,
+            context: LeptosContext::new(),
             _owner: owner,
         }
     }
@@ -33,14 +61,14 @@ impl TestHarness {
 
 impl ReactiveContext for TestHarness {
     type Signal<T: Clone + 'static> = <LeptosContext as ReactiveContext>::Signal<T>;
-    type Executor = <LeptosContext as ReactiveContext>::Executor;
+    type Executor = TestExecutor;
 
     fn create_signal<T: Clone + 'static>(&self, initial: T) -> Self::Signal<T> {
         self.context.create_signal(initial)
     }
 
     fn executor(&self) -> Self::Executor {
-        self.context.executor()
+        TestExecutor(self.context.executor())
     }
 
     fn request_update(&self) {
@@ -58,5 +86,6 @@ impl TestContextProvider for TestHarness {
     }
 }
 
-// Generate all conformance tests synchronously.
+// The macro will import TestContextProvider internally, so we don't import it again.
+// We only import the macro and SleepExt.
 define_conformance_tests!(sync, TestHarness);

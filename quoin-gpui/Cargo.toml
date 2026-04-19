@@ -15,4 +15,3 @@ send_wrapper = "0.6"
 [dev-dependencies]
 gpui = { git = "https://github.com/zed-industries/zed", features = ["test-support"] }
 quoin-conformance = { path = "../quoin-conformance", features = ["gpui"] }
-tested-trait = "0.1"

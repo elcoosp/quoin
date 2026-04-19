@@ -167,7 +167,62 @@ pub mod tests {
 #[macro_export]
 macro_rules! define_conformance_tests {
     (sync, $cx_type:ty) => {
-        /* unchanged */
+        use $crate::tests::*;
+        use $crate::TestContextProvider;
+
+        #[test]
+        fn test_create_signal_initial_value() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(create_signal_initial_value(&cx));
+        }
+
+        #[test]
+        fn test_signal_with_borrowing() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(signal_with_borrowing(&cx));
+        }
+
+        #[test]
+        fn test_signal_clone_and_copy() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(signal_clone_and_copy(&cx));
+        }
+
+        #[test]
+        fn test_executor_spawn_success() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(executor_spawn_success(&cx));
+        }
+
+        #[test]
+        fn test_cancellation_token_basic() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(cancellation_token_basic(&cx));
+        }
+
+        #[test]
+        fn test_cancellation_token_cooperative() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(cancellation_token_cooperative(&cx));
+        }
+
+        #[test]
+        fn test_reactive_context_is_clone_send_sync() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(reactive_context_is_clone_send_sync(&cx));
+        }
+
+        #[test]
+        fn test_request_update_does_not_panic() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(request_update_does_not_panic(&cx));
+        }
+
+        #[test]
+        fn test_create_multiple_signals() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(create_multiple_signals(&cx));
+        }
     };
 
     (gpui, $cx_type:ty) => {
