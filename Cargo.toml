@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["quoin", ]
+members = ["quoin-conformance", "quoin", ]
 
 [workspace.package]
 edition = "2024"

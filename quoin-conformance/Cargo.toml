@@ -1,0 +1,20 @@
+[package]
+name = "quoin-conformance"
+version = "0.1.0"
+edition = "2021"
+description = "Conformance test suite for quoin reactive framework adapters"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/username/quoin"
+readme = "README.md"
+
+[dependencies]
+quoin = { path = "../quoin" }
+tested-trait = "0.1"
+futures = "0.3"
+
+[dev-dependencies]
+# No additional dev-dependencies needed; tests run via tested-trait
+
+[lib]
+name = "quoin_conformance"
+path = "src/lib.rs"
