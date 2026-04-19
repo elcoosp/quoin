@@ -1,0 +1,25 @@
+[package]
+name = "quoin"
+version = "0.1.0"
+edition = "2021"
+description = "A foundational reactive abstraction layer for Rust UI frameworks"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/username/quoin"
+readme = "README.md"
+keywords = ["reactive", "ui", "framework", "abstraction", "signals"]
+categories = ["gui", "asynchronous", "rust-patterns"]
+
+[dependencies]
+futures-core = "0.3"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt", "macros", "time", "sync"] }
+trybuild = "1.0"
+
+[features]
+default = []
+gpui = []
+dioxus = []
+leptos = []
+xilem = []
+floem = []
