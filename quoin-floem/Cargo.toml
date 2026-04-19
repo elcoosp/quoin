@@ -1,0 +1,18 @@
+[package]
+name = "quoin-floem"
+version = "0.1.0"
+edition = "2024"
+description = "Floem adapter for quoin reactive abstraction"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/username/quoin"
+
+[dependencies]
+quoin = { path = "../quoin", default-features = false }
+floem = "0.2.0"
+floem_reactive = "0.2.0"
+futures = "0.3"
+futures-timer = "3.0"
+send_wrapper = "0.6"
+
+[dev-dependencies]
+quoin-conformance = { path = "../quoin-conformance", features = ["floem"] }
