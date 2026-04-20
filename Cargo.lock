@@ -9775,7 +9775,6 @@ dependencies = [
  "gpui_platform",
  "quoin",
  "quoin-gpui",
- "quoin-macros",
  "ucp-lib",
 ]
 
@@ -9789,7 +9788,6 @@ dependencies = [
  "log",
  "quoin",
  "quoin-leptos",
- "quoin-macros",
  "ucp-lib",
  "wasm-bindgen",
 ]

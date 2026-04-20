@@ -1,7 +1,7 @@
 use gpui::*;
 use gpui_platform::application;
 use quoin_gpui::GpuiContext;
-use ucp_lib::DemoApp;
+use ucp_lib::{DemoApp, DemoAppProps};
 
 fn main() {
     application().run(|app_cx: &mut App| {

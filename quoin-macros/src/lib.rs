@@ -1,55 +1,67 @@
 use proc_macro::TokenStream;
+use syn::parse_macro_input;
 use quote::quote;
 
-mod custom_element;
-mod emit;
 mod parse;
+mod emit;
 mod render_ast;
 mod transpile;
+mod custom_element;
 
-#[manyhow::manyhow]
 #[proc_macro]
-pub fn component(input: TokenStream) -> Result<TokenStream, syn::Error> {
-    let ast = syn::parse::<parse::ComponentAst>(input)?;
+pub fn component(input: TokenStream) -> TokenStream {
+    let ast = parse_macro_input!(input as parse::ComponentAst);
 
-    #[cfg(feature = "gpui")]
+    #[cfg(all(feature = "gpui", not(any(feature = "leptos", feature = "dioxus"))))]
     let tokens = emit::gpui::emit_component(&ast);
 
-    #[cfg(feature = "leptos")]
+    #[cfg(all(feature = "leptos", not(any(feature = "gpui", feature = "dioxus"))))]
     let tokens = emit::leptos::emit_component(&ast);
 
-    #[cfg(feature = "dioxus")]
+    #[cfg(all(feature = "dioxus", not(any(feature = "gpui", feature = "leptos"))))]
     let tokens = emit::dioxus::emit_component(&ast);
 
     #[cfg(not(any(feature = "gpui", feature = "leptos", feature = "dioxus")))]
     let tokens = quote! { compile_error!("component! requires a framework feature (e.g., 'gpui', 'leptos', 'dioxus')"); };
 
-    Ok(tokens.into())
+    #[cfg(any(
+        all(feature = "gpui", feature = "leptos"),
+        all(feature = "gpui", feature = "dioxus"),
+        all(feature = "leptos", feature = "dioxus"),
+    ))]
+    let tokens = quote! { compile_error!("Only one framework feature may be enabled at a time for quoin-macros."); };
+
+    tokens.into()
 }
 
-#[manyhow::manyhow]
 #[proc_macro]
-pub fn quoin_render(input: TokenStream) -> Result<TokenStream, syn::Error> {
-    let ast = syn::parse::<render_ast::RenderNode>(input)?;
+pub fn quoin_render(input: TokenStream) -> TokenStream {
+    let ast = parse_macro_input!(input as render_ast::RenderNode);
 
-    #[cfg(feature = "gpui")]
+    #[cfg(all(feature = "gpui", not(any(feature = "leptos", feature = "dioxus"))))]
     let tokens = emit::render_gpui::emit_render(&ast);
 
-    #[cfg(feature = "leptos")]
+    #[cfg(all(feature = "leptos", not(any(feature = "gpui", feature = "dioxus"))))]
     let tokens = emit::render_leptos::emit_render(&ast);
 
-    #[cfg(feature = "dioxus")]
+    #[cfg(all(feature = "dioxus", not(any(feature = "gpui", feature = "leptos"))))]
     let tokens = emit::render_dioxus::emit_render(&ast);
 
     #[cfg(not(any(feature = "gpui", feature = "leptos", feature = "dioxus")))]
     let tokens = quote! { compile_error!("quoin_render! requires a framework feature (e.g., 'gpui', 'leptos', 'dioxus')"); };
 
-    Ok(tokens.into())
+    #[cfg(any(
+        all(feature = "gpui", feature = "leptos"),
+        all(feature = "gpui", feature = "dioxus"),
+        all(feature = "leptos", feature = "dioxus"),
+    ))]
+    let tokens = quote! { compile_error!("Only one framework feature may be enabled at a time for quoin-macros."); };
+
+    tokens.into()
 }
 
-#[manyhow::manyhow]
 #[proc_macro]
-pub fn quoin_element(input: TokenStream) -> Result<TokenStream, syn::Error> {
-    let def = syn::parse::<custom_element::CustomElementDef>(input)?;
-    Ok(custom_element::expand_custom_element(def).into())
+pub fn quoin_element(input: TokenStream) -> TokenStream {
+    let def = parse_macro_input!(input as custom_element::CustomElementDef);
+    custom_element::expand_custom_element(def).into()
 }

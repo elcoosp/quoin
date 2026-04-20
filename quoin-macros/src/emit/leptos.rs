@@ -14,7 +14,6 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
         }
     });
 
-    // Transform action methods to local closures
     let action_closures = ast.actions.iter().map(|func| {
         let sig = &func.sig;
         let block = &func.block;
@@ -35,7 +34,9 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
             #(#state_inits)*
             #(#action_closures)*
 
-            #(#render_stmts)*
+            leptos::prelude::view! {
+                #(#render_stmts)*
+            }
         }
     }
 }
