@@ -6,13 +6,9 @@ set shell := ["bash", "-c"]
 # Build & Clean
 # ---------------------------------------------------------------------
 
-# Build the entire workspace
+# Build the workspace (library crates only)
 build:
     cargo build
-
-# Build with all features (where applicable)
-build-all:
-    cargo build --all-features
 
 # Clean the workspace
 clean:
@@ -22,7 +18,7 @@ clean:
 # Testing with cargo-nextest (recommended)
 # ---------------------------------------------------------------------
 
-# Run all tests across the workspace
+# Run all workspace tests (library crates — examples excluded)
 test:
     cargo nextest run --all
 
@@ -56,9 +52,15 @@ test-quoin-floem:
 test-quoin-xilem:
     cargo nextest run -p quoin-xilem
 
-# Run conformance tests (all adapters)
-test-conformance:
-    cargo nextest run -p quoin-conformance
+# Run conformance tests per adapter (each feature separately)
+test-conformance-gpui:
+    cargo nextest run -p quoin-conformance --features gpui
+
+test-conformance-leptos:
+    cargo nextest run -p quoin-conformance --features leptos
+
+test-conformance-dioxus:
+    cargo nextest run -p quoin-conformance --features dioxus
 
 # Run UI macro expansion tests (trybuild) for quoin-macros
 test-macros-ui-gpui:
@@ -70,18 +72,18 @@ test-macros-ui-leptos:
 test-macros-ui-dioxus:
     cargo test -p quoin-macros --features dioxus --test macro_tests
 
-# Run all macro UI tests (all features)
+# Run all macro UI tests (sequentially, one feature at a time)
 test-macros-ui-all: test-macros-ui-gpui test-macros-ui-leptos test-macros-ui-dioxus
 
 # ---------------------------------------------------------------------
-# Counter Examples
+# Counter Examples (excluded from workspace — use --manifest-path)
 # ---------------------------------------------------------------------
 
 # Run GPUI counter (native)
 run-gpui:
-    cargo run -p counter-gpui
+    cargo run --manifest-path examples/counter-gpui/Cargo.toml
 
-# Run Dioxus counter (native) - temporarily disables GPUI crates to avoid cocoa conflict
+# Run Dioxus counter (native) — standalone to avoid cocoa conflict
 run-dioxus:
     cd examples/counter-dioxus && cargo run
 
@@ -95,62 +97,84 @@ serve-leptos:
 
 # Run Floem counter (native)
 run-floem:
-    cargo run -p counter-floem
+    cargo run --manifest-path examples/counter-floem/Cargo.toml
 
 # Run Xilem counter (native)
 run-xilem:
-    cargo run -p counter-xilem
+    cargo run --manifest-path examples/counter-xilem/Cargo.toml
 
 # ---------------------------------------------------------------------
-# UCP Examples
+# UCP Examples (excluded from workspace — use --manifest-path)
 # ---------------------------------------------------------------------
 
 # Run GPUI UCP demo (native)
 run-ucp-gpui:
-    cargo run -p ucp-demo
+    cargo run --manifest-path examples/ucp-demo-gpui/Cargo.toml
 
-# Run Dioxus UCP demo (native) - temporarily disables GPUI crates to avoid cocoa conflict
+# Run Dioxus UCP demo (native) — standalone to avoid cocoa conflict
 run-ucp-dioxus:
     cd examples/ucp-demo-dioxus && cargo run
+
+# Build UCP lib for a specific framework
+
+# Usage: just build-ucp-lib gpui
+build-ucp-lib framework="gpui":
+    cargo build --manifest-path examples/ucp-lib/Cargo.toml --features {{ framework }}
+
+# ---------------------------------------------------------------------
+# Mini Devtools Example
+# ---------------------------------------------------------------------
+
+# Run GPUI Mini Devtools (native)
+run-mini-devtools:
+    cargo run --manifest-path examples/mini-devtools-gpui/Cargo.toml
+
+# Watch and run GPUI Mini Devtools
+watch-mini-devtools:
+    cargo watch --manifest-path examples/mini-devtools-gpui/Cargo.toml -x run
 
 # ---------------------------------------------------------------------
 # Development Helpers
 # ---------------------------------------------------------------------
 
-# Check formatting and lints
-check:
+# Check formatting
+fmt-check:
     cargo fmt --check
-    cargo clippy --all-targets --all-features -- -D warnings
 
 # Fix formatting
 fmt:
     cargo fmt
 
+# Lint workspace (per-feature to avoid feature unification errors)
+lint:
+    cargo clippy --all-targets --features gpui -- -D warnings
+    cargo clippy --all-targets --features leptos -- -D warnings
+    cargo clippy --all-targets --features dioxus -- -D warnings
+    cargo clippy --all-targets -- -D warnings
+
+# Format + lint (full check)
+check: fmt-check lint
+
 # Run cargo fix for all packages
 fix:
     cargo fix --allow-dirty --all-targets
 
-# Watch for changes and run GPUI counter (requires cargo-watch)
+# Watch for changes and run (requires cargo-watch)
 watch-gpui:
-    cargo watch -x 'run -p counter-gpui'
+    cargo watch --manifest-path examples/counter-gpui/Cargo.toml -x run
 
-# Watch and run Dioxus counter
 watch-dioxus:
-    cargo watch -x 'run -p counter-dioxus'
+    cd examples/counter-dioxus && cargo watch -x run
 
-# Watch and run Floem counter
 watch-floem:
-    cargo watch -x 'run -p counter-floem'
+    cargo watch --manifest-path examples/counter-floem/Cargo.toml -x run
 
-# Watch and run Xilem counter
 watch-xilem:
-    cargo watch -x 'run -p counter-xilem'
+    cargo watch --manifest-path examples/counter-xilem/Cargo.toml -x run
 
-# Watch for changes and run GPUI UCP demo
 watch-ucp-gpui:
-    cargo watch -x 'run -p ucp-demo'
+    cargo watch --manifest-path examples/ucp-demo-gpui/Cargo.toml -x run
 
-# Watch and run Dioxus UCP demo
 watch-ucp-dioxus:
     cd examples/ucp-demo-dioxus && cargo watch -x run
 
@@ -158,13 +182,26 @@ watch-ucp-dioxus:
 # Leptos SSR (Native) Helpers
 # ---------------------------------------------------------------------
 
-# Clean Leptos build artifacts
 leptos-clean:
     cargo leptos clean -p counter-leptos
 
-# Build Leptos SSR server (without running)
 leptos-build:
     cargo leptos build -p counter-leptos
+
+# ---------------------------------------------------------------------
+# Compile-check all examples (no windows open)
+# ---------------------------------------------------------------------
+
+build-examples:
+    cargo build --manifest-path examples/counter-gpui/Cargo.toml
+    cargo build --manifest-path examples/ucp-demo-gpui/Cargo.toml
+    cargo build --manifest-path examples/mini-devtools-gpui/Cargo.toml
+    cargo build --manifest-path examples/ucp-lib/Cargo.toml --features gpui
+    cargo build --manifest-path examples/counter-leptos/Cargo.toml
+    cargo build --manifest-path examples/ucp-demo-leptos/Cargo.toml
+    cargo build --manifest-path examples/counter-floem/Cargo.toml
+    cargo build --manifest-path examples/counter-xilem/Cargo.toml
+    @echo "All examples build OK"
 
 # ---------------------------------------------------------------------
 # Full Demo (all examples in sequence – for verification)
@@ -172,16 +209,16 @@ leptos-build:
 
 demo:
     @echo "=== GPUI Counter ==="
-    @cargo run -p counter-gpui &
+    @cargo run --manifest-path examples/counter-gpui/Cargo.toml &
     @sleep 2
     @echo "=== Dioxus Counter ==="
-    @cargo run -p counter-dioxus &
+    @cd examples/counter-dioxus && cargo run &
     @sleep 2
     @echo "=== Floem Counter ==="
-    @cargo run -p counter-floem &
+    @cargo run --manifest-path examples/counter-floem/Cargo.toml &
     @sleep 2
     @echo "=== Xilem Counter ==="
-    @cargo run -p counter-xilem &
+    @cargo run --manifest-path examples/counter-xilem/Cargo.toml &
     @sleep 2
     @echo "=== Leptos (SSR) starting on http://127.0.0.1:3000 ==="
     @cargo leptos serve -p counter-leptos
@@ -191,9 +228,10 @@ demo:
 # ---------------------------------------------------------------------
 
 run-all:
-    cargo run -p counter-gpui &
+    cargo run --manifest-path examples/counter-gpui/Cargo.toml &
     cd examples/counter-dioxus && cargo run &
-    cargo run -p counter-floem &
-    cargo run -p counter-xilem &
+    cargo run --manifest-path examples/counter-floem/Cargo.toml &
+    cargo run --manifest-path examples/counter-xilem/Cargo.toml &
     cargo leptos serve -p counter-leptos &
-    cargo run -p ucp-demo &
+    cargo run --manifest-path examples/ucp-demo-gpui/Cargo.toml &
+    cargo run --manifest-path examples/mini-devtools-gpui/Cargo.toml &

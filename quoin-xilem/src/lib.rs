@@ -55,6 +55,11 @@ impl ReactiveContext for XilemContext {
     fn request_update(&self) {
         self.request_update();
     }
+
+    fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>> {
+        // Stub: Xilem does not have a built-in context provider mechanism.
+        None
+    }
 }
 
 /// A thread‑safe reactive signal.

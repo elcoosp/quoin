@@ -1,6 +1,6 @@
+use crate::parse::ComponentAst;
 use proc_macro2::TokenStream;
 use quote::quote;
-use crate::parse::ComponentAst;
 
 pub fn emit_component(ast: &ComponentAst) -> TokenStream {
     let vis = &ast.vis;
@@ -32,6 +32,11 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
         quote! { #fname }
     });
 
+    let state_destructure = ast.state.iter().map(|s| {
+        let fname = &s.name;
+        quote! { let #fname = &self.#fname; }
+    });
+
     let action_methods = ast.actions.iter().map(|func| {
         let sig = &func.sig;
         let block = &func.block;
@@ -40,7 +45,7 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
 
     let render_stmts = &ast.render.stmts;
 
-    let expanded = quote! {
+    quote! {
         #[derive(Clone)]
         #vis struct #props_name {
             #(#props_fields),*
@@ -67,10 +72,9 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
         impl gpui::Render for #name {
             fn render(&mut self, _window: &mut gpui::Window, cx: &mut gpui::Context<Self>) -> impl gpui::IntoElement {
                 use gpui::*;
+                #(#state_destructure)*
                 #(#render_stmts)*
             }
         }
-    };
-
-    expanded
+    }
 }

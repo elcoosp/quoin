@@ -30,6 +30,13 @@ impl ReactiveContext for DioxusContext {
     fn request_update(&self) {
         // Dioxus reactivity is automatic.
     }
+
+    fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>> {
+        // Stub: Dioxus context retrieval requires being inside a component scope
+        // and the exact API depends on how the context was provided.
+        // A full implementation would use dioxus::prelude::use_context.
+        None
+    }
 }
 
 #[derive(Clone)]

@@ -1,13 +1,9 @@
 use gpui::TestAppContext;
 use quoin::{Executor, ReactiveContext};
-use quoin_conformance::{define_conformance_tests, SleepExt};
+use quoin_conformance::{SleepExt, define_conformance_tests};
 use quoin_gpui::{GpuiContext, GpuiExecutor};
 use std::future::Future;
 use std::time::Duration;
-
-// -----------------------------------------------------------------------------
-// Newtype wrapper for GpuiExecutor to implement SleepExt without orphan rule
-// -----------------------------------------------------------------------------
 
 #[derive(Clone)]
 struct TestExecutor(GpuiExecutor);
@@ -18,7 +14,6 @@ impl SleepExt for TestExecutor {
     }
 }
 
-// Delegate all Executor methods to the inner GpuiExecutor.
 impl Executor for TestExecutor {
     type JoinHandle<T: Send + 'static> = <GpuiExecutor as Executor>::JoinHandle<T>;
 
@@ -30,10 +25,6 @@ impl Executor for TestExecutor {
         self.0.spawn(future)
     }
 }
-
-// -----------------------------------------------------------------------------
-// Test Harness
-// -----------------------------------------------------------------------------
 
 #[derive(Clone)]
 struct TestHarness {
@@ -65,10 +56,10 @@ impl ReactiveContext for TestHarness {
     fn request_update(&self) {
         self.context.request_update()
     }
-}
 
-// -----------------------------------------------------------------------------
-// Generate all conformance tests
-// -----------------------------------------------------------------------------
+    fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>> {
+        self.context.use_global()
+    }
+}
 
 define_conformance_tests!(gpui, TestHarness);

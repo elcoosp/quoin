@@ -1,6 +1,6 @@
 use dioxus_core::{Element, ScopeId, VNode, VirtualDom};
 use quoin::{Executor, ReactiveContext};
-use quoin_conformance::{define_conformance_tests, SleepExt};
+use quoin_conformance::{SleepExt, define_conformance_tests};
 use quoin_dioxus::{DioxusContext, DioxusExecutor};
 use std::future::Future;
 use std::time::Duration;
@@ -8,10 +8,6 @@ use std::time::Duration;
 fn app() -> Element {
     VNode::empty()
 }
-
-// -----------------------------------------------------------------------------
-// Newtype wrapper to implement SleepExt without orphan rule
-// -----------------------------------------------------------------------------
 
 #[derive(Clone)]
 struct TestExecutor(DioxusExecutor);
@@ -34,16 +30,11 @@ impl Executor for TestExecutor {
     }
 }
 
-// -----------------------------------------------------------------------------
-// Test Harness
-// -----------------------------------------------------------------------------
-
 struct TestHarness {
     context: DioxusContext,
     vdom: Box<VirtualDom>,
 }
 
-// SAFETY: The test harness is only used on the main thread in conformance tests.
 unsafe impl Send for TestHarness {}
 unsafe impl Sync for TestHarness {}
 
@@ -85,6 +76,10 @@ impl ReactiveContext for TestHarness {
 
     fn request_update(&self) {
         self.with_vdom(|| self.context.request_update())
+    }
+
+    fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>> {
+        self.with_vdom(|| self.context.use_global())
     }
 }
 

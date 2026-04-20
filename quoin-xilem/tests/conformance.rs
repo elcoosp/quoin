@@ -1,5 +1,5 @@
 use quoin::{Executor, ReactiveContext};
-use quoin_conformance::{define_conformance_tests, SleepExt};
+use quoin_conformance::{SleepExt, define_conformance_tests};
 use quoin_xilem::{XilemContext, XilemExecutor};
 use std::future::Future;
 use std::sync::Arc;
@@ -62,6 +62,10 @@ impl ReactiveContext for TestHarness {
 
     fn request_update(&self) {
         self.context.request_update()
+    }
+
+    fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>> {
+        self.context.use_global()
     }
 }
 

@@ -29,6 +29,13 @@ impl ReactiveContext for LeptosContext {
     fn request_update(&self) {
         // Leptos reactivity is automatic.
     }
+
+    fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>> {
+        // Stub: Leptos context lookup returns RwSignal<T>, but our signal
+        // wraps SendWrapper<T>. A full implementation would need a separate
+        // global registry that stores SendWrapper-wrapped signals.
+        None
+    }
 }
 
 #[derive(Clone)]

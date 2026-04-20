@@ -72,4 +72,27 @@ pub trait ReactiveContext: Clone + Send + Sync + 'static {
     /// This method provides a hook for that purpose. In frameworks with
     /// automatic reactivity, this may be a no‑op.
     fn request_update(&self);
+
+    /// Retrieves a global signal from the framework's context provider.
+    ///
+    /// Returns `Some(signal)` if a signal of type `T` has been provided
+    /// via the framework's context/provider mechanism, `None` otherwise.
+    ///
+    /// # Framework Behavior
+    ///
+    /// - **Leptos**: Uses `use_context::<RwSignal<T>>()` to retrieve from
+    ///   the reactive owner's context store.
+    /// - **GPUI**: Stub — always returns `None` until a global store is
+    ///   integrated.
+    /// - **Dioxus**: Stub — always returns `None` until context injection
+    ///   is supported.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// if let Some(theme) = cx.use_global::<ThemeSignal>() {
+    ///     let current = theme.get();
+    /// }
+    /// ```
+    fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>>;
 }

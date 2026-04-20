@@ -86,7 +86,7 @@ pub mod tests {
         assert_eq!(copy.get(), 100);
     }
 
-    // --- New mutation tests ---
+    // --- Mutation tests ---
 
     pub async fn signal_set_updates_value<C: ReactiveContext>(cx: &C) {
         let signal = cx.create_signal(0u32);
@@ -107,7 +107,7 @@ pub mod tests {
         signal.with(|s| assert_eq!(s, "hello world"));
     }
 
-    // --- Existing executor and cancellation tests ---
+    // --- Executor and cancellation tests ---
 
     pub async fn executor_spawn_success<C: ReactiveContext>(cx: &C)
     where
@@ -178,6 +178,13 @@ pub mod tests {
         let signal2 = cx.create_signal(2u32);
         assert_eq!(signal1.get(), 1);
         assert_eq!(signal2.get(), 2);
+    }
+
+    // --- use_global test ---
+
+    pub async fn use_global_does_not_panic<C: ReactiveContext>(cx: &C) {
+        // Should not panic even if no global is registered.
+        let _result: Option<<C as ReactiveContext>::Signal<String>> = cx.use_global();
     }
 }
 
@@ -262,6 +269,12 @@ macro_rules! define_conformance_tests {
             let cx = <$cx_type>::setup_context();
             <$cx_type>::block_on(create_multiple_signals(&cx));
         }
+
+        #[test]
+        fn test_use_global_does_not_panic() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(use_global_does_not_panic(&cx));
+        }
     };
 
     (gpui, $cx_type:ty) => {
@@ -338,6 +351,12 @@ macro_rules! define_conformance_tests {
         async fn test_create_multiple_signals(cx: &mut TestAppContext) {
             let harness = <$cx_type>::new(cx);
             create_multiple_signals(&harness).await;
+        }
+
+        #[gpui::test]
+        async fn test_use_global_does_not_panic(cx: &mut TestAppContext) {
+            let harness = <$cx_type>::new(cx);
+            use_global_does_not_panic(&harness).await;
         }
     };
 }

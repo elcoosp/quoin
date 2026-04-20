@@ -1,0 +1,14 @@
+[package]
+name = "mini-devtools-gpui"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+gpui = { git = "https://github.com/zed-industries/zed" }
+gpui_platform = { git = "https://github.com/zed-industries/zed", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
+quoin = { path = "../../quoin", features = ["gpui"] }
+quoin-gpui = { path = "../../quoin-gpui" }
+quoin-ui = { path = "../../quoin-ui" }
+quoin-ui-gpui = { path = "../../quoin-ui-gpui" }
+quoin-macros = { path = "../../quoin-macros", features = ["gpui"] }

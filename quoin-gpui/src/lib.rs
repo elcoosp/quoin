@@ -112,6 +112,13 @@ impl ReactiveContext for GpuiContext {
     fn request_update(&self) {
         self.request_update();
     }
+
+    fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>> {
+        // Stub: GPUI does not have a built-in context provider.
+        // A full implementation would require a global store registry
+        // integrated with the GPUI App context.
+        None
+    }
 }
 
 #[derive(Clone)]

@@ -28,6 +28,11 @@ impl ReactiveContext for FloemContext {
     fn request_update(&self) {
         // Floem's reactivity is automatic.
     }
+
+    fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>> {
+        // Stub: Floem does not have a built-in context provider mechanism.
+        None
+    }
 }
 
 #[derive(Clone)]

@@ -1,13 +1,9 @@
 use leptos::prelude::*;
 use quoin::{Executor, ReactiveContext};
-use quoin_conformance::{define_conformance_tests, SleepExt};
+use quoin_conformance::{SleepExt, define_conformance_tests};
 use quoin_leptos::{LeptosContext, LeptosExecutor};
 use std::future::Future;
 use std::time::Duration;
-
-// -----------------------------------------------------------------------------
-// Newtype wrapper to implement SleepExt without orphan rule
-// -----------------------------------------------------------------------------
 
 #[derive(Clone)]
 struct TestExecutor(LeptosExecutor);
@@ -29,10 +25,6 @@ impl Executor for TestExecutor {
         self.0.spawn(future)
     }
 }
-
-// -----------------------------------------------------------------------------
-// Test Harness
-// -----------------------------------------------------------------------------
 
 struct TestHarness {
     context: LeptosContext,
@@ -74,6 +66,10 @@ impl ReactiveContext for TestHarness {
     fn request_update(&self) {
         self.context.request_update()
     }
+
+    fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>> {
+        self.context.use_global()
+    }
 }
 
 impl TestContextProvider for TestHarness {
@@ -86,6 +82,4 @@ impl TestContextProvider for TestHarness {
     }
 }
 
-// The macro will import TestContextProvider internally, so we don't import it again.
-// We only import the macro and SleepExt.
 define_conformance_tests!(sync, TestHarness);
