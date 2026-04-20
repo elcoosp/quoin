@@ -1,5 +1,4 @@
-// quoin-gpui/src/lib.rs
-use gpui::{BackgroundExecutor, Context, ForegroundExecutor, Task};
+use gpui::{AsyncWindowContext, BackgroundExecutor, Context, ForegroundExecutor, Task, WeakEntity};
 use quoin::{Executor, JoinHandle, ReactiveContext, Signal as QuoinSignal};
 use send_wrapper::SendWrapper;
 use std::future::Future;
@@ -11,31 +10,52 @@ use std::sync::{Arc, Mutex};
 /// The view is responsible for setting this callback to enable automatic UI updates.
 #[derive(Clone)]
 pub struct GpuiContext {
-    foreground: SendWrapper<ForegroundExecutor>,
-    background: Option<SendWrapper<BackgroundExecutor>>,
+    pub foreground: SendWrapper<ForegroundExecutor>,
+    pub background: Option<SendWrapper<BackgroundExecutor>>,
     // Callback invoked when any signal created from this context is mutated.
-    // Stored as Arc<Mutex<Option<...>>> so the view can set it and signals can read it.
+    // Stored as Arc<Mutex<...>> to satisfy Send + Sync bounds.
     update_notifier: Arc<Mutex<Option<Arc<dyn Fn() + Send + Sync>>>>,
 }
 
 impl GpuiContext {
-    /// Create a new context. The caller **must** call `set_update_notifier` after creation
-    /// to enable automatic UI updates.
-    pub fn new<T: 'static>(_cx: &mut Context<T>) -> Self {
-        Self {
-            foreground: SendWrapper::new(_cx.foreground_executor().clone()),
-            background: None,
-            update_notifier: Arc::new(Mutex::new(None)),
-        }
+    /// Create a new context. Prefer using `cx.into()` for brevity.
+    pub fn new<T: 'static>(cx: &mut Context<T>) -> Self {
+        cx.into()
     }
 
     /// Set the notification callback. This should be a closure that triggers a view repaint,
     /// e.g., `move || cx.notify()`.
+    ///
+    /// The closure must be `Send + Sync` because `GpuiContext` may be shared across threads.
     pub fn set_update_notifier(&self, notifier: impl Fn() + Send + Sync + 'static) {
         *self.update_notifier.lock().unwrap() = Some(Arc::new(notifier));
     }
 
-    // For test environments
+    /// Convenience method that connects a view to reactive updates.
+    ///
+    /// This sets up a notifier that automatically refreshes the given view whenever
+    /// any signal created from this context changes.
+    pub fn set_view_update_notifier<V: 'static>(
+        &self,
+        weak_view: WeakEntity<V>,
+        async_window: AsyncWindowContext,
+    ) {
+        // Wrap the AsyncWindowContext to make it Send + Sync.
+        let async_window = SendWrapper::new(async_window);
+        self.set_update_notifier(move || {
+            let async_window = async_window.clone();
+            let weak_view = weak_view.clone();
+            async_window
+                .spawn(async move |cx| {
+                    if let Some(view) = weak_view.upgrade() {
+                        view.update(cx, |_, cx| cx.notify());
+                    }
+                })
+                .detach();
+        });
+    }
+
+    /// Create a context from an existing foreground executor (useful for tests).
     pub fn from_executor(foreground: ForegroundExecutor) -> Self {
         Self {
             foreground: SendWrapper::new(foreground),
@@ -44,6 +64,7 @@ impl GpuiContext {
         }
     }
 
+    /// Create a context with both foreground and background executors (useful for tests).
     pub fn for_test(foreground: ForegroundExecutor, background: BackgroundExecutor) -> Self {
         Self {
             foreground: SendWrapper::new(foreground),
@@ -55,6 +76,17 @@ impl GpuiContext {
     fn request_update(&self) {
         if let Some(notifier) = self.update_notifier.lock().unwrap().as_ref() {
             notifier();
+        }
+    }
+}
+
+/// Allow creating a `GpuiContext` directly from a GPUI `Context`.
+impl<T: 'static> From<&mut Context<'_, T>> for GpuiContext {
+    fn from(cx: &mut Context<'_, T>) -> Self {
+        Self {
+            foreground: SendWrapper::new(cx.foreground_executor().clone()),
+            background: None,
+            update_notifier: Arc::new(Mutex::new(None)),
         }
     }
 }
@@ -145,6 +177,7 @@ impl Executor for GpuiExecutor {
 }
 
 impl GpuiExecutor {
+    /// Returns a future that completes after the specified duration.
     pub fn sleep(&self, duration: std::time::Duration) -> Pin<Box<dyn Future<Output = ()> + Send>> {
         if let Some(bg) = &self.background {
             let bg = bg.clone();

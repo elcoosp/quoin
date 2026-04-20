@@ -3,7 +3,6 @@ use gpui::*;
 use gpui_platform::application;
 use quoin::Signal;
 use quoin_gpui::GpuiContext;
-use send_wrapper::SendWrapper;
 
 struct CounterView {
     counter: counter_lib::Counter<quoin_gpui::GpuiSignal<u32>>,
@@ -54,27 +53,11 @@ fn main() {
         app_cx
             .open_window(WindowOptions::default(), |window, window_cx| {
                 window_cx.new(|cx: &mut Context<CounterView>| {
-                    let ctx = GpuiContext::new(cx);
+                    // Create the reactive context from the GPUI context.
+                    let ctx: GpuiContext = cx.into();
 
-                    // Weak reference to the view
-                    let weak_view = cx.weak_entity();
-                    // Wrap AsyncWindowContext to make it Send + Sync
-                    let async_window = SendWrapper::new(window.to_async(cx));
-
-                    ctx.set_update_notifier(move || {
-                        let async_window = async_window.clone();
-                        let weak_view = weak_view.clone();
-
-                        async_window
-                            .spawn(async move |cx| {
-                                if let Some(view) = weak_view.upgrade() {
-                                    view.update(cx, |_, cx| {
-                                        cx.notify();
-                                    });
-                                }
-                            })
-                            .detach();
-                    });
+                    // Wire the view to automatically refresh when any signal changes.
+                    ctx.set_view_update_notifier(cx.weak_entity(), window.to_async(cx));
 
                     CounterView {
                         counter: use_counter(&ctx),
