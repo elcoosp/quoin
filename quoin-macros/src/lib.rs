@@ -17,8 +17,11 @@ pub fn component(input: TokenStream) -> TokenStream {
     #[cfg(feature = "leptos")]
     let tokens = emit::leptos::emit_component(&ast);
 
-    #[cfg(not(any(feature = "gpui", feature = "leptos")))]
-    let tokens = quote! { compile_error!("component! requires a framework feature (e.g., 'gpui', 'leptos')"); };
+    #[cfg(feature = "dioxus")]
+    let tokens = emit::dioxus::emit_component(&ast);
+
+    #[cfg(not(any(feature = "gpui", feature = "leptos", feature = "dioxus")))]
+    let tokens = quote! { compile_error!("component! requires a framework feature (e.g., 'gpui', 'leptos', 'dioxus')"); };
 
     tokens.into()
 }
@@ -33,8 +36,11 @@ pub fn quoin_render(input: TokenStream) -> TokenStream {
     #[cfg(feature = "leptos")]
     let tokens = emit::render_leptos::emit_render(&ast);
 
-    #[cfg(not(any(feature = "gpui", feature = "leptos")))]
-    let tokens = quote! { compile_error!("quoin_render! requires a framework feature (e.g., 'gpui', 'leptos')"); };
+    #[cfg(feature = "dioxus")]
+    let tokens = emit::render_dioxus::emit_render(&ast);
+
+    #[cfg(not(any(feature = "gpui", feature = "leptos", feature = "dioxus")))]
+    let tokens = quote! { compile_error!("quoin_render! requires a framework feature (e.g., 'gpui', 'leptos', 'dioxus')"); };
 
     tokens.into()
 }

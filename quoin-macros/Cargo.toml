@@ -18,3 +18,4 @@ trybuild = "1.0"
 default = []
 gpui = []
 leptos = []
+dioxus = []

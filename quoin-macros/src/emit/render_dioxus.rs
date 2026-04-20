@@ -1,7 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 use crate::render_ast::{RenderNode, Element, IfNode, ForEachNode};
-use syn::Expr;
 
 pub fn emit_render(node: &RenderNode) -> TokenStream {
     match node {
@@ -31,26 +30,21 @@ fn emit_element(el: &Element) -> TokenStream {
         _ => "div",
     };
 
+    // Build attribute pairs
     let mut attr_tokens = Vec::new();
     for (key, value) in &el.args {
         let key_str = key.to_string();
-        match key_str.as_str() {
-            "class" => attr_tokens.push(quote! { class=#value }),
-            "id" => attr_tokens.push(quote! { id=#value }),
-            "on_click" => attr_tokens.push(quote! { on:click=#value }),
-            "value" => attr_tokens.push(quote! { value=#value }),
-            "placeholder" => attr_tokens.push(quote! { placeholder=#value }),
-            _ => {}
-        }
+        let key_ident = proc_macro2::Ident::new(&key_str, proc_macro2::Span::call_site());
+        attr_tokens.push(quote! { #key_ident: #value });
     }
 
     let children: Vec<TokenStream> = el.children.iter().map(emit_render).collect();
     let tag_ident = proc_macro2::Ident::new(tag, proc_macro2::Span::call_site());
 
     if children.is_empty() {
-        quote! { <#tag_ident #(#attr_tokens)* /> }
+        quote! { #tag_ident { #(#attr_tokens),* } }
     } else {
-        quote! { <#tag_ident #(#attr_tokens)*> #(#children)* </#tag_ident> }
+        quote! { #tag_ident { #(#attr_tokens),* #(#children)* } }
     }
 }
 
@@ -61,17 +55,17 @@ fn emit_if(if_node: &IfNode) -> TokenStream {
     if let Some(else_branch) = &if_node.else_branch {
         let else_branch_tokens = emit_nodes(else_branch);
         quote! {
-            {move || if #cond {
-                leptos::prelude::view! { #then_branch }
+            if #cond {
+                dioxus::prelude::rsx! { #then_branch }
             } else {
-                leptos::prelude::view! { #else_branch_tokens }
-            }}
+                dioxus::prelude::rsx! { #else_branch_tokens }
+            }
         }
     } else {
         quote! {
-            {move || if #cond {
-                leptos::prelude::view! { #then_branch }
-            }}
+            if #cond {
+                dioxus::prelude::rsx! { #then_branch }
+            }
         }
     }
 }
@@ -82,13 +76,10 @@ fn emit_for_each(fe: &ForEachNode) -> TokenStream {
     let item_render = emit_render(&fe.item_template);
 
     quote! {
-        <leptos::prelude::For
-            each=move || #items.clone()
-            key=#key
-            children=move |item| {
-                leptos::prelude::view! { #item_render }
-            }
-        />
+        #items.iter().map(|item| {
+            let _key = #key;
+            dioxus::prelude::rsx! { #item_render }
+        })
     }
 }
 
