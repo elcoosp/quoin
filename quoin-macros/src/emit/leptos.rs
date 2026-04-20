@@ -13,10 +13,17 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
         }
     });
 
-    let action_methods = ast.actions.iter().map(|func| {
+    // For Leptos, actions are defined as local closures that capture signals.
+    // The macro user writes `fn action(&self) { ... }`, we transform to `let action = ...`.
+    let action_closures = ast.actions.iter().map(|func| {
         let sig = &func.sig;
         let block = &func.block;
-        quote! { #sig #block }
+        let name = &sig.ident;
+        quote! {
+            let #name = {
+                #block
+            };
+        }
     });
 
     let render_stmts = &ast.render.stmts;
@@ -24,9 +31,10 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
     quote! {
         #[leptos::prelude::component]
         pub fn #name() -> impl leptos::prelude::IntoView {
+            use quoin::ReactiveContext;
             let ctx = quoin_leptos::LeptosContext::new();
             #(#state_inits)*
-            #(#action_methods)*
+            #(#action_closures)*
 
             #(#render_stmts)*
         }

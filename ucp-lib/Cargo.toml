@@ -1,0 +1,14 @@
+[package]
+name = "ucp-lib"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+quoin = { path = "../quoin" }
+quoin-macros = { path = "../quoin-macros" }
+gpui = { git = "https://github.com/zed-industries/zed", optional = true }
+leptos = { version = "0.8", optional = true }
+
+[features]
+gpui = ["dep:gpui", "quoin/gpui", "quoin-macros/gpui"]
+leptos = ["dep:leptos", "quoin/leptos", "quoin-macros/leptos"]

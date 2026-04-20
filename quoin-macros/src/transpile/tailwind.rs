@@ -68,10 +68,13 @@ pub fn transpile_class(class_str: &str) -> Vec<TokenStream> {
             "rounded-md" => quote! { .rounded(gpui::px(6.0)) },
             "rounded-lg" => quote! { .rounded(gpui::px(8.0)) },
             "rounded-full" => quote! { .rounded(gpui::px(9999.0)) },
+            // Font weight
+            "font-bold" => quote! { .font_weight(gpui::FontWeight::BOLD) },
+            "font-semibold" => quote! { .font_weight(gpui::FontWeight::SEMIBOLD) },
             // Cursor
             "cursor-pointer" => quote! { .cursor_pointer() },
             "cursor-default" => quote! { .cursor_default() },
-            _ => continue,
+            _ => quote! { compile_error!(concat!("Unknown Tailwind class: ", #class)) },
         };
         tokens.push(token);
     }
