@@ -4,8 +4,9 @@ use quoin::Signal;
 use quoin_dioxus::DioxusContext;
 
 fn app() -> Element {
-    let ctx = DioxusContext::new();
-    let counter = use_counter(&ctx);
+    // ✅ Store the context and counter in hooks – created only once.
+    let ctx = use_hook(DioxusContext::new);
+    let counter = use_hook(|| use_counter(&ctx));
 
     rsx! {
         div {
