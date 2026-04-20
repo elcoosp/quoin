@@ -1,5 +1,5 @@
+// quoin-macros/tests/ui/render_dioxus_pass.rs
 use quoin_macros::quoin_render;
-use dioxus::prelude::*;
 
 fn main() {
     let _ = quoin_render! {

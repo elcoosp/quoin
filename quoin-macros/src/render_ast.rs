@@ -1,5 +1,6 @@
+// quoin-macros/src/render_ast.rs
 use syn::parse::{Parse, ParseStream};
-use syn::{braced, parenthesized, Ident, Expr, LitStr, Result, Token};
+use syn::{Expr, Ident, LitStr, Result, Token, braced, parenthesized};
 
 #[derive(Debug)]
 pub enum RenderNode {
@@ -7,7 +8,7 @@ pub enum RenderNode {
     Text(LitStr),
     Expr(Expr),
     If(IfNode),
-    ForEach(ForEachNode),
+    For(ForNode),
 }
 
 #[derive(Debug)]
@@ -26,10 +27,10 @@ pub struct IfNode {
 }
 
 #[derive(Debug)]
-pub struct ForEachNode {
-    pub items: Expr,
-    pub key: Expr,
-    pub item_template: Box<RenderNode>,
+pub struct ForNode {
+    pub pat: Ident, // <-- Changed from Pat to Ident
+    pub iterable: Expr,
+    pub body: Vec<RenderNode>,
 }
 
 impl Parse for RenderNode {
@@ -39,7 +40,7 @@ impl Parse for RenderNode {
             let ident: Ident = input.fork().parse()?;
             let ident_str = ident.to_string();
             match ident_str.as_str() {
-                "if" => {
+                "@if" => {
                     input.parse::<Ident>()?;
                     let condition: Expr = input.parse()?;
                     let then_content;
@@ -50,34 +51,38 @@ impl Parse for RenderNode {
                         let else_content;
                         braced!(else_content in input);
                         Some(parse_nodes(&else_content)?)
-                    } else { None };
-                    Ok(RenderNode::If(IfNode { condition, then_branch, else_branch }))
+                    } else {
+                        None
+                    };
+                    Ok(RenderNode::If(IfNode {
+                        condition,
+                        then_branch,
+                        else_branch,
+                    }))
                 }
-                "for_each" => {
+                "@for" => {
                     input.parse::<Ident>()?;
-                    let args_content;
-                    parenthesized!(args_content in input);
-                    let items: Expr = args_content.parse()?;
-                    args_content.parse::<Token![,]>()?;
-                    args_content.parse::<Ident>()?;
-                    args_content.parse::<Token![:]>()?;
-                    let key: Expr = args_content.parse()?;
-                    let template_content;
-                    braced!(template_content in input);
-                    let template_node = parse_node(&template_content)?;
-                    Ok(RenderNode::ForEach(ForEachNode { items, key, item_template: Box::new(template_node) }))
+                    let pat: Ident = input.parse()?; // <-- Changed from Pat to Ident
+                    input.parse::<Token![in]>()?;
+                    let iterable: Expr = input.parse()?;
+                    let body_content;
+                    braced!(body_content in input);
+                    let body = parse_nodes(&body_content)?;
+                    Ok(RenderNode::For(ForNode {
+                        pat,
+                        iterable,
+                        body,
+                    }))
                 }
+                "if" | "for_each" => Ok(RenderNode::Expr(input.parse()?)),
                 _ => {
                     let fork = input.fork();
                     fork.parse::<Ident>()?;
                     if fork.peek(Token![!]) {
-                        // Macro call like format!, vec!
                         Ok(RenderNode::Expr(input.parse()?))
                     } else if fork.peek(syn::token::Paren) {
-                        // Element with arguments
                         parse_element(input)
                     } else {
-                        // Plain expression (variable, literal, etc.)
                         Ok(RenderNode::Expr(input.parse()?))
                     }
                 }
@@ -113,8 +118,15 @@ fn parse_element(input: ParseStream) -> Result<RenderNode> {
         let content;
         braced!(content in input);
         parse_nodes(&content)?
-    } else { Vec::new() };
-    Ok(RenderNode::Element(Element { name, args, children, children_expr }))
+    } else {
+        Vec::new()
+    };
+    Ok(RenderNode::Element(Element {
+        name,
+        args,
+        children,
+        children_expr,
+    }))
 }
 
 fn parse_nodes(input: ParseStream) -> Result<Vec<RenderNode>> {

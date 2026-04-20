@@ -102,6 +102,18 @@ run-xilem:
     cargo run -p counter-xilem
 
 # ---------------------------------------------------------------------
+# UCP Examples
+# ---------------------------------------------------------------------
+
+# Run GPUI UCP demo (native)
+run-ucp-gpui:
+    cargo run -p ucp-demo
+
+# Run Dioxus UCP demo (native) - temporarily disables GPUI crates to avoid cocoa conflict
+run-ucp-dioxus:
+    cd examples/ucp-demo-dioxus && cargo run
+
+# ---------------------------------------------------------------------
 # Development Helpers
 # ---------------------------------------------------------------------
 
@@ -118,21 +130,29 @@ fmt:
 fix:
     cargo fix --allow-dirty --all-targets
 
-# Watch for changes and run GPUI example (requires cargo-watch)
+# Watch for changes and run GPUI counter (requires cargo-watch)
 watch-gpui:
     cargo watch -x 'run -p counter-gpui'
 
-# Watch and run Dioxus example
+# Watch and run Dioxus counter
 watch-dioxus:
     cargo watch -x 'run -p counter-dioxus'
 
-# Watch and run Floem example
+# Watch and run Floem counter
 watch-floem:
     cargo watch -x 'run -p counter-floem'
 
-# Watch and run Xilem example
+# Watch and run Xilem counter
 watch-xilem:
     cargo watch -x 'run -p counter-xilem'
+
+# Watch for changes and run GPUI UCP demo
+watch-ucp-gpui:
+    cargo watch -x 'run -p ucp-demo'
+
+# Watch and run Dioxus UCP demo
+watch-ucp-dioxus:
+    cd examples/ucp-demo-dioxus && cargo watch -x run
 
 # ---------------------------------------------------------------------
 # Leptos SSR (Native) Helpers
@@ -176,3 +196,4 @@ run-all:
     cargo run -p counter-floem &
     cargo run -p counter-xilem &
     cargo leptos serve -p counter-leptos &
+    cargo run -p ucp-demo &

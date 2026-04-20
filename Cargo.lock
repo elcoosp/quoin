@@ -9778,7 +9778,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "40ce102ab67701b8526c123c1bab5cbe42d7040ccfd0f64af1a385808d2f43de"
 
 [[package]]
-name = "ucp-demo"
+name = "ucp-demo-gpui"
 version = "0.1.0"
 dependencies = [
  "gpui",
@@ -9806,9 +9806,11 @@ dependencies = [
 name = "ucp-lib"
 version = "0.1.0"
 dependencies = [
+ "dioxus",
  "gpui",
  "leptos",
  "quoin",
+ "quoin-dioxus",
  "quoin-gpui",
  "quoin-leptos",
  "quoin-macros",

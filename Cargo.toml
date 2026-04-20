@@ -1,3 +1,4 @@
+# Cargo.toml (workspace root)
 [workspace]
 resolver = "2"
 members = [
@@ -20,14 +21,15 @@ members = [
     "quoin-ui",
     "quoin-ui-gpui",
     "quoin-expand-test",
-
 ]
 exclude = [
-    "examples/counter-dioxus",   # Excluded due to cocoa conflict with GPUI
+    "examples/counter-dioxus",
+    "examples/ucp-demo-dioxus",
 ]
 
 [workspace.package]
 edition = "2024"
+
 [[workspace.metadata.leptos]]
 name = "counter-leptos"
 bin-package = "counter-leptos"

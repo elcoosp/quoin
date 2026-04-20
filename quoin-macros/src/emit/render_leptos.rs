@@ -1,28 +1,20 @@
+// quoin-macros/src/emit/render_leptos.rs
+use crate::render_ast::{Element, ForNode, IfNode, RenderNode};
 use proc_macro2::TokenStream;
 use quote::quote;
-use crate::render_ast::{RenderNode, Element, IfNode, ForEachNode};
-use syn::Expr;
 
 pub fn emit_render(node: &RenderNode) -> TokenStream {
     let inner = emit_render_inner(node);
-    quote! {
-        {
-            use leptos::prelude::*;
-            view! {
-                #inner
-            }
-        }
-    }
+    quote! { { use leptos::prelude::*; view! { #inner } } }
 }
 
 fn emit_render_inner(node: &RenderNode) -> TokenStream {
     match node {
         RenderNode::Element(el) => emit_element(el),
         RenderNode::Text(t) => quote! { #t },
-        // Wrap expressions in move || closure for reactivity
-        RenderNode::Expr(e) => quote! { {move || #e} },
+        RenderNode::Expr(e) => quote! { { #e } },
         RenderNode::If(if_node) => emit_if(if_node),
-        RenderNode::ForEach(fe) => emit_for_each(fe),
+        RenderNode::For(for_node) => emit_for(for_node),
     }
 }
 
@@ -37,7 +29,6 @@ fn emit_element(el: &Element) -> TokenStream {
         "button" => "button",
         _ => "div",
     };
-
     let mut attrs = Vec::new();
     for (key, value) in &el.args {
         let key_str = key.to_string();
@@ -48,7 +39,6 @@ fn emit_element(el: &Element) -> TokenStream {
             _ => {}
         }
     }
-
     let mut children = Vec::new();
     if let Some(children_expr) = &el.children_expr {
         children.push(quote! { {#children_expr} });
@@ -57,7 +47,6 @@ fn emit_element(el: &Element) -> TokenStream {
             children.push(emit_render_inner(child));
         }
     }
-
     let tag_ident = proc_macro2::Ident::new(tag, proc_macro2::Span::call_site());
     if children.is_empty() {
         quote! { <#tag_ident #(#attrs)* /> }
@@ -77,17 +66,17 @@ fn emit_if(if_node: &IfNode) -> TokenStream {
     }
 }
 
-fn emit_for_each(fe: &ForEachNode) -> TokenStream {
-    let items = &fe.items;
-    let key = &fe.key;
-    let item_elem = emit_render_inner(&fe.item_template);
-    quote! {{
-        let items = #items;
-        items.into_iter().map(|item| {
-            let _key = #key;
-            #item_elem
-        }).collect::<Vec<_>>()
-    }}
+fn emit_for(for_node: &ForNode) -> TokenStream {
+    let pat = &for_node.pat;
+    let iterable = &for_node.iterable;
+    let body = emit_nodes(&for_node.body);
+    quote! {
+        <leptos::prelude::For
+            each=move || #iterable.clone().into_iter().collect::<Vec<_>>()
+            key=|item| item.id
+            children=move |#pat| view! { #body }
+        />
+    }
 }
 
 fn emit_nodes(nodes: &[RenderNode]) -> TokenStream {

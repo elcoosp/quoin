@@ -1,0 +1,12 @@
+# examples/ucp-demo-dioxus/Cargo.toml
+[package]
+name = "ucp-demo-dioxus"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+dioxus = { version = "0.7", features = ["desktop"] }
+quoin = { path = "../../quoin", features = ["dioxus"] }
+quoin-dioxus = { path = "../../quoin-dioxus" }
+ucp-lib = { path = "../ucp-lib", features = ["dioxus"] }

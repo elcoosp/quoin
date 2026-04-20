@@ -1,5 +1,6 @@
+# examples/ucp-demo/Cargo.toml
 [package]
-name = "ucp-demo"
+name = "ucp-demo-gpui"
 version = "0.1.0"
 edition = "2021"
 publish = false

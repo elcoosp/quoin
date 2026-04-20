@@ -1,7 +1,5 @@
+// quoin-macros/tests/ui/component_dioxus_pass.rs
 use quoin_macros::component;
-use quoin::ReactiveContext;
-use quoin_dioxus::DioxusContext;
-use dioxus::prelude::*;
 
 component! {
     TestDioxus {
@@ -10,7 +8,7 @@ component! {
         }
         render {
             let _ = count.get();
-            rsx! { div {} }
+            dioxus::prelude::rsx! { div {} }
         }
     }
 }
