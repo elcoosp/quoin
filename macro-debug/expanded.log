@@ -1,0 +1,299 @@
+warning: missing documentation for a module
+   --> quoin/src/lib.rs:104:1
+    |
+104 | pub mod macros;
+    | ^^^^^^^^^^^^^^
+    |
+note: the lint level is defined here
+   --> quoin/src/lib.rs:87:9
+    |
+ 87 | #![warn(missing_docs, clippy::all, clippy::pedantic)]
+    |         ^^^^^^^^^^^^
+warning: unused variable: `rows_expr`
+   --> quoin-macros/src/emit/render_gpui.rs:102:9
+    |
+102 |     let rows_expr = find_arg_expr(el, "rows").expect("d...
+    |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_rows_expr`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+warning: unused variable: `row_type`
+   --> quoin-macros/src/transpile/table_codegen.rs:159:5
+    |
+159 |     row_type: &syn::Type,
+    |     ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_row_type`
+warning: unused variable: `text_expr`
+  --> quoin-macros/src/transpile/rich_text_codegen.rs:75:5
+   |
+75 |     text_expr: &syn::Expr,
+   |     ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_text_expr`
+warning: type `PropDef` is more private than the item `CustomElementDef::props`
+  --> quoin-macros/src/custom_element.rs:8:5
+   |
+ 8 |     pub props: Vec<PropDef>,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^ field `CustomElementDef::props` is reachable at visibility `pub(crate)`
+   |
+note: but type `PropDef` is only usable at visibility `pub(self)`
+  --> quoin-macros/src/custom_element.rs:11:1
+   |
+11 | struct PropDef {
+   | ^^^^^^^^^^^^^^
+   = note: `#[warn(private_interfaces)]` on by default
+warning: field `default` is never read
+  --> quoin-macros/src/parse.rs:17:9
+   |
+14 | pub struct PropField {
+   |            --------- field in this struct
+...
+17 |     pub default: Option<Expr>,
+   |         ^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+warning: function `emit_component` is never used
+ --> quoin-macros/src/emit/leptos.rs:5:8
+  |
+5 | pub fn emit_component(ast: &ComponentAst) -> TokenStream {
+  |        ^^^^^^^^^^^^^^
+warning: function `emit_component` is never used
+ --> quoin-macros/src/emit/dioxus.rs:5:8
+  |
+5 | pub fn emit_component(ast: &ComponentAst) -> TokenStream {
+  |        ^^^^^^^^^^^^^^
+warning: function `emit_render` is never used
+  --> quoin-macros/src/emit/render_leptos.rs:11:8
+   |
+11 | pub fn emit_render(node: &RenderNode) -> TokenStream {
+   |        ^^^^^^^^^^^
+warning: function `emit_element` is never used
+  --> quoin-macros/src/emit/render_leptos.rs:21:4
+   |
+21 | fn emit_element(el: &Element) -> TokenStream {
+   |    ^^^^^^^^^^^^
+warning: function `emit_builtin` is never used
+  --> quoin-macros/src/emit/render_leptos.rs:34:4
+   |
+34 | fn emit_builtin(el: &Element) -> TokenStream {
+   |    ^^^^^^^^^^^^
+warning: function `emit_virtual_list` is never used
+  --> quoin-macros/src/emit/render_leptos.rs:59:4
+   |
+59 | fn emit_virtual_list(el: &Element) -> TokenStream {
+   |    ^^^^^^^^^^^^^^^^^
+warning: function `emit_rich_text` is never used
+  --> quoin-macros/src/emit/render_leptos.rs:67:4
+   |
+67 | fn emit_rich_text(el: &Element) -> TokenStream {
+   |    ^^^^^^^^^^^^^^
+warning: function `emit_dropdown` is never used
+  --> quoin-macros/src/emit/render_leptos.rs:75:4
+   |
+75 | fn emit_dropdown(el: &Element) -> TokenStream {
+   |    ^^^^^^^^^^^^^
+warning: function `emit_tabs` is never used
+  --> quoin-macros/src/emit/render_leptos.rs:90:4
+   |
+90 | fn emit_tabs(el: &Element) -> TokenStream {
+   |    ^^^^^^^^^
+warning: function `emit_data_table` is never used
+  --> quoin-macros/src/emit/render_leptos.rs:95:4
+   |
+95 | fn emit_data_table(el: &Element) -> TokenStream {
+   |    ^^^^^^^^^^^^^^^
+warning: function `emit_if` is never used
+   --> quoin-macros/src/emit/render_leptos.rs:115:4
+    |
+115 | fn emit_if(if_node: &IfNode) -> TokenStream {
+    |    ^^^^^^^
+warning: function `emit_for_each` is never used
+   --> quoin-macros/src/emit/render_leptos.rs:126:4
+    |
+126 | fn emit_for_each(fe: &ForEachNode) -> TokenStream {
+    |    ^^^^^^^^^^^^^
+warning: function `emit_nodes` is never used
+   --> quoin-macros/src/emit/render_leptos.rs:133:4
+    |
+133 | fn emit_nodes(nodes: &[RenderNode]) -> TokenStream {
+    |    ^^^^^^^^^^
+warning: function `find_arg_expr` is never used
+   --> quoin-macros/src/emit/render_leptos.rs:138:4
+    |
+138 | fn find_arg_expr<'a>(el: &'a Element, key: &str) -> Opt...
+    |    ^^^^^^^^^^^^^
+warning: function `find_arg_lit_string` is never used
+   --> quoin-macros/src/emit/render_leptos.rs:141:4
+    |
+141 | fn find_arg_lit_string(el: &Element, key: &str) -> Opti...
+    |    ^^^^^^^^^^^^^^^^^^^
+warning: function `emit_render` is never used
+  --> quoin-macros/src/emit/render_dioxus.rs:11:8
+   |
+11 | pub fn emit_render(node: &RenderNode) -> TokenStream {
+   |        ^^^^^^^^^^^
+warning: function `emit_element` is never used
+  --> quoin-macros/src/emit/render_dioxus.rs:21:4
+   |
+21 | fn emit_element(el: &Element) -> TokenStream {
+   |    ^^^^^^^^^^^^
+warning: function `emit_builtin` is never used
+  --> quoin-macros/src/emit/render_dioxus.rs:34:4
+   |
+34 | fn emit_builtin(el: &Element) -> TokenStream {
+   |    ^^^^^^^^^^^^
+warning: function `emit_virtual_list` is never used
+  --> quoin-macros/src/emit/render_dioxus.rs:53:4
+   |
+53 | fn emit_virtual_list(el: &Element) -> TokenStream {
+   |    ^^^^^^^^^^^^^^^^^
+warning: function `emit_rich_text` is never used
+  --> quoin-macros/src/emit/render_dioxus.rs:61:4
+   |
+61 | fn emit_rich_text(el: &Element) -> TokenStream {
+   |    ^^^^^^^^^^^^^^
+warning: function `emit_dropdown` is never used
+  --> quoin-macros/src/emit/render_dioxus.rs:69:4
+   |
+69 | fn emit_dropdown(el: &Element) -> TokenStream {
+   |    ^^^^^^^^^^^^^
+warning: function `emit_tabs` is never used
+  --> quoin-macros/src/emit/render_dioxus.rs:84:4
+   |
+84 | fn emit_tabs(_el: &Element) -> TokenStream { quote! { di...
+   |    ^^^^^^^^^
+warning: function `emit_data_table` is never used
+  --> quoin-macros/src/emit/render_dioxus.rs:86:4
+   |
+86 | fn emit_data_table(el: &Element) -> TokenStream {
+   |    ^^^^^^^^^^^^^^^
+warning: function `emit_if` is never used
+   --> quoin-macros/src/emit/render_dioxus.rs:106:4
+    |
+106 | fn emit_if(if_node: &IfNode) -> TokenStream {
+    |    ^^^^^^^
+warning: function `emit_for_each` is never used
+   --> quoin-macros/src/emit/render_dioxus.rs:117:4
+    |
+117 | fn emit_for_each(fe: &ForEachNode) -> TokenStream {
+    |    ^^^^^^^^^^^^^
+warning: function `emit_nodes` is never used
+   --> quoin-macros/src/emit/render_dioxus.rs:124:4
+    |
+124 | fn emit_nodes(nodes: &[RenderNode]) -> TokenStream {
+    |    ^^^^^^^^^^
+warning: function `find_arg_expr` is never used
+   --> quoin-macros/src/emit/render_dioxus.rs:129:4
+    |
+129 | fn find_arg_expr<'a>(el: &'a Element, key: &str) -> Opt...
+    |    ^^^^^^^^^^^^^
+warning: function `find_arg_lit_string` is never used
+   --> quoin-macros/src/emit/render_dioxus.rs:132:4
+    |
+132 | fn find_arg_lit_string(el: &Element, key: &str) -> Opti...
+    |    ^^^^^^^^^^^^^^^^^^^
+warning: fields `label`, `width`, and `render_closure` are never read
+  --> quoin-macros/src/transpile/table_codegen.rs:8:9
+   |
+ 6 | pub struct ColumnDef {
+   |            --------- fields in this struct
+ 7 |     pub key: String,
+ 8 |     pub label: String,
+   |         ^^^^^
+ 9 |     pub width: Option<f32>,
+   |         ^^^^^
+10 |     pub sortable: bool,
+11 |     pub render_closure: syn::Expr,
+   |         ^^^^^^^^^^^^^^
+warning: function `generate_leptos_table` is never used
+   --> quoin-macros/src/transpile/table_codegen.rs:103:8
+    |
+103 | pub fn generate_leptos_table(
+    |        ^^^^^^^^^^^^^^^^^^^^^
+warning: function `generate_dioxus_table` is never used
+   --> quoin-macros/src/transpile/table_codegen.rs:158:8
+    |
+158 | pub fn generate_dioxus_table(
+    |        ^^^^^^^^^^^^^^^^^^^^^
+warning: function `generate_leptos_virtual_list` is never used
+  --> quoin-macros/src/transpile/virtual_list_codegen.rs:36:8
+   |
+36 | pub fn generate_leptos_virtual_list(
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+warning: function `generate_dioxus_virtual_list` is never used
+  --> quoin-macros/src/transpile/virtual_list_codegen.rs:52:8
+   |
+52 | pub fn generate_dioxus_virtual_list(
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+warning: function `generate_leptos_rich_text` is never used
+  --> quoin-macros/src/transpile/rich_text_codegen.rs:41:8
+   |
+41 | pub fn generate_leptos_rich_text(
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^
+warning: function `generate_dioxus_rich_text` is never used
+  --> quoin-macros/src/transpile/rich_text_codegen.rs:74:8
+   |
+74 | pub fn generate_dioxus_rich_text(
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^
+warning: function `generate_leptos_dropdown` is never used
+  --> quoin-macros/src/transpile/dropdown_codegen.rs:36:8
+   |
+36 | pub fn generate_leptos_dropdown(
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^
+warning: function `generate_dioxus_dropdown` is never used
+  --> quoin-macros/src/transpile/dropdown_codegen.rs:61:8
+   |
+61 | pub fn generate_dioxus_dropdown(
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^
+    Checking macro-debug v0.1.0 (/Users/adm/Documents/Repos/quoin/macro-debug)
+error: expected identifier, found `,`
+ --> macro-debug/src/lib.rs:3:1
+  |
+3 | / component! {
+4 | |     DemoApp {
+5 | |         render {}
+6 | |     }
+7 | | }
+  | | ^
+  | | |
+  | |_expected identifier
+  |   while parsing this struct
+  |
+  = note: this error originates in the macro `component` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: remove this comma
+  |
+3 - component! {
+4 -     DemoApp {
+5 -         render {}
+6 -     }
+7 - }
+  |
+
+#![feature(prelude_import)]
+extern crate std;
+#[prelude_import]
+use std::prelude::rust_2024::*;
+use quoin_macros::component;
+pub struct DemoAppProps {}
+#[automatically_derived]
+impl ::core::clone::Clone for DemoAppProps {
+    #[inline]
+    fn clone(&self) -> DemoAppProps {
+        DemoAppProps {}
+    }
+}
+pub struct DemoApp {
+    props: DemoAppProps,
+    _ctx: quoin_gpui::GpuiContext,
+}
+impl DemoApp {
+    pub fn new(cx: &mut gpui::Context<Self>, props: DemoAppProps) -> Self {
+        let ctx: quoin_gpui::GpuiContext = cx.into();
+        Self { props, _ctx: ctx }
+    }
+}
+impl gpui::Render for DemoApp {
+    fn render(
+        &mut self,
+        _window: &mut gpui::Window,
+        _cx: &mut gpui::Context<Self>,
+    ) -> impl gpui::IntoElement {
+        use gpui::*;
+    }
+}

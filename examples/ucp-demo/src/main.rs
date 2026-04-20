@@ -1,12 +1,14 @@
 use gpui::*;
 use gpui_platform::application;
 use quoin::ReactiveContext;
+use quoin::Signal;
 use quoin_gpui::GpuiContext;
-use quoin_macros::{component, quoin_render};
+use quoin_macros::component;
 
 component! {
     DemoApp {
         state {
+            count: u32 = 0,
             selected: String = "Option A".to_string(),
             rows: Vec<Person> = vec![
                 Person { id: 1, name: "Alice".to_string(), age: 30 },
@@ -14,39 +16,63 @@ component! {
             ],
         }
 
-        fn select_option(&self, option: String) {
-            self.selected.set(option);
+        fn increment(count: quoin_gpui::GpuiSignal<u32>) {
+            count.update(|c| *c += 1);
+        }
+
+        fn select_option(selected: quoin_gpui::GpuiSignal<String>, option: String) {
+            selected.set(option);
         }
 
         render {
-            quoin_render! {
-                div(class: "flex flex-col gap-4 p-4") {
-                    // Dropdown example
-                    dropdown(trigger: quoin_render! {
-                        button(class: "px-4 py-2 bg-gray-800 text-white rounded") {
-                            "Choose: "
-                            {selected.get()}
-                        }
-                    }) {
-                        menu_item(label: "Option A", on_click: action!(selected => selected.set("Option A".to_string())))
-                        menu_item(label: "Option B", on_click: action!(selected => selected.set("Option B".to_string())))
-                    }
-
-                    // Data table example
-                    data_table(
-                        rows: rows.get(),
-                        striped: true,
-                        adapter: _table_adapter
-                    ) {
-                        column(key: "name", label: "Name", width: 150.0, sortable: true) {
-                            |row: &Person| { row.name.clone() }
-                        }
-                        column(key: "age", label: "Age", width: 100.0) {
-                            |row: &Person| { row.age.to_string() }
-                        }
-                    }
-                }
-            }
+            div()
+                .flex()
+                .flex_col()
+                .gap_4()
+                .p_4()
+                .child(div().child(format!("Count: {}", self.count.get())))
+                .child(
+                    div()
+                        .px_4()
+                        .py_2()
+                        .bg(rgb(0x4e4e4e))
+                        .rounded_md()
+                        .cursor_pointer()
+                        .child("Increment")
+                        .on_mouse_down(MouseButton::Left, {
+                            let count = self.count.clone();
+                            move |_ev, _window, _cx| {
+                                Self::increment(count.clone());
+                            }
+                        })
+                )
+                .child(div().child(format!("Selected: {}", self.selected.get())))
+                .child(
+                    div()
+                        .px_4()
+                        .py_2()
+                        .bg(rgb(0x2563eb))
+                        .rounded_md()
+                        .cursor_pointer()
+                        .child("Select Option A")
+                        .on_mouse_down(MouseButton::Left, {
+                            let selected = self.selected.clone();
+                            move |_ev, _window, _cx| {
+                                Self::select_option(selected.clone(), "Option A".to_string());
+                            }
+                        })
+                )
+                .child(div().child("People:"))
+                .child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .children(
+                            self.rows.get().iter().map(|person| {
+                                div().child(format!("{} - {}", person.name, person.age))
+                            }).collect::<Vec<_>>()
+                        )
+                )
         }
     }
 }
@@ -58,27 +84,17 @@ struct Person {
     age: u32,
 }
 
-struct DemoView {
-    app: DemoApp,
-    _ctx: GpuiContext,
-}
-
-impl Render for DemoView {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        self.app.render(window, cx)
-    }
-}
-
 fn main() {
     application().run(|app_cx: &mut App| {
-        app_cx.open_window(WindowOptions::default(), |window, window_cx| {
-            window_cx.new(|cx: &mut Context<DemoView>| {
-                let ctx: GpuiContext = cx.into();
-                ctx.set_view_update_notifier(cx.weak_entity(), window.to_async(cx));
-                let app = DemoApp::new(cx, DemoAppProps {});
-                DemoView { app, _ctx: ctx }
+        app_cx
+            .open_window(WindowOptions::default(), |window, window_cx| {
+                window_cx.new(|cx: &mut Context<DemoApp>| {
+                    let ctx: GpuiContext = cx.into();
+                    ctx.set_view_update_notifier(cx.weak_entity(), window.to_async(cx));
+                    DemoApp::new(cx, DemoAppProps {})
+                })
             })
-        }).unwrap();
+            .unwrap();
         app_cx.activate(true);
     });
 }

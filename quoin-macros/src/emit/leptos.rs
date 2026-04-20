@@ -4,11 +4,12 @@ use crate::parse::ComponentAst;
 
 pub fn emit_component(ast: &ComponentAst) -> TokenStream {
     let name = &ast.name;
+    let props_name = quote::format_ident!("{}Props", name);
 
-    let prop_args = ast.props.iter().map(|p| {
+    let props_fields = ast.props.iter().map(|p| {
         let fname = &p.name;
         let fty = &p.ty;
-        quote! { #fname: #fty }
+        quote! { pub #fname: #fty }
     });
 
     let state_inits = ast.state.iter().map(|s| {
@@ -23,8 +24,13 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
     let render_body = &ast.render;
 
     quote! {
+        #[derive(Clone)]
+        pub struct #props_name {
+            #(#props_fields),*
+        }
+
         #[leptos::prelude::component]
-        pub fn #name(#(#prop_args),*) -> impl leptos::prelude::IntoView {
+        pub fn #name(props: #props_name) -> impl leptos::prelude::IntoView {
             let ctx = quoin_leptos::LeptosContext::new();
             #(#state_inits)*
             #(#action_methods)*

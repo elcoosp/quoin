@@ -32,7 +32,7 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
     });
 
     let action_methods = &ast.actions;
-    let render_body = &ast.render;
+    let render_stmts = &ast.render.stmts;
 
     let expanded = quote! {
         #[derive(Clone)]
@@ -43,17 +43,16 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
         pub struct #name {
             props: #props_name,
             #(#state_fields),*
-            _ctx: quoin_gpui::GpuiContext,
         }
 
         impl #name {
             pub fn new(cx: &mut gpui::Context<Self>, props: #props_name) -> Self {
+                use quoin::ReactiveContext;
                 let ctx: quoin_gpui::GpuiContext = cx.into();
                 #(#state_inits)*
                 Self {
                     props,
-                    #(#state_field_assignments),*,
-                    _ctx: ctx,
+                    #(#state_field_assignments,)*
                 }
             }
 
@@ -62,7 +61,7 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
 
         impl gpui::Render for #name {
             fn render(&mut self, _window: &mut gpui::Window, _cx: &mut gpui::Context<Self>) -> impl gpui::IntoElement {
-                #render_body
+                #(#render_stmts)*
             }
         }
     };

@@ -19,7 +19,7 @@ members = [
     "quoin-ui-gpui",
     "quoin-macros",
     "quoin-ui",
-    "quoin-ui-gpui",
+    "quoin-ui-gpui", "macro-debug",
 
 ]
 exclude = [

@@ -1,6 +1,7 @@
-use syn::parse::{Parse, ParseStream};
-use syn::{braced, Ident, Type, Expr, Block, ItemFn, Result};
+use proc_macro2::Ident;
 use syn::ext::IdentExt;
+use syn::parse::{Parse, ParseStream};
+use syn::{Block, Expr, ItemFn, Result, Token, Type, braced};
 
 pub struct ComponentAst {
     pub name: Ident,
@@ -34,73 +35,95 @@ impl Parse for ComponentAst {
         let mut render_block = None;
 
         while !content.is_empty() {
-            let lookahead = content.lookahead1();
-            if lookahead.peek(Ident) {
-                let key: Ident = content.call(Ident::parse_any)?;
-                let key_str = key.to_string();
+            // Try to parse a function first
+            let fork = content.fork();
+            if fork.parse::<Token![fn]>().is_ok() {
+                let func: ItemFn = content.parse()?;
+                actions.push(func);
+                if content.peek(Token![,]) {
+                    content.parse::<Token![,]>()?;
+                }
+                continue;
+            }
 
-                match key_str.as_str() {
-                    "props" => {
-                        let inner;
-                        braced!(inner in content);
-                        while !inner.is_empty() {
-                            let fname: Ident = inner.parse()?;
-                            inner.parse::<syn::Token![:]>()?;
-                            let fty: Type = inner.parse()?;
-                            let default = if inner.peek(syn::Token![=]) {
-                                inner.parse::<syn::Token![=]>()?;
-                                Some(inner.parse()?)
-                            } else {
-                                None
-                            };
-                            if !inner.is_empty() {
-                                inner.parse::<syn::Token![,]>()?;
-                            }
-                            props.push(PropField { name: fname, ty: fty, default });
+            let key: Ident = content.call(Ident::parse_any)?;
+            let key_str = key.to_string();
+
+            match key_str.as_str() {
+                "props" => {
+                    let inner;
+                    braced!(inner in content);
+                    while !inner.is_empty() {
+                        let fname: Ident = inner.parse()?;
+                        inner.parse::<Token![:]>()?;
+                        let fty: Type = inner.parse()?;
+                        let default = if inner.peek(Token![=]) {
+                            inner.parse::<Token![=]>()?;
+                            Some(inner.parse()?)
+                        } else {
+                            None
+                        };
+                        if inner.peek(Token![,]) {
+                            inner.parse::<Token![,]>()?;
                         }
-                    }
-                    "state" => {
-                        let inner;
-                        braced!(inner in content);
-                        while !inner.is_empty() {
-                            let fname: Ident = inner.parse()?;
-                            inner.parse::<syn::Token![:]>()?;
-                            let fty: Type = inner.parse()?;
-                            let default = if inner.peek(syn::Token![=]) {
-                                inner.parse::<syn::Token![=]>()?;
-                                inner.parse()?
-                            } else {
-                                return Err(syn::Error::new(fname.span(), "State requires default value"));
-                            };
-                            if !inner.is_empty() {
-                                inner.parse::<syn::Token![,]>()?;
-                            }
-                            state.push(StateField { name: fname, ty: fty, default });
-                        }
-                    }
-                    "render" => {
-                        let inner;
-                        braced!(inner in content);
-                        render_block = Some(inner.parse::<Block>()?);
-                    }
-                    _ => {
-                        let func: ItemFn = content.parse()?;
-                        actions.push(func);
+                        props.push(PropField {
+                            name: fname,
+                            ty: fty,
+                            default,
+                        });
                     }
                 }
-            } else {
-                return Err(content.error("Expected identifier or closing brace"));
+                "state" => {
+                    let inner;
+                    braced!(inner in content);
+                    while !inner.is_empty() {
+                        let fname: Ident = inner.parse()?;
+                        inner.parse::<Token![:]>()?;
+                        let fty: Type = inner.parse()?;
+                        let default = if inner.peek(Token![=]) {
+                            inner.parse::<Token![=]>()?;
+                            inner.parse()?
+                        } else {
+                            return Err(syn::Error::new(
+                                fname.span(),
+                                "State requires default value",
+                            ));
+                        };
+                        if inner.peek(Token![,]) {
+                            inner.parse::<Token![,]>()?;
+                        }
+                        state.push(StateField {
+                            name: fname,
+                            ty: fty,
+                            default,
+                        });
+                    }
+                }
+                "render" => {
+                    render_block = Some(content.parse::<Block>()?);
+                }
+                _ => {
+                    return Err(syn::Error::new(
+                        key.span(),
+                        format!("Unexpected identifier: {}", key_str),
+                    ));
+                }
+            }
+            // Consume optional trailing comma
+            if content.peek(Token![,]) {
+                content.parse::<Token![,]>()?;
             }
         }
+
+        let render =
+            render_block.ok_or_else(|| syn::Error::new(name.span(), "Missing render block"))?;
 
         Ok(ComponentAst {
             name,
             props,
             state,
             actions,
-            render: render_block.ok_or_else(|| {
-                syn::Error::new(proc_macro2::Span::call_site(), "Missing render block")
-            })?,
+            render,
         })
     }
 }

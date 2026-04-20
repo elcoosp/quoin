@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::Ident;
@@ -68,7 +69,7 @@ pub fn generate_gpui_table_delegate(
                 col_ix: usize,
                 sort: gpui_component::table::ColumnSort,
                 _: &mut gpui::Window,
-                cx: &mut gpui::Context<gpui_component::table::TableState<Self>>,
+                _cx: &mut gpui::Context<gpui_component::table::TableState<Self>>,
             ) {
                 let key = match col_ix {
                     #(#sort_arms,)*
@@ -87,7 +88,7 @@ pub fn generate_gpui_table_delegate(
                 row_ix: usize,
                 col_ix: usize,
                 _: &mut gpui::Window,
-                cx: &mut gpui::Context<gpui_component::table::TableState<Self>>,
+                _cx: &mut gpui::Context<gpui_component::table::TableState<Self>>,
             ) -> impl gpui::IntoElement {
                 let row = &self.rows[row_ix];
                 match col_ix {
@@ -119,11 +120,11 @@ pub fn generate_leptos_table(
         }
     });
 
-    let row_cells = columns.iter().enumerate().map(|(i, col)| {
+    let row_cells = columns.iter().map(|col| {
         let render = &col.render_closure;
         quote! {
             <leptos_shadcn_ui::table::TableCell>
-                {#render(&row)}
+                {#render(row)}
             </leptos_shadcn_ui::table::TableCell>
         }
     });

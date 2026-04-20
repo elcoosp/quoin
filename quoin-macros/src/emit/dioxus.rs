@@ -4,15 +4,14 @@ use crate::parse::ComponentAst;
 
 pub fn emit_component(ast: &ComponentAst) -> TokenStream {
     let name = &ast.name;
+    let props_name = quote::format_ident!("{}Props", name);
 
-    // Props as function arguments
-    let prop_args = ast.props.iter().map(|p| {
+    let props_fields = ast.props.iter().map(|p| {
         let fname = &p.name;
         let fty = &p.ty;
-        quote! { #fname: #fty }
+        quote! { pub #fname: #fty }
     });
 
-    // State signals created via context
     let state_inits = ast.state.iter().map(|s| {
         let fname = &s.name;
         let default = &s.default;
@@ -25,8 +24,13 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
     let render_body = &ast.render;
 
     quote! {
+        #[derive(Clone)]
+        pub struct #props_name {
+            #(#props_fields),*
+        }
+
         #[dioxus::prelude::component]
-        pub fn #name(#(#prop_args),*) -> dioxus::prelude::Element {
+        pub fn #name(props: #props_name) -> dioxus::prelude::Element {
             let ctx = quoin_dioxus::DioxusContext::new();
             #(#state_inits)*
             #(#action_methods)*
