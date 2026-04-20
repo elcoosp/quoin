@@ -1,9 +1,10 @@
 use gpui::*;
 use gpui_platform::application;
+use quoin::ReactiveContext;
 use quoin::Signal;
 use quoin_gpui::GpuiContext;
 use quoin_macros::quoin_render;
-use quoin_ui::{ComponentSize, SortDirection};
+use quoin_ui::SortDirection;
 
 #[derive(Clone)]
 struct TimelineEvent {
@@ -84,10 +85,7 @@ fn create_cache_entries() -> Vec<CacheEntry> {
 }
 
 impl MiniDevtools {
-    fn new(cx: &mut Context<Self>) -> Self {
-        let ctx: GpuiContext = cx.into();
-        ctx.set_view_update_notifier(cx.weak_entity(), cx.window().to_async(cx));
-
+    fn new(cx: &mut Context<Self>, ctx: GpuiContext) -> Self {
         Self {
             active_tab: ctx.create_signal(0),
             event_count: ctx.create_signal(5),
@@ -112,7 +110,35 @@ impl Render for MiniDevtools {
             "Signals".to_string(),
         ];
 
-        let tabs = quoin_ui_gpui::render_tab_bar(&tab_labels, active_tab);
+        let tab_elements: Vec<gpui::AnyElement> = tab_labels
+            .iter()
+            .enumerate()
+            .map(|(i, label)| {
+                let tab_index = i;
+                let is_active = i == active_tab;
+                let mut el = gpui::div()
+                    .px(gpui::px(16.0))
+                    .py(gpui::px(8.0))
+                    .cursor_pointer()
+                    .child(label.clone());
+
+                if is_active {
+                    el = el.text_color(gpui::white());
+                } else {
+                    el = el.text_color(gpui::rgb(0x9ca3af));
+                }
+
+                el.on_mouse_down(
+                    gpui::MouseButton::Left,
+                    cx.listener(move |this, _, _, _| {
+                        this.active_tab.set(tab_index);
+                    }),
+                )
+                .into_any_element()
+            })
+            .collect();
+
+        let tabs = gpui::div().flex().children(tab_elements);
 
         let tab_content = if active_tab == 0 {
             render_timeline_tab(event_count, &self.timeline_events)
@@ -124,7 +150,6 @@ impl Render for MiniDevtools {
 
         let filter = quoin_ui_gpui::render_input(Some("Filter events...".to_string()), filter_text);
 
-        let add_event_count = self.event_count.clone();
         let add_event_btn = quoin_ui_gpui::render_button(
             Some("+ Add Event".to_string()),
             quoin_ui::ButtonVariant {
@@ -135,8 +160,7 @@ impl Render for MiniDevtools {
         .on_mouse_down(
             MouseButton::Left,
             cx.listener(|this, _event, _window, _cx| {
-                let count = add_event_count.get();
-                add_event_count.set(count + 1);
+                this.event_count.update(|c| *c += 1);
             }),
         );
 
@@ -158,7 +182,6 @@ impl Render for MiniDevtools {
         }
     }
 }
-
 fn render_timeline_tab(
     event_count: u32,
     events: &quoin_gpui::GpuiSignal<Vec<TimelineEvent>>,
@@ -298,7 +321,11 @@ fn main() {
     application().run(|app_cx: &mut App| {
         app_cx
             .open_window(WindowOptions::default(), |window, window_cx| {
-                window_cx.new(|cx: &mut Context<MiniDevtools>| MiniDevtools::new(cx))
+                window_cx.new(|cx: &mut Context<MiniDevtools>| {
+                    let ctx: GpuiContext = cx.into();
+                    ctx.set_view_update_notifier(cx.weak_entity(), window.to_async(cx));
+                    MiniDevtools::new(cx, ctx)
+                })
             })
             .unwrap();
         app_cx.activate(true);
