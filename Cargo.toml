@@ -14,6 +14,7 @@ members = [
     "quoin-conformance",
     "quoin",
     "quoin-macros",
+    "quoin-macros",
 
 ]
 exclude = [

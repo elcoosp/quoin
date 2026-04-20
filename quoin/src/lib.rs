@@ -101,6 +101,7 @@
 // compile_error!("Only one framework adapter feature may be enabled at a time.");
 pub mod cancellation;
 pub mod executor;
+pub mod macros;
 pub mod reactive;
 pub mod signal;
 
