@@ -4,13 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-quoin = { path = "../quoin" }
-quoin-macros = { path = "../quoin-macros" }
+quoin = { path = "../../quoin" }
+quoin-macros = { path = "../../quoin-macros" }
 
 # Framework-specific dependencies (optional)
-quoin-gpui = { path = "../quoin-gpui", optional = true }
+quoin-gpui = { path = "../../quoin-gpui", optional = true }
 gpui = { git = "https://github.com/zed-industries/zed", optional = true }
-quoin-leptos = { path = "../quoin-leptos", optional = true }
+quoin-leptos = { path = "../../quoin-leptos", optional = true }
 leptos = { version = "0.8", optional = true }
 
 [features]

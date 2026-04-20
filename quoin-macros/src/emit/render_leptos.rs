@@ -19,7 +19,8 @@ fn emit_render_inner(node: &RenderNode) -> TokenStream {
     match node {
         RenderNode::Element(el) => emit_element(el),
         RenderNode::Text(t) => quote! { #t },
-        RenderNode::Expr(e) => quote! { {#e} },
+        // Wrap expressions in move || closure for reactivity
+        RenderNode::Expr(e) => quote! { {move || #e} },
         RenderNode::If(if_node) => emit_if(if_node),
         RenderNode::ForEach(fe) => emit_for_each(fe),
     }

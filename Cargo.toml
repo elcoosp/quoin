@@ -8,6 +8,7 @@ members = [
     "examples/counter-xilem",
     "examples/ucp-demo",
     "examples/ucp-demo-leptos",
+    "examples/ucp-lib",
     "quoin-leptos",
     "quoin-dioxus",
     "quoin-gpui",
@@ -18,7 +19,7 @@ members = [
     "quoin-macros",
     "quoin-ui",
     "quoin-ui-gpui",
-    "ucp-lib", "quoin-expand-test",
+    "quoin-expand-test",
 
 ]
 exclude = [

@@ -105,26 +105,12 @@ component! {
         }
 
         render {
-            let count_text = format!("Count: {}", count.get());
-            let selected_text = format!("Selected: {}", selected.get());
+            // Clone signals for closures
+            let count_for_inc = count.clone();
+            let selected_for_a = selected.clone();
+            let selected_for_b = selected.clone();
 
-            let people_items = {
-                let rows = rows.get();
-                rows.iter().map(|person| {
-                    let text = format!("{} ({} years old)", person.name, person.age);
-                    quoin_macros::quoin_render! {
-                        div(class: "p-2 bg-gray-800 rounded-md") {
-                            text
-                        }
-                    }
-                }).collect::<Vec<_>>()
-            };
-
-            // Clone signals for use in closures
-            let count_inc = count.clone();
-            let selected_a = selected.clone();
-            let selected_b = selected.clone();
-
+            // Use quoin_render! for the main layout
             quoin_macros::quoin_render! {
                 div(class: "flex flex-col gap-4 p-4 bg-gray-900 text-white min-h-screen") {
                     div(class: "text-2xl font-bold") {
@@ -132,28 +118,28 @@ component! {
                     }
                     div(class: "flex items-center gap-2") {
                         div(class: "text-lg") {
-                            count_text
+                            format!("Count: {}", count.get())
                         }
                         button(
                             class: "px-4 py-2 bg-blue-600 text-white rounded-md cursor-pointer",
-                            on_click: move |_| count_inc.update(|c| *c += 1)
+                            on_click: move |_| count_for_inc.update(|c| *c += 1)
                         ) {
                             "Increment"
                         }
                     }
                     div(class: "flex items-center gap-2") {
                         div(class: "text-lg") {
-                            selected_text
+                            format!("Selected: {}", selected.get())
                         }
                         button(
                             class: "px-4 py-2 bg-green-600 text-white rounded-md cursor-pointer",
-                            on_click: move |_| selected_a.set("Option A".to_string())
+                            on_click: move |_| selected_for_a.set("Option A".to_string())
                         ) {
                             "Option A"
                         }
                         button(
                             class: "px-4 py-2 bg-purple-600 text-white rounded-md cursor-pointer",
-                            on_click: move |_| selected_b.set("Option B".to_string())
+                            on_click: move |_| selected_for_b.set("Option B".to_string())
                         ) {
                             "Option B"
                         }
@@ -161,7 +147,18 @@ component! {
                     div(class: "text-lg font-semibold") {
                         "People:"
                     }
-                    div(class: "flex flex-col gap-1", children: people_items)
+                    // Manual rendering for the list to avoid macro edge cases
+                    div(class: "flex flex-col gap-1") {
+                        {
+                            let rows = rows.get();
+                            rows.iter().map(|person| {
+                                let text = format!("{} ({} years old)", person.name, person.age);
+                                view! {
+                                    <div class="p-2 bg-gray-800 rounded-md">{text}</div>
+                                }
+                            }).collect::<Vec<_>>()
+                        }
+                    }
                 }
             }
         }
