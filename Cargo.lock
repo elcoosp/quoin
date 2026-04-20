@@ -7248,6 +7248,7 @@ dependencies = [
  "quote",
  "syn 2.0.117",
  "trybuild",
+ "uuid",
 ]
 
 [[package]]
