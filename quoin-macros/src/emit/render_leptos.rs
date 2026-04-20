@@ -4,6 +4,7 @@ use crate::render_ast::{RenderNode, Element, IfNode, ForEachNode};
 use crate::transpile::virtual_list_codegen::generate_leptos_virtual_list;
 use crate::transpile::rich_text_codegen::generate_leptos_rich_text;
 use crate::transpile::dropdown_codegen::{generate_leptos_dropdown, MenuItemDef};
+use crate::transpile::table_codegen::{generate_leptos_table, ColumnDef};
 use crate::custom_element::resolve_custom_element;
 use syn::Expr;
 
@@ -19,14 +20,13 @@ pub fn emit_render(node: &RenderNode) -> TokenStream {
 
 fn emit_element(el: &Element) -> TokenStream {
     let name_str = el.name.to_string();
-    if let Some(custom_tokens) = resolve_custom_element(&name_str) {
-        return custom_tokens;
-    }
+    if let Some(custom) = resolve_custom_element(&name_str) { return custom; }
     match name_str.as_str() {
         "virtual_list" => emit_virtual_list(el),
         "rich_text" => emit_rich_text(el),
         "dropdown" => emit_dropdown(el),
         "tabs" => emit_tabs(el),
+        "data_table" => emit_data_table(el),
         _ => emit_builtin(el),
     }
 }
@@ -34,77 +34,92 @@ fn emit_element(el: &Element) -> TokenStream {
 fn emit_builtin(el: &Element) -> TokenStream {
     let tag = match el.name.to_string().as_str() {
         "div" => "div", "h1" => "h1", "h2" => "h2", "h3" => "h3",
-        "p" | "text" => "p", "button" => "button", "input" => "input", _ => "div",
+        "p"|"text" => "p", "button" => "button", "input" => "input", _ => "div",
     };
-    let mut attr_tokens = Vec::new();
-    for (key, value) in &el.args {
-        let key_str = key.to_string();
-        match key_str.as_str() {
-            "class" => attr_tokens.push(quote! { class=#value }),
-            "id" => attr_tokens.push(quote! { id=#value }),
-            "on_click" => attr_tokens.push(quote! { on:click=#value }),
-            "value" => attr_tokens.push(quote! { value=#value }),
-            "placeholder" => attr_tokens.push(quote! { placeholder=#value }),
+    let mut attrs = Vec::new();
+    for (k, v) in &el.args {
+        match k.to_string().as_str() {
+            "class" => attrs.push(quote! { class=#v }),
+            "id" => attrs.push(quote! { id=#v }),
+            "on_click" => attrs.push(quote! { on:click=#v }),
+            "value" => attrs.push(quote! { value=#v }),
+            "placeholder" => attrs.push(quote! { placeholder=#v }),
             _ => {}
         }
     }
-    let children: Vec<TokenStream> = el.children.iter().map(emit_render).collect();
+    let children: Vec<_> = el.children.iter().map(emit_render).collect();
     let tag_ident = proc_macro2::Ident::new(tag, proc_macro2::Span::call_site());
     if children.is_empty() {
-        quote! { <#tag_ident #(#attr_tokens)* /> }
+        quote! { <#tag_ident #(#attrs)* /> }
     } else {
-        quote! { <#tag_ident #(#attr_tokens)*> #(#children)* </#tag_ident> }
+        quote! { <#tag_ident #(#attrs)*> #(#children)* </#tag_ident> }
     }
 }
 
 fn emit_virtual_list(el: &Element) -> TokenStream {
-    let items_expr = find_arg_expr(el, "items").expect("virtual_list requires 'items'");
-    let estimated_height: f32 = find_arg_lit_string(el, "estimated_height")
-        .and_then(|s| s.parse::<f32>().ok())
-        .unwrap_or(32.0);
-    let item_template = el.children.first().expect("virtual_list requires item template");
-    let item_render = emit_render(item_template);
-    generate_leptos_virtual_list(items_expr, estimated_height, item_render)
+    let items = find_arg_expr(el, "items").unwrap();
+    let height = find_arg_lit_string(el, "estimated_height").and_then(|s| s.parse().ok()).unwrap_or(32.0);
+    let template = el.children.first().unwrap();
+    let item_render = emit_render(template);
+    generate_leptos_virtual_list(items, height, item_render)
 }
 
 fn emit_rich_text(el: &Element) -> TokenStream {
-    let text_expr = find_arg_expr(el, "text").expect("rich_text requires 'text'");
-    let base_color = find_arg_expr(el, "base_color");
-    let font_size: f32 = find_arg_lit_string(el, "font_size")
-        .and_then(|s| s.parse::<f32>().ok())
-        .unwrap_or(14.0);
-    let runs_expr = find_arg_expr(el, "runs");
-    generate_leptos_rich_text(text_expr, base_color, font_size, runs_expr)
+    let text = find_arg_expr(el, "text").unwrap();
+    let color = find_arg_expr(el, "base_color");
+    let size = find_arg_lit_string(el, "font_size").and_then(|s| s.parse().ok()).unwrap_or(14.0);
+    let runs = find_arg_expr(el, "runs");
+    generate_leptos_rich_text(text, color, size, runs)
 }
 
 fn emit_dropdown(el: &Element) -> TokenStream {
-    let trigger_expr = find_arg_expr(el, "trigger").expect("dropdown requires 'trigger'");
-    let menu_items: Vec<MenuItemDef> = el.children.iter().filter_map(|child| {
-        if let RenderNode::Element(e) = child {
+    let trigger = find_arg_expr(el, "trigger").unwrap();
+    let items: Vec<MenuItemDef> = el.children.iter().filter_map(|c| {
+        if let RenderNode::Element(e) = c {
             if e.name == "menu_item" {
-                let label = find_arg_expr(e, "label").expect("menu_item requires 'label'");
-                let on_click = find_arg_expr(e, "on_click").expect("menu_item requires 'on_click'");
-                return Some(MenuItemDef { label: label.clone(), on_click: on_click.clone() });
-            }
-        }
-        None
+                Some(MenuItemDef {
+                    label: find_arg_expr(e, "label").unwrap().clone(),
+                    on_click: find_arg_expr(e, "on_click").unwrap().clone(),
+                })
+            } else { None }
+        } else { None }
     }).collect();
-    generate_leptos_dropdown(trigger_expr, &menu_items)
+    generate_leptos_dropdown(trigger, &items)
 }
 
 fn emit_tabs(el: &Element) -> TokenStream {
-    let children: Vec<TokenStream> = el.children.iter().map(emit_render).collect();
-    quote! { <div> #(#children)* </div> }
+    let children: Vec<_> = el.children.iter().map(emit_render).collect();
+    quote! { <div class="tabs"> #(#children)* </div> }
+}
+
+fn emit_data_table(el: &Element) -> TokenStream {
+    let rows = find_arg_expr(el, "rows").unwrap();
+    let striped = find_arg_lit_string(el, "striped").and_then(|s| s.parse().ok()).unwrap_or(false);
+    let columns: Vec<ColumnDef> = el.children.iter().filter_map(|c| {
+        if let RenderNode::Element(e) = c {
+            if e.name == "column" {
+                Some(ColumnDef {
+                    key: find_arg_lit_string(e, "key").unwrap_or_default(),
+                    label: find_arg_lit_string(e, "label").unwrap_or_default(),
+                    width: find_arg_lit_string(e, "width").and_then(|s| s.parse().ok()),
+                    sortable: find_arg_lit_string(e, "sortable").and_then(|s| s.parse().ok()).unwrap_or(false),
+                    render_closure: find_arg_expr(e, "render").unwrap().clone(),
+                })
+            } else { None }
+        } else { None }
+    }).collect();
+    let row_type = syn::parse_str("_").unwrap();
+    generate_leptos_table(&row_type, &columns, rows, striped)
 }
 
 fn emit_if(if_node: &IfNode) -> TokenStream {
     let cond = &if_node.condition;
-    let then_branch = emit_nodes(&if_node.then_branch);
+    let then_tokens = emit_nodes(&if_node.then_branch);
     if let Some(else_branch) = &if_node.else_branch {
         let else_tokens = emit_nodes(else_branch);
-        quote! { {move || if #cond { view! { #then_branch } } else { view! { #else_tokens } }} }
+        quote! { {move || if #cond { view! { #then_tokens } } else { view! { #else_tokens } }} }
     } else {
-        quote! { {move || if #cond { view! { #then_branch } }} }
+        quote! { {move || if #cond { view! { #then_tokens } }} }
     }
 }
 
@@ -116,20 +131,17 @@ fn emit_for_each(fe: &ForEachNode) -> TokenStream {
 }
 
 fn emit_nodes(nodes: &[RenderNode]) -> TokenStream {
-    let tokens: Vec<TokenStream> = nodes.iter().map(emit_render).collect();
+    let tokens: Vec<_> = nodes.iter().map(emit_render).collect();
     quote! { #(#tokens)* }
 }
 
 fn find_arg_expr<'a>(el: &'a Element, key: &str) -> Option<&'a Expr> {
-    el.args.iter().find(|(k, _)| k == key).map(|(_, v)| v)
+    el.args.iter().find(|(k,_)| k == key).map(|(_,v)| v)
 }
-
 fn find_arg_lit_string(el: &Element, key: &str) -> Option<String> {
     find_arg_expr(el, key).and_then(|e| {
         if let Expr::Lit(expr_lit) = e {
-            if let syn::Lit::Str(s) = &expr_lit.lit {
-                Some(s.value())
-            } else { None }
+            if let syn::Lit::Str(s) = &expr_lit.lit { Some(s.value()) } else { None }
         } else { None }
     })
 }

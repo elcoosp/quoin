@@ -4,6 +4,7 @@ use crate::render_ast::{RenderNode, Element, IfNode, ForEachNode};
 use crate::transpile::virtual_list_codegen::generate_dioxus_virtual_list;
 use crate::transpile::rich_text_codegen::generate_dioxus_rich_text;
 use crate::transpile::dropdown_codegen::{generate_dioxus_dropdown, MenuItemDef};
+use crate::transpile::table_codegen::{generate_dioxus_table, ColumnDef};
 use crate::custom_element::resolve_custom_element;
 use syn::Expr;
 
@@ -25,6 +26,7 @@ fn emit_element(el: &Element) -> TokenStream {
         "rich_text" => emit_rich_text(el),
         "dropdown" => emit_dropdown(el),
         "tabs" => emit_tabs(el),
+        "data_table" => emit_data_table(el),
         _ => emit_builtin(el),
     }
 }
@@ -32,14 +34,14 @@ fn emit_element(el: &Element) -> TokenStream {
 fn emit_builtin(el: &Element) -> TokenStream {
     let tag = match el.name.to_string().as_str() {
         "div" => "div", "h1" => "h1", "h2" => "h2", "h3" => "h3",
-        "p" | "text" => "p", "button" => "button", "input" => "input", _ => "div",
+        "p"|"text" => "p", "button" => "button", "input" => "input", _ => "div",
     };
     let mut attrs = Vec::new();
     for (k, v) in &el.args {
         let key = proc_macro2::Ident::new(&k.to_string(), proc_macro2::Span::call_site());
         attrs.push(quote! { #key: #v });
     }
-    let children: Vec<TokenStream> = el.children.iter().map(emit_render).collect();
+    let children: Vec<_> = el.children.iter().map(emit_render).collect();
     let tag_ident = proc_macro2::Ident::new(tag, proc_macro2::Span::call_site());
     if children.is_empty() {
         quote! { #tag_ident { #(#attrs),* } }
@@ -50,9 +52,7 @@ fn emit_builtin(el: &Element) -> TokenStream {
 
 fn emit_virtual_list(el: &Element) -> TokenStream {
     let items = find_arg_expr(el, "items").unwrap();
-    let height = find_arg_lit_string(el, "estimated_height")
-        .and_then(|s| s.parse::<f32>().ok())
-        .unwrap_or(32.0);
+    let height = find_arg_lit_string(el, "estimated_height").and_then(|s| s.parse().ok()).unwrap_or(32.0);
     let template = el.children.first().unwrap();
     let item_render = emit_render(template);
     generate_dioxus_virtual_list(items, height, item_render)
@@ -61,9 +61,7 @@ fn emit_virtual_list(el: &Element) -> TokenStream {
 fn emit_rich_text(el: &Element) -> TokenStream {
     let text = find_arg_expr(el, "text").unwrap();
     let color = find_arg_expr(el, "base_color");
-    let size = find_arg_lit_string(el, "font_size")
-        .and_then(|s| s.parse::<f32>().ok())
-        .unwrap_or(14.0);
+    let size = find_arg_lit_string(el, "font_size").and_then(|s| s.parse().ok()).unwrap_or(14.0);
     let runs = find_arg_expr(el, "runs");
     generate_dioxus_rich_text(text, color, size, runs)
 }
@@ -85,6 +83,26 @@ fn emit_dropdown(el: &Element) -> TokenStream {
 
 fn emit_tabs(_el: &Element) -> TokenStream { quote! { div {} } }
 
+fn emit_data_table(el: &Element) -> TokenStream {
+    let rows = find_arg_expr(el, "rows").unwrap();
+    let striped = find_arg_lit_string(el, "striped").and_then(|s| s.parse().ok()).unwrap_or(false);
+    let columns: Vec<ColumnDef> = el.children.iter().filter_map(|c| {
+        if let RenderNode::Element(e) = c {
+            if e.name == "column" {
+                Some(ColumnDef {
+                    key: find_arg_lit_string(e, "key").unwrap_or_default(),
+                    label: find_arg_lit_string(e, "label").unwrap_or_default(),
+                    width: find_arg_lit_string(e, "width").and_then(|s| s.parse().ok()),
+                    sortable: find_arg_lit_string(e, "sortable").and_then(|s| s.parse().ok()).unwrap_or(false),
+                    render_closure: find_arg_expr(e, "render").unwrap().clone(),
+                })
+            } else { None }
+        } else { None }
+    }).collect();
+    let row_type = syn::parse_str("_").unwrap();
+    generate_dioxus_table(&row_type, &columns, rows, striped)
+}
+
 fn emit_if(if_node: &IfNode) -> TokenStream {
     let cond = &if_node.condition;
     let then_tokens = emit_nodes(&if_node.then_branch);
@@ -104,20 +122,17 @@ fn emit_for_each(fe: &ForEachNode) -> TokenStream {
 }
 
 fn emit_nodes(nodes: &[RenderNode]) -> TokenStream {
-    let tokens: Vec<TokenStream> = nodes.iter().map(emit_render).collect();
+    let tokens: Vec<_> = nodes.iter().map(emit_render).collect();
     quote! { #(#tokens)* }
 }
 
 fn find_arg_expr<'a>(el: &'a Element, key: &str) -> Option<&'a Expr> {
     el.args.iter().find(|(k,_)| k == key).map(|(_,v)| v)
 }
-
 fn find_arg_lit_string(el: &Element, key: &str) -> Option<String> {
     find_arg_expr(el, key).and_then(|e| {
         if let Expr::Lit(expr_lit) = e {
-            if let syn::Lit::Str(s) = &expr_lit.lit {
-                Some(s.value())
-            } else { None }
+            if let syn::Lit::Str(s) = &expr_lit.lit { Some(s.value()) } else { None }
         } else { None }
     })
 }
