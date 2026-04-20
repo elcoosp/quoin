@@ -11,6 +11,7 @@ use xilem::{
 
 #[derive(Clone)]
 struct MyAppState {
+    #[allow(dead_code)]
     ctx: XilemContext,
     count_signal: quoin_xilem::XilemSignal<i32>,
 }
