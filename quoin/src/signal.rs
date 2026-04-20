@@ -1,3 +1,9 @@
+//! Reactive signals and traits for managing observable state.
+//!
+//! This module defines the core [`Signal`] trait and its implementations,
+//! providing a reactive primitive that integrates with the framework's
+//! change detection.
+
 /// A readable and writable reactive value.
 ///
 /// Signals are `Clone`, making them easy to pass into closures and store in
