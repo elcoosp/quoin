@@ -24,42 +24,33 @@ fn emit_element(el: &Element) -> TokenStream {
         "button" => quote! { gpui::div().cursor_pointer() },
         _ => quote! { gpui::div() },
     };
-
-    // Apply class and other styling attributes (excluding 'children' and 'on_click')
-    for (key, value_expr) in &el.args {
-        let key_str = key.to_string();
-        if key_str == "class" {
-            if let Expr::Lit(expr_lit) = value_expr {
-                if let syn::Lit::Str(lit_str) = &expr_lit.lit {
-                    let styles = transpile_class(&lit_str.value());
-                    for style in styles {
-                        chain = quote! { #chain #style };
-                    }
+    if let Some((_, class_expr)) = el.args.iter().find(|(k, _)| k == "class") {
+        if let Expr::Lit(expr_lit) = class_expr {
+            if let syn::Lit::Str(lit_str) = &expr_lit.lit {
+                let styles = transpile_class(&lit_str.value());
+                for style in styles {
+                    chain = quote! { #chain #style };
                 }
             }
         }
-        // Other attributes can be added here
     }
-
-    // Check for explicit 'children' attribute (for collections)
-    let children_attr = el.args.iter().find(|(k, _)| k == "children");
-    if let Some((_, children_expr)) = children_attr {
+    if let Some(children_expr) = &el.children_expr {
         chain = quote! { #chain.children(#children_expr) };
     } else {
-        // Otherwise, treat each child as a single element and use .child()
-        for child in &el.children {
-            let child_expr = emit_render(child);
-            chain = quote! { #chain.child(#child_expr) };
+        let child_exprs: Vec<TokenStream> = el.children.iter().map(emit_render).collect();
+        for child in child_exprs {
+            chain = quote! { #chain.child(#child) };
         }
     }
-
-    // Event handlers
     if let Some((_, handler_expr)) = el.args.iter().find(|(k, _)| k == "on_click") {
+        // Wrap user closure with cx.listener signature
         chain = quote! {
-            #chain.on_mouse_down(gpui::MouseButton::Left, #handler_expr)
+            #chain.on_mouse_down(gpui::MouseButton::Left, cx.listener(move |this, _ev, _window, _cx| {
+                let handler = #handler_expr;
+                handler(this);
+            }))
         };
     }
-
     chain
 }
 
@@ -78,19 +69,13 @@ fn emit_for_each(fe: &ForEachNode) -> TokenStream {
     let items = &fe.items;
     let _key = &fe.key;
     let item_elem = emit_render(&fe.item_template);
-    quote! {
-        {
-            let items = #items;
-            items.into_iter().map(|item| {
-                #item_elem
-            }).collect::<Vec<_>>()
-        }
-    }
+    quote! {{
+        let items = #items;
+        items.into_iter().map(|item| #item_elem).collect::<Vec<_>>()
+    }}
 }
 
 fn emit_nodes(nodes: &[RenderNode]) -> TokenStream {
     let node_tokens: Vec<TokenStream> = nodes.iter().map(emit_render).collect();
-    quote! {
-        gpui::div().children(vec![#(#node_tokens),*])
-    }
+    quote! { gpui::div().children(vec![#(#node_tokens),*]) }
 }
