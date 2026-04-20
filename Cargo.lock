@@ -7205,6 +7205,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "quoin-expand-test"
+version = "0.1.0"
+dependencies = [
+ "leptos",
+ "quoin",
+ "quoin-leptos",
+ "quoin-macros",
+]
+
+[[package]]
 name = "quoin-floem"
 version = "0.1.0"
 dependencies = [

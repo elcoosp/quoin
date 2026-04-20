@@ -1,0 +1,13 @@
+[package]
+name = "quoin-expand-test"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+leptos = "0.8"
+quoin = { path = "../quoin", features = ["leptos"] }
+quoin-leptos = { path = "../quoin-leptos" }
+quoin-macros = { path = "../quoin-macros", features = ["leptos"] }
+
+[features]
+leptos = ["quoin/leptos", "quoin-macros/leptos"]

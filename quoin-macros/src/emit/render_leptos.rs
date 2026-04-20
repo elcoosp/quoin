@@ -4,6 +4,15 @@ use crate::render_ast::{RenderNode, Element, IfNode, ForEachNode};
 use syn::Expr;
 
 pub fn emit_render(node: &RenderNode) -> TokenStream {
+    let inner = emit_render_inner(node);
+    quote! {
+        leptos::prelude::view! {
+            #inner
+        }
+    }
+}
+
+fn emit_render_inner(node: &RenderNode) -> TokenStream {
     match node {
         RenderNode::Element(el) => emit_element(el),
         RenderNode::Text(t) => quote! { #t },
@@ -22,39 +31,34 @@ fn emit_element(el: &Element) -> TokenStream {
         "h3" => "h3",
         "p" | "text" => "p",
         "button" => "button",
-        "input" => "input",
         _ => "div",
     };
 
     let mut attrs = Vec::new();
-
     for (key, value) in &el.args {
         let key_str = key.to_string();
         match key_str.as_str() {
             "class" => attrs.push(quote! { class=#value }),
             "id" => attrs.push(quote! { id=#value }),
-            "on_click" => {
-                attrs.push(quote! { on:click=move |_| { #value } });
-            }
+            "on_click" => attrs.push(quote! { on:click=move |_| { #value } }),
             _ => {}
         }
     }
 
-    let mut children_tokens = Vec::new();
-
+    let mut children = Vec::new();
     if let Some(children_expr) = &el.children_expr {
-        children_tokens.push(quote! { {#children_expr} });
+        children.push(quote! { {#children_expr} });
     } else {
         for child in &el.children {
-            children_tokens.push(emit_render(child));
+            children.push(emit_render_inner(child));
         }
     }
 
     let tag_ident = proc_macro2::Ident::new(tag, proc_macro2::Span::call_site());
-    if children_tokens.is_empty() {
+    if children.is_empty() {
         quote! { <#tag_ident #(#attrs)* /> }
     } else {
-        quote! { <#tag_ident #(#attrs)*> #(#children_tokens)* </#tag_ident> }
+        quote! { <#tag_ident #(#attrs)*> #(#children)* </#tag_ident> }
     }
 }
 
@@ -72,19 +76,17 @@ fn emit_if(if_node: &IfNode) -> TokenStream {
 fn emit_for_each(fe: &ForEachNode) -> TokenStream {
     let items = &fe.items;
     let key = &fe.key;
-    let item_elem = emit_render(&fe.item_template);
-    quote! {
-        {
-            let items = #items;
-            items.into_iter().map(|item| {
-                let _key = #key;
-                #item_elem
-            }).collect::<Vec<_>>()
-        }
-    }
+    let item_elem = emit_render_inner(&fe.item_template);
+    quote! {{
+        let items = #items;
+        items.into_iter().map(|item| {
+            let _key = #key;
+            #item_elem
+        }).collect::<Vec<_>>()
+    }}
 }
 
 fn emit_nodes(nodes: &[RenderNode]) -> TokenStream {
-    let tokens: Vec<_> = nodes.iter().map(emit_render).collect();
+    let tokens: Vec<_> = nodes.iter().map(emit_render_inner).collect();
     quote! { #(#tokens)* }
 }

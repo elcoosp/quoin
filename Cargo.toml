@@ -18,7 +18,7 @@ members = [
     "quoin-macros",
     "quoin-ui",
     "quoin-ui-gpui",
-    "ucp-lib",
+    "ucp-lib", "quoin-expand-test",
 
 ]
 exclude = [
