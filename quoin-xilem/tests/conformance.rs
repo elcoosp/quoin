@@ -2,7 +2,9 @@ use quoin::{Executor, ReactiveContext};
 use quoin_conformance::{define_conformance_tests, SleepExt};
 use quoin_xilem::{XilemContext, XilemExecutor};
 use std::future::Future;
+use std::sync::Arc;
 use std::time::Duration;
+use xilem::tokio::runtime::Runtime;
 
 #[derive(Clone)]
 struct TestExecutor(XilemExecutor);
@@ -27,6 +29,7 @@ impl Executor for TestExecutor {
 
 struct TestHarness {
     context: XilemContext,
+    _runtime: Arc<Runtime>,
 }
 
 impl Clone for TestHarness {
@@ -37,8 +40,10 @@ impl Clone for TestHarness {
 
 impl TestHarness {
     fn new() -> Self {
+        let runtime = Arc::new(Runtime::new().unwrap());
         Self {
-            context: XilemContext::new(),
+            context: XilemContext::new(runtime.clone()),
+            _runtime: runtime,
         }
     }
 }
