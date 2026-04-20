@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 use crate::render_ast::{RenderNode, Element, IfNode, ForEachNode};
-use syn::Expr;
+use crate::custom_element::resolve_custom_element;
 
 pub fn emit_render(node: &RenderNode) -> TokenStream {
     match node {
@@ -20,6 +20,11 @@ pub fn emit_render(node: &RenderNode) -> TokenStream {
 
 fn emit_element(el: &Element) -> TokenStream {
     let name_str = el.name.to_string();
+
+    if let Some(custom_tokens) = resolve_custom_element(&name_str) {
+        return custom_tokens;
+    }
+
     let tag = match name_str.as_str() {
         "div" => "div",
         "h1" => "h1",

@@ -2,6 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use crate::render_ast::{RenderNode, Element, IfNode, ForEachNode};
 use crate::transpile::tailwind::transpile_class;
+use crate::custom_element::resolve_custom_element;
 use syn::Expr;
 
 pub fn emit_render(node: &RenderNode) -> TokenStream {
@@ -16,6 +17,13 @@ pub fn emit_render(node: &RenderNode) -> TokenStream {
 
 fn emit_element(el: &Element) -> TokenStream {
     let name_str = el.name.to_string();
+
+    // Attempt custom element resolution first
+    if let Some(custom_tokens) = resolve_custom_element(&name_str) {
+        // For now, custom elements just return a placeholder
+        return custom_tokens;
+    }
+
     let mut chain = match name_str.as_str() {
         "div" => quote! { gpui::div() },
         "h1" => quote! { gpui::div().text_xl().font_weight(gpui::FontWeight::BOLD) },

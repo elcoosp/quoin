@@ -44,3 +44,12 @@ pub fn quoin_render(input: TokenStream) -> TokenStream {
 
     tokens.into()
 }
+
+mod custom_element;
+
+#[proc_macro]
+pub fn quoin_element(input: TokenStream) -> TokenStream {
+    use syn::parse_macro_input;
+    let def = parse_macro_input!(input as custom_element::CustomElementDef);
+    custom_element::expand_custom_element(def).into()
+}
