@@ -13,6 +13,8 @@ members = [
     "quoin-floem",
     "quoin-conformance",
     "quoin",
+    "quoin-macros",
+
 ]
 exclude = [
     "examples/counter-dioxus",   # Excluded due to cocoa conflict with GPUI
