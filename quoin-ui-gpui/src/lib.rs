@@ -3,12 +3,75 @@
 //! Provides GPUI-specific implementations of `quoin-ui` adapter traits
 //! and render functions for UCP components.
 
-use gpui::{Hsla, IntoElement, ParentElement, Rgba, Styled};
+use gpui::{Entity, Hsla, IntoElement, ParentElement, Rgba, Styled, Subscription};
 use quoin_ui::{
     ButtonAdapter, ButtonVariant, ComponentSize, DropdownMenuAdapter, QuoinTheme, TabBarAdapter,
     TableAdapter, TextInputAdapter, ThemeToken, VirtualListAdapter, clipboard::Clipboard,
 };
+use std::collections::HashMap;
 use std::sync::Arc;
+
+// Re-export GPUI component types for use in generated code
+pub use gpui_component::input::{Input, InputState};
+
+// -----------------------------------------------------------------------------
+// Input State Management
+// -----------------------------------------------------------------------------
+
+/// Manages input state entities and their change subscriptions.
+///
+/// Add this as a field (named `_quoin_inputs`) in any component that uses
+/// `input()` elements inside `quoin_render!`. The macro-generated code
+/// handles initialization and two-way signal binding automatically.
+///
+/// # Example
+/// ```ignore
+/// struct MyComponent {
+///     filter_text: quoin_gpui::GpuiSignal<String>,
+///     _quoin_inputs: quoin_ui_gpui::QuoinInputManager,
+/// }
+///
+/// impl MyComponent {
+///     fn new(cx: &mut gpui::Context<Self>, ctx: GpuiContext) -> Self {
+///         Self {
+///             filter_text: ctx.create_signal(String::new()),
+///             _quoin_inputs: quoin_ui_gpui::QuoinInputManager::new(),
+///         }
+///     }
+/// }
+/// ```
+pub struct QuoinInputManager {
+    states: HashMap<String, Entity<InputState>>,
+    subs: HashMap<String, Subscription>,
+}
+
+impl QuoinInputManager {
+    pub fn new() -> Self {
+        Self {
+            states: HashMap::new(),
+            subs: HashMap::new(),
+        }
+    }
+
+    pub fn contains(&self, id: &str) -> bool {
+        self.states.contains_key(id)
+    }
+
+    pub fn insert(&mut self, id: String, entity: Entity<InputState>, sub: Subscription) {
+        self.states.insert(id.clone(), entity);
+        self.subs.insert(id, sub);
+    }
+
+    pub fn get(&self, id: &str) -> Option<&Entity<InputState>> {
+        self.states.get(id)
+    }
+}
+
+impl Default for QuoinInputManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 // -----------------------------------------------------------------------------
 // Theme Resolution
@@ -168,7 +231,13 @@ pub fn render_button(label: Option<String>, variant: ButtonVariant) -> gpui::Div
 // Text Input
 // -----------------------------------------------------------------------------
 
-/// Render a text input placeholder using basic GPUI primitives.
+/// Render a static text input placeholder using basic GPUI primitives.
+///
+/// **For interactive inputs in `quoin_render!`**, use the `input()` element with
+/// a `GpuiSignal<String>` value instead — the macro generates code that uses
+/// `gpui_component::input::Input` with full two-way binding via `QuoinInputManager`.
+///
+/// This function remains available for non-reactive contexts or adapter trait usage.
 pub fn render_input(placeholder: Option<String>, value: String) -> gpui::Div {
     let display = if value.is_empty() {
         placeholder.unwrap_or_default()

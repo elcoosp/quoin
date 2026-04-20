@@ -29,6 +29,7 @@ struct MiniDevtools {
     cache_entries: quoin_gpui::GpuiSignal<Vec<CacheEntry>>,
     filter_text: quoin_gpui::GpuiSignal<String>,
     sort_direction: quoin_gpui::GpuiSignal<SortDirection>,
+    _quoin_inputs: quoin_ui_gpui::QuoinInputManager,
 }
 
 fn create_timeline_events() -> Vec<TimelineEvent> {
@@ -85,7 +86,7 @@ fn create_cache_entries() -> Vec<CacheEntry> {
 }
 
 impl MiniDevtools {
-    fn new(cx: &mut Context<Self>, ctx: GpuiContext) -> Self {
+    fn new(_cx: &mut Context<Self>, ctx: GpuiContext) -> Self {
         Self {
             active_tab: ctx.create_signal(0),
             event_count: ctx.create_signal(5),
@@ -94,61 +95,62 @@ impl MiniDevtools {
             filter_text: ctx.create_signal(String::new()),
             sort_direction: ctx.create_signal(SortDirection::None),
             _ctx: ctx,
+            _quoin_inputs: quoin_ui_gpui::QuoinInputManager::new(),
         }
     }
 }
 
 impl Render for MiniDevtools {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        // NOTE: `window` (not `_window`) is required for input() support
         let active_tab = self.active_tab.get();
         let event_count = self.event_count.get();
-        let filter_text = self.filter_text.get();
+        // NOTE: Do NOT call .get() on filter_text here — pass the signal
+        // reference directly to input(value: ...) so the macro can do
+        // two-way binding via GpuiSignal::get() / .set().
+        let filter_text_val = self.filter_text.get();
 
-        let tab_labels = vec![
+        let tab_elements: Vec<AnyElement> = vec![
             "Timeline".to_string(),
             "Cache".to_string(),
             "Signals".to_string(),
-        ];
+        ]
+        .iter()
+        .enumerate()
+        .map(|(i, label)| {
+            let tab_index = i;
+            let is_active = i == active_tab;
+            let mut el = div()
+                .px(px(16.0))
+                .py(px(8.0))
+                .cursor_pointer()
+                .child(label.clone());
 
-        let tab_elements: Vec<gpui::AnyElement> = tab_labels
-            .iter()
-            .enumerate()
-            .map(|(i, label)| {
-                let tab_index = i;
-                let is_active = i == active_tab;
-                let mut el = gpui::div()
-                    .px(gpui::px(16.0))
-                    .py(gpui::px(8.0))
-                    .cursor_pointer()
-                    .child(label.clone());
+            if is_active {
+                el = el.text_color(white());
+            } else {
+                el = el.text_color(rgb(0x9ca3af));
+            }
 
-                if is_active {
-                    el = el.text_color(gpui::white());
-                } else {
-                    el = el.text_color(gpui::rgb(0x9ca3af));
-                }
+            el.on_mouse_down(
+                MouseButton::Left,
+                cx.listener(move |this, _, _, _| {
+                    this.active_tab.set(tab_index);
+                }),
+            )
+            .into_any_element()
+        })
+        .collect();
 
-                el.on_mouse_down(
-                    gpui::MouseButton::Left,
-                    cx.listener(move |this, _, _, _| {
-                        this.active_tab.set(tab_index);
-                    }),
-                )
-                .into_any_element()
-            })
-            .collect();
-
-        let tabs = gpui::div().flex().children(tab_elements);
+        let tabs = div().flex().children(tab_elements);
 
         let tab_content = if active_tab == 0 {
-            render_timeline_tab(event_count, &self.timeline_events)
+            render_timeline_tab(event_count, &self.timeline_events, filter_text_val.clone())
         } else if active_tab == 1 {
             render_cache_tab(&self.cache_entries)
         } else {
-            render_signals_tab()
+            render_signals_tab(filter_text_val.clone())
         };
-
-        let filter = quoin_ui_gpui::render_input(Some("Filter events...".to_string()), filter_text);
 
         let add_event_btn = quoin_ui_gpui::render_button(
             Some("+ Add Event".to_string()),
@@ -174,61 +176,70 @@ impl Render for MiniDevtools {
                         format!("Events: {}", event_count)
                     }
                 }
+                div(class: "p-2") {
+                    input(class: "px-4 py-2 bg-gray-800 text-white rounded-md", placeholder: "Filter events...", value: self.filter_text)
+                }
+                div(class: "text-xs text-green-400") {
+                    format!("Filter value: {:?}", filter_text_val)
+                }
                 tabs
-                filter
                 add_event_btn
                 tab_content
             }
         }
     }
 }
+
 fn render_timeline_tab(
     event_count: u32,
     events: &quoin_gpui::GpuiSignal<Vec<TimelineEvent>>,
-) -> gpui::AnyElement {
+    filter_text: String,
+) -> AnyElement {
     let rows = events.get();
-    let row_elements: Vec<gpui::AnyElement> = rows
+    let filtered: Vec<_> = rows
+        .iter()
+        .filter(|e| {
+            filter_text.is_empty() || e.label.to_lowercase().contains(&filter_text.to_lowercase())
+        })
+        .collect();
+
+    let row_elements: Vec<AnyElement> = filtered
         .iter()
         .map(|event| {
-            gpui::div()
+            div()
                 .flex()
                 .gap_4()
                 .p_2()
                 .child(
-                    gpui::div()
+                    div()
                         .text_xs()
-                        .text_color(gpui::rgb(0x6b7280))
+                        .text_color(rgb(0x6b7280))
                         .child(event.timestamp.clone()),
                 )
                 .child(
-                    gpui::div()
+                    div()
                         .text_sm()
-                        .text_color(gpui::white())
+                        .text_color(white())
                         .child(event.label.clone()),
                 )
                 .into_any_element()
         })
         .collect();
 
-    gpui::div()
+    div()
         .flex_col()
         .gap_1()
         .size_full()
-        .child(
-            gpui::div()
-                .text_sm()
-                .text_color(gpui::rgb(0x9ca3af))
-                .child(format!(
-                    "{} timeline events (showing {})",
-                    event_count,
-                    rows.len()
-                )),
-        )
+        .child(div().text_sm().text_color(rgb(0x9ca3af)).child(format!(
+            "{} timeline events (showing {} filtered)",
+            event_count,
+            filtered.len()
+        )))
         .children(row_elements)
         .into_any_element()
 }
 
-fn render_cache_tab(entries: &quoin_gpui::GpuiSignal<Vec<CacheEntry>>) -> gpui::AnyElement {
+fn render_cache_tab(entries: &quoin_gpui::GpuiSignal<Vec<CacheEntry>>) -> AnyElement {
     let header = quoin_ui_gpui::render_table_header(&[
         "Key".to_string(),
         "Value".to_string(),
@@ -236,38 +247,38 @@ fn render_cache_tab(entries: &quoin_gpui::GpuiSignal<Vec<CacheEntry>>) -> gpui::
     ]);
 
     let rows = entries.get();
-    let row_elements: Vec<gpui::AnyElement> = rows
+    let row_elements: Vec<AnyElement> = rows
         .iter()
         .map(|entry| {
-            gpui::div()
+            div()
                 .flex()
                 .gap_4()
                 .p_2()
                 .child(
-                    gpui::div()
+                    div()
                         .w_full()
                         .text_sm()
-                        .text_color(gpui::rgb(0x3b82f6))
+                        .text_color(rgb(0x3b82f6))
                         .child(entry.key.clone()),
                 )
                 .child(
-                    gpui::div()
+                    div()
                         .w_full()
                         .text_sm()
-                        .text_color(gpui::white())
+                        .text_color(white())
                         .child(entry.value.clone()),
                 )
                 .child(
-                    gpui::div()
+                    div()
                         .text_sm()
-                        .text_color(gpui::rgb(0x9ca3af))
+                        .text_color(rgb(0x9ca3af))
                         .child(format!("{}", entry.hits)),
                 )
                 .into_any_element()
         })
         .collect();
 
-    gpui::div()
+    div()
         .flex_col()
         .gap_1()
         .size_full()
@@ -276,58 +287,65 @@ fn render_cache_tab(entries: &quoin_gpui::GpuiSignal<Vec<CacheEntry>>) -> gpui::
         .into_any_element()
 }
 
-fn render_signals_tab() -> gpui::AnyElement {
-    gpui::div()
+fn render_signals_tab(filter_text: String) -> AnyElement {
+    div()
         .flex_col()
         .gap_2()
         .p_4()
         .child(
-            gpui::div()
+            div()
                 .text_sm()
-                .text_color(gpui::rgb(0x9ca3af))
+                .text_color(rgb(0x9ca3af))
                 .child("Active signals in current scope:"),
         )
         .child(
-            gpui::div()
+            div()
                 .p_2()
-                .bg(gpui::rgb(0x1f2937))
-                .rounded(gpui::px(6.0))
+                .bg(rgb(0x1f2937))
+                .rounded(px(6.0))
                 .text_sm()
-                .text_color(gpui::rgb(0x22c55e))
+                .text_color(rgb(0x22c55e))
                 .child("active_tab: usize = 0"),
         )
         .child(
-            gpui::div()
+            div()
                 .p_2()
-                .bg(gpui::rgb(0x1f2937))
-                .rounded(gpui::px(6.0))
+                .bg(rgb(0x1f2937))
+                .rounded(px(6.0))
                 .text_sm()
-                .text_color(gpui::rgb(0x22c55e))
+                .text_color(rgb(0x22c55e))
                 .child("event_count: u32 = 5"),
         )
         .child(
-            gpui::div()
+            div()
                 .p_2()
-                .bg(gpui::rgb(0x1f2937))
-                .rounded(gpui::px(6.0))
+                .bg(rgb(0x1f2937))
+                .rounded(px(6.0))
                 .text_sm()
-                .text_color(gpui::rgb(0x22c55e))
-                .child("filter_text: String = \"\""),
+                .text_color(rgb(0x22c55e))
+                .child(format!("filter_text: String = {:?}", filter_text)),
         )
         .into_any_element()
 }
 
 fn main() {
-    application().run(|app_cx: &mut App| {
-        app_cx
-            .open_window(WindowOptions::default(), |window, window_cx| {
-                window_cx.new(|cx: &mut Context<MiniDevtools>| {
-                    let ctx: GpuiContext = cx.into();
-                    ctx.set_view_update_notifier(cx.weak_entity(), window.to_async(cx));
-                    MiniDevtools::new(cx, ctx)
+    gpui_platform::application()
+        .with_assets(gpui_component_assets::Assets)
+        .run(|app_cx: &mut App| {
+            gpui_component::init(app_cx);
+
+            app_cx
+                .open_window(WindowOptions::default(), |window, window_cx| {
+                    let mini_devtools = window_cx.new(|cx: &mut Context<MiniDevtools>| {
+                        let ctx: GpuiContext = cx.into();
+                        ctx.set_view_update_notifier(cx.weak_entity(), window.to_async(cx));
+                        MiniDevtools::new(cx, ctx)
+                    });
+
+                    // Root sets up the per-view theme context required by Input, Button, etc.
+                    window_cx.new(|cx| gpui_component::Root::new(mini_devtools, window, cx))
                 })
-            })
-            .unwrap();
-        app_cx.activate(true);
-    });
+                .unwrap();
+            app_cx.activate(true);
+        });
 }

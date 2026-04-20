@@ -8,5 +8,4 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 quoin-ui = { path = "../quoin-ui" }
 gpui = { git = "https://github.com/zed-industries/zed" }
-# Uncomment when gpui-component is added to the workspace
-# gpui-component = { git = "https://github.com/longbridge/gpui-component" }
+gpui-component = { git = "https://github.com/longbridge/gpui-component" }
