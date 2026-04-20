@@ -5685,16 +5685,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "macro-debug"
-version = "0.1.0"
-dependencies = [
- "gpui",
- "quoin",
- "quoin-gpui",
- "quoin-macros",
-]
-
-[[package]]
 name = "macro-string"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10269,6 +10259,20 @@ dependencies = [
  "quoin-ui",
  "quoin-ui-gpui",
  "uuid",
+]
+
+[[package]]
+name = "ucp-demo-leptos"
+version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook",
+ "console_log",
+ "leptos",
+ "log",
+ "quoin",
+ "quoin-leptos",
+ "quoin-macros",
+ "wasm-bindgen",
 ]
 
 [[package]]

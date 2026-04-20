@@ -1,0 +1,17 @@
+[package]
+name = "ucp-demo-leptos"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+leptos = "0.8"
+console_error_panic_hook = "0.1"
+console_log = "1.0"
+log = "0.4"
+wasm-bindgen = "0.2"
+quoin = { path = "../../quoin", features = ["leptos"] }
+quoin-leptos = { path = "../../quoin-leptos" }
+quoin-macros = { path = "../../quoin-macros", features = ["leptos"] }
