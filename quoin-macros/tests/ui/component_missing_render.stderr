@@ -1,12 +1,5 @@
-error: Missing render block
- --> tests/ui/component_missing_render.rs:2:1
+error: Missing render block. Add `render { ... }` to your component
+ --> tests/ui/component_missing_render.rs:3:5
   |
-2 | / component! {
-3 | |     Test {
-4 | |         state {
-5 | |             count: u32 = 0,
-... |
-9 | | }
-  | |_^
-  |
-  = note: this error originates in the macro `component` (in Nightly builds, run with -Z macro-backtrace for more info)
+3 |     Test {
+  |     ^^^^

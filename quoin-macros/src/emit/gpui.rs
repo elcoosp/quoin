@@ -3,6 +3,7 @@ use quote::quote;
 use crate::parse::ComponentAst;
 
 pub fn emit_component(ast: &ComponentAst) -> TokenStream {
+    let vis = &ast.vis;
     let name = &ast.name;
     let props_name = quote::format_ident!("{}Props", name);
 
@@ -41,11 +42,11 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
 
     let expanded = quote! {
         #[derive(Clone)]
-        pub struct #props_name {
+        #vis struct #props_name {
             #(#props_fields),*
         }
 
-        pub struct #name {
+        #vis struct #name {
             props: #props_name,
             #(#state_fields),*
         }

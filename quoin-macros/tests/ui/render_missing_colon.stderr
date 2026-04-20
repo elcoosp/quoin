@@ -1,0 +1,5 @@
+error: expected `:`
+ --> tests/ui/render_missing_colon.rs:5:19
+  |
+5 |         div(class "flex") { // Missing colon after class
+  |                   ^^^^^^

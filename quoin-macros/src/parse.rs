@@ -1,9 +1,11 @@
+// quoin-macros/src/parse.rs
 use proc_macro2::Ident;
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
-use syn::{Block, Expr, ItemFn, Result, Token, Type, braced};
+use syn::{Block, Expr, ItemFn, Result, Token, Type, Visibility, braced};
 
 pub struct ComponentAst {
+    pub vis: Visibility, // <-- 新增字段
     pub name: Ident,
     pub props: Vec<PropField>,
     pub state: Vec<StateField>,
@@ -25,17 +27,21 @@ pub struct StateField {
 
 impl Parse for ComponentAst {
     fn parse(input: ParseStream) -> Result<Self> {
+        // 1. 先解析可见性修饰符 (pub, pub(crate) 等)
+        let vis: Visibility = input.parse()?;
+
+        // 2. 解析组件名称
         let name: Ident = input.parse()?;
+        let name_span = name.span();
         let content;
         braced!(content in input);
 
         let mut props = Vec::new();
         let mut state = Vec::new();
         let mut actions = Vec::new();
-        let mut render_block = None;
+        let mut render_block: Option<Block> = None;
 
         while !content.is_empty() {
-            // Try to parse a function first
             let fork = content.fork();
             if fork.parse::<Token![fn]>().is_ok() {
                 let func: ItemFn = content.parse()?;
@@ -86,7 +92,7 @@ impl Parse for ComponentAst {
                         } else {
                             return Err(syn::Error::new(
                                 fname.span(),
-                                "State requires default value",
+                                "State requires default value (e.g., `count: u32 = 0`)",
                             ));
                         };
                         if inner.peek(Token![,]) {
@@ -105,25 +111,29 @@ impl Parse for ComponentAst {
                 _ => {
                     return Err(syn::Error::new(
                         key.span(),
-                        format!("Unexpected identifier: {}", key_str),
+                        "Unexpected identifier. Expected 'props', 'state', 'render', or a function definition",
                     ));
                 }
             }
-            // Consume optional trailing comma
             if content.peek(Token![,]) {
                 content.parse::<Token![,]>()?;
             }
         }
 
-        let render =
-            render_block.ok_or_else(|| syn::Error::new(name.span(), "Missing render block"))?;
+        if render_block.is_none() {
+            return Err(syn::Error::new(
+                name_span,
+                "Missing render block. Add `render { ... }` to your component",
+            ));
+        }
 
         Ok(ComponentAst {
+            vis, // <-- 返回可见性
             name,
             props,
             state,
             actions,
-            render,
+            render: render_block.unwrap(),
         })
     }
 }

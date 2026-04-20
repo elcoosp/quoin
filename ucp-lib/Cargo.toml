@@ -6,9 +6,13 @@ edition = "2021"
 [dependencies]
 quoin = { path = "../quoin" }
 quoin-macros = { path = "../quoin-macros" }
+
+# Conditional framework adapters
+quoin-gpui = { path = "../quoin-gpui", optional = true }
+quoin-leptos = { path = "../quoin-leptos", optional = true }
 gpui = { git = "https://github.com/zed-industries/zed", optional = true }
 leptos = { version = "0.8", optional = true }
 
 [features]
-gpui = ["dep:gpui", "quoin/gpui", "quoin-macros/gpui"]
-leptos = ["dep:leptos", "quoin/leptos", "quoin-macros/leptos"]
+gpui = ["dep:quoin-gpui", "dep:gpui", "quoin/gpui", "quoin-macros/gpui"]
+leptos = ["dep:quoin-leptos", "dep:leptos", "quoin/leptos", "quoin-macros/leptos"]

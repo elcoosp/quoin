@@ -7244,9 +7244,11 @@ dependencies = [
 name = "quoin-macros"
 version = "0.1.0"
 dependencies = [
+ "manyhow",
  "proc-macro2",
  "quote",
  "syn 2.0.117",
+ "thiserror 2.0.18",
  "trybuild",
  "uuid",
 ]
@@ -9799,6 +9801,8 @@ dependencies = [
  "gpui",
  "leptos",
  "quoin",
+ "quoin-gpui",
+ "quoin-leptos",
  "quoin-macros",
 ]
 

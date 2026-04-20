@@ -3,6 +3,7 @@ use quote::quote;
 use crate::parse::ComponentAst;
 
 pub fn emit_component(ast: &ComponentAst) -> TokenStream {
+    let vis = &ast.vis;
     let name = &ast.name;
 
     let state_inits = ast.state.iter().map(|s| {
@@ -13,16 +14,13 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
         }
     });
 
-    // For Leptos, actions are defined as local closures that capture signals.
-    // The macro user writes `fn action(&self) { ... }`, we transform to `let action = ...`.
+    // Transform action methods to local closures
     let action_closures = ast.actions.iter().map(|func| {
         let sig = &func.sig;
         let block = &func.block;
         let name = &sig.ident;
         quote! {
-            let #name = {
-                #block
-            };
+            let #name = || #block;
         }
     });
 
@@ -30,8 +28,9 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
 
     quote! {
         #[leptos::prelude::component]
-        pub fn #name() -> impl leptos::prelude::IntoView {
+        #vis fn #name() -> impl leptos::prelude::IntoView {
             use quoin::ReactiveContext;
+            use quoin::Signal;
             let ctx = quoin_leptos::LeptosContext::new();
             #(#state_inits)*
             #(#action_closures)*

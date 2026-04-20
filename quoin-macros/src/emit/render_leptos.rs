@@ -27,24 +27,32 @@ fn emit_element(el: &Element) -> TokenStream {
     };
 
     let mut attrs = Vec::new();
-    let mut children_tokens = Vec::new();
 
+    // Process regular attributes
     for (key, value) in &el.args {
         let key_str = key.to_string();
         match key_str.as_str() {
             "class" => attrs.push(quote! { class=#value }),
             "id" => attrs.push(quote! { id=#value }),
             "on_click" => {
-                // In Leptos, event handlers are written as `on:click=move |_| { ... }`
-                // We take the closure body and wrap it appropriately.
                 attrs.push(quote! { on:click=move |_| { #value } });
             }
+            // children is handled separately, not as an attribute
+            "children" => {}
             _ => {}
         }
     }
 
-    for child in &el.children {
-        children_tokens.push(emit_render(child));
+    // Build children tokens
+    let mut children_tokens = Vec::new();
+
+    // If children_expr is present (from children: expr), use it as the only child
+    if let Some(children_expr) = &el.children_expr {
+        children_tokens.push(quote! { {#children_expr} });
+    } else {
+        for child in &el.children {
+            children_tokens.push(emit_render(child));
+        }
     }
 
     let tag_ident = proc_macro2::Ident::new(tag, proc_macro2::Span::call_site());

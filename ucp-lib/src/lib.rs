@@ -1,3 +1,4 @@
+use quoin::Signal;
 use quoin_macros::component;
 
 #[derive(Clone)]
@@ -8,7 +9,7 @@ pub struct Person {
 }
 
 component! {
-    DemoApp {
+    pub DemoApp {
         state {
             count: u32 = 0,
             selected: String = "Option A".to_string(),
@@ -88,6 +89,3 @@ component! {
         }
     }
 }
-
-pub use DemoApp;
-pub use DemoAppProps;

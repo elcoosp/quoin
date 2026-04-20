@@ -1,28 +1,16 @@
 use proc_macro::TokenStream;
 use quote::quote;
 
-mod parse;
+mod custom_element;
 mod emit;
+mod parse;
 mod render_ast;
 mod transpile;
-mod custom_element;
 
+#[manyhow::manyhow]
 #[proc_macro]
-pub fn component(input: TokenStream) -> TokenStream {
-    let input_str = input.to_string();
-    if input_str.contains("DEBUG") {
-        return TokenStream::from(quote! {
-            compile_error!(#input_str);
-        });
-    }
-
-    let ast = match syn::parse::<parse::ComponentAst>(input) {
-        Ok(ast) => ast,
-        Err(e) => {
-            let err = e.to_compile_error();
-            return TokenStream::from(quote! { #err });
-        }
-    };
+pub fn component(input: TokenStream) -> Result<TokenStream, syn::Error> {
+    let ast = syn::parse::<parse::ComponentAst>(input)?;
 
     #[cfg(feature = "gpui")]
     let tokens = emit::gpui::emit_component(&ast);
@@ -36,18 +24,13 @@ pub fn component(input: TokenStream) -> TokenStream {
     #[cfg(not(any(feature = "gpui", feature = "leptos", feature = "dioxus")))]
     let tokens = quote! { compile_error!("component! requires a framework feature (e.g., 'gpui', 'leptos', 'dioxus')"); };
 
-    tokens.into()
+    Ok(tokens.into())
 }
 
+#[manyhow::manyhow]
 #[proc_macro]
-pub fn quoin_render(input: TokenStream) -> TokenStream {
-    let ast = match syn::parse::<render_ast::RenderNode>(input) {
-        Ok(ast) => ast,
-        Err(e) => {
-            let err = e.to_compile_error();
-            return TokenStream::from(quote! { #err });
-        }
-    };
+pub fn quoin_render(input: TokenStream) -> Result<TokenStream, syn::Error> {
+    let ast = syn::parse::<render_ast::RenderNode>(input)?;
 
     #[cfg(feature = "gpui")]
     let tokens = emit::render_gpui::emit_render(&ast);
@@ -61,17 +44,12 @@ pub fn quoin_render(input: TokenStream) -> TokenStream {
     #[cfg(not(any(feature = "gpui", feature = "leptos", feature = "dioxus")))]
     let tokens = quote! { compile_error!("quoin_render! requires a framework feature (e.g., 'gpui', 'leptos', 'dioxus')"); };
 
-    tokens.into()
+    Ok(tokens.into())
 }
 
+#[manyhow::manyhow]
 #[proc_macro]
-pub fn quoin_element(input: TokenStream) -> TokenStream {
-    let def = match syn::parse::<custom_element::CustomElementDef>(input) {
-        Ok(def) => def,
-        Err(e) => {
-            let err = e.to_compile_error();
-            return TokenStream::from(quote! { #err });
-        }
-    };
-    custom_element::expand_custom_element(def).into()
+pub fn quoin_element(input: TokenStream) -> Result<TokenStream, syn::Error> {
+    let def = syn::parse::<custom_element::CustomElementDef>(input)?;
+    Ok(custom_element::expand_custom_element(def).into())
 }
