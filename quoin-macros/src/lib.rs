@@ -10,7 +10,16 @@ mod transpile;
 #[proc_macro]
 pub fn component(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as parse::ComponentAst);
+
+    #[cfg(feature = "gpui")]
     let tokens = emit::gpui::emit_component(&ast);
+
+    #[cfg(feature = "leptos")]
+    let tokens = emit::leptos::emit_component(&ast);
+
+    #[cfg(not(any(feature = "gpui", feature = "leptos")))]
+    let tokens = quote! { compile_error!("component! requires a framework feature (e.g., 'gpui', 'leptos')"); };
+
     tokens.into()
 }
 
@@ -21,8 +30,11 @@ pub fn quoin_render(input: TokenStream) -> TokenStream {
     #[cfg(feature = "gpui")]
     let tokens = emit::render_gpui::emit_render(&ast);
 
-    #[cfg(not(feature = "gpui"))]
-    let tokens = quote! { compile_error!("quoin_render! requires a framework feature (e.g., 'gpui')"); };
+    #[cfg(feature = "leptos")]
+    let tokens = emit::render_leptos::emit_render(&ast);
+
+    #[cfg(not(any(feature = "gpui", feature = "leptos")))]
+    let tokens = quote! { compile_error!("quoin_render! requires a framework feature (e.g., 'gpui', 'leptos')"); };
 
     tokens.into()
 }

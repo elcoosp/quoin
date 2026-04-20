@@ -1,0 +1,117 @@
+use proc_macro2::TokenStream;
+use quote::quote;
+use crate::render_ast::{RenderNode, Element, IfNode, ForEachNode};
+use syn::Expr;
+
+pub fn emit_render(node: &RenderNode) -> TokenStream {
+    match node {
+        RenderNode::Element(el) => emit_element(el),
+        RenderNode::Text(t) => {
+            let text = t.value();
+            quote! { #text }
+        }
+        RenderNode::Expr(e) => {
+            quote! { {#e} }
+        }
+        RenderNode::If(if_node) => emit_if(if_node),
+        RenderNode::ForEach(fe) => emit_for_each(fe),
+    }
+}
+
+fn emit_element(el: &Element) -> TokenStream {
+    let name_str = el.name.to_string();
+    let tag = match name_str.as_str() {
+        "div" => "div",
+        "h1" => "h1",
+        "h2" => "h2",
+        "h3" => "h3",
+        "p" | "text" => "p",
+        "button" => "button",
+        "input" => "input",
+        _ => "div",
+    };
+
+    // Build attributes string for view! macro
+    let mut attr_tokens = Vec::new();
+    for (key, value) in &el.args {
+        let key_str = key.to_string();
+        match key_str.as_str() {
+            "class" => {
+                attr_tokens.push(quote! { class=#value });
+            }
+            "id" => {
+                attr_tokens.push(quote! { id=#value });
+            }
+            "on_click" => {
+                attr_tokens.push(quote! { on:click=#value });
+            }
+            "value" => {
+                attr_tokens.push(quote! { value=#value });
+            }
+            "placeholder" => {
+                attr_tokens.push(quote! { placeholder=#value });
+            }
+            _ => {}
+        }
+    }
+
+    let children: Vec<TokenStream> = el.children.iter().map(emit_render).collect();
+
+    let tag_ident = proc_macro2::Ident::new(tag, proc_macro2::Span::call_site());
+    if children.is_empty() {
+        quote! {
+            <#tag_ident #(#attr_tokens)* />
+        }
+    } else {
+        quote! {
+            <#tag_ident #(#attr_tokens)*>
+                #(#children)*
+            </#tag_ident>
+        }
+    }
+}
+
+fn emit_if(if_node: &IfNode) -> TokenStream {
+    let cond = &if_node.condition;
+    let then_branch = emit_nodes(&if_node.then_branch);
+
+    if let Some(else_branch) = &if_node.else_branch {
+        let else_branch_tokens = emit_nodes(else_branch);
+        quote! {
+            {move || if #cond {
+                leptos::prelude::view! { #then_branch }
+            } else {
+                leptos::prelude::view! { #else_branch_tokens }
+            }}
+        }
+    } else {
+        quote! {
+            {move || if #cond {
+                leptos::prelude::view! { #then_branch }
+            }}
+        }
+    }
+}
+
+fn emit_for_each(fe: &ForEachNode) -> TokenStream {
+    let items = &fe.items;
+    let key = &fe.key;
+    let item_render = emit_render(&fe.item_template);
+
+    quote! {
+        <leptos::prelude::For
+            each=move || #items.clone()
+            key=#key
+            children=move |item| {
+                leptos::prelude::view! { #item_render }
+            }
+        />
+    }
+}
+
+fn emit_nodes(nodes: &[RenderNode]) -> TokenStream {
+    let node_tokens: Vec<TokenStream> = nodes.iter().map(emit_render).collect();
+    quote! {
+        #(#node_tokens)*
+    }
+}
