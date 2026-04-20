@@ -25,25 +25,35 @@ fn emit_element(el: &Element) -> TokenStream {
         _ => quote! { gpui::div() },
     };
 
-    if let Some((_, class_expr)) = el.args.iter().find(|(k, _)| k == "class") {
-        if let Expr::Lit(expr_lit) = class_expr {
-            if let syn::Lit::Str(lit_str) = &expr_lit.lit {
-                let styles = transpile_class(&lit_str.value());
-                for style in styles {
-                    chain = quote! { #chain #style };
+    // Apply class and other styling attributes (excluding 'children' and 'on_click')
+    for (key, value_expr) in &el.args {
+        let key_str = key.to_string();
+        if key_str == "class" {
+            if let Expr::Lit(expr_lit) = value_expr {
+                if let syn::Lit::Str(lit_str) = &expr_lit.lit {
+                    let styles = transpile_class(&lit_str.value());
+                    for style in styles {
+                        chain = quote! { #chain #style };
+                    }
                 }
             }
         }
+        // Other attributes can be added here
     }
 
-    // If there are multiple children, we use .children(vec![...]) to avoid multiple .child() calls
-    // (though multiple .child() calls work, but we'll keep it simple and robust)
-    let child_exprs: Vec<TokenStream> = el.children.iter().map(emit_render).collect();
-    if !child_exprs.is_empty() {
-        let children_array = quote! { vec![#(#child_exprs),*] };
-        chain = quote! { #chain.children(#children_array) };
+    // Check for explicit 'children' attribute (for collections)
+    let children_attr = el.args.iter().find(|(k, _)| k == "children");
+    if let Some((_, children_expr)) = children_attr {
+        chain = quote! { #chain.children(#children_expr) };
+    } else {
+        // Otherwise, treat each child as a single element and use .child()
+        for child in &el.children {
+            let child_expr = emit_render(child);
+            chain = quote! { #chain.child(#child_expr) };
+        }
     }
 
+    // Event handlers
     if let Some((_, handler_expr)) = el.args.iter().find(|(k, _)| k == "on_click") {
         chain = quote! {
             #chain.on_mouse_down(gpui::MouseButton::Left, #handler_expr)

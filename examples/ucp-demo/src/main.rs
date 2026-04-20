@@ -24,13 +24,16 @@ component! {
         }
 
         render {
-            // Pre-render the list items so they can be collected into a Vec
-            let people_rows = {
+            let count_text = format!("Count: {}", self.count.get());
+            let selected_text = format!("Selected: {}", self.selected.get());
+
+            let people_items = {
                 let rows = self.rows.get();
                 rows.iter().map(|person| {
+                    let text = format!("{} ({} years old)", person.name, person.age);
                     quoin_render! {
-                        div(class: "p-2 bg-gray-800 rounded") {
-                            format!("{} ({} years old)", person.name, person.age)
+                        div(class: "p-2 bg-gray-800 rounded-md") {
+                            text
                         }
                     }
                 }).collect::<Vec<_>>()
@@ -43,10 +46,10 @@ component! {
                     }
                     div(class: "flex items-center gap-2") {
                         div(class: "text-lg") {
-                            format!("Count: {}", self.count.get())
+                            count_text
                         }
                         button(
-                            class: "px-4 py-2 bg-blue-600 text-white rounded cursor-pointer",
+                            class: "px-4 py-2 bg-blue-600 text-white rounded-md cursor-pointer",
                             on_click: {
                                 let count = self.count.clone();
                                 move |_ev, _window, _cx| {
@@ -59,10 +62,10 @@ component! {
                     }
                     div(class: "flex items-center gap-2") {
                         div(class: "text-lg") {
-                            format!("Selected: {}", self.selected.get())
+                            selected_text
                         }
                         button(
-                            class: "px-4 py-2 bg-green-600 text-white rounded cursor-pointer",
+                            class: "px-4 py-2 bg-green-600 text-white rounded-md cursor-pointer",
                             on_click: {
                                 let selected = self.selected.clone();
                                 move |_ev, _window, _cx| {
@@ -73,7 +76,7 @@ component! {
                             "Option A"
                         }
                         button(
-                            class: "px-4 py-2 bg-purple-600 text-white rounded cursor-pointer",
+                            class: "px-4 py-2 bg-purple-600 text-white rounded-md cursor-pointer",
                             on_click: {
                                 let selected = self.selected.clone();
                                 move |_ev, _window, _cx| {
@@ -87,9 +90,7 @@ component! {
                     div(class: "text-lg font-semibold") {
                         "People:"
                     }
-                    div(class: "flex flex-col gap-1") {
-                        people_rows
-                    }
+                    div(class: "flex flex-col gap-1", children: people_items)
                 }
             }
         }

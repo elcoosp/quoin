@@ -10,11 +10,9 @@ pub fn transpile_class(class_str: &str) -> Vec<TokenStream> {
             "inline-flex" => quote! { .inline_flex() },
             "block" => quote! { .block() },
             "hidden" => quote! { .hidden() },
-
             // Flex direction
             "flex-col" => quote! { .flex_col() },
             "flex-row" => quote! { .flex_row() },
-
             // Alignment
             "items-center" => quote! { .items_center() },
             "items-start" => quote! { .items_start() },
@@ -23,7 +21,6 @@ pub fn transpile_class(class_str: &str) -> Vec<TokenStream> {
             "justify-between" => quote! { .justify_between() },
             "justify-start" => quote! { .justify_start() },
             "justify-end" => quote! { .justify_end() },
-
             // Spacing
             "gap-0" => quote! { .gap_0() },
             "gap-1" => quote! { .gap_1() },
@@ -32,7 +29,6 @@ pub fn transpile_class(class_str: &str) -> Vec<TokenStream> {
             "gap-4" => quote! { .gap_4() },
             "gap-6" => quote! { .gap_6() },
             "gap-8" => quote! { .gap_8() },
-
             // Padding
             "p-0" => quote! { .p_0() },
             "p-1" => quote! { .p_1() },
@@ -43,29 +39,22 @@ pub fn transpile_class(class_str: &str) -> Vec<TokenStream> {
             "px-4" => quote! { .px_4() },
             "py-1" => quote! { .py_1() },
             "py-2" => quote! { .py_2() },
-
             // Sizing
             "w-full" => quote! { .w_full() },
             "h-full" => quote! { .h_full() },
             "size-full" => quote! { .size_full() },
-            "h-8" => quote! { .h_8() },
-            "h-10" => quote! { .h_10() },
-
             // Background
             "bg-white" => quote! { .bg(gpui::white()) },
             "bg-black" => quote! { .bg(gpui::black()) },
             "bg-gray-100" => quote! { .bg(gpui::rgb(0xf3f4f6)) },
             "bg-gray-800" => quote! { .bg(gpui::rgb(0x1f2937)) },
             "bg-gray-900" => quote! { .bg(gpui::rgb(0x111827)) },
-            "bg-red-500" => quote! { .bg(gpui::rgb(0xef4444)) },
-            "bg-blue-500" => quote! { .bg(gpui::rgb(0x3b82f6)) },
-
+            "bg-blue-600" => quote! { .bg(gpui::rgb(0x2563eb)) },
+            "bg-green-600" => quote! { .bg(gpui::rgb(0x16a34a)) },
+            "bg-purple-600" => quote! { .bg(gpui::rgb(0x9333ea)) },
             // Text color
             "text-white" => quote! { .text_color(gpui::white()) },
             "text-black" => quote! { .text_color(gpui::black()) },
-            "text-gray-400" => quote! { .text_color(gpui::rgb(0x9ca3af)) },
-            "text-gray-500" => quote! { .text_color(gpui::rgb(0x6b7280)) },
-
             // Font size
             "text-xs" => quote! { .text_xs() },
             "text-sm" => quote! { .text_sm() },
@@ -73,26 +62,15 @@ pub fn transpile_class(class_str: &str) -> Vec<TokenStream> {
             "text-lg" => quote! { .text_lg() },
             "text-xl" => quote! { .text_xl() },
             "text-2xl" => quote! { .text_2xl() },
-
             // Border radius
-            "rounded" => quote! { .rounded() },
-            "rounded-sm" => quote! { .rounded_sm() },
-            "rounded-md" => quote! { .rounded_md() },
-            "rounded-lg" => quote! { .rounded_lg() },
-            "rounded-full" => quote! { .rounded_full() },
-
+            "rounded" => quote! { .rounded(gpui::px(4.0)) },
+            "rounded-sm" => quote! { .rounded(gpui::px(2.0)) },
+            "rounded-md" => quote! { .rounded(gpui::px(6.0)) },
+            "rounded-lg" => quote! { .rounded(gpui::px(8.0)) },
+            "rounded-full" => quote! { .rounded(gpui::px(9999.0)) },
             // Cursor
             "cursor-pointer" => quote! { .cursor_pointer() },
             "cursor-default" => quote! { .cursor_default() },
-
-            // Position
-            "absolute" => quote! { .absolute() },
-            "relative" => quote! { .relative() },
-            "top-0" => quote! { .top_0() },
-            "right-0" => quote! { .right_0() },
-            "bottom-0" => quote! { .bottom_0() },
-            "left-0" => quote! { .left_0() },
-
             _ => continue,
         };
         tokens.push(token);
