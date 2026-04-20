@@ -61,11 +61,9 @@ impl Parse for RenderNode {
                     parenthesized!(args_content in input);
                     let items: Expr = args_content.parse()?;
                     args_content.parse::<Token![,]>()?;
-                    args_content.parse::<Ident>()?; // "key"
+                    args_content.parse::<Ident>()?;
                     args_content.parse::<Token![:]>()?;
                     let key: Expr = args_content.parse()?;
-                    args_content.parse::<Token![,]>()?;
-                    let _template_expr: Expr = args_content.parse()?;
 
                     let template_content;
                     braced!(template_content in input);
@@ -77,11 +75,23 @@ impl Parse for RenderNode {
                         item_template: Box::new(template_node),
                     }))
                 }
-                _ => parse_element(input),
+                _ => {
+                    // Check if it's a macro invocation (ident followed by !)
+                    let fork = input.fork();
+                    fork.parse::<Ident>()?;
+                    if fork.peek(Token![!]) {
+                        // Macro call like format!, vec!, println!, etc.
+                        Ok(RenderNode::Expr(input.parse()?))
+                    } else {
+                        // Regular element like div, button, etc.
+                        parse_element(input)
+                    }
+                }
             }
         } else if lookahead.peek(LitStr) {
             Ok(RenderNode::Text(input.parse()?))
         } else {
+            // Any other token stream (e.g., braces, numbers) is an expression
             Ok(RenderNode::Expr(input.parse()?))
         }
     }

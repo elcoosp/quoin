@@ -61,6 +61,7 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
 
         impl gpui::Render for #name {
             fn render(&mut self, _window: &mut gpui::Window, _cx: &mut gpui::Context<Self>) -> impl gpui::IntoElement {
+                use gpui::*;
                 #(#render_stmts)*
             }
         }

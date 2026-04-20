@@ -1,9 +1,8 @@
 use gpui::*;
 use gpui_platform::application;
-use quoin::ReactiveContext;
 use quoin::Signal;
 use quoin_gpui::GpuiContext;
-use quoin_macros::component;
+use quoin_macros::{component, quoin_render};
 
 component! {
     DemoApp {
@@ -25,54 +24,74 @@ component! {
         }
 
         render {
-            div()
-                .flex()
-                .flex_col()
-                .gap_4()
-                .p_4()
-                .child(div().child(format!("Count: {}", self.count.get())))
-                .child(
-                    div()
-                        .px_4()
-                        .py_2()
-                        .bg(rgb(0x4e4e4e))
-                        .rounded_md()
-                        .cursor_pointer()
-                        .child("Increment")
-                        .on_mouse_down(MouseButton::Left, {
-                            let count = self.count.clone();
-                            move |_ev, _window, _cx| {
-                                Self::increment(count.clone());
+            // Pre-render the list items so they can be collected into a Vec
+            let people_rows = {
+                let rows = self.rows.get();
+                rows.iter().map(|person| {
+                    quoin_render! {
+                        div(class: "p-2 bg-gray-800 rounded") {
+                            format!("{} ({} years old)", person.name, person.age)
+                        }
+                    }
+                }).collect::<Vec<_>>()
+            };
+
+            quoin_render! {
+                div(class: "flex flex-col gap-4 p-4 bg-gray-900 text-white size-full") {
+                    div(class: "text-2xl font-bold") {
+                        "Quoin Render Demo"
+                    }
+                    div(class: "flex items-center gap-2") {
+                        div(class: "text-lg") {
+                            format!("Count: {}", self.count.get())
+                        }
+                        button(
+                            class: "px-4 py-2 bg-blue-600 text-white rounded cursor-pointer",
+                            on_click: {
+                                let count = self.count.clone();
+                                move |_ev, _window, _cx| {
+                                    Self::increment(count.clone());
+                                }
                             }
-                        })
-                )
-                .child(div().child(format!("Selected: {}", self.selected.get())))
-                .child(
-                    div()
-                        .px_4()
-                        .py_2()
-                        .bg(rgb(0x2563eb))
-                        .rounded_md()
-                        .cursor_pointer()
-                        .child("Select Option A")
-                        .on_mouse_down(MouseButton::Left, {
-                            let selected = self.selected.clone();
-                            move |_ev, _window, _cx| {
-                                Self::select_option(selected.clone(), "Option A".to_string());
+                        ) {
+                            "Increment"
+                        }
+                    }
+                    div(class: "flex items-center gap-2") {
+                        div(class: "text-lg") {
+                            format!("Selected: {}", self.selected.get())
+                        }
+                        button(
+                            class: "px-4 py-2 bg-green-600 text-white rounded cursor-pointer",
+                            on_click: {
+                                let selected = self.selected.clone();
+                                move |_ev, _window, _cx| {
+                                    Self::select_option(selected.clone(), "Option A".to_string());
+                                }
                             }
-                        })
-                )
-                .child(div().child("People:"))
-                .child(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .children(
-                            self.rows.get().iter().map(|person| {
-                                div().child(format!("{} - {}", person.name, person.age))
-                            }).collect::<Vec<_>>()
-                        )
-                )
+                        ) {
+                            "Option A"
+                        }
+                        button(
+                            class: "px-4 py-2 bg-purple-600 text-white rounded cursor-pointer",
+                            on_click: {
+                                let selected = self.selected.clone();
+                                move |_ev, _window, _cx| {
+                                    Self::select_option(selected.clone(), "Option B".to_string());
+                                }
+                            }
+                        ) {
+                            "Option B"
+                        }
+                    }
+                    div(class: "text-lg font-semibold") {
+                        "People:"
+                    }
+                    div(class: "flex flex-col gap-1") {
+                        people_rows
+                    }
+                }
+            }
         }
     }
 }
