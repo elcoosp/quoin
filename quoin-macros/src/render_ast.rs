@@ -15,6 +15,7 @@ pub struct Element {
     pub name: Ident,
     pub args: Vec<(Ident, Expr)>,
     pub children: Vec<RenderNode>,
+    pub children_expr: Option<Expr>,
 }
 
 #[derive(Debug)]
@@ -44,15 +45,12 @@ impl Parse for RenderNode {
                     let then_content;
                     braced!(then_content in input);
                     let then_branch = parse_nodes(&then_content)?;
-
                     let else_branch = if input.peek(Token![else]) {
                         input.parse::<Token![else]>()?;
                         let else_content;
                         braced!(else_content in input);
                         Some(parse_nodes(&else_content)?)
-                    } else {
-                        None
-                    };
+                    } else { None };
                     Ok(RenderNode::If(IfNode { condition, then_branch, else_branch }))
                 }
                 "for_each" => {
@@ -64,34 +62,29 @@ impl Parse for RenderNode {
                     args_content.parse::<Ident>()?;
                     args_content.parse::<Token![:]>()?;
                     let key: Expr = args_content.parse()?;
-
                     let template_content;
                     braced!(template_content in input);
                     let template_node = parse_node(&template_content)?;
-
-                    Ok(RenderNode::ForEach(ForEachNode {
-                        items,
-                        key,
-                        item_template: Box::new(template_node),
-                    }))
+                    Ok(RenderNode::ForEach(ForEachNode { items, key, item_template: Box::new(template_node) }))
                 }
                 _ => {
-                    // Check if it's a macro invocation (ident followed by !)
                     let fork = input.fork();
                     fork.parse::<Ident>()?;
                     if fork.peek(Token![!]) {
-                        // Macro call like format!, vec!, println!, etc.
+                        // Macro call like format!, vec!
                         Ok(RenderNode::Expr(input.parse()?))
-                    } else {
-                        // Regular element like div, button, etc.
+                    } else if fork.peek(syn::token::Paren) {
+                        // Element with arguments
                         parse_element(input)
+                    } else {
+                        // Plain expression (variable, literal, etc.)
+                        Ok(RenderNode::Expr(input.parse()?))
                     }
                 }
             }
         } else if lookahead.peek(LitStr) {
             Ok(RenderNode::Text(input.parse()?))
         } else {
-            // Any other token stream (e.g., braces, numbers) is an expression
             Ok(RenderNode::Expr(input.parse()?))
         }
     }
@@ -102,25 +95,26 @@ fn parse_element(input: ParseStream) -> Result<RenderNode> {
     let args_content;
     parenthesized!(args_content in input);
     let mut args = Vec::new();
+    let mut children_expr = None;
     while !args_content.is_empty() {
         let key: Ident = args_content.parse()?;
         args_content.parse::<Token![:]>()?;
-        let value: Expr = args_content.parse()?;
-        args.push((key, value));
+        if key == "children" {
+            children_expr = Some(args_content.parse()?);
+        } else {
+            let value: Expr = args_content.parse()?;
+            args.push((key, value));
+        }
         if !args_content.is_empty() {
             args_content.parse::<Token![,]>()?;
         }
     }
-
     let children = if input.peek(syn::token::Brace) {
         let content;
         braced!(content in input);
         parse_nodes(&content)?
-    } else {
-        Vec::new()
-    };
-
-    Ok(RenderNode::Element(Element { name, args, children }))
+    } else { Vec::new() };
+    Ok(RenderNode::Element(Element { name, args, children, children_expr }))
 }
 
 fn parse_nodes(input: ParseStream) -> Result<Vec<RenderNode>> {
