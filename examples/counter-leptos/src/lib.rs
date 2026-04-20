@@ -1,13 +1,19 @@
+use counter_lib::use_counter;
 use leptos::prelude::*;
+use quoin::Signal;
+use quoin_leptos::LeptosContext;
 
 #[component]
 pub fn App() -> impl IntoView {
-    let (count, set_count) = signal(0);
-    let increment = move |_| set_count.update(|c| *c += 1);
+    let ctx = LeptosContext::new();
+    let counter = use_counter(&ctx);
+
     view! {
         <div>
-            <p>"Count: " {move || count.get()}</p>
-            <button on:click=increment>"Increment"</button>
+            <p>"Count: " {move || counter.count.get()}</p>
+            <button on:click=move |_| (counter.increment)()>
+                "Increment"
+            </button>
         </div>
     }
 }

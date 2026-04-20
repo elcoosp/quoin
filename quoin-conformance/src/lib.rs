@@ -86,6 +86,29 @@ pub mod tests {
         assert_eq!(copy.get(), 100);
     }
 
+    // --- New mutation tests ---
+
+    pub async fn signal_set_updates_value<C: ReactiveContext>(cx: &C) {
+        let signal = cx.create_signal(0u32);
+        signal.set(42);
+        assert_eq!(signal.get(), 42);
+    }
+
+    pub async fn signal_update_modifies_value<C: ReactiveContext>(cx: &C) {
+        let signal = cx.create_signal(0u32);
+        signal.update(|v| *v += 5);
+        signal.update(|v| *v *= 2);
+        assert_eq!(signal.get(), 10);
+    }
+
+    pub async fn signal_mutation_observable_via_with<C: ReactiveContext>(cx: &C) {
+        let signal = cx.create_signal(String::from("hello"));
+        signal.update(|s| s.push_str(" world"));
+        signal.with(|s| assert_eq!(s, "hello world"));
+    }
+
+    // --- Existing executor and cancellation tests ---
+
     pub async fn executor_spawn_success<C: ReactiveContext>(cx: &C)
     where
         <<C as ReactiveContext>::Executor as Executor>::JoinHandle<()>: std::future::IntoFuture,
@@ -187,6 +210,24 @@ macro_rules! define_conformance_tests {
         }
 
         #[test]
+        fn test_signal_set_updates_value() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(signal_set_updates_value(&cx));
+        }
+
+        #[test]
+        fn test_signal_update_modifies_value() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(signal_update_modifies_value(&cx));
+        }
+
+        #[test]
+        fn test_signal_mutation_observable_via_with() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(signal_mutation_observable_via_with(&cx));
+        }
+
+        #[test]
         fn test_executor_spawn_success() {
             let cx = <$cx_type>::setup_context();
             <$cx_type>::block_on(executor_spawn_success(&cx));
@@ -243,6 +284,24 @@ macro_rules! define_conformance_tests {
         async fn test_signal_clone_and_copy(cx: &mut TestAppContext) {
             let harness = <$cx_type>::new(cx);
             signal_clone_and_copy(&harness).await;
+        }
+
+        #[gpui::test]
+        async fn test_signal_set_updates_value(cx: &mut TestAppContext) {
+            let harness = <$cx_type>::new(cx);
+            signal_set_updates_value(&harness).await;
+        }
+
+        #[gpui::test]
+        async fn test_signal_update_modifies_value(cx: &mut TestAppContext) {
+            let harness = <$cx_type>::new(cx);
+            signal_update_modifies_value(&harness).await;
+        }
+
+        #[gpui::test]
+        async fn test_signal_mutation_observable_via_with(cx: &mut TestAppContext) {
+            let harness = <$cx_type>::new(cx);
+            signal_mutation_observable_via_with(&harness).await;
         }
 
         #[gpui::test]

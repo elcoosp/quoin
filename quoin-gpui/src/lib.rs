@@ -74,8 +74,18 @@ impl<T: Clone + 'static> Signal<T> for GpuiSignal<T> {
         let guard = self.inner.read().unwrap();
         f(&guard)
     }
-}
 
+    fn set(&self, value: T) {
+        *self.inner.write().unwrap() = value;
+        // Note: request_update would be called here if we had a Context
+    }
+
+    fn update(&self, f: impl FnOnce(&mut T)) {
+        let mut guard = self.inner.write().unwrap();
+        f(&mut guard);
+        // Note: request_update would be called here if we had a Context
+    }
+}
 #[derive(Clone)]
 pub struct GpuiExecutor {
     foreground: SendWrapper<ForegroundExecutor>,

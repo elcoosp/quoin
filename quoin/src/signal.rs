@@ -1,28 +1,18 @@
-//! Reactive value abstraction.
-//!
-//! This module defines the [`Signal`] trait, which represents a readable
-//! reactive value. Signals are cloneable handles that can be passed across
-//! threads and stored in closures.
-
-/// A readable reactive value.
+/// A readable and writable reactive value.
 ///
 /// Signals are `Clone`, making them easy to pass into closures and store in
-/// multiple places. They provide two ways to access the current value:
-/// [`get`] (which clones the value) and [`with`] (which borrows it).
+/// multiple places. They provide methods to read the current value and to
+/// mutate it, triggering reactive updates in the framework.
 ///
 /// # Example
 ///
 /// ```rust,ignore
 /// use quoin::Signal;
 ///
-/// fn print_signal<S: Signal<u32>>(signal: &S) {
-///     println!("Value: {}", signal.get());
-///     signal.with(|value| println!("Borrowed: {value}"));
+/// fn increment_counter<S: Signal<u32>>(signal: &S) {
+///     signal.update(|value| *value += 1);
 /// }
 /// ```
-///
-/// [`get`]: Signal::get
-/// [`with`]: Signal::with
 pub trait Signal<T: Clone + 'static>: Clone {
     /// Returns the current value of the signal.
     ///
@@ -45,4 +35,28 @@ pub trait Signal<T: Clone + 'static>: Clone {
     /// });
     /// ```
     fn with<U>(&self, f: impl FnOnce(&T) -> U) -> U;
+
+    /// Sets the value of the signal.
+    ///
+    /// This will trigger reactive updates in the framework.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// signal.set(42);
+    /// ```
+    fn set(&self, value: T);
+
+    /// Updates the value of the signal using a closure.
+    ///
+    /// The closure receives a mutable reference to the current value.
+    /// This is more efficient than [`get`] followed by [`set`] when
+    /// you need to modify the value based on its current state.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// signal.update(|value| *value += 1);
+    /// ```
+    fn update(&self, f: impl FnOnce(&mut T));
 }

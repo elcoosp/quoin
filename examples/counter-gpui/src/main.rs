@@ -1,12 +1,18 @@
+use counter_lib::use_counter;
 use gpui::*;
 use gpui_platform::application;
+use quoin::Signal;
+use quoin_gpui::GpuiContext;
 
-struct Counter {
-    count: u32,
+struct CounterView {
+    counter: counter_lib::Counter<quoin_gpui::GpuiSignal<u32>>,
 }
 
-impl Render for Counter {
+impl Render for CounterView {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let ctx = GpuiContext::new(cx);
+        self.counter = use_counter(&ctx);
+
         div()
             .flex()
             .bg(rgb(0x2e2e2e))
@@ -21,10 +27,9 @@ impl Render for Counter {
                     .flex_col()
                     .items_center()
                     .gap_4()
-                    .child(format!("Count: {}", self.count))
+                    .child(format!("Count: {}", self.counter.count.get()))
                     .child(
                         div()
-                            .id("increment-btn")
                             .px_4()
                             .py_2()
                             .bg(rgb(0x4e4e4e))
@@ -33,9 +38,9 @@ impl Render for Counter {
                             .hover(|style| style.bg(rgb(0x6e6e6e)))
                             .child("Increment")
                             .on_mouse_down(
-                                gpui::MouseButton::Left,
+                                MouseButton::Left,
                                 cx.listener(|this, _event, _window, cx| {
-                                    this.count += 1;
+                                    (this.counter.increment)();
                                     cx.notify();
                                 }),
                             ),
@@ -47,7 +52,12 @@ impl Render for Counter {
 fn main() {
     application().run(|cx: &mut App| {
         cx.open_window(WindowOptions::default(), |_, cx| {
-            cx.new(|_| Counter { count: 0 })
+            cx.new(|cx| {
+                let ctx = GpuiContext::new(cx);
+                CounterView {
+                    counter: use_counter(&ctx),
+                }
+            })
         })
         .unwrap();
         cx.activate(true);

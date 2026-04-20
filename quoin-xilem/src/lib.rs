@@ -25,8 +25,7 @@ impl ReactiveContext for XilemContext {
     }
 
     fn request_update(&self) {
-        // Xilem's reactivity is driven by app state changes, not signal subscriptions.
-        // This method is a no-op; updates happen when the app's state mutates.
+        // Xilem's reactivity is driven by app state changes.
     }
 }
 
@@ -51,6 +50,15 @@ impl<T: Clone + 'static> Signal<T> for XilemSignal<T> {
     fn with<U>(&self, f: impl FnOnce(&T) -> U) -> U {
         let guard = self.inner.read().unwrap();
         f(&guard)
+    }
+
+    fn set(&self, value: T) {
+        *self.inner.write().unwrap() = value;
+    }
+
+    fn update(&self, f: impl FnOnce(&mut T)) {
+        let mut guard = self.inner.write().unwrap();
+        f(&mut guard);
     }
 }
 

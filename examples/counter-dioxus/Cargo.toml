@@ -6,7 +6,7 @@ edition = "2021"
 publish = false
 
 [dependencies]
-dioxus = "0.7"
+dioxus = {version="0.7", features=["desktop"]}
 counter-lib = { path = "../counter", features = ["dioxus"] }
 quoin-dioxus = { path = "../../quoin-dioxus" }
 quoin = { path = "../../quoin" }

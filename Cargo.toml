@@ -3,10 +3,7 @@ resolver = "2"
 members = [
     "examples/counter",
     "examples/counter-gpui",
-    "examples/counter-dioxus",
     "examples/counter-leptos",
-    # "examples/counter-xilem",
-    # "examples/counter-floem",
     "quoin-leptos",
     "quoin-dioxus",
     "quoin-gpui",
@@ -15,7 +12,9 @@ members = [
     "quoin-conformance",
     "quoin",
 ]
-
+exclude = [
+    "examples/counter-dioxus",   # Excluded due to cocoa conflict with GPUI
+]
 
 [workspace.package]
 edition = "2024"

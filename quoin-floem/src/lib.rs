@@ -1,4 +1,4 @@
-use floem_reactive::{ReadSignal, RwSignal, SignalGet, SignalWith};
+use floem_reactive::{RwSignal, SignalGet, SignalUpdate, SignalWith};
 use quoin::{Executor, JoinHandle, ReactiveContext, Signal};
 use send_wrapper::SendWrapper;
 use std::future::Future;
@@ -26,32 +26,39 @@ impl ReactiveContext for FloemContext {
     }
 
     fn request_update(&self) {
-        // Floem's reactivity is automatic via signal subscriptions.
+        // Floem's reactivity is automatic.
     }
 }
 
 #[derive(Clone)]
 pub struct FloemSignal<T: Clone + 'static> {
-    value: ReadSignal<SendWrapper<T>>,
+    // Store the full RwSignal so we can call set/update.
+    inner: RwSignal<SendWrapper<T>>,
 }
 
 impl<T: Clone + 'static> FloemSignal<T> {
     fn new(initial: T) -> Self {
-        let rw_signal = RwSignal::new(SendWrapper::new(initial));
         Self {
-            value: rw_signal.read_only(),
+            inner: RwSignal::new(SendWrapper::new(initial)),
         }
     }
 }
 
 impl<T: Clone + 'static> Signal<T> for FloemSignal<T> {
     fn get(&self) -> T {
-        // SignalGet::get() returns SendWrapper<T>, then we deref and clone
-        (*self.value.get()).clone()
+        (*self.inner.get()).clone()
     }
 
     fn with<U>(&self, f: impl FnOnce(&T) -> U) -> U {
-        self.value.with(|wrapper| f(&**wrapper))
+        self.inner.with(|wrapper| f(&**wrapper))
+    }
+
+    fn set(&self, value: T) {
+        self.inner.set(SendWrapper::new(value));
+    }
+
+    fn update(&self, f: impl FnOnce(&mut T)) {
+        self.inner.update(|wrapper| f(&mut **wrapper));
     }
 }
 

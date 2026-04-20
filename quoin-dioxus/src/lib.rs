@@ -1,7 +1,9 @@
 use dioxus::prelude::*;
 use quoin::{Executor, JoinHandle, ReactiveContext, Signal};
+use std::cell::RefCell;
 use std::future::Future;
 use std::pin::Pin;
+use std::rc::Rc;
 
 #[derive(Clone)]
 pub struct DioxusContext;
@@ -17,9 +19,10 @@ impl ReactiveContext for DioxusContext {
     type Executor = DioxusExecutor;
 
     fn create_signal<T: Clone + 'static>(&self, initial: T) -> Self::Signal<T> {
-        // In Dioxus 0.7, Signal::new returns a Signal<T> that is both readable and writable.
         let signal = dioxus::prelude::Signal::new(initial);
-        DioxusSignal { signal }
+        DioxusSignal {
+            signal: Rc::new(RefCell::new(signal)),
+        }
     }
 
     fn executor(&self) -> Self::Executor {
@@ -33,16 +36,29 @@ impl ReactiveContext for DioxusContext {
 
 #[derive(Clone)]
 pub struct DioxusSignal<T: Clone + 'static> {
-    signal: dioxus::prelude::Signal<T>,
+    signal: Rc<RefCell<dioxus::prelude::Signal<T>>>,
 }
 
 impl<T: Clone + 'static> Signal<T> for DioxusSignal<T> {
     fn get(&self) -> T {
-        self.signal.read().clone()
+        self.signal.borrow().read().clone()
     }
 
     fn with<U>(&self, f: impl FnOnce(&T) -> U) -> U {
-        f(&self.signal.read())
+        f(&self.signal.borrow().read())
+    }
+
+    fn set(&self, value: T) {
+        // RefCell allows us to take a mutable reference to the signal
+        // even though `self` is immutable, satisfying Dioxus's `&mut self` requirement.
+        self.signal.borrow_mut().set(value);
+    }
+
+    fn update(&self, f: impl FnOnce(&mut T)) {
+        // Borrow the signal mutably, then call Dioxus's `write()` to get a mutable guard
+        let mut borrow = self.signal.borrow_mut();
+        let mut write = borrow.write();
+        f(&mut *write);
     }
 }
 

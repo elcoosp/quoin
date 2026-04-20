@@ -18,8 +18,8 @@ impl ReactiveContext for LeptosContext {
     type Executor = LeptosExecutor;
 
     fn create_signal<T: Clone + 'static>(&self, initial: T) -> Self::Signal<T> {
-        let (value, _set_value) = signal(SendWrapper::new(initial));
-        LeptosSignal { value }
+        let inner = RwSignal::new(SendWrapper::new(initial));
+        LeptosSignal { inner }
     }
 
     fn executor(&self) -> Self::Executor {
@@ -27,22 +27,30 @@ impl ReactiveContext for LeptosContext {
     }
 
     fn request_update(&self) {
-        // Leptos is automatically reactive – nothing needed.
+        // Leptos reactivity is automatic.
     }
 }
 
 #[derive(Clone)]
 pub struct LeptosSignal<T: Clone + 'static> {
-    value: ReadSignal<SendWrapper<T>>,
+    inner: RwSignal<SendWrapper<T>>,
 }
 
 impl<T: Clone + 'static> Signal<T> for LeptosSignal<T> {
     fn get(&self) -> T {
-        self.value.get().take()
+        self.inner.get().take()
     }
 
     fn with<U>(&self, f: impl FnOnce(&T) -> U) -> U {
-        self.value.with(|wrapper| f(&**wrapper))
+        self.inner.with(|wrapper| f(&**wrapper))
+    }
+
+    fn set(&self, value: T) {
+        self.inner.set(SendWrapper::new(value));
+    }
+
+    fn update(&self, f: impl FnOnce(&mut T)) {
+        self.inner.update(|wrapper| f(&mut **wrapper));
     }
 }
 
@@ -59,9 +67,6 @@ impl Executor for LeptosExecutor {
     {
         let (tx, rx) = futures::channel::oneshot::channel();
 
-        // Spawn on a dedicated thread with a blocking executor.
-        // This avoids any_spawner's thread-local issues while ensuring
-        // the future actually runs to completion.
         std::thread::spawn(move || {
             let result = futures::executor::block_on(future);
             let _ = tx.send(result);
@@ -74,6 +79,11 @@ impl Executor for LeptosExecutor {
 pub struct LeptosJoinHandle<T> {
     rx: Option<futures::channel::oneshot::Receiver<T>>,
 }
+
+impl<T: Send + 'static> JoinHandle<T> for LeptosJoinHandle<T> {
+    fn abort(&self) {}
+}
+
 impl<T: Send + 'static> std::future::IntoFuture for LeptosJoinHandle<T> {
     type Output = Result<T, futures::channel::oneshot::Canceled>;
     type IntoFuture = Pin<Box<dyn Future<Output = Self::Output> + Send>>;
@@ -87,7 +97,4 @@ impl<T: Send + 'static> std::future::IntoFuture for LeptosJoinHandle<T> {
             }
         })
     }
-}
-impl<T: Send + 'static> JoinHandle<T> for LeptosJoinHandle<T> {
-    fn abort(&self) {}
 }

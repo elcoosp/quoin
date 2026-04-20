@@ -1,9 +1,9 @@
 use counter_lib::use_counter;
 use dioxus::prelude::*;
-use quoin::Signal; // <-- Add this
+use quoin::Signal;
 use quoin_dioxus::DioxusContext;
 
-fn App() -> Element {
+fn app() -> Element {
     let ctx = DioxusContext::new();
     let counter = use_counter(&ctx);
 
@@ -19,5 +19,5 @@ fn App() -> Element {
 }
 
 fn main() {
-    dioxus::launch(App);
+    dioxus::launch(app);
 }
