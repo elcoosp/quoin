@@ -14,7 +14,11 @@ members = [
     "quoin-conformance",
     "quoin",
     "quoin-macros",
+    "quoin-ui",
+    "quoin-ui-gpui",
     "quoin-macros",
+    "quoin-ui",
+    "quoin-ui-gpui",
 
 ]
 exclude = [
