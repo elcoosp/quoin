@@ -6,8 +6,11 @@ use syn::Expr;
 pub fn emit_render(node: &RenderNode) -> TokenStream {
     let inner = emit_render_inner(node);
     quote! {
-        leptos::prelude::view! {
-            #inner
+        {
+            use leptos::prelude::*;
+            view! {
+                #inner
+            }
         }
     }
 }
@@ -40,7 +43,7 @@ fn emit_element(el: &Element) -> TokenStream {
         match key_str.as_str() {
             "class" => attrs.push(quote! { class=#value }),
             "id" => attrs.push(quote! { id=#value }),
-            "on_click" => attrs.push(quote! { on:click=move |_| { #value } }),
+            "on_click" => attrs.push(quote! { on:click=#value }),
             _ => {}
         }
     }

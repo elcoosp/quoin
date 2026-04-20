@@ -120,6 +120,11 @@ component! {
                 }).collect::<Vec<_>>()
             };
 
+            // Clone signals for use in closures
+            let count_inc = count.clone();
+            let selected_a = selected.clone();
+            let selected_b = selected.clone();
+
             quoin_macros::quoin_render! {
                 div(class: "flex flex-col gap-4 p-4 bg-gray-900 text-white min-h-screen") {
                     div(class: "text-2xl font-bold") {
@@ -131,7 +136,7 @@ component! {
                         }
                         button(
                             class: "px-4 py-2 bg-blue-600 text-white rounded-md cursor-pointer",
-                            on_click: move |_| count.update(|c| *c += 1)
+                            on_click: move |_| count_inc.update(|c| *c += 1)
                         ) {
                             "Increment"
                         }
@@ -142,13 +147,13 @@ component! {
                         }
                         button(
                             class: "px-4 py-2 bg-green-600 text-white rounded-md cursor-pointer",
-                            on_click: move |_| selected.set("Option A".to_string())
+                            on_click: move |_| selected_a.set("Option A".to_string())
                         ) {
                             "Option A"
                         }
                         button(
                             class: "px-4 py-2 bg-purple-600 text-white rounded-md cursor-pointer",
-                            on_click: move |_| selected.set("Option B".to_string())
+                            on_click: move |_| selected_b.set("Option B".to_string())
                         ) {
                             "Option B"
                         }

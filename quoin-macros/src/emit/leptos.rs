@@ -30,13 +30,12 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
         #vis fn #name() -> impl leptos::prelude::IntoView {
             use quoin::ReactiveContext;
             use quoin::Signal;
+            use leptos::prelude::ElementChild;
             let ctx = quoin_leptos::LeptosContext::new();
             #(#state_inits)*
             #(#action_closures)*
 
-            leptos::prelude::view! {
-                #(#render_stmts)*
-            }
+            #(#render_stmts)*
         }
     }
 }
