@@ -6,6 +6,7 @@ members = [
     "examples/counter-leptos",
     "examples/counter-floem",
     "examples/counter-xilem",
+    "examples/ucp-demo",
     "quoin-leptos",
     "quoin-dioxus",
     "quoin-gpui",

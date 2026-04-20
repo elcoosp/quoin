@@ -43,7 +43,7 @@ Create the proc-macro crate definition. It must have no runtime dependencies on 
 [package]
 name = "quoin-macros"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [lib]
 proc-macro = true
@@ -657,7 +657,7 @@ Add `"quoin-ui"` to root `Cargo.toml` members.
 [package]
 name = "quoin-ui"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 ```
 
 ```rust
@@ -696,7 +696,7 @@ git commit -m "feat(quoin-ui): define UCP adapter traits"
 [package]
 name = "quoin-ui-gpui"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 quoin-ui = { path = "../quoin-ui" }

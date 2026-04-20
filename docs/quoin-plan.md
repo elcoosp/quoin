@@ -40,7 +40,7 @@ cd quoin
 [package]
 name = "quoin"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 description = "A foundational reactive abstraction layer for Rust UI frameworks"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/username/quoin"
@@ -588,7 +588,7 @@ cd quoin-conformance
 [package]
 name = "quoin-conformance"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 description = "Conformance test suite for quoin reactive framework adapters"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/username/quoin"
@@ -1004,7 +1004,7 @@ cd quoin-gpui
 [package]
 name = "quoin-gpui"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 description = "GPUI adapter for quoin reactive abstraction"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/username/quoin"
@@ -1249,7 +1249,7 @@ cd ../quoin-dioxus
 [package]
 name = "quoin-dioxus"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 description = "Dioxus adapter for quoin reactive abstraction"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/username/quoin"
@@ -1427,7 +1427,7 @@ cd ../quoin-leptos
 [package]
 name = "quoin-leptos"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 description = "Leptos adapter for quoin reactive abstraction"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/username/quoin"
@@ -1804,7 +1804,7 @@ git commit -m "docs: add READMEs for GPUI, Dioxus, and Leptos adapters"
 [package]
 name = "counter-lib"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 publish = false
 
 [dependencies]
@@ -1878,7 +1878,7 @@ Create `Cargo.toml`:
 [package]
 name = "counter-gpui"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 publish = false
 
 [dependencies]
@@ -1933,7 +1933,7 @@ Create `Cargo.toml`:
 [package]
 name = "counter-dioxus"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 publish = false
 
 [dependencies]
@@ -1976,7 +1976,7 @@ Create `Cargo.toml`:
 [package]
 name = "counter-leptos"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 publish = false
 
 [dependencies]
