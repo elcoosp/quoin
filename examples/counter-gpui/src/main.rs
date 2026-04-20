@@ -3,9 +3,11 @@ use gpui::*;
 use gpui_platform::application;
 use quoin::Signal;
 use quoin_gpui::GpuiContext;
+use send_wrapper::SendWrapper;
 
 struct CounterView {
     counter: counter_lib::Counter<quoin_gpui::GpuiSignal<u32>>,
+    _ctx: GpuiContext,
 }
 
 impl Render for CounterView {
@@ -38,9 +40,8 @@ impl Render for CounterView {
                             .child("Increment")
                             .on_mouse_down(
                                 MouseButton::Left,
-                                cx.listener(|this, _event, _window, cx| {
+                                cx.listener(|this, _event, _window, _cx| {
                                     (this.counter.increment)();
-                                    cx.notify(); // ✅ manual refresh
                                 }),
                             ),
                     ),
@@ -49,16 +50,40 @@ impl Render for CounterView {
 }
 
 fn main() {
-    application().run(|cx: &mut App| {
-        cx.open_window(WindowOptions::default(), |_window, cx| {
-            cx.new(|cx| {
-                let ctx = GpuiContext::new(cx);
-                CounterView {
-                    counter: use_counter(&ctx),
-                }
+    application().run(|app_cx: &mut App| {
+        app_cx
+            .open_window(WindowOptions::default(), |window, window_cx| {
+                window_cx.new(|cx: &mut Context<CounterView>| {
+                    let ctx = GpuiContext::new(cx);
+
+                    // Weak reference to the view
+                    let weak_view = cx.weak_entity();
+                    // Wrap AsyncWindowContext to make it Send + Sync
+                    let async_window = SendWrapper::new(window.to_async(cx));
+
+                    ctx.set_update_notifier(move || {
+                        let async_window = async_window.clone();
+                        let weak_view = weak_view.clone();
+
+                        async_window
+                            .spawn(async move |cx| {
+                                if let Some(view) = weak_view.upgrade() {
+                                    view.update(cx, |_, cx| {
+                                        cx.notify();
+                                    });
+                                }
+                            })
+                            .detach();
+                    });
+
+                    CounterView {
+                        counter: use_counter(&ctx),
+                        _ctx: ctx,
+                    }
+                })
             })
-        })
-        .unwrap();
-        cx.activate(true);
+            .unwrap();
+
+        app_cx.activate(true);
     });
 }

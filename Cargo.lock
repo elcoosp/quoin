@@ -1888,6 +1888,7 @@ dependencies = [
  "gpui_platform",
  "quoin",
  "quoin-gpui",
+ "send_wrapper",
 ]
 
 [[package]]

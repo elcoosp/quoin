@@ -5,26 +5,42 @@ use send_wrapper::SendWrapper;
 use std::future::Future;
 use std::ops::Deref;
 use std::pin::Pin;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
+/// The GPUI context, which holds an optional notification callback.
+/// The view is responsible for setting this callback to enable automatic UI updates.
 #[derive(Clone)]
 pub struct GpuiContext {
     foreground: SendWrapper<ForegroundExecutor>,
     background: Option<SendWrapper<BackgroundExecutor>>,
+    // Callback invoked when any signal created from this context is mutated.
+    // Stored as Arc<Mutex<Option<...>>> so the view can set it and signals can read it.
+    update_notifier: Arc<Mutex<Option<Arc<dyn Fn() + Send + Sync>>>>,
 }
 
 impl GpuiContext {
+    /// Create a new context. The caller **must** call `set_update_notifier` after creation
+    /// to enable automatic UI updates.
     pub fn new<T: 'static>(_cx: &mut Context<T>) -> Self {
         Self {
             foreground: SendWrapper::new(_cx.foreground_executor().clone()),
             background: None,
+            update_notifier: Arc::new(Mutex::new(None)),
         }
     }
 
+    /// Set the notification callback. This should be a closure that triggers a view repaint,
+    /// e.g., `move || cx.notify()`.
+    pub fn set_update_notifier(&self, notifier: impl Fn() + Send + Sync + 'static) {
+        *self.update_notifier.lock().unwrap() = Some(Arc::new(notifier));
+    }
+
+    // For test environments
     pub fn from_executor(foreground: ForegroundExecutor) -> Self {
         Self {
             foreground: SendWrapper::new(foreground),
             background: None,
+            update_notifier: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -32,6 +48,13 @@ impl GpuiContext {
         Self {
             foreground: SendWrapper::new(foreground),
             background: Some(SendWrapper::new(background)),
+            update_notifier: Arc::new(Mutex::new(None)),
+        }
+    }
+
+    fn request_update(&self) {
+        if let Some(notifier) = self.update_notifier.lock().unwrap().as_ref() {
+            notifier();
         }
     }
 }
@@ -43,6 +66,7 @@ impl ReactiveContext for GpuiContext {
     fn create_signal<T: Clone + 'static>(&self, initial: T) -> Self::Signal<T> {
         GpuiSignal {
             inner: Arc::new(std::sync::RwLock::new(initial)),
+            context: self.clone(),
         }
     }
 
@@ -54,13 +78,14 @@ impl ReactiveContext for GpuiContext {
     }
 
     fn request_update(&self) {
-        // No automatic update in GPUI – user must call cx.notify() manually.
+        self.request_update();
     }
 }
 
 #[derive(Clone)]
 pub struct GpuiSignal<T: Clone + 'static> {
     inner: Arc<std::sync::RwLock<T>>,
+    context: GpuiContext,
 }
 
 impl<T: Clone + 'static> QuoinSignal<T> for GpuiSignal<T> {
@@ -74,11 +99,13 @@ impl<T: Clone + 'static> QuoinSignal<T> for GpuiSignal<T> {
 
     fn set(&self, value: T) {
         *self.inner.write().unwrap() = value;
+        self.context.request_update();
     }
 
     fn update(&self, f: impl FnOnce(&mut T)) {
         let mut guard = self.inner.write().unwrap();
         f(&mut guard);
+        self.context.request_update();
     }
 }
 
