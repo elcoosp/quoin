@@ -34,6 +34,14 @@ run-leptos:
 serve-leptos:
     cd examples/counter-leptos && trunk serve
 
+# Run Floem counter (native)
+run-floem:
+    cargo run -p counter-floem
+
+# Run Xilem counter (native)
+run-xilem:
+    cargo run -p counter-xilem
+
 # ------------------------------------------------------------
 # Development Helpers
 # ------------------------------------------------------------
@@ -59,6 +67,14 @@ watch-gpui:
 watch-dioxus:
     cargo watch -x 'run -p counter-dioxus'
 
+# Watch and run Floem example
+watch-floem:
+    cargo watch -x 'run -p counter-floem'
+
+# Watch and run Xilem example
+watch-xilem:
+    cargo watch -x 'run -p counter-xilem'
+
 # ------------------------------------------------------------
 # Leptos SSR (Native) Helpers
 # ------------------------------------------------------------
@@ -81,5 +97,23 @@ demo:
     @sleep 2
     @echo "=== Dioxus Counter ==="
     @cargo run -p counter-dioxus &
+    @sleep 2
+    @echo "=== Floem Counter ==="
+    @cargo run -p counter-floem &
+    @sleep 2
+    @echo "=== Xilem Counter ==="
+    @cargo run -p counter-xilem &
+    @sleep 2
     @echo "=== Leptos (SSR) starting on http://127.0.0.1:3000 ==="
     @cargo leptos serve -p counter-leptos
+
+# ------------------------------------------------------------
+# Utility: Run all examples (background, no waiting)
+# ------------------------------------------------------------
+
+run-all:
+    cargo run -p counter-gpui &
+    cd examples/counter-dioxus && cargo run &
+    cargo run -p counter-floem &
+    cargo run -p counter-xilem &
+    cargo leptos serve -p counter-leptos &

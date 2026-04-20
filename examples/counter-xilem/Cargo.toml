@@ -8,4 +8,5 @@ publish = false
 xilem = "0.4.0"
 counter-lib = { path = "../counter", features = ["xilem"] }
 quoin-xilem = { path = "../../quoin-xilem" }
+quoin = { path = "../../quoin" }
 winit = "0.30"

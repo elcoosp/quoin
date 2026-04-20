@@ -8,3 +8,4 @@ publish = false
 floem = "0.2.0"
 counter-lib = { path = "../counter", features = ["floem"] }
 quoin-floem = { path = "../../quoin-floem" }
+quoin = { path = "../../quoin" }

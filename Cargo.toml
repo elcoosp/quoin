@@ -4,6 +4,8 @@ members = [
     "examples/counter",
     "examples/counter-gpui",
     "examples/counter-leptos",
+    "examples/counter-floem",
+    "examples/counter-xilem",
     "quoin-leptos",
     "quoin-dioxus",
     "quoin-gpui",

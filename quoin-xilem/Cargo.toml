@@ -13,6 +13,6 @@ xilem_core = "0.4.0"
 futures = "0.3"
 futures-timer = "3.0"
 send_wrapper = "0.6"
-
+tokio = { version = "1", features = ["rt", "macros", "time", "sync"] }
 [dev-dependencies]
 quoin-conformance = { path = "../quoin-conformance", features = ["xilem"] }

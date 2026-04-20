@@ -1880,6 +1880,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "counter-floem"
+version = "0.1.0"
+dependencies = [
+ "counter-lib",
+ "floem",
+ "quoin",
+ "quoin-floem",
+]
+
+[[package]]
 name = "counter-gpui"
 version = "0.1.0"
 dependencies = [
@@ -1915,6 +1925,17 @@ name = "counter-lib"
 version = "0.1.0"
 dependencies = [
  "quoin",
+]
+
+[[package]]
+name = "counter-xilem"
+version = "0.1.0"
+dependencies = [
+ "counter-lib",
+ "quoin",
+ "quoin-xilem",
+ "winit",
+ "xilem",
 ]
 
 [[package]]
@@ -7228,6 +7249,7 @@ dependencies = [
  "quoin",
  "quoin-conformance",
  "send_wrapper",
+ "tokio",
  "xilem",
  "xilem_core",
 ]

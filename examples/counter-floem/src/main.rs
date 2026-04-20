@@ -1,5 +1,6 @@
 use counter_lib::use_counter;
 use floem::prelude::*;
+use quoin::Signal; // <-- Add this import
 use quoin_floem::FloemContext;
 
 fn app_view() -> impl IntoView {
@@ -8,11 +9,9 @@ fn app_view() -> impl IntoView {
 
     v_stack((
         label(move || format!("Count: {}", counter.count.get())),
-        h_stack((
-            button("Increment").action(move || {
-                (counter.increment)();
-            }),
-        )),
+        h_stack((button("Increment").action(move || {
+            (counter.increment)();
+        }),)),
     ))
 }
 
