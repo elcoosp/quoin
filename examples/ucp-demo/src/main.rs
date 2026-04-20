@@ -15,12 +15,16 @@ component! {
             ],
         }
 
-        fn increment(count: quoin_gpui::GpuiSignal<u32>) {
-            count.update(|c| *c += 1);
+        fn increment(&self) {
+            self.count.update(|c| *c += 1);
         }
 
-        fn select_option(selected: quoin_gpui::GpuiSignal<String>, option: String) {
-            selected.set(option);
+        fn select_option_a(&self) {
+            self.selected.set("Option A".to_string());
+        }
+
+        fn select_option_b(&self) {
+            self.selected.set("Option B".to_string());
         }
 
         render {
@@ -50,12 +54,7 @@ component! {
                         }
                         button(
                             class: "px-4 py-2 bg-blue-600 text-white rounded-md cursor-pointer",
-                            on_click: {
-                                let count = self.count.clone();
-                                move |_ev, _window, _cx| {
-                                    Self::increment(count.clone());
-                                }
-                            }
+                            on_click: |this: &mut DemoApp| this.increment()
                         ) {
                             "Increment"
                         }
@@ -66,23 +65,13 @@ component! {
                         }
                         button(
                             class: "px-4 py-2 bg-green-600 text-white rounded-md cursor-pointer",
-                            on_click: {
-                                let selected = self.selected.clone();
-                                move |_ev, _window, _cx| {
-                                    Self::select_option(selected.clone(), "Option A".to_string());
-                                }
-                            }
+                            on_click: |this: &mut DemoApp| this.select_option_a()
                         ) {
                             "Option A"
                         }
                         button(
                             class: "px-4 py-2 bg-purple-600 text-white rounded-md cursor-pointer",
-                            on_click: {
-                                let selected = self.selected.clone();
-                                move |_ev, _window, _cx| {
-                                    Self::select_option(selected.clone(), "Option B".to_string());
-                                }
-                            }
+                            on_click: |this: &mut DemoApp| this.select_option_b()
                         ) {
                             "Option B"
                         }
@@ -109,9 +98,13 @@ fn main() {
         app_cx
             .open_window(WindowOptions::default(), |window, window_cx| {
                 window_cx.new(|cx: &mut Context<DemoApp>| {
+                    // Create the reactive context from the GPUI context.
                     let ctx: GpuiContext = cx.into();
+
+                    // Wire the view to automatically refresh when any signal changes.
                     ctx.set_view_update_notifier(cx.weak_entity(), window.to_async(cx));
-                    DemoApp::new(cx, DemoAppProps {})
+
+                    DemoApp::new(cx, ctx, DemoAppProps {})
                 })
             })
             .unwrap();
