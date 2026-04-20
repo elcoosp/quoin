@@ -1,18 +1,17 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 use crate::render_ast::{RenderNode, Element, IfNode, ForEachNode};
+use crate::transpile::virtual_list_codegen::generate_dioxus_virtual_list;
+use crate::transpile::rich_text_codegen::generate_dioxus_rich_text;
+use crate::transpile::dropdown_codegen::{generate_dioxus_dropdown, MenuItemDef};
 use crate::custom_element::resolve_custom_element;
+use syn::Expr;
 
 pub fn emit_render(node: &RenderNode) -> TokenStream {
     match node {
         RenderNode::Element(el) => emit_element(el),
-        RenderNode::Text(t) => {
-            let text = t.value();
-            quote! { #text }
-        }
-        RenderNode::Expr(e) => {
-            quote! { {#e} }
-        }
+        RenderNode::Text(t) => quote! { #t },
+        RenderNode::Expr(e) => quote! { {#e} },
         RenderNode::If(if_node) => emit_if(if_node),
         RenderNode::ForEach(fe) => emit_for_each(fe),
     }
@@ -20,58 +19,80 @@ pub fn emit_render(node: &RenderNode) -> TokenStream {
 
 fn emit_element(el: &Element) -> TokenStream {
     let name_str = el.name.to_string();
-
-    if let Some(custom_tokens) = resolve_custom_element(&name_str) {
-        return custom_tokens;
-    }
-
-    let tag = match name_str.as_str() {
-        "div" => "div",
-        "h1" => "h1",
-        "h2" => "h2",
-        "h3" => "h3",
-        "p" | "text" => "p",
-        "button" => "button",
-        "input" => "input",
-        _ => "div",
-    };
-
-    let mut attr_tokens = Vec::new();
-    for (key, value) in &el.args {
-        let key_str = key.to_string();
-        let key_ident = proc_macro2::Ident::new(&key_str, proc_macro2::Span::call_site());
-        attr_tokens.push(quote! { #key_ident: #value });
-    }
-
-    let children: Vec<TokenStream> = el.children.iter().map(emit_render).collect();
-    let tag_ident = proc_macro2::Ident::new(tag, proc_macro2::Span::call_site());
-
-    if children.is_empty() {
-        quote! { #tag_ident { #(#attr_tokens),* } }
-    } else {
-        quote! { #tag_ident { #(#attr_tokens),* #(#children)* } }
+    if let Some(custom) = resolve_custom_element(&name_str) { return custom; }
+    match name_str.as_str() {
+        "virtual_list" => emit_virtual_list(el),
+        "rich_text" => emit_rich_text(el),
+        "dropdown" => emit_dropdown(el),
+        "tabs" => emit_tabs(el),
+        _ => emit_builtin(el),
     }
 }
 
+fn emit_builtin(el: &Element) -> TokenStream {
+    let tag = match el.name.to_string().as_str() {
+        "div" => "div", "h1" => "h1", "h2" => "h2", "h3" => "h3",
+        "p" | "text" => "p", "button" => "button", "input" => "input", _ => "div",
+    };
+    let mut attrs = Vec::new();
+    for (k, v) in &el.args {
+        let key = proc_macro2::Ident::new(&k.to_string(), proc_macro2::Span::call_site());
+        attrs.push(quote! { #key: #v });
+    }
+    let children: Vec<TokenStream> = el.children.iter().map(emit_render).collect();
+    let tag_ident = proc_macro2::Ident::new(tag, proc_macro2::Span::call_site());
+    if children.is_empty() {
+        quote! { #tag_ident { #(#attrs),* } }
+    } else {
+        quote! { #tag_ident { #(#attrs),* #(#children)* } }
+    }
+}
+
+fn emit_virtual_list(el: &Element) -> TokenStream {
+    let items = find_arg_expr(el, "items").unwrap();
+    let height = find_arg_lit_string(el, "estimated_height")
+        .and_then(|s| s.parse::<f32>().ok())
+        .unwrap_or(32.0);
+    let template = el.children.first().unwrap();
+    let item_render = emit_render(template);
+    generate_dioxus_virtual_list(items, height, item_render)
+}
+
+fn emit_rich_text(el: &Element) -> TokenStream {
+    let text = find_arg_expr(el, "text").unwrap();
+    let color = find_arg_expr(el, "base_color");
+    let size = find_arg_lit_string(el, "font_size")
+        .and_then(|s| s.parse::<f32>().ok())
+        .unwrap_or(14.0);
+    let runs = find_arg_expr(el, "runs");
+    generate_dioxus_rich_text(text, color, size, runs)
+}
+
+fn emit_dropdown(el: &Element) -> TokenStream {
+    let trigger = find_arg_expr(el, "trigger").unwrap();
+    let items: Vec<MenuItemDef> = el.children.iter().filter_map(|c| {
+        if let RenderNode::Element(e) = c {
+            if e.name == "menu_item" {
+                Some(MenuItemDef {
+                    label: find_arg_expr(e, "label").unwrap().clone(),
+                    on_click: find_arg_expr(e, "on_click").unwrap().clone(),
+                })
+            } else { None }
+        } else { None }
+    }).collect();
+    generate_dioxus_dropdown(trigger, &items)
+}
+
+fn emit_tabs(_el: &Element) -> TokenStream { quote! { div {} } }
+
 fn emit_if(if_node: &IfNode) -> TokenStream {
     let cond = &if_node.condition;
-    let then_branch = emit_nodes(&if_node.then_branch);
-
+    let then_tokens = emit_nodes(&if_node.then_branch);
     if let Some(else_branch) = &if_node.else_branch {
-        let else_branch_tokens = emit_nodes(else_branch);
-        quote! {
-            if #cond {
-                dioxus::prelude::rsx! { #then_branch }
-            } else {
-                dioxus::prelude::rsx! { #else_branch_tokens }
-            }
-        }
+        let else_tokens = emit_nodes(else_branch);
+        quote! { if #cond { rsx! { #then_tokens } } else { rsx! { #else_tokens } } }
     } else {
-        quote! {
-            if #cond {
-                dioxus::prelude::rsx! { #then_branch }
-            }
-        }
+        quote! { if #cond { rsx! { #then_tokens } } }
     }
 }
 
@@ -79,16 +100,24 @@ fn emit_for_each(fe: &ForEachNode) -> TokenStream {
     let items = &fe.items;
     let key = &fe.key;
     let item_render = emit_render(&fe.item_template);
-
-    quote! {
-        #items.iter().map(|item| {
-            let _key = #key;
-            dioxus::prelude::rsx! { #item_render }
-        })
-    }
+    quote! { #items.iter().map(|item| { let _key = #key; rsx! { #item_render } }) }
 }
 
 fn emit_nodes(nodes: &[RenderNode]) -> TokenStream {
-    let node_tokens: Vec<TokenStream> = nodes.iter().map(emit_render).collect();
-    quote! { #(#node_tokens)* }
+    let tokens: Vec<TokenStream> = nodes.iter().map(emit_render).collect();
+    quote! { #(#tokens)* }
+}
+
+fn find_arg_expr<'a>(el: &'a Element, key: &str) -> Option<&'a Expr> {
+    el.args.iter().find(|(k,_)| k == key).map(|(_,v)| v)
+}
+
+fn find_arg_lit_string(el: &Element, key: &str) -> Option<String> {
+    find_arg_expr(el, key).and_then(|e| {
+        if let Expr::Lit(expr_lit) = e {
+            if let syn::Lit::Str(s) = &expr_lit.lit {
+                Some(s.value())
+            } else { None }
+        } else { None }
+    })
 }

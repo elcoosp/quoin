@@ -65,7 +65,7 @@ impl Parse for RenderNode {
                     args_content.parse::<Token![:]>()?;
                     let key: Expr = args_content.parse()?;
                     args_content.parse::<Token![,]>()?;
-                    let template_expr: Expr = args_content.parse()?;
+                    let _template_expr: Expr = args_content.parse()?;
 
                     let template_content;
                     braced!(template_content in input);

@@ -10,7 +10,6 @@ pub struct ColumnDef {
     pub render_closure: syn::Expr,
 }
 
-/// Generate GPUI TableDelegate implementation for gpui-component.
 pub fn generate_gpui_table_delegate(
     delegate_name: &Ident,
     row_type: &syn::Type,
@@ -18,7 +17,6 @@ pub fn generate_gpui_table_delegate(
 ) -> TokenStream {
     let col_count = columns.len();
 
-    // Fields for each column closure
     let field_defs: Vec<TokenStream> = columns.iter().enumerate().map(|(i, _)| {
         let fname = Ident::new(&format!("__col_{}", i), proc_macro2::Span::call_site());
         quote! { #fname: std::sync::Arc<dyn Fn(&#row_type) -> gpui::AnyElement + Send + Sync> }
@@ -28,14 +26,12 @@ pub fn generate_gpui_table_delegate(
         .map(|(i, _)| Ident::new(&format!("__col_{}", i), proc_macro2::Span::call_site()))
         .collect();
 
-    // Match arms for render_td
     let match_arms: Vec<TokenStream> = columns.iter().enumerate().map(|(i, _)| {
         let idx = i;
         let fname = &field_names[i];
         quote! { #idx => (self.#fname)(row).into_any_element() }
     }).collect();
 
-    // Sort mapping: column index -> key string
     let sort_arms: Vec<TokenStream> = columns.iter().enumerate()
         .filter(|(_, col)| col.sortable)
         .map(|(i, col)| {
@@ -103,7 +99,6 @@ pub fn generate_gpui_table_delegate(
     }
 }
 
-/// Generate Leptos table using leptos-shadcn-ui Table components.
 pub fn generate_leptos_table(
     row_type: &syn::Type,
     columns: &[ColumnDef],
@@ -159,7 +154,6 @@ pub fn generate_leptos_table(
     }
 }
 
-/// Generate Dioxus table using shadcn-dioxus Table components.
 pub fn generate_dioxus_table(
     row_type: &syn::Type,
     columns: &[ColumnDef],
