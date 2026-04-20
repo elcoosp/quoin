@@ -1,5 +1,6 @@
+// quoin-gpui/src/lib.rs
 use gpui::{BackgroundExecutor, Context, ForegroundExecutor, Task};
-use quoin::{Executor, JoinHandle, ReactiveContext, Signal};
+use quoin::{Executor, JoinHandle, ReactiveContext, Signal as QuoinSignal};
 use send_wrapper::SendWrapper;
 use std::future::Future;
 use std::ops::Deref;
@@ -9,19 +10,17 @@ use std::sync::Arc;
 #[derive(Clone)]
 pub struct GpuiContext {
     foreground: SendWrapper<ForegroundExecutor>,
-    // Used only in tests to run tasks synchronously.
     background: Option<SendWrapper<BackgroundExecutor>>,
 }
 
 impl GpuiContext {
-    pub fn new<T: 'static>(cx: &mut Context<T>) -> Self {
+    pub fn new<T: 'static>(_cx: &mut Context<T>) -> Self {
         Self {
-            foreground: SendWrapper::new(cx.foreground_executor().clone()),
+            foreground: SendWrapper::new(_cx.foreground_executor().clone()),
             background: None,
         }
     }
 
-    /// Constructor for test environments that uses a background executor.
     pub fn from_executor(foreground: ForegroundExecutor) -> Self {
         Self {
             foreground: SendWrapper::new(foreground),
@@ -29,7 +28,6 @@ impl GpuiContext {
         }
     }
 
-    /// Constructor for GPUI tests that need tasks to execute synchronously.
     pub fn for_test(foreground: ForegroundExecutor, background: BackgroundExecutor) -> Self {
         Self {
             foreground: SendWrapper::new(foreground),
@@ -56,7 +54,7 @@ impl ReactiveContext for GpuiContext {
     }
 
     fn request_update(&self) {
-        // GPUI requires Context to notify; placeholder
+        // No automatic update in GPUI – user must call cx.notify() manually.
     }
 }
 
@@ -65,27 +63,25 @@ pub struct GpuiSignal<T: Clone + 'static> {
     inner: Arc<std::sync::RwLock<T>>,
 }
 
-impl<T: Clone + 'static> Signal<T> for GpuiSignal<T> {
+impl<T: Clone + 'static> QuoinSignal<T> for GpuiSignal<T> {
     fn get(&self) -> T {
         self.inner.read().unwrap().clone()
     }
 
     fn with<U>(&self, f: impl FnOnce(&T) -> U) -> U {
-        let guard = self.inner.read().unwrap();
-        f(&guard)
+        f(&self.inner.read().unwrap())
     }
 
     fn set(&self, value: T) {
         *self.inner.write().unwrap() = value;
-        // Note: request_update would be called here if we had a Context
     }
 
     fn update(&self, f: impl FnOnce(&mut T)) {
         let mut guard = self.inner.write().unwrap();
         f(&mut guard);
-        // Note: request_update would be called here if we had a Context
     }
 }
+
 #[derive(Clone)]
 pub struct GpuiExecutor {
     foreground: SendWrapper<ForegroundExecutor>,
@@ -102,7 +98,6 @@ impl Executor for GpuiExecutor {
     {
         let (tx, rx) = futures::channel::oneshot::channel();
 
-        // Use background executor in tests; otherwise use foreground.
         let task = if let Some(bg) = &self.background {
             bg.spawn(async move {
                 let result = future.await;
@@ -123,8 +118,6 @@ impl Executor for GpuiExecutor {
 }
 
 impl GpuiExecutor {
-    /// Returns a future that completes after the specified duration.
-    /// Uses the background executor if available (in tests), otherwise falls back to the foreground executor's scheduler.
     pub fn sleep(&self, duration: std::time::Duration) -> Pin<Box<dyn Future<Output = ()> + Send>> {
         if let Some(bg) = &self.background {
             let bg = bg.clone();
@@ -134,13 +127,13 @@ impl GpuiExecutor {
         } else {
             let fg = self.foreground.clone();
             Box::pin(async move {
-                // Obtain the scheduler Arc and clone it to own it across the await.
                 let scheduler = fg.deref().scheduler_executor().scheduler().clone();
                 scheduler.timer(duration).await;
             })
         }
     }
 }
+
 pub struct GpuiJoinHandle<T> {
     task: Option<Task<()>>,
     rx: Option<futures::channel::oneshot::Receiver<T>>,

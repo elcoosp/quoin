@@ -10,8 +10,7 @@ struct CounterView {
 
 impl Render for CounterView {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let ctx = GpuiContext::new(cx);
-        self.counter = use_counter(&ctx);
+        let count = self.counter.count.get();
 
         div()
             .flex()
@@ -27,7 +26,7 @@ impl Render for CounterView {
                     .flex_col()
                     .items_center()
                     .gap_4()
-                    .child(format!("Count: {}", self.counter.count.get()))
+                    .child(format!("Count: {count}"))
                     .child(
                         div()
                             .px_4()
@@ -41,7 +40,7 @@ impl Render for CounterView {
                                 MouseButton::Left,
                                 cx.listener(|this, _event, _window, cx| {
                                     (this.counter.increment)();
-                                    cx.notify();
+                                    cx.notify(); // ✅ manual refresh
                                 }),
                             ),
                     ),
@@ -51,7 +50,7 @@ impl Render for CounterView {
 
 fn main() {
     application().run(|cx: &mut App| {
-        cx.open_window(WindowOptions::default(), |_, cx| {
+        cx.open_window(WindowOptions::default(), |_window, cx| {
             cx.new(|cx| {
                 let ctx = GpuiContext::new(cx);
                 CounterView {
