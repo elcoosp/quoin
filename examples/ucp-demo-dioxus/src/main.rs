@@ -1,6 +1,13 @@
 // examples/ucp-demo-dioxus/src/main.rs
 use dioxus::desktop::Config;
+use dioxus::prelude::*;
 use ucp_lib::DemoApp;
+
+fn app() -> Element {
+    rsx! {
+        DemoApp {}
+    }
+}
 
 fn main() {
     let tailwind_head = r#"
@@ -19,7 +26,5 @@ fn main() {
 
     let cfg = Config::default().with_custom_head(tailwind_head);
 
-    dioxus::LaunchBuilder::desktop()
-        .with_cfg(cfg)
-        .launch(DemoApp);
+    dioxus::LaunchBuilder::desktop().with_cfg(cfg).launch(app);
 }
