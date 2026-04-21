@@ -1,8 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 
-/// Result of transpiling a Tailwind class string.
-/// Separates normal styles from hover pseudo-class styles.
 pub struct TranspiledStyles {
     pub normal: Vec<TokenStream>,
     pub hover: Vec<TokenStream>,

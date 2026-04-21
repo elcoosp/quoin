@@ -1,4 +1,3 @@
-// quoin-macros/src/render_ast.rs
 use syn::parse::{Parse, ParseStream};
 use syn::{Expr, Ident, LitStr, Result, Token, braced, parenthesized};
 
@@ -28,7 +27,7 @@ pub struct IfNode {
 
 #[derive(Debug)]
 pub struct ForNode {
-    pub pat: Ident, // <-- Changed from Pat to Ident
+    pub pat: Ident,
     pub iterable: Expr,
     pub body: Vec<RenderNode>,
 }
@@ -41,19 +40,29 @@ impl Parse for RenderNode {
             let ident_str = ident.to_string();
             match ident_str.as_str() {
                 "@if" => {
-                    input.parse::<Ident>()?;
+                    input.parse::<Ident>()?; // consume @if
                     let condition: Expr = input.parse()?;
                     let then_content;
                     braced!(then_content in input);
                     let then_branch = parse_nodes(&then_content)?;
+
                     let else_branch = if input.peek(Token![else]) {
                         input.parse::<Token![else]>()?;
-                        let else_content;
-                        braced!(else_content in input);
-                        Some(parse_nodes(&else_content)?)
+
+                        // Check for `@if` immediately after `else` to support `@else if`
+                        let fork = input.fork();
+                        if fork.parse::<Ident>().map(|i| i.to_string()).as_deref() == Ok("@if") {
+                            let nested_if = input.parse::<RenderNode>()?;
+                            Some(vec![nested_if])
+                        } else {
+                            let else_content;
+                            braced!(else_content in input);
+                            Some(parse_nodes(&else_content)?)
+                        }
                     } else {
                         None
                     };
+
                     Ok(RenderNode::If(IfNode {
                         condition,
                         then_branch,
@@ -61,8 +70,8 @@ impl Parse for RenderNode {
                     }))
                 }
                 "@for" => {
-                    input.parse::<Ident>()?;
-                    let pat: Ident = input.parse()?; // <-- Changed from Pat to Ident
+                    input.parse::<Ident>()?; // consume @for
+                    let pat: Ident = input.parse()?;
                     input.parse::<Token![in]>()?;
                     let iterable: Expr = input.parse()?;
                     let body_content;
@@ -135,8 +144,4 @@ fn parse_nodes(input: ParseStream) -> Result<Vec<RenderNode>> {
         nodes.push(input.parse::<RenderNode>()?);
     }
     Ok(nodes)
-}
-
-fn parse_node(input: ParseStream) -> Result<RenderNode> {
-    input.parse::<RenderNode>()
 }
