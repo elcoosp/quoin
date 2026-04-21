@@ -9,7 +9,6 @@ members = [
     "quoin-floem",
     "quoin-conformance",
     "quoin-core",
-    "quoin-core",
     "quoin",
     "quoin-macros",
     "quoin-macros-core",
