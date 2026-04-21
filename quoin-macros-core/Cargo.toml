@@ -10,11 +10,6 @@ quote = "1.0"
 proc-macro2 = "1.0"
 thiserror = "2.0"
 
-quoin-dioxus = { path = "../quoin-dioxus", optional = true }
-quoin-leptos = { path = "../quoin-leptos", optional = true }
-quoin-gpui = { path = "../quoin-gpui", optional = true }
-quoin-ui-gpui = { path = "../quoin-ui-gpui", optional = true }
-
 [features]
 default = []
 gpui = []

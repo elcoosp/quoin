@@ -30,7 +30,6 @@ leptos = ["dep:leptos", "dep:quoin-leptos", "quoin-macros/leptos", "quoin/leptos
 dioxus = [
     "dep:dioxus",
     "dep:dioxus-core",
-    "dep:dioxus-signals",
     "dep:quoin-dioxus",
     "quoin-macros/dioxus",
     "quoin/dioxus"

@@ -7202,10 +7202,6 @@ name = "quoin-macros-core"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",
- "quoin-dioxus",
- "quoin-gpui",
- "quoin-leptos",
- "quoin-ui-gpui",
  "quote",
  "syn 2.0.117",
  "thiserror 2.0.18",

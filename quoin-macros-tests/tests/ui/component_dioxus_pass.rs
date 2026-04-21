@@ -1,5 +1,5 @@
+use dioxus::prelude::dioxus_signals;
 use quoin::prelude::*;
-
 component! {
     TestDioxus {
         state {
