@@ -188,6 +188,16 @@ pub mod tests {
     }
 }
 
+
+/// Verify provide_global / use_global round-trip.
+pub async fn provide_and_use_global<C: ReactiveContext>(cx: &C) {
+    cx.provide_global(99u32);
+    let sig = cx.use_global::<u32>().expect("global must exist after provide");
+    assert_eq!(sig.get(), 99);
+    sig.set(100);
+    assert_eq!(sig.get(), 100);
+}
+
 // -----------------------------------------------------------------------------
 // Test generation macros
 // -----------------------------------------------------------------------------
@@ -275,6 +285,12 @@ macro_rules! define_conformance_tests {
             let cx = <$cx_type>::setup_context();
             <$cx_type>::block_on(use_global_does_not_panic(&cx));
         }
+
+        #[test]
+        fn test_provide_and_use_global() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(provide_and_use_global(&cx));
+        }
     };
 
     (gpui, $cx_type:ty) => {
@@ -357,6 +373,12 @@ macro_rules! define_conformance_tests {
         async fn test_use_global_does_not_panic(cx: &mut TestAppContext) {
             let harness = <$cx_type>::new(cx);
             use_global_does_not_panic(&harness).await;
+        }
+
+        #[gpui::test]
+        async fn test_provide_and_use_global(cx: &mut TestAppContext) {
+            let harness = <$cx_type>::new(cx);
+            provide_and_use_global(&harness).await;
         }
     };
 }

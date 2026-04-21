@@ -35,8 +35,18 @@ fn emit_element(el: &Element) -> TokenStream {
     match name_str.as_str() {
         "tabs" => emit_tabs(el),
         "data_table" => emit_data_table(el),
+        "virtual_list" => emit_virtual_list(el),
+        "dropdown_menu" => {
+            let children_tokens: Vec<TokenStream> = el.children.iter().map(emit_render_inner).collect();
+            quote! { div { #(#children_tokens)* } }
+        }
         _ => emit_builtin(el),
     }
+}
+
+fn emit_virtual_list(el: &Element) -> TokenStream {
+    let children_tokens: Vec<TokenStream> = el.children.iter().map(emit_render_inner).collect();
+    quote! { div { style: "overflow-y: auto", #(#children_tokens)* } }
 }
 
 fn emit_builtin(el: &Element) -> TokenStream {
@@ -58,6 +68,7 @@ fn emit_builtin(el: &Element) -> TokenStream {
         let value = &arg.value;
         match key_str.as_str() {
             "on_click" => items.push(quote! { onclick: #value }),
+            "on_mouse_down" => items.push(quote! { onmousedown: #value }),
             "on_input" => items.push(quote! { oninput: #value }),
             "class" => items.push(quote! { class: #value }),
             "id" => items.push(quote! { id: #value }),

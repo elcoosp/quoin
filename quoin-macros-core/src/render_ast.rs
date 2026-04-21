@@ -33,6 +33,7 @@ pub struct Element {
     pub args: Vec<ArgPair>,
     pub children: Vec<RenderNode>,
     pub children_expr: Option<Expr>,
+    pub trigger_expr: Option<Expr>,
 }
 
 impl Parse for Element {
@@ -44,6 +45,7 @@ impl Parse for Element {
 
         let mut args = Vec::new();
         let mut children_expr = None;
+        let mut trigger_expr = None;
 
         while !args_content.is_empty() {
             let key: Ident = args_content.call(Ident::parse_any)?;
@@ -51,6 +53,8 @@ impl Parse for Element {
 
             if key == "children" {
                 children_expr = Some(args_content.parse()?);
+            } else if key == "trigger" {
+                trigger_expr = Some(args_content.parse()?);
             } else {
                 let value: Expr = args_content.parse()?;
                 args.push(ArgPair { key, value });
@@ -69,7 +73,6 @@ impl Parse for Element {
             Vec::new()
         };
 
-        // Emit compile warnings for unknown arguments on standard elements
         {
             let arg_keys: Vec<&Ident> = args.iter().map(|a| &a.key).collect();
             let warns = crate::render_ast_diag::check_element_args(&name.to_string(), &arg_keys);
@@ -83,6 +86,7 @@ impl Parse for Element {
             args,
             children,
             children_expr,
+            trigger_expr,
         })
     }
 }
@@ -191,16 +195,15 @@ const KNOWN_ELEMENTS: &[&str] = &[
     "textarea",
     "select",
     "form",
-    // Phase 0-A: complex elements whose codegen exists in transpile/
     "virtual_list",
     "dropdown_menu",
     "rich_text",
     "clipboard_button",
+    "item",
 ];
 
 impl Parse for RenderNode {
     fn parse(input: ParseStream) -> Result<Self> {
-        // Handle `if[...]`
         if input.peek(Token![if]) {
             let fork = input.fork();
             fork.parse::<Token![if]>()?;
@@ -209,7 +212,6 @@ impl Parse for RenderNode {
             }
         }
 
-        // Handle `for[...]`
         if input.peek(Token![for]) {
             let fork = input.fork();
             fork.parse::<Token![for]>()?;
@@ -218,19 +220,16 @@ impl Parse for RenderNode {
             }
         }
 
-        // Handle string literals
         if input.peek(LitStr) {
             return Ok(RenderNode::Text(input.parse()?));
         }
 
-        // Handle identifiers: could be an Element or an Expression
         if input.peek(Ident) || input.peek(Ident::peek_any) {
             let fork = input.fork();
             if let Ok(ident) = fork.call(Ident::parse_any) {
                 let ident_str = ident.to_string();
 
                 if fork.peek(syn::token::Paren) {
-                    // Ident followed by '(' -> Treat as Element
                     if !KNOWN_ELEMENTS.contains(&ident_str.as_str()) {
                         return Err(syn::Error::new_spanned(
                             ident,
@@ -244,13 +243,10 @@ impl Parse for RenderNode {
                     return Ok(RenderNode::Element(input.parse()?));
                 }
 
-                // Ident NOT followed by '(' -> Treat as Expression (variable reference)
-                // This allows: div() { text }, div() { count_text }, div() { event.timestamp.clone() }
                 return Ok(RenderNode::Expr(input.parse()?));
             }
         }
 
-        // Fallback to parsing as a general expression (handles blocks `{ ... }`, macro calls `fmt!()`, etc.)
         Ok(RenderNode::Expr(input.parse()?))
     }
 }

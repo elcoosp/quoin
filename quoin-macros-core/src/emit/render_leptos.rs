@@ -21,8 +21,21 @@ fn emit_render_inner(node: &RenderNode) -> TokenStream {
     }
 }
 
+use crate::render_ast::Element;
+
 fn emit_element(el: &Element) -> TokenStream {
     let name_str = el.name.to_string();
+    // virtual_list: emit as scrollable div (full virtualization needs leptos_virtual_list crate)
+    if name_str == "dropdown_menu" {
+        let children_tokens: Vec<TokenStream> = el.children.iter().map(emit_render_inner).collect();
+        return quote! { <div> #(#children_tokens)* </div> };
+    }
+
+    if name_str == "virtual_list" {
+        let children_tokens: Vec<TokenStream> = el.children.iter().map(emit_render_inner).collect();
+        return quote! { <div style="overflow-y: auto"> #(#children_tokens)* </div> };
+    }
+
     let tag = match name_str.as_str() {
         "div" => "div",
         "h1" => "h1",
@@ -40,6 +53,7 @@ fn emit_element(el: &Element) -> TokenStream {
             "class" => attrs.push(quote! { class=#value }),
             "id" => attrs.push(quote! { id=#value }),
             "on_click" => attrs.push(quote! { on:click=#value }),
+            "on_mouse_down" => attrs.push(quote! { on:mousedown=#value }),
             _ => {}
         }
     }

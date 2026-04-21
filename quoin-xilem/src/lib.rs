@@ -56,6 +56,10 @@ impl ReactiveContext for XilemContext {
         self.request_update();
     }
 
+    fn provide_global<T: Clone + Send + Sync + 'static>(&self, _value: T) {
+        // Xilem does not have a built-in context provider.
+    }
+
     fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>> {
         // Stub: Xilem does not have a built-in context provider mechanism.
         None

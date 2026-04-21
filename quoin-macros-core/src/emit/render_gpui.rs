@@ -1,66 +1,11 @@
 use crate::render_ast::{Element, ForNode, IfNode, RenderNode};
 use crate::transpile::tailwind::{TranspiledStyles, transpile_class};
+use crate::transpile::virtual_list_codegen::generate_gpui_virtual_list;
+use crate::transpile::dropdown_codegen::{generate_gpui_dropdown, MenuItemDef};
+use crate::transpile::{collect_handler_idents, strip_move_from_closure};
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::Expr;
-use syn::visit::Visit;
-use syn::visit_mut::VisitMut;
-
-// ---------------------------------------------------------------------------
-// Ident collection
-// ---------------------------------------------------------------------------
-
-struct PathIdentCollector(Vec<proc_macro2::Ident>);
-
-impl<'ast> Visit<'ast> for PathIdentCollector {
-    fn visit_expr_path(&mut self, expr_path: &'ast syn::ExprPath) {
-        if expr_path.path.segments.len() == 1 && expr_path.path.leading_colon.is_none() {
-            if let Some(seg) = expr_path.path.segments.last() {
-                self.0.push(seg.ident.clone());
-            }
-        }
-        syn::visit::visit_expr_path(self, expr_path);
-    }
-
-    fn visit_expr_closure(&mut self, _node: &'ast syn::ExprClosure) {}
-}
-
-fn collect_handler_idents(expr: &Expr) -> Vec<proc_macro2::Ident> {
-    let body_expr: &Expr = match expr {
-        Expr::Closure(c) => &c.body,
-        other => other,
-    };
-
-    let mut collector = PathIdentCollector(vec![]);
-    collector.visit_expr(body_expr);
-    collector
-        .0
-        .sort_by(|a, b| a.to_string().cmp(&b.to_string()));
-    collector.0.dedup_by(|a, b| a.to_string() == b.to_string());
-    collector.0
-}
-
-// ---------------------------------------------------------------------------
-// StripMove visitor
-// ---------------------------------------------------------------------------
-
-struct StripMove;
-
-impl VisitMut for StripMove {
-    fn visit_expr_closure_mut(&mut self, closure: &mut syn::ExprClosure) {
-        closure.movability = None;
-    }
-}
-
-fn strip_move_from_closure(expr: &Expr) -> syn::Expr {
-    let mut expr = expr.clone();
-    StripMove.visit_expr_mut(&mut expr);
-    expr
-}
-
-// ---------------------------------------------------------------------------
-// emit_render entry point
-// ---------------------------------------------------------------------------
 
 pub fn emit_render(node: &RenderNode) -> TokenStream {
     match node {
@@ -76,10 +21,6 @@ pub fn emit_render(node: &RenderNode) -> TokenStream {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Element emitters
-// ---------------------------------------------------------------------------
-
 fn emit_element(el: &Element) -> TokenStream {
     let name_str = el.name.to_string();
     match name_str.as_str() {
@@ -87,6 +28,9 @@ fn emit_element(el: &Element) -> TokenStream {
         "input" => emit_input(el),
         "tabs" => emit_tabs(el),
         "data_table" => emit_data_table(el),
+        "virtual_list" => emit_virtual_list(el),
+        "dropdown_menu" => emit_dropdown_menu(el),
+        "clipboard_button" => emit_clipboard_button(el),
         _ => emit_generic_element(el),
     }
 }
@@ -396,6 +340,105 @@ fn emit_data_table(el: &Element) -> TokenStream {
     }
 }
 
+fn emit_virtual_list(el: &Element) -> TokenStream {
+    let items_expr = find_arg_expr(el, "items").expect("virtual_list requires 'items:' argument");
+    let estimated_height = find_arg_expr(el, "estimated_height")
+        .and_then(|e| {
+            if let syn::Expr::Lit(lit) = e {
+                if let syn::Lit::Float(f) = &lit.lit {
+                    return f.base10_parse::<f32>().ok();
+                }
+            }
+            None
+        })
+        .unwrap_or(32.0);
+    let id_expr = find_arg_expr(el, "id")
+        .and_then(|e| {
+            if let syn::Expr::Lit(lit) = e {
+                if let syn::Lit::Str(s) = &lit.lit {
+                    return Some(s.value());
+                }
+            }
+            None
+        })
+        .unwrap_or_else(|| "virtual-list".to_string());
+
+    let item_render_tokens: Vec<TokenStream> = el.children.iter().map(|child| {
+        emit_render(child)
+    }).collect();
+
+    let item_render = quote! {
+        ::gpui::div().children(vec![#(#item_render_tokens),*]).into_any_element()
+    };
+
+    generate_gpui_virtual_list(items_expr, estimated_height, &id_expr, item_render)
+}
+
+fn emit_dropdown_menu(el: &Element) -> TokenStream {
+    let trigger_expr = match &el.trigger_expr {
+        Some(e) => e,
+        None => return quote! { ::gpui::div().child("dropdown: missing trigger") },
+    };
+
+    let menu_items: Vec<MenuItemDef> = el.children.iter().filter_map(|c| {
+        if let crate::render_ast::RenderNode::Element(e) = c {
+            if e.name == "item" {
+                let label = find_arg_expr(e, "label").unwrap();
+                let on_click = find_arg_expr(e, "on_click").unwrap();
+                return Some(MenuItemDef {
+                    label: label.clone(),
+                    on_click: on_click.clone(),
+                });
+            }
+        }
+        None
+    }).collect();
+
+    generate_gpui_dropdown(trigger_expr, &menu_items)
+}
+
+fn emit_clipboard_button(el: &Element) -> TokenStream {
+    let copy_text = match find_arg_expr(el, "copy_text") {
+        Some(e) => e,
+        None => return quote! { ::gpui::div().child("clipboard_button: missing copy_text") },
+    };
+
+    let mut chain = quote! {
+        ::gpui::div()
+            .cursor_pointer()
+            .rounded(::gpui::px(6.0))
+            .px(::gpui::px(8.0))
+            .py(::gpui::px(8.0))
+            .flex()
+            .items_center()
+            .justify_center()
+            .text_color(::gpui::white())
+            .bg(::gpui::rgb(0x4e4e4e))
+    };
+
+    if let Some(class_expr) = find_arg_expr(el, "class") {
+        if let Some(styles) = try_transpile_class(class_expr) {
+            for style in styles.normal {
+                chain = quote! { #chain #style };
+            }
+        }
+    }
+
+    for child in &el.children {
+        let child_elem = emit_render(child);
+        chain = quote! { #chain.child(#child_elem) };
+    }
+
+    let copy_text_clone = copy_text.clone();
+    chain = quote! {
+        #chain.on_mouse_down(::gpui::MouseButton::Left, move |_, _window, cx| {
+            cx.write_to_clipboard(::gpui::ClipboardItem::new_string(#copy_text_clone.to_string()));
+        })
+    };
+
+    chain
+}
+
 fn emit_generic_element(el: &Element) -> TokenStream {
     let name_str = el.name.to_string();
     let mut chain = match name_str.as_str() {
@@ -428,6 +471,26 @@ fn emit_generic_element(el: &Element) -> TokenStream {
     }
 
     if let Some(handler_expr) = find_arg_expr(el, "on_click") {
+        let idents = collect_handler_idents(handler_expr);
+        let shadows: Vec<TokenStream> = idents
+            .iter()
+            .map(|id| {
+                quote! { let #id = #id.clone(); }
+            })
+            .collect();
+        let handler_no_move = strip_move_from_closure(handler_expr);
+        chain = quote! {
+            #chain.on_mouse_down(::gpui::MouseButton::Left, {
+                #(#shadows)*
+                let __handler = ::std::rc::Rc::new(#handler_no_move);
+                move |_, _, _| {
+                    __handler(())
+                }
+            })
+        };
+    }
+
+    if let Some(handler_expr) = find_arg_expr(el, "on_mouse_down") {
         let idents = collect_handler_idents(handler_expr);
         let shadows: Vec<TokenStream> = idents
             .iter()

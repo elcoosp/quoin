@@ -1,15 +1,26 @@
-// quoin-macros/src/parse.rs
 use proc_macro2::Ident;
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::{Block, Expr, ItemFn, Result, Token, Type, Visibility, braced};
 
+/// A declared global dependency consumed via `use_global`.
+#[derive(Debug, Clone)]
+pub struct GlobalField {
+    pub name: Ident,
+    pub ty: Type,
+    /// If true, auto-subscribe to changes (framework-specific).
+    pub observe: bool,
+}
+
 pub struct ComponentAst {
-    pub vis: Visibility, // <-- 新增字段
+    pub vis: Visibility,
     pub name: Ident,
     pub props: Vec<PropField>,
     pub state: Vec<StateField>,
+    pub globals: Vec<GlobalField>,
     pub actions: Vec<ItemFn>,
+    pub on_mount: Option<Block>,
+    pub on_unmount: Option<Block>,
     pub render: Block,
 }
 
@@ -27,10 +38,7 @@ pub struct StateField {
 
 impl Parse for ComponentAst {
     fn parse(input: ParseStream) -> Result<Self> {
-        // 1. 先解析可见性修饰符 (pub, pub(crate) 等)
         let vis: Visibility = input.parse()?;
-
-        // 2. 解析组件名称
         let name: Ident = input.parse()?;
         let name_span = name.span();
         let content;
@@ -38,7 +46,10 @@ impl Parse for ComponentAst {
 
         let mut props = Vec::new();
         let mut state = Vec::new();
+        let mut globals = Vec::new();
         let mut actions = Vec::new();
+        let mut on_mount: Option<Block> = None;
+        let mut on_unmount: Option<Block> = None;
         let mut render_block: Option<Block> = None;
 
         while !content.is_empty() {
@@ -72,11 +83,7 @@ impl Parse for ComponentAst {
                         if inner.peek(Token![,]) {
                             inner.parse::<Token![,]>()?;
                         }
-                        props.push(PropField {
-                            name: fname,
-                            ty: fty,
-                            default,
-                        });
+                        props.push(PropField { name: fname, ty: fty, default });
                     }
                 }
                 "state" => {
@@ -98,12 +105,33 @@ impl Parse for ComponentAst {
                         if inner.peek(Token![,]) {
                             inner.parse::<Token![,]>()?;
                         }
-                        state.push(StateField {
-                            name: fname,
-                            ty: fty,
-                            default,
-                        });
+                        state.push(StateField { name: fname, ty: fty, default });
                     }
+                }
+                "globals" => {
+                    let inner;
+                    braced!(inner in content);
+                    while !inner.is_empty() {
+                        let fname: Ident = inner.parse()?;
+                        inner.parse::<Token![:]>()?;
+                        let fty: Type = inner.parse()?;
+                        let observe = if inner.peek(syn::Ident) {
+                            let kw: syn::Ident = inner.parse()?;
+                            kw == "observe"
+                        } else {
+                            false
+                        };
+                        if inner.peek(Token![,]) {
+                            inner.parse::<Token![,]>()?;
+                        }
+                        globals.push(GlobalField { name: fname, ty: fty, observe });
+                    }
+                }
+                "on_mount" => {
+                    on_mount = Some(content.parse::<Block>()?);
+                }
+                "on_unmount" => {
+                    on_unmount = Some(content.parse::<Block>()?);
                 }
                 "render" => {
                     render_block = Some(content.parse::<Block>()?);
@@ -111,7 +139,7 @@ impl Parse for ComponentAst {
                 _ => {
                     return Err(syn::Error::new(
                         key.span(),
-                        "Unexpected identifier. Expected 'props', 'state', 'render', or a function definition",
+                        "Unexpected identifier. Expected 'props', 'state', 'globals', 'on_mount', 'on_unmount', 'render', or a function definition",
                     ));
                 }
             }
@@ -128,11 +156,7 @@ impl Parse for ComponentAst {
         }
 
         Ok(ComponentAst {
-            vis, // <-- 返回可见性
-            name,
-            props,
-            state,
-            actions,
+            vis, name, props, state, globals, actions, on_mount, on_unmount,
             render: render_block.unwrap(),
         })
     }

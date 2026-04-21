@@ -5,6 +5,13 @@ use std::future::Future;
 use std::ops::Deref;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
+use std::any::TypeId;
+use std::collections::HashMap;
+
+thread_local! {
+    static GLOBAL_STORE: std::cell::RefCell<HashMap<TypeId, Box<dyn std::any::Any + Send + Sync>>> =
+        std::cell::RefCell::new(HashMap::new());
+}
 
 /// The GPUI context, which holds an optional notification callback.
 /// The view is responsible for setting this callback to enable automatic UI updates.
@@ -113,11 +120,24 @@ impl ReactiveContext for GpuiContext {
         self.request_update();
     }
 
+    fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T) {
+        GLOBAL_STORE.with(|store| {
+            store.borrow_mut().insert(TypeId::of::<T>(), Box::new(value));
+        });
+    }
+
     fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>> {
-        // Stub: GPUI does not have a built-in context provider.
-        // A full implementation would require a global store registry
-        // integrated with the GPUI App context.
-        None
+        GLOBAL_STORE.with(|store| {
+            store
+                .borrow()
+                .get(&TypeId::of::<T>())
+                .and_then(|v| v.downcast_ref::<T>())
+                .cloned()
+                .map(|v| GpuiSignal {
+                    inner: Arc::new(std::sync::RwLock::new(v)),
+                    context: self.clone(),
+                })
+        })
     }
 }
 

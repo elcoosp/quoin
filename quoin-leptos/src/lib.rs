@@ -30,11 +30,13 @@ impl ReactiveContext for LeptosContext {
         // Leptos reactivity is automatic.
     }
 
+    fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T) {
+        leptos::prelude::provide_context(leptos::prelude::RwSignal::new(SendWrapper::new(value)));
+    }
+
     fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>> {
-        // Stub: Leptos context lookup returns RwSignal<T>, but our signal
-        // wraps SendWrapper<T>. A full implementation would need a separate
-        // global registry that stores SendWrapper-wrapped signals.
-        None
+        leptos::prelude::use_context::<leptos::prelude::RwSignal<SendWrapper<T>>>()
+            .map(|sig| LeptosSignal { inner: sig })
     }
 }
 

@@ -94,5 +94,8 @@ pub trait ReactiveContext: Clone + Send + Sync + 'static {
     ///     let current = theme.get();
     /// }
     /// ```
+    /// Provide a global value that can be retrieved via `use_global`.
+    fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T);
+
     fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>>;
 }
