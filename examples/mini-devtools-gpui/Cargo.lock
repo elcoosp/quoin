@@ -2228,7 +2228,7 @@ dependencies = [
 [[package]]
 name = "gpui-component"
 version = "0.5.1"
-source = "git+https://github.com/longbridge/gpui-component#4ad6c7d202e7f662c5c908f34f2abece7d41970d"
+source = "git+https://github.com/elcoosp/gpui-component?branch=fix%2Fimport-error-corner#c22213e9493a6c1f4af25eefe14c30e37a3721cb"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -2285,7 +2285,7 @@ dependencies = [
 [[package]]
 name = "gpui-component-macros"
 version = "0.5.1"
-source = "git+https://github.com/longbridge/gpui-component#4ad6c7d202e7f662c5c908f34f2abece7d41970d"
+source = "git+https://github.com/elcoosp/gpui-component?branch=fix%2Fimport-error-corner#c22213e9493a6c1f4af25eefe14c30e37a3721cb"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3481,29 +3481,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "manyhow"
-version = "0.11.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b33efb3ca6d3b07393750d4030418d594ab1139cee518f0dc88db70fec873587"
-dependencies = [
- "manyhow-macros",
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "manyhow-macros"
-version = "0.11.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "46fce34d199b78b6e6073abf984c9cf5fd3e9330145a93ee0738a7443e371495"
-dependencies = [
- "proc-macro-utils",
- "proc-macro2",
- "quote",
-]
-
-[[package]]
 name = "markdown"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3638,10 +3615,8 @@ dependencies = [
  "gpui-component-assets",
  "gpui_platform",
  "quoin",
- "quoin-gpui",
  "quoin-macros",
  "quoin-ui",
- "quoin-ui-gpui",
  "ucp-lib",
 ]
 
@@ -4532,17 +4507,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "proc-macro-utils"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eeaf08a13de400bc215877b5bdc088f241b12eb42f0a548d3390dc1c56bb7071"
-dependencies = [
- "proc-macro2",
- "quote",
- "smallvec",
-]
-
-[[package]]
 name = "proc-macro2"
 version = "1.0.106"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4679,6 +4643,17 @@ name = "quoin"
 version = "0.1.0"
 dependencies = [
  "futures-core",
+ "quoin-core",
+ "quoin-gpui",
+ "quoin-macros",
+ "quoin-ui-gpui",
+]
+
+[[package]]
+name = "quoin-core"
+version = "0.1.0"
+dependencies = [
+ "futures-core",
 ]
 
 [[package]]
@@ -4687,7 +4662,8 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "gpui",
- "quoin",
+ "gpui_platform",
+ "quoin-core",
  "send_wrapper",
 ]
 
@@ -4695,7 +4671,16 @@ dependencies = [
 name = "quoin-macros"
 version = "0.1.0"
 dependencies = [
- "manyhow",
+ "proc-macro2",
+ "quoin-macros-core",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "quoin-macros-core"
+version = "0.1.0"
+dependencies = [
  "proc-macro2",
  "quote",
  "syn",
@@ -6551,12 +6536,9 @@ checksum = "40ce102ab67701b8526c123c1bab5cbe42d7040ccfd0f64af1a385808d2f43de"
 name = "ucp-lib"
 version = "0.1.0"
 dependencies = [
- "gpui",
  "quoin",
- "quoin-gpui",
  "quoin-macros",
  "quoin-ui",
- "quoin-ui-gpui",
 ]
 
 [[package]]
