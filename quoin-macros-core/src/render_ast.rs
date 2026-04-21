@@ -191,6 +191,11 @@ const KNOWN_ELEMENTS: &[&str] = &[
     "textarea",
     "select",
     "form",
+    // Phase 0-A: complex elements whose codegen exists in transpile/
+    "virtual_list",
+    "dropdown_menu",
+    "rich_text",
+    "clipboard_button",
 ];
 
 impl Parse for RenderNode {

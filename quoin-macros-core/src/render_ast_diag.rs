@@ -3,11 +3,24 @@
 use syn::Ident;
 
 const KNOWN_ARGS: &[&str] = &[
+    // Standard HTML-ish
     "class", "id", "on_click", "on_input", "on_change", "on_submit",
     "children", "placeholder", "value", "primary", "ghost", "destructive",
     "active", "rows", "striped", "label", "render", "key",
     "index", "href", "target", "src", "alt", "disabled", "required",
     "type", "name", "for", "title", "role", "tabindex", "autofocus",
+    // Phase 0-B: on_mouse_down (first-class arg)
+    "on_mouse_down",
+    // Phase 0-B: virtual_list args
+    "estimated_height", "items",
+    // Phase 0-B: dropdown_menu args
+    "trigger",
+    // Phase 0-B: clipboard_button args
+    "copy_text",
+    // Phase 0-B: data_table column args
+    "sortable", "width", "resizable", "selectable",
+    // Phase 0-B: data_table args
+    "on_sort", "bordered", "size",
 ];
 
 /// Check if an argument key looks like a typo of a known key.
@@ -74,7 +87,10 @@ pub fn check_element_args(element_name: &str, arg_keys: &[&Ident]) -> Vec<String
                     "unknown argument `{}` on `<{element_name}>`. Known args: {}",
                     key_str,
                     KNOWN_ARGS.iter()
-                        .filter(|k| !matches!(**k, "render" | "key" | "index" | "label"))
+                        .filter(|k| !matches!(**k, "render" | "key" | "index" | "label"
+                            | "estimated_height" | "items" | "trigger" | "copy_text"
+                            | "sortable" | "width" | "resizable" | "selectable"
+                            | "on_sort" | "bordered" | "size" | "on_mouse_down"))
                         .cloned()
                         .collect::<Vec<_>>()
                         .join(", ")
