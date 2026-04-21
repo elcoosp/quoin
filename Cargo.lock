@@ -6678,8 +6678,17 @@ dependencies = [
 name = "quoin-macros"
 version = "0.1.0"
 dependencies = [
+ "dioxus",
+ "gpui",
+ "gpui-component",
+ "leptos",
  "manyhow",
  "proc-macro2",
+ "quoin",
+ "quoin-dioxus",
+ "quoin-gpui",
+ "quoin-leptos",
+ "quoin-ui-gpui",
  "quote",
  "syn 2.0.117",
  "thiserror 2.0.18",
