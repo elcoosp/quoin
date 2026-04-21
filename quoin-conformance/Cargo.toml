@@ -8,18 +8,18 @@ repository = "https://github.com/username/quoin"
 readme = "README.md"
 
 [dependencies]
-quoin = { path = "../quoin", default-features = false }
+quoin-core = { path = "../quoin-core", default-features = false }
 futures = "0.3"
 
 # Optional dependencies for specific adapters
 gpui = { git = "https://github.com/zed-industries/zed", optional = true }
 
 [features]
-leptos = ["quoin/leptos"]
-gpui   = ["quoin/gpui", "dep:gpui"]
-dioxus = ["quoin/dioxus"]
-xilem  = ["quoin/xilem"]
-floem  = ["quoin/floem"]
+leptos = []
+gpui   = ["dep:gpui"]
+dioxus = []
+xilem  = []
+floem  = []
 [lib]
 name = "quoin_conformance"
 path = "src/lib.rs"

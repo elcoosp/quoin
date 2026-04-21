@@ -1,7 +1,6 @@
 // quoin-macros/tests/ui/component_dioxus_pass.rs
 use dioxus::prelude::*;
-use quoin::Signal;
-use quoin_macros::component;
+use quoin::prelude::*;
 
 component! {
     TestDioxus {

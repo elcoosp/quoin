@@ -7,7 +7,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/username/quoin"
 
 [dependencies]
-quoin = { path = "../quoin" }
+quoin-core = { path = "../quoin-core" }
 dioxus = "0.7"
 dioxus-core = "0.7"
 futures = "0.3"

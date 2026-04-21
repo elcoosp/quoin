@@ -9,5 +9,4 @@ publish = false
 gpui = { git = "https://github.com/zed-industries/zed" }
 gpui_platform = { git = "https://github.com/zed-industries/zed", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
 quoin = { path = "../../quoin", features = ["gpui"] }
-quoin-gpui = { path = "../../quoin-gpui" }
 ucp-lib = { path = "../ucp-lib", features = ["gpui"] }

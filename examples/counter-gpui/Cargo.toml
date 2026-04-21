@@ -8,7 +8,6 @@ publish = false
 [dependencies]
 gpui_platform = { git = "https://github.com/zed-industries/zed", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
 gpui = { git = "https://github.com/zed-industries/zed" }
-counter-lib = { path = "../counter", features = ["gpui"] }
-quoin = { path = "../../quoin" }
-quoin-gpui = { path = "../../quoin-gpui" }
+counter-lib = { path = "../counter" }
+quoin = { path = "../../quoin", features = ["gpui"] }
 send_wrapper = "0.6"

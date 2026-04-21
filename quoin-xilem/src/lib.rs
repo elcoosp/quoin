@@ -1,4 +1,4 @@
-use quoin::{Executor, JoinHandle, ReactiveContext, Signal as QuoinSignal};
+use quoin_core::{Executor, JoinHandle, ReactiveContext, Signal as QuoinSignal};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
@@ -149,5 +149,13 @@ impl<T> Drop for XilemJoinHandle<T> {
         if let Some(handle) = self.handle.take() {
             handle.abort();
         }
+    }
+}
+
+impl<T: Clone + std::fmt::Debug + 'static> std::fmt::Debug for XilemSignal<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("XilemSignal")
+            .field("value", &self.inner.read().map_err(|_| std::fmt::Error)?)
+            .finish()
     }
 }

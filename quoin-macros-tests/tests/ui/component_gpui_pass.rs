@@ -1,5 +1,3 @@
-use quoin::Signal;
-use quoin_macros::component;
 
 component! {
     TestComponent {
@@ -16,3 +14,4 @@ component! {
 }
 
 fn main() {}
+use quoin::prelude::*;

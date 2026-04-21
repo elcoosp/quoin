@@ -23,9 +23,9 @@ quoin-dioxus = { path = "../quoin-dioxus", optional = true }
 [features]
 default = []
 # Make sure quoin-macros/gpui is activated too!
-gpui = ["dep:gpui", "dep:quoin-gpui", "dep:quoin-ui-gpui", "dep:gpui-component", "quoin-macros/gpui"]
-leptos = ["dep:leptos", "dep:quoin-leptos", "quoin-macros/leptos"]
-dioxus = ["dep:dioxus", "dep:quoin-dioxus", "quoin-macros/dioxus"]
+gpui = ["dep:gpui", "dep:quoin-gpui", "dep:quoin-ui-gpui", "dep:gpui-component", "quoin-macros/gpui", "quoin/gpui"]
+leptos = ["dep:leptos", "dep:quoin-leptos", "quoin-macros/leptos", "quoin/leptos"]
+dioxus = ["dep:dioxus", "dep:quoin-dioxus", "quoin-macros/dioxus", "quoin/dioxus"]
 
 [dev-dependencies]
 trybuild = "1.0"

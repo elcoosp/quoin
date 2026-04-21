@@ -1,4 +1,4 @@
-use quoin::{Executor, ReactiveContext};
+use quoin_core::{Executor, ReactiveContext};
 use quoin_conformance::{SleepExt, define_conformance_tests};
 use quoin_floem::{FloemContext, FloemExecutor};
 use std::future::Future;

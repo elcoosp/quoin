@@ -8,4 +8,4 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 quoin-ui = { path = "../quoin-ui" }
 gpui = { git = "https://github.com/zed-industries/zed" }
-gpui-component = { git = "https://github.com/longbridge/gpui-component" }
+gpui-component = { git = "https://github.com/elcoosp/gpui-component", branch = "fix/import-error-corner" }

@@ -1,7 +1,6 @@
 use counter_lib::use_counter;
 use dioxus::prelude::*;
-use quoin::Signal;
-use quoin_dioxus::DioxusContext;
+use quoin::prelude::*;
 
 fn app() -> Element {
     // ✅ Store the context and counter in hooks – created only once.

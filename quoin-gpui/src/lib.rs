@@ -1,5 +1,5 @@
 use gpui::{AsyncWindowContext, BackgroundExecutor, Context, ForegroundExecutor, Task, WeakEntity};
-use quoin::{Executor, JoinHandle, ReactiveContext, Signal as QuoinSignal};
+use quoin_core::{Executor, JoinHandle, ReactiveContext, Signal as QuoinSignal};
 use send_wrapper::SendWrapper;
 use std::future::Future;
 use std::ops::Deref;
@@ -230,5 +230,36 @@ impl<T> Drop for GpuiJoinHandle<T> {
         if let Some(task) = self.task.take() {
             drop(task);
         }
+    }
+}
+
+/// Launch a GPUI application.
+///
+/// Wraps `gpui_platform::application().run()` so users don't need to
+/// import `gpui_platform` directly.
+///
+/// # Example
+/// ```rust,ignore
+/// fn main() {
+///     quoin::launch(|app_cx: &mut gpui::App| {
+///         app_cx.open_window(gpui::WindowOptions::default(), |window, cx| {
+///             // ...
+///         }).unwrap();
+///         app_cx.activate(true);
+///     });
+/// }
+/// ```
+pub fn launch<F>(f: F)
+where
+    F: FnOnce(&mut gpui::App) + 'static,
+{
+    gpui_platform::application().run(f);
+}
+
+impl<T: Clone + std::fmt::Debug + 'static> std::fmt::Debug for GpuiSignal<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GpuiSignal")
+            .field("value", &self.inner.read().map_err(|_| std::fmt::Error)?)
+            .finish()
     }
 }

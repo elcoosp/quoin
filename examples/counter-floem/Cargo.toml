@@ -6,6 +6,5 @@ publish = false
 
 [dependencies]
 floem = "0.2.0"
-counter-lib = { path = "../counter", features = ["floem"] }
-quoin-floem = { path = "../../quoin-floem" }
-quoin = { path = "../../quoin" }
+counter-lib = { path = "../counter" }
+quoin = { path = "../../quoin", features = ["floem"] }

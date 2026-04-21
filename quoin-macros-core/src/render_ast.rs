@@ -69,6 +69,15 @@ impl Parse for Element {
             Vec::new()
         };
 
+        // Emit compile warnings for unknown arguments on standard elements
+        {
+            let arg_keys: Vec<&Ident> = args.iter().map(|a| &a.key).collect();
+            let warns = crate::render_ast_diag::check_element_args(&name.to_string(), &arg_keys);
+            for w in warns {
+                return Err(syn::Error::new_spanned(&name, w));
+            }
+        }
+
         Ok(Element {
             name,
             args,
@@ -87,7 +96,7 @@ pub struct IfNode {
 
 impl Parse for IfNode {
     fn parse(input: ParseStream) -> Result<Self> {
-        input.parse::<Token![if]>()?; // consume 'if' keyword
+        input.parse::<Token![if]>()?;
 
         let condition_content;
         bracketed!(condition_content in input);
@@ -100,7 +109,6 @@ impl Parse for IfNode {
         let else_branch = if input.peek(Token![else]) {
             input.parse::<Token![else]>()?;
 
-            // FIX: Check for `else if[...]` using the keyword token
             if input.peek(Token![if]) {
                 let fork = input.fork();
                 fork.parse::<Token![if]>()?;
@@ -138,7 +146,7 @@ pub struct ForNode {
 
 impl Parse for ForNode {
     fn parse(input: ParseStream) -> Result<Self> {
-        input.parse::<Token![for]>()?; // consume 'for' keyword
+        input.parse::<Token![for]>()?;
 
         let for_content;
         bracketed!(for_content in input);
@@ -172,11 +180,22 @@ const KNOWN_ELEMENTS: &[&str] = &[
     "tab",
     "data_table",
     "column",
+    "label",
+    "img",
+    "a",
+    "ul",
+    "ol",
+    "li",
+    "hr",
+    "br",
+    "textarea",
+    "select",
+    "form",
 ];
 
 impl Parse for RenderNode {
     fn parse(input: ParseStream) -> Result<Self> {
-        // FIX: Handle `if[...]` — `if` is a keyword, not an Ident
+        // Handle `if[...]`
         if input.peek(Token![if]) {
             let fork = input.fork();
             fork.parse::<Token![if]>()?;
@@ -185,7 +204,7 @@ impl Parse for RenderNode {
             }
         }
 
-        // FIX: Handle `for[...]` — `for` is a keyword, not an Ident
+        // Handle `for[...]`
         if input.peek(Token![for]) {
             let fork = input.fork();
             fork.parse::<Token![for]>()?;
@@ -194,7 +213,7 @@ impl Parse for RenderNode {
             }
         }
 
-        // FIX: Handle known elements using peek_any to catch all idents
+        // Handle known elements
         if input.peek(Ident) || input.peek(Ident::peek_any) {
             let fork = input.fork();
             let ident: Ident = fork.call(Ident::parse_any)?;
@@ -213,7 +232,22 @@ impl Parse for RenderNode {
             return Ok(RenderNode::Text(input.parse()?));
         }
 
-        // Fallback expression
+        // Unknown element — produce a helpful error
+        let ident_str = input
+            .fork()
+            .call(Ident::parse_any)
+            .map(|i| i.to_string())
+            .unwrap_or_default();
+        if !ident_str.is_empty() {
+            return Err(syn::Error::new_spanned(
+                input.fork().call(Ident::parse_any).unwrap(),
+                format!(
+                    "unknown element `{}`. Known elements: {}. If this is an expression, wrap it in braces: `{{ expr }}`",
+                    ident_str,
+                    KNOWN_ELEMENTS.join(", ")
+                ),
+            ));
+        }
         Ok(RenderNode::Expr(input.parse()?))
     }
 }

@@ -8,7 +8,7 @@
 //! # Usage for non‑GPUI adapters
 //!
 //! ```rust,ignore
-//! use quoin::ReactiveContext;
+//! use quoin_core::ReactiveContext;
 //! use quoin_conformance::{define_conformance_tests, TestContextProvider};
 //!
 //! struct MyTestHarness { ... }
@@ -25,7 +25,7 @@
 //!
 //! ```rust,ignore
 //! use gpui::TestAppContext;
-//! use quoin::ReactiveContext;
+//! use quoin_core::ReactiveContext;
 //! use quoin_conformance::{define_conformance_tests, SleepExt};
 //!
 //! struct TestHarness { context: GpuiContext }
@@ -40,11 +40,11 @@
 //! define_conformance_tests!(gpui, TestHarness);
 //! ```
 
-use quoin::{CancellationToken, Executor, ReactiveContext, Signal};
 use std::future::Future;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
+use quoin_core::prelude::*;
 
 // -----------------------------------------------------------------------------
 // Helper traits

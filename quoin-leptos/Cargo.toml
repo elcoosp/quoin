@@ -7,7 +7,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/username/quoin"
 
 [dependencies]
-quoin = { path = "../quoin", default-features = false, features = ["leptos"] }
+quoin-core = { path = "../quoin-core", default-features = false, features = ["leptos"] }
 
 futures = { version = "0.3", features = ["executor"] }
 leptos = { version = "0.8" }

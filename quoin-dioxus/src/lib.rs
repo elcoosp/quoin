@@ -1,5 +1,5 @@
 use dioxus::prelude::*;
-use quoin::{Executor, JoinHandle, ReactiveContext, Signal as QuoinSignal};
+use quoin_core::{Executor, JoinHandle, ReactiveContext, Signal as QuoinSignal};
 use std::cell::RefCell;
 use std::future::Future;
 use std::pin::Pin;
@@ -105,5 +105,13 @@ impl<T: Send + 'static> std::future::IntoFuture for DioxusJoinHandle<T> {
                 unreachable!("Receiver should be set")
             }
         })
+    }
+}
+
+impl<T: Clone + std::fmt::Debug + 'static> std::fmt::Debug for DioxusSignal<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DioxusSignal")
+            .field("value", &self.inner.borrow().read())
+            .finish()
     }
 }

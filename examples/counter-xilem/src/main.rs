@@ -1,9 +1,7 @@
 // examples/counter-xilem/src/main.rs
-use quoin::reactive::ReactiveContext;
-use quoin::signal::Signal;
-use quoin_xilem::XilemContext;
 use std::sync::Arc;
 use xilem::{
+use quoin::prelude::*;
     EventLoop, WidgetView, WindowOptions, Xilem,
     tokio::runtime::Runtime,
     view::{flex_col, label, text_button},

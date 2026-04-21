@@ -7,6 +7,5 @@ publish = false
 
 [dependencies]
 dioxus = {version="0.7", features=["desktop"]}
-counter-lib = { path = "../counter", features = ["dioxus"] }
-quoin-dioxus = { path = "../../quoin-dioxus" }
-quoin = { path = "../../quoin" }
+counter-lib = { path = "../counter" }
+quoin = { path = "../../quoin", features = ["dioxus"] }

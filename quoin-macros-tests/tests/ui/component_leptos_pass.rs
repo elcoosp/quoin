@@ -1,7 +1,5 @@
-use quoin_macros::component;
-use quoin::ReactiveContext;
-use quoin_leptos::LeptosContext;
-use leptos::prelude::*;
+use quoin::prelude::*;
+use leptos::view;
 
 component! {
     TestLeptos {

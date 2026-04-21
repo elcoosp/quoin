@@ -1,5 +1,5 @@
 use dioxus_core::{Element, ScopeId, VNode, VirtualDom};
-use quoin::{Executor, ReactiveContext};
+use quoin_core::{Executor, ReactiveContext};
 use quoin_conformance::{SleepExt, define_conformance_tests};
 use quoin_dioxus::{DioxusContext, DioxusExecutor};
 use std::future::Future;

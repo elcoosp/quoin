@@ -1,5 +1,5 @@
-use quoin::{ReactiveContext, Signal};
 use std::rc::Rc;
+use quoin_core::prelude::*;
 
 #[derive(Clone)] // <-- add this
 pub struct Counter<S: Signal<u32>> {

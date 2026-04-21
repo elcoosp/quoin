@@ -10,16 +10,29 @@ keywords = ["reactive", "ui", "framework", "abstraction", "signals"]
 categories = ["gui", "asynchronous", "rust-patterns"]
 
 [dependencies]
+quoin-core = { path = "../quoin-core" }
 futures-core = "0.3"
 
-[dev-dependencies]
-tokio = { version = "1", features = ["rt", "macros", "time", "sync"] }
-trybuild = "1.0"
+# Adapter crates (optional, pulled in by feature flags)
+quoin-gpui      = { path = "../quoin-gpui",      optional = true }
+quoin-dioxus    = { path = "../quoin-dioxus",    optional = true }
+quoin-leptos    = { path = "../quoin-leptos",    optional = true }
+quoin-xilem     = { path = "../quoin-xilem",     optional = true }
+quoin-floem     = { path = "../quoin-floem",     optional = true }
+
+# Macro crate (optional)
+quoin-macros    = { path = "../quoin-macros",    optional = true }
+
+# UCP crates (optional)
+quoin-ui        = { path = "../quoin-ui",        optional = true }
+quoin-ui-gpui   = { path = "../quoin-ui-gpui",   optional = true }
 
 [features]
 default = []
-gpui = []
-dioxus = []
-leptos = []
-xilem = []
-floem = []
+gpui   = ["dep:quoin-gpui", "dep:quoin-ui-gpui", "dep:quoin-macros", "quoin-macros?/gpui"]
+dioxus = ["dep:quoin-dioxus", "dep:quoin-macros", "quoin-macros?/dioxus"]
+leptos = ["dep:quoin-leptos", "dep:quoin-macros", "quoin-macros?/leptos"]
+xilem  = ["dep:quoin-xilem"]
+floem  = ["dep:quoin-floem"]
+macros = ["dep:quoin-macros"]
+ui     = ["dep:quoin-ui"]

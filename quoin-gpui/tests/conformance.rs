@@ -1,5 +1,5 @@
 use gpui::TestAppContext;
-use quoin::{Executor, ReactiveContext};
+use quoin_core::{Executor, ReactiveContext};
 use quoin_conformance::{SleepExt, define_conformance_tests};
 use quoin_gpui::{GpuiContext, GpuiExecutor};
 use std::future::Future;

@@ -1,5 +1,5 @@
 use floem_reactive::{RwSignal, SignalGet, SignalUpdate, SignalWith};
-use quoin::{Executor, JoinHandle, ReactiveContext, Signal};
+use quoin_core::{Executor, JoinHandle, ReactiveContext, Signal};
 use send_wrapper::SendWrapper;
 use std::future::Future;
 use std::pin::Pin;
@@ -109,5 +109,13 @@ impl<T: Send + 'static> std::future::IntoFuture for FloemJoinHandle<T> {
                 unreachable!("Receiver should be set")
             }
         })
+    }
+}
+
+impl<T: Clone + std::fmt::Debug + 'static> std::fmt::Debug for FloemSignal<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FloemSignal")
+            .field("value", &self.inner.get())
+            .finish()
     }
 }

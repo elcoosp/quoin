@@ -241,11 +241,11 @@ fn emit_input(el: &Element) -> TokenStream {
         quote! {
             gpui::div()
                 #wrapper_styles
-                .child(quoin_ui_gpui::Input::new(&__entity).appearance(false))
+                .child(quoin::Input::new(&__entity).appearance(false))
         }
     } else {
         quote! {
-            quoin_ui_gpui::Input::new(&__entity)
+            quoin::Input::new(&__entity)
         }
     };
 
@@ -254,8 +254,8 @@ fn emit_input(el: &Element) -> TokenStream {
             let __input_id: &str = #input_id_str;
             if !self._quoin_inputs.contains(__input_id) {
                 let __initial_val: String = self.#value_ident.get();
-                let __entity = cx.new::<quoin_ui_gpui::InputState>(|cx| {
-                    let mut __state = quoin_ui_gpui::InputState::new(window, cx);
+                let __entity = cx.new::<quoin::InputState>(|cx| {
+                    let mut __state = quoin::InputState::new(window, cx);
                     __state.set_placeholder(#placeholder, window, cx);
                     __state.set_value(__initial_val, window, cx);
                     __state

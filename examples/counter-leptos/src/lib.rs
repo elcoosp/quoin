@@ -1,7 +1,6 @@
 use counter_lib::use_counter;
 use leptos::prelude::*;
-use quoin::Signal;
-use quoin_leptos::LeptosContext;
+use quoin::prelude::*;
 
 #[component]
 pub fn App() -> impl IntoView {

@@ -31,7 +31,7 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
             use quoin::ReactiveContext;
             use quoin::Signal;
             use leptos::prelude::ElementChild;
-            let ctx = quoin_leptos::LeptosContext::new();
+            let ctx = quoin::LeptosContext::new();
             #(#state_inits)*
             #(#action_closures)*
 

@@ -1,7 +1,6 @@
 use counter_lib::use_counter;
 use floem::prelude::*;
-use quoin::Signal; // <-- Add this import
-use quoin_floem::FloemContext;
+use quoin::prelude::*;
 
 fn app_view() -> impl IntoView {
     let ctx = FloemContext::new();

@@ -17,8 +17,7 @@ console_log = "1.0"
 log = "0.4"
 wasm-bindgen = "0.2"
 counter-lib = { path = "../counter" }
-quoin = { path = "../../quoin" }
-quoin-leptos = { path = "../../quoin-leptos" }
+quoin = { path = "../../quoin", features = ["leptos"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 leptos = { version = "0.8", features = ["csr"] }

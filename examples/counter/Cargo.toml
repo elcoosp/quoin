@@ -5,11 +5,4 @@ edition = "2024"
 publish = false
 
 [dependencies]
-quoin = { path = "../../quoin" }
-
-[features]
-gpui = ["quoin/gpui"]
-dioxus = ["quoin/dioxus"]
-leptos = ["quoin/leptos"]
-xilem = ["quoin/xilem"]
-floem = ["quoin/floem"]
+quoin-core = { path = "../../quoin-core" }

@@ -7,8 +7,9 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/username/quoin"
 
 [dependencies]
-quoin = { path = "../quoin" }
+quoin-core = { path = "../quoin-core" }
 gpui = { git = "https://github.com/zed-industries/zed" }
+gpui_platform = { git = "https://github.com/zed-industries/zed" }
 futures = "0.3"
 send_wrapper = "0.6"
 

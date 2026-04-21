@@ -36,7 +36,7 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
         .map(|s| {
             let fname = &s.name;
             let sty = &s.ty;
-            quote! { #fname: quoin_gpui::GpuiSignal<#sty> }
+            quote! { #fname: quoin::GpuiSignal<#sty> }
         })
         .collect();
 
@@ -103,17 +103,17 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
         #vis struct #name {
             props: #props_name,
             #(#state_fields,)*
-            _quoin_inputs: quoin_ui_gpui::QuoinInputManager,
+            _quoin_inputs: quoin::QuoinInputManager,
         }
 
         impl #name {
-            pub fn new(cx: &mut gpui::Context<Self>, ctx: quoin_gpui::GpuiContext, props: #props_name) -> Self {
+            pub fn new(cx: &mut gpui::Context<Self>, ctx: quoin::GpuiContext, props: #props_name) -> Self {
                 use quoin::ReactiveContext;
                 #(#state_inits)*
                 Self {
                     props,
                     #(#state_field_assignments,)*
-                    _quoin_inputs: quoin_ui_gpui::QuoinInputManager::new(),
+                    _quoin_inputs: quoin::QuoinInputManager::new(),
                 }
             }
 

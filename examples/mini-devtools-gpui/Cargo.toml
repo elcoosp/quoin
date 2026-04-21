@@ -7,11 +7,9 @@ publish = false
 [dependencies]
 gpui = { git = "https://github.com/zed-industries/zed" }
 gpui_platform = { git = "https://github.com/zed-industries/zed", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
-gpui-component = { git = "https://github.com/longbridge/gpui-component" }
+gpui-component = { git = "https://github.com/elcoosp/gpui-component", branch = "fix/import-error-corner" }
 gpui-component-assets = { git = "https://github.com/longbridge/gpui-component" }
 quoin = { path = "../../quoin", features = ["gpui"] }
-quoin-gpui = { path = "../../quoin-gpui" }
 quoin-ui = { path = "../../quoin-ui" }
-quoin-ui-gpui = { path = "../../quoin-ui-gpui" }
 ucp-lib = { path = "../ucp-lib", features = ["gpui"] }
 quoin-macros = { path = "../../quoin-macros", features = ["gpui"] }

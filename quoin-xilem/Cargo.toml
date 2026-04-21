@@ -7,7 +7,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/username/quoin"
 
 [dependencies]
-quoin = { path = "../quoin", default-features = false }
+quoin-core = { path = "../quoin-core", default-features = false }
 xilem = "0.4.0"
 xilem_core = "0.4.0"
 futures = "0.3"

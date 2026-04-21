@@ -6,7 +6,6 @@ publish = false
 
 [dependencies]
 xilem = "0.4.0"
-counter-lib = { path = "../counter", features = ["xilem"] }
-quoin-xilem = { path = "../../quoin-xilem" }
-quoin = { path = "../../quoin" }
+counter-lib = { path = "../counter" }
+quoin = { path = "../../quoin", features = ["xilem"] }
 winit = "0.30"

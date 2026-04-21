@@ -102,3 +102,33 @@ pub fn effect(input: TokenStream) -> TokenStream {
 
     tokens.into()
 }
+
+#[proc_macro]
+pub fn run_app(input: TokenStream) -> TokenStream {
+    let ast = match syn::parse::<quoin_macros_core::run_app::RunAppInput>(input) {
+        Ok(ast) => ast,
+        Err(e) => return e.to_compile_error().into(),
+    };
+
+    #[cfg(all(feature = "gpui", not(any(feature = "leptos", feature = "dioxus"))))]
+    let tokens = quoin_macros_core::emit::run_app_gpui::emit_run_app(&ast);
+
+    #[cfg(all(feature = "leptos", not(any(feature = "gpui", feature = "dioxus"))))]
+    let tokens = quoin_macros_core::emit::run_app_leptos::emit_run_app(&ast);
+
+    #[cfg(all(feature = "dioxus", not(any(feature = "gpui", feature = "leptos"))))]
+    let tokens = quoin_macros_core::emit::run_app_dioxus::emit_run_app(&ast);
+
+    #[cfg(not(any(feature = "gpui", feature = "leptos", feature = "dioxus")))]
+    let tokens = quote::quote! { compile_error!("run_app! requires a framework feature"); };
+
+    #[cfg(any(
+        all(feature = "gpui", feature = "leptos"),
+        all(feature = "gpui", feature = "dioxus"),
+        all(feature = "leptos", feature = "dioxus"),
+    ))]
+    let tokens =
+        quote::quote! { compile_error!("Only one framework feature may be enabled at a time."); };
+
+    tokens.into()
+}
