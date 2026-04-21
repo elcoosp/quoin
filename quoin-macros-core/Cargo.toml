@@ -1,0 +1,28 @@
+[package]
+name = "quoin-macros-core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+uuid = { version = "1.0", features = ["v4"] }
+syn = { version = "2", features = ["full", "parsing", "extra-traits", "visit", "visit-mut"] }
+quote = "1.0"
+proc-macro2 = "1.0"
+thiserror = "2.0"
+
+# Framework dependencies for emit/transpile logic and trybuild tests
+quoin = { path = "../quoin", optional = true }
+dioxus = { version = "0.7", optional = true }
+quoin-dioxus = { path = "../quoin-dioxus", optional = true }
+leptos = { version = "0.8", optional = true }
+quoin-leptos = { path = "../quoin-leptos", optional = true }
+gpui = { git = "https://github.com/zed-industries/zed", optional = true }
+quoin-gpui = { path = "../quoin-gpui", optional = true }
+quoin-ui-gpui = { path = "../quoin-ui-gpui", optional = true }
+gpui-component = { git = "https://github.com/longbridge/gpui-component", optional = true }
+
+[features]
+default = []
+gpui = ["dep:quoin", "dep:gpui", "dep:quoin-gpui", "dep:quoin-ui-gpui", "dep:gpui-component"]
+dioxus = ["dep:quoin", "dep:dioxus", "dep:quoin-dioxus"]
+leptos = ["dep:quoin", "dep:leptos", "dep:quoin-leptos"]

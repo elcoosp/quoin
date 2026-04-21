@@ -26,15 +26,19 @@ test:
 test-quoin:
     cargo nextest run -p quoin
 
-# Run tests for quoin-macros (requires feature flag)
+# Run tests for quoin-macros-core (no features needed)
+test-quoin-macros:
+    cargo nextest run -p quoin-macros-core
+
+# Run UI macro expansion tests (trybuild) for quoin-macros-tests
 test-quoin-macros-gpui:
-    cargo nextest run -p quoin-macros --features gpui
+    cargo nextest run -p quoin-macros-tests
 
 test-quoin-macros-leptos:
-    cargo nextest run -p quoin-macros --features leptos
+    cargo nextest run -p quoin-macros-tests --features leptos
 
 test-quoin-macros-dioxus:
-    cargo nextest run -p quoin-macros --features dioxus
+    cargo nextest run -p quoin-macros-tests --features dioxus
 
 # Run tests for framework adapters
 test-quoin-gpui:
@@ -62,18 +66,8 @@ test-conformance-leptos:
 test-conformance-dioxus:
     cargo nextest run -p quoin-conformance --features dioxus
 
-# Run UI macro expansion tests (trybuild) for quoin-macros
-test-macros-ui-gpui:
-    cargo test -p quoin-macros --features gpui --test macro_tests
-
-test-macros-ui-leptos:
-    cargo test -p quoin-macros --features leptos --test macro_tests
-
-test-macros-ui-dioxus:
-    cargo test -p quoin-macros --features dioxus --test macro_tests
-
 # Run all macro UI tests (sequentially, one feature at a time)
-test-macros-ui-all: test-macros-ui-gpui test-macros-ui-leptos test-macros-ui-dioxus
+test-macros-ui-all: test-quoin-macros-gpui test-quoin-macros-leptos test-quoin-macros-dioxus
 
 # ---------------------------------------------------------------------
 # Counter Examples (excluded from workspace — use --manifest-path)
@@ -147,9 +141,10 @@ fmt:
 
 # Lint workspace (per-feature to avoid feature unification errors)
 lint:
-    cargo clippy --all-targets --features gpui -- -D warnings
-    cargo clippy --all-targets --features leptos -- -D warnings
-    cargo clippy --all-targets --features dioxus -- -D warnings
+    cargo clippy --all-targets -p quoin-macros-core -- -D warnings
+    cargo clippy --all-targets -p quoin-macros-tests --features gpui -- -D warnings
+    cargo clippy --all-targets -p quoin-macros-tests --features leptos -- -D warnings
+    cargo clippy --all-targets -p quoin-macros-tests --features dioxus -- -D warnings
     cargo clippy --all-targets -- -D warnings
 
 # Format + lint (full check)
@@ -189,7 +184,7 @@ leptos-build:
     cargo leptos build -p counter-leptos
 
 # ---------------------------------------------------------------------
-# Compile-check all examples (no windows open)
+# Compile-check all examples (no windows opened)
 # ---------------------------------------------------------------------
 
 build-examples:

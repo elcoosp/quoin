@@ -10,6 +10,8 @@ members = [
     "quoin-conformance",
     "quoin",
     "quoin-macros",
+    "quoin-macros-core",
+    "quoin-macros-tests",
     "quoin-ui",
     "quoin-ui-gpui",
 ]

@@ -1,6 +1,7 @@
+#[allow(unused)]
 use proc_macro2::TokenStream;
+#[allow(unused)]
 use quote::quote;
-
 pub struct ColumnDef {
     pub key: String,
     pub label: String,

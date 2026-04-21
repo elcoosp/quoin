@@ -1,6 +1,7 @@
+#[allow(unused)]
 use proc_macro2::TokenStream;
+#[allow(unused)]
 use quote::quote;
-
 #[cfg(feature = "gpui")]
 pub fn generate_gpui_virtual_list(
     items_expr: &syn::Expr,

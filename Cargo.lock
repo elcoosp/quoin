@@ -6678,11 +6678,21 @@ dependencies = [
 name = "quoin-macros"
 version = "0.1.0"
 dependencies = [
+ "proc-macro2",
+ "quoin-macros-core",
+ "quote",
+ "syn 2.0.117",
+ "trybuild",
+]
+
+[[package]]
+name = "quoin-macros-core"
+version = "0.1.0"
+dependencies = [
  "dioxus",
  "gpui",
  "gpui-component",
  "leptos",
- "manyhow",
  "proc-macro2",
  "quoin",
  "quoin-dioxus",
@@ -6692,8 +6702,24 @@ dependencies = [
  "quote",
  "syn 2.0.117",
  "thiserror 2.0.18",
- "trybuild",
  "uuid",
+]
+
+[[package]]
+name = "quoin-macros-tests"
+version = "0.0.0"
+dependencies = [
+ "dioxus",
+ "gpui",
+ "gpui-component",
+ "leptos",
+ "quoin",
+ "quoin-dioxus",
+ "quoin-gpui",
+ "quoin-leptos",
+ "quoin-macros",
+ "quoin-ui-gpui",
+ "trybuild",
 ]
 
 [[package]]

@@ -7,29 +7,17 @@ edition = "2024"
 proc-macro = true
 
 [dependencies]
-uuid = { version = "1.0", features = ["v4"] }
-syn = { version = "2", features = ["full", "parsing", "extra-traits", "visit-mut"] }
+syn = { version = "2", features = ["full", "parsing", "extra-traits"] }
 quote = "1.0"
 proc-macro2 = "1.0"
-manyhow = "0.11"
-thiserror = "2.0"
-
-# Framework dependencies for trybuild UI tests (must be non-dev so trybuild can see them)
-quoin = { path = "../quoin", optional = true }
-dioxus = { version = "0.7", optional = true }
-quoin-dioxus = { path = "../quoin-dioxus", optional = true }
-leptos = { version = "0.8", optional = true }
-quoin-leptos = { path = "../quoin-leptos", optional = true }
-gpui = { git = "https://github.com/zed-industries/zed", optional = true }
-quoin-gpui = { path = "../quoin-gpui", optional = true }
-quoin-ui-gpui = { path = "../quoin-ui-gpui", optional = true }
-gpui-component = { git = "https://github.com/longbridge/gpui-component", optional = true }
+quoin-macros-core = { path = "../quoin-macros-core" }
 
 [dev-dependencies]
 trybuild = "1.0"
+quoin-macros-core = { path = "../quoin-macros-core" }
 
 [features]
 default = []
-gpui = ["dep:quoin", "dep:gpui", "dep:quoin-gpui", "dep:quoin-ui-gpui", "dep:gpui-component"]
-dioxus = ["dep:quoin", "dep:dioxus", "dep:quoin-dioxus"]
-leptos = ["dep:quoin", "dep:leptos", "dep:quoin-leptos"]
+gpui = ["quoin-macros-core/gpui"]
+dioxus = ["quoin-macros-core/dioxus"]
+leptos = ["quoin-macros-core/leptos"]

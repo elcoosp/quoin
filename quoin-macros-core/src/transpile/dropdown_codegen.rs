@@ -1,6 +1,7 @@
+#[allow(unused)]
 use proc_macro2::TokenStream;
+#[allow(unused)]
 use quote::quote;
-
 pub struct MenuItemDef {
     pub label: syn::Expr,
     pub on_click: syn::Expr,

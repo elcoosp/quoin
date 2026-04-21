@@ -1,0 +1,34 @@
+[package]
+name = "quoin-macros-tests"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+# Core dependencies (always required)
+quoin = { path = "../quoin" }
+quoin-macros = { path = "../quoin-macros" }
+
+# Leptos and Dioxus remain optional, controlled by features
+leptos = { version = "0.8", optional = true }
+quoin-leptos = { path = "../quoin-leptos", optional = true }
+
+dioxus = { version = "0.7", optional = true }
+quoin-dioxus = { path = "../quoin-dioxus", optional = true }
+
+# GPUI is a REQUIRED dependency, but only on macOS!
+# Because it's not optional, Cargo will always link it (on mac),
+# meaning trybuild will never fail to find it.
+[target.'cfg(target_os = "macos")'.dependencies]
+gpui = { git = "https://github.com/zed-industries/zed" }
+quoin-gpui = { path = "../quoin-gpui" }
+quoin-ui-gpui = { path = "../quoin-ui-gpui" }
+gpui-component = { git = "https://github.com/longbridge/gpui-component" }
+
+[features]
+default = []
+# GPUI is no longer a feature! It's automatically included on macOS.
+leptos = ["dep:leptos", "dep:quoin-leptos", "quoin-macros/leptos"]
+dioxus = ["dep:dioxus", "dep:quoin-dioxus", "quoin-macros/dioxus"]
+
+[dev-dependencies]
+trybuild = "1.0"
