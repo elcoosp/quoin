@@ -7,9 +7,10 @@ use syn::visit::Visit;
 use syn::visit_mut::VisitMut;
 
 // ---------------------------------------------------------------------------
-// Ident collection (skips closure bodies to avoid collecting params/locals)
+// Ident collection
 // ---------------------------------------------------------------------------
 
+/// Collects variable-name idents from expression paths, skipping nested closures.
 struct PathIdentCollector(Vec<proc_macro2::Ident>);
 
 impl<'ast> Visit<'ast> for PathIdentCollector {
@@ -22,12 +23,22 @@ impl<'ast> Visit<'ast> for PathIdentCollector {
         syn::visit::visit_expr_path(self, expr_path);
     }
 
+    // Skip nested closures — their parameters/locals are not captured variables
     fn visit_expr_closure(&mut self, _node: &'ast syn::ExprClosure) {}
 }
 
+/// Collect idents captured by the outermost closure — i.e., idents referenced
+/// inside the closure body but not inside any nested closures within it.
 fn collect_handler_idents(expr: &Expr) -> Vec<proc_macro2::Ident> {
+    // If the expr IS a closure, collect from its body directly.
+    // If it's something else (method call etc.), collect normally.
+    let body_expr: &Expr = match expr {
+        Expr::Closure(c) => &c.body,
+        other => other,
+    };
+
     let mut collector = PathIdentCollector(vec![]);
-    collector.visit_expr(expr);
+    collector.visit_expr(body_expr);
     collector
         .0
         .sort_by(|a, b| a.to_string().cmp(&b.to_string()));
