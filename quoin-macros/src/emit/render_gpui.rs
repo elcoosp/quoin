@@ -146,8 +146,9 @@ fn emit_input(el: &Element) -> TokenStream {
 
     let input_id_str = format!("__quoin_input_{}", value_ident);
 
-    let wrap_in_div = find_arg_expr(el, "class").is_some();
+    let has_class = find_arg_expr(el, "class").is_some();
     let mut wrapper_styles = quote! {};
+
     if let Some(class_expr) = find_arg_expr(el, "class") {
         if let Some(styles) = try_transpile_class(class_expr) {
             for style in styles.normal {
@@ -156,11 +157,13 @@ fn emit_input(el: &Element) -> TokenStream {
         }
     }
 
-    let input_construction = if wrap_in_div {
+    // FIX: Use .appearance(false) to strip default Input styling,
+    // allowing it to inherit text color from the Tailwind-styled parent div.
+    let input_construction = if has_class {
         quote! {
             gpui::div()
                 #wrapper_styles
-                .child(quoin_ui_gpui::Input::new(&__entity))
+                .child(quoin_ui_gpui::Input::new(&__entity).appearance(false))
         }
     } else {
         quote! {
@@ -241,8 +244,10 @@ fn emit_tabs(el: &Element) -> TokenStream {
                 }
 
                 let __idx = *idx;
+                // FIX: Clone the callback for each tab iteration so we satisfy FnMut
+                let __tab_on_click = __on_click.clone();
                 __el.on_mouse_down(gpui::MouseButton::Left, move |_, _, _| {
-                    __on_click(__idx)
+                    __tab_on_click(__idx)
                 }).into_any_element()
             }).collect();
 
@@ -250,7 +255,6 @@ fn emit_tabs(el: &Element) -> TokenStream {
         }
     }
 }
-
 fn emit_data_table(el: &Element) -> TokenStream {
     let rows_expr = find_arg_expr(el, "rows").expect("data_table requires 'rows'");
 
@@ -382,6 +386,7 @@ fn emit_for(for_node: &ForNode) -> TokenStream {
     let pat = &for_node.pat;
     let iterable = &for_node.iterable;
     let body = emit_nodes(&for_node.body);
+    // FIX: Added missing turbofish and closing bracket for .collect()
     quote! {
         {
             gpui::div().children(

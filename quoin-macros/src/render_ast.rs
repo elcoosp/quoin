@@ -1,3 +1,4 @@
+use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::{Expr, Ident, LitStr, Result, Token, braced, bracketed, parenthesized};
 
@@ -8,7 +9,7 @@ pub enum RenderNode {
     Expr(Expr),
     If(IfNode),
     For(ForNode),
-    Root(Vec<RenderNode>), // Added Root variant
+    Root(Vec<RenderNode>),
 }
 
 #[derive(Debug)]
@@ -19,7 +20,7 @@ pub struct ArgPair {
 
 impl Parse for ArgPair {
     fn parse(input: ParseStream) -> Result<Self> {
-        let key: Ident = input.parse()?;
+        let key: Ident = input.call(Ident::parse_any)?;
         input.parse::<Token![:]>()?;
         let value: Expr = input.parse()?;
         Ok(ArgPair { key, value })
@@ -36,7 +37,7 @@ pub struct Element {
 
 impl Parse for Element {
     fn parse(input: ParseStream) -> Result<Self> {
-        let name: Ident = input.parse()?;
+        let name: Ident = input.call(Ident::parse_any)?;
 
         let args_content;
         parenthesized!(args_content in input);
@@ -45,7 +46,7 @@ impl Parse for Element {
         let mut children_expr = None;
 
         while !args_content.is_empty() {
-            let key: Ident = args_content.parse()?;
+            let key: Ident = args_content.call(Ident::parse_any)?;
             args_content.parse::<Token![:]>()?;
 
             if key == "children" {
@@ -86,7 +87,7 @@ pub struct IfNode {
 
 impl Parse for IfNode {
     fn parse(input: ParseStream) -> Result<Self> {
-        input.parse::<Ident>()?; // consume 'if'
+        input.parse::<Token![if]>()?; // consume 'if' keyword
 
         let condition_content;
         bracketed!(condition_content in input);
@@ -99,9 +100,11 @@ impl Parse for IfNode {
         let else_branch = if input.peek(Token![else]) {
             input.parse::<Token![else]>()?;
 
-            let fork = input.fork();
-            if let Ok(next_ident) = fork.parse::<Ident>() {
-                if next_ident.to_string() == "if" {
+            // FIX: Check for `else if[...]` using the keyword token
+            if input.peek(Token![if]) {
+                let fork = input.fork();
+                fork.parse::<Token![if]>()?;
+                if fork.peek(syn::token::Bracket) {
                     let nested_if = input.parse::<IfNode>()?;
                     Some(vec![RenderNode::If(nested_if)])
                 } else {
@@ -135,7 +138,7 @@ pub struct ForNode {
 
 impl Parse for ForNode {
     fn parse(input: ParseStream) -> Result<Self> {
-        input.parse::<Ident>()?; // consume 'for'
+        input.parse::<Token![for]>()?; // consume 'for' keyword
 
         let for_content;
         bracketed!(for_content in input);
@@ -173,36 +176,45 @@ const KNOWN_ELEMENTS: &[&str] = &[
 
 impl Parse for RenderNode {
     fn parse(input: ParseStream) -> Result<Self> {
-        let lookahead = input.lookahead1();
-        if lookahead.peek(Ident) {
-            let ident: Ident = input.fork().parse()?;
-            let ident_str = ident.to_string();
-
-            // Control Flow
-            if ident_str == "if" && input.peek(syn::token::Bracket) {
+        // FIX: Handle `if[...]` — `if` is a keyword, not an Ident
+        if input.peek(Token![if]) {
+            let fork = input.fork();
+            fork.parse::<Token![if]>()?;
+            if fork.peek(syn::token::Bracket) {
                 return Ok(RenderNode::If(input.parse()?));
             }
-            if ident_str == "for" && input.peek(syn::token::Bracket) {
+        }
+
+        // FIX: Handle `for[...]` — `for` is a keyword, not an Ident
+        if input.peek(Token![for]) {
+            let fork = input.fork();
+            fork.parse::<Token![for]>()?;
+            if fork.peek(syn::token::Bracket) {
                 return Ok(RenderNode::For(input.parse()?));
             }
+        }
 
-            // Known HTML Elements
-            if KNOWN_ELEMENTS.contains(&ident_str.as_str()) && input.peek(syn::token::Paren) {
+        // FIX: Handle known elements using peek_any to catch all idents
+        if input.peek(Ident) || input.peek(Ident::peek_any) {
+            let fork = input.fork();
+            let ident: Ident = fork.call(Ident::parse_any)?;
+            let ident_str = ident.to_string();
+
+            if KNOWN_ELEMENTS.contains(&ident_str.as_str()) && fork.peek(syn::token::Paren) {
                 return Ok(RenderNode::Element(input.parse()?));
             }
 
-            // Macro invocations like view! { ... }
-            if input.peek(Token![!]) {
+            if fork.peek(Token![!]) {
                 return Ok(RenderNode::Expr(input.parse()?));
             }
-
-            // Fallback expression
-            Ok(RenderNode::Expr(input.parse()?))
-        } else if lookahead.peek(LitStr) {
-            Ok(RenderNode::Text(input.parse()?))
-        } else {
-            Ok(RenderNode::Expr(input.parse()?))
         }
+
+        if input.peek(LitStr) {
+            return Ok(RenderNode::Text(input.parse()?));
+        }
+
+        // Fallback expression
+        Ok(RenderNode::Expr(input.parse()?))
     }
 }
 

@@ -200,8 +200,6 @@ fn transpile_single_class(class: &str) -> Option<TokenStream> {
         "overflow-scroll" => quote! { .overflow_scroll() },
         "overflow-x-hidden" => quote! { .overflow_x_hidden() },
         "overflow-y-hidden" => quote! { .overflow_y_hidden() },
-        "overflow-y-auto" => quote! { .overflow_y_auto() },
-        "overflow-y-scroll" => quote! { .overflow_y_scroll() },
         // Whitespace / text
         "whitespace-nowrap" => quote! { .whitespace_nowrap() },
         "truncate" => quote! { .truncate() },
