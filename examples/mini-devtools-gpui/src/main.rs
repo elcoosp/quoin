@@ -1,3 +1,4 @@
+use gpui::{App, AppContext, Context, WindowOptions}; // ADD THIS LINE
 use quoin::prelude::*;
 use ucp_lib::MiniDevtools;
 

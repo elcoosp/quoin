@@ -7106,6 +7106,7 @@ name = "quoin"
 version = "0.1.0"
 dependencies = [
  "futures-core",
+ "gpui",
  "quoin-core",
  "quoin-dioxus",
  "quoin-floem",

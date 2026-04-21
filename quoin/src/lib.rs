@@ -26,16 +26,16 @@
 // ── Compile-time safety: only one framework feature ─────────────────────────
 
 #[cfg(any(
-    all(feature = "gpui",   feature = "dioxus"),
-    all(feature = "gpui",   feature = "leptos"),
-    all(feature = "gpui",   feature = "xilem"),
-    all(feature = "gpui",   feature = "floem"),
+    all(feature = "gpui", feature = "dioxus"),
+    all(feature = "gpui", feature = "leptos"),
+    all(feature = "gpui", feature = "xilem"),
+    all(feature = "gpui", feature = "floem"),
     all(feature = "dioxus", feature = "leptos"),
     all(feature = "dioxus", feature = "xilem"),
     all(feature = "dioxus", feature = "floem"),
     all(feature = "leptos", feature = "xilem"),
     all(feature = "leptos", feature = "floem"),
-    all(feature = "xilem",  feature = "floem"),
+    all(feature = "xilem", feature = "floem"),
 ))]
 compile_error!(
     "Only one framework adapter feature may be enabled at a time. \
@@ -44,14 +44,13 @@ compile_error!(
 
 // ── Core re-exports (always available) ─────────────────────────────────────
 
-pub use quoin_core::*;
 pub use futures_core;
+pub use quoin_core::*;
 
 // ── GPUI adapter ───────────────────────────────────────────────────────────
 
 #[cfg(feature = "gpui")]
 pub use quoin_gpui::*;
-
 #[cfg(feature = "gpui")]
 pub use quoin_ui_gpui::*;
 

@@ -1,4 +1,3 @@
-// examples/ucp-lib/src/lib.rs
 use quoin::Signal;
 use quoin_macros::{component, quoin_render};
 
@@ -110,7 +109,7 @@ component! {
                 rows.iter().map(|person| {
                     let text = format!("{} ({} years old)", person.name, person.age);
                     quoin_render! {
-                        div(class: "p-2 bg-gray-800 rounded-md") { text }
+                        div(class: "p-2 bg-gray-800 rounded-md") { text  }
                     }
                 }).collect::<Vec<_>>()
             };
@@ -120,7 +119,6 @@ component! {
                     div(class: "text-2xl font-bold") { "Quoin Render Demo" }
                     div(class: "flex items-center gap-2") {
                         div(class: "text-lg") { count_text }
-                        // FIX: Use `move` to take ownership of the new clone
                         button(class: "px-4 py-2 bg-blue-600 text-white rounded-md cursor-pointer",
                             on_click: move |_| count.clone().update(|c| *c += 1)) { "Increment" }
                     }
@@ -178,7 +176,6 @@ component! {
                         format!("Filter value: {:?}", filter_text_val)
                     }
 
-                    // FIX: Use `move` to take ownership of the new clone
                     tabs(active: active_tab_val, on_click: move |i| active_tab.clone().set(i)) {
                         tab(index: 0, label: "Timeline")
                         tab(index: 1, label: "Cache")
@@ -196,6 +193,7 @@ component! {
                             }
                             for[event in filtered_events] {
                                 div(class: "flex gap-4 p-2") {
+                                    // 2. FIX: Wrap variables in braces
                                     div(class: "text-xs text-gray-500") { event.timestamp.clone() }
                                     div(class: "text-sm text-white") { event.label.clone() }
                                 }

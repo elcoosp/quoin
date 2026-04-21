@@ -213,41 +213,39 @@ impl Parse for RenderNode {
             }
         }
 
-        // Handle known elements
-        if input.peek(Ident) || input.peek(Ident::peek_any) {
-            let fork = input.fork();
-            let ident: Ident = fork.call(Ident::parse_any)?;
-            let ident_str = ident.to_string();
-
-            if KNOWN_ELEMENTS.contains(&ident_str.as_str()) && fork.peek(syn::token::Paren) {
-                return Ok(RenderNode::Element(input.parse()?));
-            }
-
-            if fork.peek(Token![!]) {
-                return Ok(RenderNode::Expr(input.parse()?));
-            }
-        }
-
+        // Handle string literals
         if input.peek(LitStr) {
             return Ok(RenderNode::Text(input.parse()?));
         }
 
-        // Unknown element — produce a helpful error
-        let ident_str = input
-            .fork()
-            .call(Ident::parse_any)
-            .map(|i| i.to_string())
-            .unwrap_or_default();
-        if !ident_str.is_empty() {
-            return Err(syn::Error::new_spanned(
-                input.fork().call(Ident::parse_any).unwrap(),
-                format!(
-                    "unknown element `{}`. Known elements: {}. If this is an expression, wrap it in braces: `{{ expr }}`",
-                    ident_str,
-                    KNOWN_ELEMENTS.join(", ")
-                ),
-            ));
+        // Handle identifiers: could be an Element or an Expression
+        if input.peek(Ident) || input.peek(Ident::peek_any) {
+            let fork = input.fork();
+            if let Ok(ident) = fork.call(Ident::parse_any) {
+                let ident_str = ident.to_string();
+
+                if fork.peek(syn::token::Paren) {
+                    // Ident followed by '(' -> Treat as Element
+                    if !KNOWN_ELEMENTS.contains(&ident_str.as_str()) {
+                        return Err(syn::Error::new_spanned(
+                            ident,
+                            format!(
+                                "unknown element `{}`. Known elements: {}. If this is a function call, wrap it in braces: `{{ expr }}`",
+                                ident_str,
+                                KNOWN_ELEMENTS.join(", ")
+                            ),
+                        ));
+                    }
+                    return Ok(RenderNode::Element(input.parse()?));
+                }
+
+                // Ident NOT followed by '(' -> Treat as Expression (variable reference)
+                // This allows: div() { text }, div() { count_text }, div() { event.timestamp.clone() }
+                return Ok(RenderNode::Expr(input.parse()?));
+            }
         }
+
+        // Fallback to parsing as a general expression (handles blocks `{ ... }`, macro calls `fmt!()`, etc.)
         Ok(RenderNode::Expr(input.parse()?))
     }
 }

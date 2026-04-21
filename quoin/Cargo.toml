@@ -27,9 +27,10 @@ quoin-macros    = { path = "../quoin-macros",    optional = true }
 quoin-ui        = { path = "../quoin-ui",        optional = true }
 quoin-ui-gpui   = { path = "../quoin-ui-gpui",   optional = true }
 
+gpui = { git = "https://github.com/zed-industries/zed", optional = true }
 [features]
 default = []
-gpui   = ["dep:quoin-gpui", "dep:quoin-ui-gpui", "dep:quoin-macros", "quoin-macros?/gpui"]
+gpui   = ["dep:gpui", "dep:quoin-gpui", "dep:quoin-ui-gpui", "dep:quoin-macros", "quoin-macros?/gpui"]
 dioxus = ["dep:quoin-dioxus", "dep:quoin-macros", "quoin-macros?/dioxus"]
 leptos = ["dep:quoin-leptos", "dep:quoin-macros", "quoin-macros?/leptos"]
 xilem  = ["dep:quoin-xilem"]

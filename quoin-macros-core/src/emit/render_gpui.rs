@@ -10,7 +10,6 @@ use syn::visit_mut::VisitMut;
 // Ident collection
 // ---------------------------------------------------------------------------
 
-/// Collects variable-name idents from expression paths, skipping nested closures.
 struct PathIdentCollector(Vec<proc_macro2::Ident>);
 
 impl<'ast> Visit<'ast> for PathIdentCollector {
@@ -23,15 +22,10 @@ impl<'ast> Visit<'ast> for PathIdentCollector {
         syn::visit::visit_expr_path(self, expr_path);
     }
 
-    // Skip nested closures — their parameters/locals are not captured variables
     fn visit_expr_closure(&mut self, _node: &'ast syn::ExprClosure) {}
 }
 
-/// Collect idents captured by the outermost closure — i.e., idents referenced
-/// inside the closure body but not inside any nested closures within it.
 fn collect_handler_idents(expr: &Expr) -> Vec<proc_macro2::Ident> {
-    // If the expr IS a closure, collect from its body directly.
-    // If it's something else (method call etc.), collect normally.
     let body_expr: &Expr = match expr {
         Expr::Closure(c) => &c.body,
         other => other,
@@ -77,7 +71,7 @@ pub fn emit_render(node: &RenderNode) -> TokenStream {
         RenderNode::For(for_node) => emit_for(for_node),
         RenderNode::Root(nodes) => {
             let node_tokens: Vec<TokenStream> = nodes.iter().map(emit_render).collect();
-            quote! { gpui::div().children(vec![#(#node_tokens),*]) }
+            quote! { ::gpui::div().children(vec![#(#node_tokens),*]) }
         }
     }
 }
@@ -99,15 +93,15 @@ fn emit_element(el: &Element) -> TokenStream {
 
 fn emit_button(el: &Element) -> TokenStream {
     let mut chain = quote! {
-        gpui::div()
+        ::gpui::div()
             .cursor_pointer()
-            .rounded(gpui::px(6.0))
-            .px(gpui::px(8.0))
-            .py(gpui::px(8.0))
+            .rounded(::gpui::px(6.0))
+            .px(::gpui::px(8.0))
+            .py(::gpui::px(8.0))
             .flex()
             .items_center()
             .justify_center()
-            .text_color(gpui::white())
+            .text_color(::gpui::white())
     };
 
     let primary = find_arg_bool(el, "primary");
@@ -115,11 +109,11 @@ fn emit_button(el: &Element) -> TokenStream {
     let destructive = find_arg_bool(el, "destructive");
 
     if primary {
-        chain = quote! { #chain.bg(gpui::rgb(0x2563eb)) };
+        chain = quote! { #chain.bg(::gpui::rgb(0x2563eb)) };
     } else if destructive {
-        chain = quote! { #chain.bg(gpui::rgb(0xdc2626)) };
+        chain = quote! { #chain.bg(::gpui::rgb(0xdc2626)) };
     } else if !ghost {
-        chain = quote! { #chain.bg(gpui::rgb(0x4e4e4e)) };
+        chain = quote! { #chain.bg(::gpui::rgb(0x4e4e4e)) };
     }
 
     if let Some(class_expr) = find_arg_expr(el, "class") {
@@ -149,7 +143,7 @@ fn emit_button(el: &Element) -> TokenStream {
             .collect();
         let handler_no_move = strip_move_from_closure(handler_expr);
         chain = quote! {
-            #chain.on_mouse_down(gpui::MouseButton::Left, {
+            #chain.on_mouse_down(::gpui::MouseButton::Left, {
                 #(#shadows)*
                 let __handler = ::std::rc::Rc::new(#handler_no_move);
                 move |_, _, _| {
@@ -169,14 +163,14 @@ fn emit_input(el: &Element) -> TokenStream {
         Some(e) => e,
         None => {
             let mut chain = quote! {
-                gpui::div()
-                    .rounded(gpui::px(6.0))
-                    .px(gpui::px(12.0))
-                    .py(gpui::px(8.0))
-                    .bg(gpui::rgb(0x1f2937))
+                ::gpui::div()
+                    .rounded(::gpui::px(6.0))
+                    .px(::gpui::px(12.0))
+                    .py(::gpui::px(8.0))
+                    .bg(::gpui::rgb(0x1f2937))
                     .border_1()
-                    .border_color(gpui::rgb(0x374151))
-                    .text_color(gpui::rgb(0x9ca3af))
+                    .border_color(::gpui::rgb(0x374151))
+                    .text_color(::gpui::rgb(0x9ca3af))
                     .child(#placeholder)
             };
             if let Some(class_expr) = find_arg_expr(el, "class") {
@@ -203,14 +197,14 @@ fn emit_input(el: &Element) -> TokenStream {
         Some(id) => id,
         None => {
             let mut chain = quote! {
-                gpui::div()
-                    .rounded(gpui::px(6.0))
-                    .px(gpui::px(12.0))
-                    .py(gpui::px(8.0))
-                    .bg(gpui::rgb(0x1f2937))
+                ::gpui::div()
+                    .rounded(::gpui::px(6.0))
+                    .px(::gpui::px(12.0))
+                    .py(::gpui::px(8.0))
+                    .bg(::gpui::rgb(0x1f2937))
                     .border_1()
-                    .border_color(gpui::rgb(0x374151))
-                    .text_color(gpui::rgb(0xffffff))
+                    .border_color(::gpui::rgb(0x374151))
+                    .text_color(::gpui::rgb(0xffffff))
                     .child(#value_expr)
             };
             if let Some(class_expr) = find_arg_expr(el, "class") {
@@ -239,7 +233,7 @@ fn emit_input(el: &Element) -> TokenStream {
 
     let input_construction = if has_class {
         quote! {
-            gpui::div()
+            ::gpui::div()
                 #wrapper_styles
                 .child(quoin::Input::new(&__entity).appearance(false))
         }
@@ -309,28 +303,28 @@ fn emit_tabs(el: &Element) -> TokenStream {
             let __active = #active_expr;
             let __on_click = ::std::rc::Rc::new(#on_click_no_move);
             let __labels: Vec<(usize, String)> = vec![#(#tab_labels),*];
-            let __tab_elements: Vec<gpui::AnyElement> = __labels.iter().map(|(idx, label)| {
+            let __tab_elements: Vec<::gpui::AnyElement> = __labels.iter().map(|(idx, label)| {
                 let __is_active = *idx == __active;
-                let mut __el = gpui::div()
-                    .px(gpui::px(16.0))
-                    .py(gpui::px(8.0))
+                let mut __el = ::gpui::div()
+                    .px(::gpui::px(16.0))
+                    .py(::gpui::px(8.0))
                     .cursor_pointer()
                     .child(label.clone());
 
                 if __is_active {
-                    __el = __el.text_color(gpui::white());
+                    __el = __el.text_color(::gpui::white());
                 } else {
-                    __el = __el.text_color(gpui::rgb(0x9ca3af));
+                    __el = __el.text_color(::gpui::rgb(0x9ca3af));
                 }
 
                 let __idx = *idx;
                 let __tab_on_click = __on_click.clone();
-                __el.on_mouse_down(gpui::MouseButton::Left, move |_, _, _| {
+                __el.on_mouse_down(::gpui::MouseButton::Left, move |_, _, _| {
                     __tab_on_click(__idx)
                 }).into_any_element()
             }).collect();
 
-            gpui::div().flex().children(__tab_elements)
+            ::gpui::div().flex().children(__tab_elements)
         }
     }
 }
@@ -346,11 +340,11 @@ fn emit_data_table(el: &Element) -> TokenStream {
                 if e.name == "column" {
                     let label = find_arg_string(e, "label").unwrap_or_default();
                     return Some(quote! {
-                        gpui::div()
-                            .px(gpui::px(12.0))
-                            .py(gpui::px(8.0))
-                            .text_color(gpui::rgb(0x6b7280))
-                            .font_weight(gpui::FontWeight::MEDIUM)
+                        ::gpui::div()
+                            .px(::gpui::px(12.0))
+                            .py(::gpui::px(8.0))
+                            .text_color(::gpui::rgb(0x6b7280))
+                            .font_weight(::gpui::FontWeight::MEDIUM)
                             .child(#label.to_string())
                             .into_any_element()
                     });
@@ -369,11 +363,11 @@ fn emit_data_table(el: &Element) -> TokenStream {
                     let render_closure =
                         find_arg_expr(e, "render").expect("column requires 'render' closure");
                     return Some(quote! {
-                        gpui::div()
+                        ::gpui::div()
                             .w_full()
-                            .px(gpui::px(12.0))
-                            .py(gpui::px(8.0))
-                            .text_color(gpui::rgb(0xffffff))
+                            .px(::gpui::px(12.0))
+                            .py(::gpui::px(8.0))
+                            .text_color(::gpui::rgb(0xffffff))
                             .child((#render_closure)(&__row))
                             .into_any_element()
                     });
@@ -386,13 +380,13 @@ fn emit_data_table(el: &Element) -> TokenStream {
     quote! {
         {
             let __rows = #rows_expr;
-            let __header = gpui::div().flex().children(vec![#(#header_cells),*]);
+            let __header = ::gpui::div().flex().children(vec![#(#header_cells),*]);
 
-            let __row_elements: Vec<gpui::AnyElement> = __rows.iter().map(|__row| {
-                gpui::div().flex().children(vec![#(#row_cells),*]).into_any_element()
+            let __row_elements: Vec<::gpui::AnyElement> = __rows.iter().map(|__row| {
+                ::gpui::div().flex().children(vec![#(#row_cells),*]).into_any_element()
             }).collect();
 
-            gpui::div()
+            ::gpui::div()
                 .flex_col()
                 .gap_1()
                 .size_full()
@@ -405,11 +399,11 @@ fn emit_data_table(el: &Element) -> TokenStream {
 fn emit_generic_element(el: &Element) -> TokenStream {
     let name_str = el.name.to_string();
     let mut chain = match name_str.as_str() {
-        "div" => quote! { gpui::div() },
-        "h1" => quote! { gpui::div().text_xl().font_weight(gpui::FontWeight::BOLD) },
-        "h2" => quote! { gpui::div().text_lg().font_weight(gpui::FontWeight::BOLD) },
-        "p" | "text" => quote! { gpui::div() },
-        _ => quote! { gpui::div() },
+        "div" => quote! { ::gpui::div() },
+        "h1" => quote! { ::gpui::div().text_xl().font_weight(::gpui::FontWeight::BOLD) },
+        "h2" => quote! { ::gpui::div().text_lg().font_weight(::gpui::FontWeight::BOLD) },
+        "p" | "text" => quote! { ::gpui::div() },
+        _ => quote! { ::gpui::div() },
     };
 
     if let Some(class_expr) = find_arg_expr(el, "class") {
@@ -443,7 +437,7 @@ fn emit_generic_element(el: &Element) -> TokenStream {
             .collect();
         let handler_no_move = strip_move_from_closure(handler_expr);
         chain = quote! {
-            #chain.on_mouse_down(gpui::MouseButton::Left, {
+            #chain.on_mouse_down(::gpui::MouseButton::Left, {
                 #(#shadows)*
                 let __handler = ::std::rc::Rc::new(#handler_no_move);
                 move |_, _, _| {
@@ -480,7 +474,7 @@ fn emit_for(for_node: &ForNode) -> TokenStream {
     let body = emit_nodes(&for_node.body);
     quote! {
         {
-            gpui::div().children(
+            ::gpui::div().children(
                 #iterable.into_iter().map(|#pat| {
                     #body
                 }).collect::<Vec<_>>()
@@ -491,7 +485,7 @@ fn emit_for(for_node: &ForNode) -> TokenStream {
 
 fn emit_nodes(nodes: &[RenderNode]) -> TokenStream {
     let node_tokens: Vec<TokenStream> = nodes.iter().map(emit_render).collect();
-    quote! { gpui::div().children(vec![#(#node_tokens),*]) }
+    quote! { ::gpui::div().children(vec![#(#node_tokens),*]) }
 }
 
 fn find_arg_expr<'a>(el: &'a Element, key: &str) -> Option<&'a Expr> {
