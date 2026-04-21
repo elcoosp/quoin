@@ -5,6 +5,7 @@
 //! adapters (e.g., `quoin-ui-gpui`) provide concrete implementations.
 
 pub mod clipboard;
+pub mod navigator;
 
 /// Sort direction for data tables.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]

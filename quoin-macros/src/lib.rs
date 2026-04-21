@@ -77,17 +77,56 @@ pub fn effect(input: TokenStream) -> TokenStream {
         Ok(eff) => eff,
         Err(e) => return e.to_compile_error().into(),
     };
+
     #[allow(unused)]
     let body = &eff.body;
+    #[allow(unused)]
+    let cleanup = &eff.cleanup;
 
     #[cfg(all(feature = "gpui", not(any(feature = "leptos", feature = "dioxus"))))]
-    let tokens = quote::quote! {{ (#body)(); }};
+    let tokens = match cleanup {
+        Some(cleanup_expr) => quote::quote! {{
+            #body;
+            let _cleanup = || #cleanup_expr;
+        }},
+        None => quote::quote! {{
+            (#body)();
+        }},
+    };
 
     #[cfg(all(feature = "leptos", not(any(feature = "gpui", feature = "dioxus"))))]
-    let tokens = quote::quote! { leptos::prelude::create_effect(move |_| { #body; }); };
+    let tokens = match cleanup {
+        Some(cleanup_expr) => quote::quote! {
+            leptos::prelude::create_effect(move |_| {
+                #body;
+            });
+            leptos::prelude::on_cleanup(move || {
+                #cleanup_expr;
+            });
+        },
+        None => quote::quote! {
+            leptos::prelude::create_effect(move |_| {
+                #body;
+            });
+        },
+    };
 
     #[cfg(all(feature = "dioxus", not(any(feature = "gpui", feature = "leptos"))))]
-    let tokens = quote::quote! { dioxus::prelude::use_effect(move || { #body; }); };
+    let tokens = match cleanup {
+        Some(cleanup_expr) => quote::quote! {
+            dioxus::prelude::use_effect(move || {
+                #body;
+            });
+            dioxus::prelude::use_drop(move || {
+                #cleanup_expr;
+            });
+        },
+        None => quote::quote! {
+            dioxus::prelude::use_effect(move || {
+                #body;
+            });
+        },
+    };
 
     #[cfg(not(any(feature = "gpui", feature = "leptos", feature = "dioxus")))]
     let tokens = quote::quote! { compile_error!("effect! requires a framework feature"); };

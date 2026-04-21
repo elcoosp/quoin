@@ -1,6 +1,6 @@
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
-use syn::{Expr, Ident, LitStr, Result, Token, braced, bracketed, parenthesized};
+use syn::{Attribute, Expr, Ident, LitStr, Result, Token, braced, bracketed, parenthesized};
 
 #[derive(Debug)]
 pub enum RenderNode {
@@ -10,6 +10,17 @@ pub enum RenderNode {
     If(IfNode),
     For(ForNode),
     Root(Vec<RenderNode>),
+}
+
+impl RenderNode {
+    pub fn attrs(&self) -> &[Attribute] {
+        match self {
+            RenderNode::Element(el) => &el.attrs,
+            RenderNode::If(if_node) => &if_node.attrs,
+            RenderNode::For(for_node) => &for_node.attrs,
+            RenderNode::Text(_) | RenderNode::Expr(_) | RenderNode::Root(_) => &[],
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -29,6 +40,7 @@ impl Parse for ArgPair {
 
 #[derive(Debug)]
 pub struct Element {
+    pub attrs: Vec<Attribute>,
     pub name: Ident,
     pub args: Vec<ArgPair>,
     pub children: Vec<RenderNode>,
@@ -38,6 +50,7 @@ pub struct Element {
 
 impl Parse for Element {
     fn parse(input: ParseStream) -> Result<Self> {
+        let attrs = input.call(Attribute::parse_outer)?;
         let name: Ident = input.call(Ident::parse_any)?;
 
         let args_content;
@@ -82,6 +95,7 @@ impl Parse for Element {
         }
 
         Ok(Element {
+            attrs,
             name,
             args,
             children,
@@ -93,6 +107,7 @@ impl Parse for Element {
 
 #[derive(Debug)]
 pub struct IfNode {
+    pub attrs: Vec<Attribute>,
     pub condition: Expr,
     pub then_branch: Vec<RenderNode>,
     pub else_branch: Option<Vec<RenderNode>>,
@@ -100,6 +115,7 @@ pub struct IfNode {
 
 impl Parse for IfNode {
     fn parse(input: ParseStream) -> Result<Self> {
+        let attrs = input.call(Attribute::parse_outer)?;
         input.parse::<Token![if]>()?;
 
         let condition_content;
@@ -134,6 +150,7 @@ impl Parse for IfNode {
         };
 
         Ok(IfNode {
+            attrs,
             condition,
             then_branch,
             else_branch,
@@ -143,6 +160,7 @@ impl Parse for IfNode {
 
 #[derive(Debug)]
 pub struct ForNode {
+    pub attrs: Vec<Attribute>,
     pub pat: Ident,
     pub iterable: Expr,
     pub body: Vec<RenderNode>,
@@ -150,6 +168,7 @@ pub struct ForNode {
 
 impl Parse for ForNode {
     fn parse(input: ParseStream) -> Result<Self> {
+        let attrs = input.call(Attribute::parse_outer)?;
         input.parse::<Token![for]>()?;
 
         let for_content;
@@ -163,6 +182,7 @@ impl Parse for ForNode {
         let body = parse_nodes(&body_content)?;
 
         Ok(ForNode {
+            attrs,
             pat,
             iterable,
             body,
@@ -171,43 +191,45 @@ impl Parse for ForNode {
 }
 
 const KNOWN_ELEMENTS: &[&str] = &[
-    // Standard HTML
-    "div",
-    "h1",
-    "h2",
-    "h3",
-    "p",
-    "text",
-    "span",
-    "button",
-    "input",
-    "label",
-    "img",
-    "a",
-    "ul",
-    "ol",
-    "li",
-    "hr",
-    "br",
-    "textarea",
-    "select",
-    "form",
-    // UCP components
-    "tabs",
-    "tab",
-    "data_table",
-    "column",
-    "virtual_list",
-    "dropdown_menu",
-    "rich_text",
-    "clipboard_button",
-    "item",
-    // Aliases
-    "tab_bar",
+    "div", "h1", "h2", "h3", "p", "text", "span", "button", "input",
+    "label", "img", "a", "ul", "ol", "li", "hr", "br", "textarea",
+    "select", "form", "tabs", "tab", "data_table", "column",
+    "virtual_list", "dropdown_menu", "rich_text", "clipboard_button",
+    "item", "tab_bar",
 ];
 
 impl Parse for RenderNode {
     fn parse(input: ParseStream) -> Result<Self> {
+        // Check for outer attributes (e.g. #[cfg(feature = "foo")])
+        // These are handled by Element/IfNode/ForNode parsers themselves,
+        // but we need to peek ahead to decide which parser to call.
+
+        if input.peek(Token![#]) {
+            // Could be an attribute on an element, if, or for
+            let fork = input.fork();
+            if fork.call(Attribute::parse_outer).is_ok() {
+                // Check what follows the attributes
+                if fork.peek(Token![if]) {
+                    let fork2 = fork.fork();
+                    fork2.parse::<Token![if]>()?;
+                    if fork2.peek(syn::token::Bracket) {
+                        return Ok(RenderNode::If(input.parse()?));
+                    }
+                }
+                if fork.peek(Token![for]) {
+                    let fork2 = fork.fork();
+                    fork2.parse::<Token![for]>()?;
+                    if fork2.peek(syn::token::Bracket) {
+                        return Ok(RenderNode::For(input.parse()?));
+                    }
+                }
+                // Must be an element with attributes
+                if fork.peek(Ident) || fork.peek(Ident::peek_any) {
+                    return Ok(RenderNode::Element(input.parse()?));
+                }
+            }
+        }
+
         if input.peek(Token![if]) {
             let fork = input.fork();
             fork.parse::<Token![if]>()?;
@@ -239,15 +261,12 @@ impl Parse for RenderNode {
                         let msg = if let Some(sug) = suggestion {
                             format!(
                                 "unknown element `{}`. Did you mean `{}`? Known elements: {}",
-                                ident_str,
-                                sug,
-                                KNOWN_ELEMENTS.join(", ")
+                                ident_str, sug, KNOWN_ELEMENTS.join(", ")
                             )
                         } else {
                             format!(
                                 "unknown element `{}`. Known elements: {}. If this is a function call, wrap it in braces: `{{ expr }}`",
-                                ident_str,
-                                KNOWN_ELEMENTS.join(", ")
+                                ident_str, KNOWN_ELEMENTS.join(", ")
                             )
                         };
                         return Err(syn::Error::new_spanned(ident, msg));

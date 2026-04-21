@@ -4,7 +4,13 @@ use quote::quote;
 
 pub fn emit_render(node: &RenderNode) -> TokenStream {
     let inner = emit_render_inner(node);
-    quote! { { use leptos::prelude::*; view! { #inner } } }
+    let view_block = quote! { { use leptos::prelude::*; view! { #inner } } };
+    wrap_with_cfg(node.attrs(), view_block)
+}
+
+fn wrap_with_cfg(attrs: &[syn::Attribute], inner: TokenStream) -> TokenStream {
+    let cfg_attrs: Vec<_> = attrs.iter().filter(|a| a.path().is_ident("cfg")).collect();
+    if cfg_attrs.is_empty() { inner } else { quote! { { #(#cfg_attrs)* { #inner } } } }
 }
 
 fn emit_render_inner(node: &RenderNode) -> TokenStream {
@@ -15,36 +21,44 @@ fn emit_render_inner(node: &RenderNode) -> TokenStream {
         RenderNode::If(if_node) => emit_if(if_node),
         RenderNode::For(for_node) => emit_for(for_node),
         RenderNode::Root(nodes) => {
-            let tokens: Vec<TokenStream> = nodes.iter().map(emit_render_inner).collect();
+            let tokens: Vec<TokenStream> = nodes.iter().map(emit_render).collect();
             quote! { #(#tokens)* }
         }
     }
 }
 
-use crate::render_ast::Element;
-
 fn emit_element(el: &Element) -> TokenStream {
+    let inner = emit_element_inner(el);
+    wrap_with_cfg(&el.attrs, inner)
+}
+
+fn emit_element_inner(el: &Element) -> TokenStream {
     let name_str = el.name.to_string();
-    // virtual_list: emit as scrollable div (full virtualization needs leptos_virtual_list crate)
-    if name_str == "dropdown_menu" {
-        let children_tokens: Vec<TokenStream> = el.children.iter().map(emit_render_inner).collect();
-        return quote! { <div> #(#children_tokens)* </div> };
-    }
-
-    if name_str == "virtual_list" {
-        let children_tokens: Vec<TokenStream> = el.children.iter().map(emit_render_inner).collect();
-        return quote! { <div style="overflow-y: auto"> #(#children_tokens)* </div> };
-    }
-
-    let tag = match name_str.as_str() {
-        "div" => "div",
-        "h1" => "h1",
-        "h2" => "h2",
-        "h3" => "h3",
-        "p" | "text" => "p",
-        "button" => "button",
-        _ => "div",
+    let effective_name = match name_str.as_str() {
+        "tab_bar" => "tabs",
+        other => other,
     };
+
+    match effective_name {
+        "dropdown_menu" => {
+            let children_tokens: Vec<TokenStream> = el.children.iter().map(emit_render_inner).collect();
+            quote! { <div> #(#children_tokens)* </div> }
+        }
+        "virtual_list" => {
+            let children_tokens: Vec<TokenStream> = el.children.iter().map(emit_render_inner).collect();
+            quote! { <div style="overflow-y: auto"> #(#children_tokens)* </div> }
+        }
+        "clipboard_button" => emit_html_tag(el, "button"),
+        "tabs" => emit_tabs(el),
+        "data_table" => emit_data_table(el),
+        _ => emit_html_tag(el, match effective_name {
+            "div" => "div", "h1" => "h1", "h2" => "h2", "h3" => "h3",
+            "p" | "text" => "p", "button" => "button", _ => "div",
+        }),
+    }
+}
+
+fn emit_html_tag(el: &Element, tag: &str) -> TokenStream {
     let mut attrs = Vec::new();
     for arg in &el.args {
         let key_str = arg.key.to_string();
@@ -52,8 +66,13 @@ fn emit_element(el: &Element) -> TokenStream {
         match key_str.as_str() {
             "class" => attrs.push(quote! { class=#value }),
             "id" => attrs.push(quote! { id=#value }),
+            "placeholder" => attrs.push(quote! { placeholder=#value }),
+            "value" => attrs.push(quote! { value=#value }),
+            "disabled" => attrs.push(quote! { disabled=#value }),
             "on_click" => attrs.push(quote! { on:click=#value }),
             "on_mouse_down" => attrs.push(quote! { on:mousedown=#value }),
+            "on_input" => attrs.push(quote! { on:input=#value }),
+            "on_change" => attrs.push(quote! { on:change=#value }),
             _ => {}
         }
     }
@@ -73,7 +92,77 @@ fn emit_element(el: &Element) -> TokenStream {
     }
 }
 
+fn emit_tabs(el: &Element) -> TokenStream {
+    let active_expr = el.args.iter().find(|a| a.key == "active").map(|a| &a.value);
+    let on_click_expr = el.args.iter().find(|a| a.key == "on_click").map(|a| &a.value);
+
+    let tab_labels: Vec<TokenStream> = el.children.iter().filter_map(|c| {
+        if let RenderNode::Element(e) = c {
+            if e.name == "tab" {
+                let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value);
+                let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value);
+                if let (Some(label), Some(index)) = (label, index) {
+                    return Some(quote! {
+                        li {
+                            class={move || if *#index == #active_expr.unwrap_or(&quote!{0}) { "active" } else { "" }},
+                            on:click=move |_| { let _ = #on_click_expr; (#on_click_expr.unwrap_or(&quote!{|_|{}}))(*#index); },
+                            #label
+                        }
+                    });
+                }
+            }
+        }
+        None
+    }).collect();
+
+    quote! { <ul class="tabs"> #(#tab_labels)* </ul> }
+}
+
+fn emit_data_table(el: &Element) -> TokenStream {
+    let rows = el.args.iter().find(|a| a.key == "rows").map(|a| &a.value);
+
+    let header_cells: Vec<TokenStream> = el.children.iter().filter_map(|c| {
+        if let RenderNode::Element(e) = c {
+            if e.name == "column" {
+                let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value);
+                if let Some(label) = label {
+                    return Some(quote! { <th> #label </th> });
+                }
+            }
+        }
+        None
+    }).collect();
+
+    let row_cells: Vec<TokenStream> = el.children.iter().filter_map(|c| {
+        if let RenderNode::Element(e) = c {
+            if e.name == "column" {
+                let render_closure = e.args.iter().find(|a| a.key == "render").map(|a| &a.value);
+                if let Some(render_closure) = render_closure {
+                    return Some(quote! { <td> {#render_closure}(&__row) </td> });
+                }
+            }
+        }
+        None
+    }).collect();
+
+    let empty_rows: syn::Expr = syn::parse_quote! { Vec::<()>::new() };
+    let rows_expr = rows.unwrap_or(&empty_rows);
+    quote! {
+        <table>
+            <thead><tr> #(#header_cells)* </tr></thead>
+            <tbody>
+                {#rows_expr.iter().map(|__row| view! { <tr> #(#row_cells)* </tr> }).collect::<Vec<_>>()}
+            </tbody>
+        </table>
+    }
+}
+
 fn emit_if(if_node: &IfNode) -> TokenStream {
+    let inner = emit_if_inner(if_node);
+    wrap_with_cfg(&if_node.attrs, inner)
+}
+
+fn emit_if_inner(if_node: &IfNode) -> TokenStream {
     let cond = &if_node.condition;
     let then_branch = emit_nodes(&if_node.then_branch);
     if let Some(else_branch) = &if_node.else_branch {
@@ -85,6 +174,11 @@ fn emit_if(if_node: &IfNode) -> TokenStream {
 }
 
 fn emit_for(for_node: &ForNode) -> TokenStream {
+    let inner = emit_for_inner(for_node);
+    wrap_with_cfg(&for_node.attrs, inner)
+}
+
+fn emit_for_inner(for_node: &ForNode) -> TokenStream {
     let pat = &for_node.pat;
     let iterable = &for_node.iterable;
     let body = emit_nodes(&for_node.body);

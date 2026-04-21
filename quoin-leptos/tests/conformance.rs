@@ -67,6 +67,10 @@ impl ReactiveContext for TestHarness {
         self.context.request_update()
     }
 
+    fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T) {
+        self.context.provide_global(value);
+    }
+
     fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>> {
         self.context.use_global()
     }
