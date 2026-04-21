@@ -6,11 +6,9 @@ set shell := ["bash", "-c"]
 # Build & Clean
 # ---------------------------------------------------------------------
 
-# Build the workspace (library crates only)
 build:
     cargo build
 
-# Clean the workspace
 clean:
     cargo clean
 
@@ -18,15 +16,12 @@ clean:
 # Testing with cargo-nextest (recommended)
 # ---------------------------------------------------------------------
 
-# Run all workspace tests (library crates — examples excluded)
 test:
     cargo nextest run --all
 
-# Run tests for the core quoin crate
 test-quoin:
     cargo nextest run -p quoin
 
-# Run tests for quoin-macros-core (no features needed)
 test-quoin-macros:
     cargo nextest run -p quoin-macros-core
 
@@ -56,15 +51,23 @@ test-quoin-floem:
 test-quoin-xilem:
     cargo nextest run -p quoin-xilem
 
-# Run conformance tests per adapter (each feature separately)
+# Run conformance tests per adapter
+# Note: GPUI conformance runs inside quoin-conformance (has gpui dep).
+# Leptos/Dioxus/Floem/Xilem conformance runs inside their adapter crates.
 test-conformance-gpui:
     cargo nextest run -p quoin-conformance --features gpui
 
 test-conformance-leptos:
-    cargo nextest run -p quoin-conformance --features leptos
+    cargo nextest run -p quoin-leptos
 
 test-conformance-dioxus:
-    cargo nextest run -p quoin-conformance --features dioxus
+    cargo nextest run -p quoin-dioxus
+
+test-conformance-floem:
+    cargo nextest run -p quoin-floem
+
+test-conformance-xilem:
+    cargo nextest run -p quoin-xilem
 
 # Run all macro UI tests (sequentially, one feature at a time)
 test-macros-ui-all: test-quoin-macros-gpui test-quoin-macros-leptos test-quoin-macros-dioxus
@@ -73,27 +76,21 @@ test-macros-ui-all: test-quoin-macros-gpui test-quoin-macros-leptos test-quoin-m
 # Counter Examples (excluded from workspace — use --manifest-path)
 # ---------------------------------------------------------------------
 
-# Run GPUI counter (native)
 run-gpui:
     cargo run --manifest-path examples/counter-gpui/Cargo.toml
 
-# Run Dioxus counter (native) — standalone to avoid cocoa conflict
 run-dioxus:
     cd examples/counter-dioxus && cargo run
 
-# Run Leptos counter (SSR server)
 run-leptos:
     cargo leptos serve -p counter-leptos
 
-# Serve Leptos counter (WASM client) with Trunk
 serve-leptos:
     cd examples/counter-leptos && trunk serve
 
-# Run Floem counter (native)
 run-floem:
     cargo run --manifest-path examples/counter-floem/Cargo.toml
 
-# Run Xilem counter (native)
 run-xilem:
     cargo run --manifest-path examples/counter-xilem/Cargo.toml
 
@@ -101,17 +98,12 @@ run-xilem:
 # UCP Examples (excluded from workspace — use --manifest-path)
 # ---------------------------------------------------------------------
 
-# Run GPUI UCP demo (native)
 run-ucp-gpui:
     cargo run --manifest-path examples/ucp-demo-gpui/Cargo.toml
 
-# Run Dioxus UCP demo (native) — standalone to avoid cocoa conflict
 run-ucp-dioxus:
     cd examples/ucp-demo-dioxus && cargo run
 
-# Build UCP lib for a specific framework
-
-# Usage: just build-ucp-lib gpui
 build-ucp-lib framework="gpui":
     cargo build --manifest-path examples/ucp-lib/Cargo.toml --features {{ framework }}
 
@@ -119,11 +111,9 @@ build-ucp-lib framework="gpui":
 # Mini Devtools Example
 # ---------------------------------------------------------------------
 
-# Run GPUI Mini Devtools (native)
 run-mini-devtools:
     cargo run --manifest-path examples/mini-devtools-gpui/Cargo.toml
 
-# Watch and run GPUI Mini Devtools
 watch-mini-devtools:
     cargo watch --manifest-path examples/mini-devtools-gpui/Cargo.toml -x run
 
@@ -131,15 +121,12 @@ watch-mini-devtools:
 # Development Helpers
 # ---------------------------------------------------------------------
 
-# Check formatting
 fmt-check:
     cargo fmt --check
 
-# Fix formatting
 fmt:
     cargo fmt
 
-# Lint workspace (per-feature to avoid feature unification errors)
 lint:
     cargo clippy --all-targets -p quoin-macros-core -- -D warnings
     cargo clippy --all-targets -p quoin-macros-tests --features gpui -- -D warnings
@@ -147,14 +134,11 @@ lint:
     cargo clippy --all-targets -p quoin-macros-tests --features dioxus -- -D warnings
     cargo clippy --all-targets -- -D warnings
 
-# Format + lint (full check)
 check: fmt-check lint
 
-# Run cargo fix for all packages
 fix:
     cargo fix --allow-dirty --all-targets
 
-# Watch for changes and run (requires cargo-watch)
 watch-gpui:
     cargo watch --manifest-path examples/counter-gpui/Cargo.toml -x run
 

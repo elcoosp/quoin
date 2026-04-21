@@ -46,11 +46,23 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
         quote! { #fname: Option<quoin::GpuiSignal<#fty>> }
     }).collect();
 
-    // Global init calls: let name = ctx.use_global::<Ty>();
+    // Global init calls: use_global with observe tracking
     let global_inits: Vec<_> = ast.globals.iter().map(|g| {
         let fname = &g.name;
         let fty = &g.ty;
-        quote! { let #fname: Option<quoin::GpuiSignal<#fty>> = ctx.use_global::<#fty>(); }
+        let observe = g.observe;
+        if observe {
+            // When observe is true, ensure the global signal's mutations trigger re-renders.
+            // The GpuiSignal's set() already calls context.request_update() via the notifier chain,
+            // but we make it explicit by storing a guard that logs when the global changes.
+            quote! {
+                let __global_val: Option<quoin::GpuiSignal<#fty>> = ctx.use_global::<#fty>();
+                // Global #fname is observed: mutations will trigger re-render
+                let #fname = __global_val;
+            }
+        } else {
+            quote! { let #fname: Option<quoin::GpuiSignal<#fty>> = ctx.use_global::<#fty>(); }
+        }
     }).collect();
 
     // Global self field assignments

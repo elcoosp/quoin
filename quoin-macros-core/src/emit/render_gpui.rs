@@ -26,16 +26,9 @@ fn emit_render_inner(node: &RenderNode) -> TokenStream {
     }
 }
 
-/// Wrap tokens with #[cfg(...)] attributes if present.
 fn wrap_with_cfg(attrs: &[syn::Attribute], inner: TokenStream) -> TokenStream {
     let cfg_attrs: Vec<_> = attrs.iter().filter(|a| a.path().is_ident("cfg")).collect();
-    if cfg_attrs.is_empty() {
-        inner
-    } else {
-        quote! {
-            { #(#cfg_attrs)* { #inner } }
-        }
-    }
+    if cfg_attrs.is_empty() { inner } else { quote! { { #(#cfg_attrs)* { #inner } } } }
 }
 
 fn emit_element(el: &Element) -> TokenStream {
@@ -45,8 +38,6 @@ fn emit_element(el: &Element) -> TokenStream {
 
 fn emit_element_inner(el: &Element) -> TokenStream {
     let name_str = el.name.to_string();
-
-    // Aliases
     let effective_name = match name_str.as_str() {
         "tab_bar" => "tabs",
         other => other,
@@ -81,19 +72,13 @@ fn emit_button(el: &Element) -> TokenStream {
     let ghost = find_arg_bool(el, "ghost");
     let destructive = find_arg_bool(el, "destructive");
 
-    if primary {
-        chain = quote! { #chain.bg(::gpui::rgb(0x2563eb)) };
-    } else if destructive {
-        chain = quote! { #chain.bg(::gpui::rgb(0xdc2626)) };
-    } else if !ghost {
-        chain = quote! { #chain.bg(::gpui::rgb(0x4e4e4e)) };
-    }
+    if primary { chain = quote! { #chain.bg(::gpui::rgb(0x2563eb)) }; }
+    else if destructive { chain = quote! { #chain.bg(::gpui::rgb(0xdc2626)) }; }
+    else if !ghost { chain = quote! { #chain.bg(::gpui::rgb(0x4e4e4e)) }; }
 
     if let Some(class_expr) = find_arg_expr(el, "class") {
         if let Some(styles) = try_transpile_class(class_expr) {
-            for style in styles.normal {
-                chain = quote! { #chain #style };
-            }
+            for style in styles.normal { chain = quote! { #chain #style }; }
             if !styles.hover.is_empty() {
                 let hover_tokens = styles.hover;
                 chain = quote! { #chain.hover(|__s| __s #(#hover_tokens)*) };
@@ -101,17 +86,11 @@ fn emit_button(el: &Element) -> TokenStream {
         }
     }
 
-    for child in &el.children {
-        let child_elem = emit_render(child);
-        chain = quote! { #chain.child(#child_elem) };
-    }
+    for child in &el.children { chain = quote! { #chain.child(#child) }; }
 
     if let Some(handler_expr) = find_arg_expr(el, "on_click") {
         let idents = collect_handler_idents(handler_expr);
-        let shadows: Vec<TokenStream> = idents
-            .iter()
-            .map(|id| quote! { let #id = #id.clone(); })
-            .collect();
+        let shadows: Vec<TokenStream> = idents.iter().map(|id| quote! { let #id = #id.clone(); }).collect();
         let handler_no_move = strip_move_from_closure(handler_expr);
         chain = quote! {
             #chain.on_mouse_down(::gpui::MouseButton::Left, {
@@ -132,21 +111,13 @@ fn emit_input(el: &Element) -> TokenStream {
         Some(e) => e,
         None => {
             let mut chain = quote! {
-                ::gpui::div()
-                    .rounded(::gpui::px(6.0))
-                    .px(::gpui::px(12.0))
-                    .py(::gpui::px(8.0))
-                    .bg(::gpui::rgb(0x1f2937))
-                    .border_1()
-                    .border_color(::gpui::rgb(0x374151))
-                    .text_color(::gpui::rgb(0x9ca3af))
-                    .child(#placeholder)
+                ::gpui::div().rounded(::gpui::px(6.0)).px(::gpui::px(12.0)).py(::gpui::px(8.0))
+                    .bg(::gpui::rgb(0x1f2937)).border_1().border_color(::gpui::rgb(0x374151))
+                    .text_color(::gpui::rgb(0x9ca3af)).child(#placeholder)
             };
             if let Some(class_expr) = find_arg_expr(el, "class") {
                 if let Some(styles) = try_transpile_class(class_expr) {
-                    for style in styles.normal {
-                        chain = quote! { #chain #style };
-                    }
+                    for style in styles.normal { chain = quote! { #chain #style }; }
                 }
             }
             return chain;
@@ -155,10 +126,7 @@ fn emit_input(el: &Element) -> TokenStream {
 
     let value_ident = match value_expr {
         Expr::Path(path) => path.path.segments.last().map(|seg| seg.ident.clone()),
-        Expr::Field(field) => match &field.member {
-            syn::Member::Named(ident) => Some(ident.clone()),
-            _ => None,
-        },
+        Expr::Field(field) => match &field.member { syn::Member::Named(ident) => Some(ident.clone()), _ => None },
         _ => None,
     };
 
@@ -166,21 +134,13 @@ fn emit_input(el: &Element) -> TokenStream {
         Some(id) => id,
         None => {
             let mut chain = quote! {
-                ::gpui::div()
-                    .rounded(::gpui::px(6.0))
-                    .px(::gpui::px(12.0))
-                    .py(::gpui::px(8.0))
-                    .bg(::gpui::rgb(0x1f2937))
-                    .border_1()
-                    .border_color(::gpui::rgb(0x374151))
-                    .text_color(::gpui::rgb(0xffffff))
-                    .child(#value_expr)
+                ::gpui::div().rounded(::gpui::px(6.0)).px(::gpui::px(12.0)).py(::gpui::px(8.0))
+                    .bg(::gpui::rgb(0x1f2937)).border_1().border_color(::gpui::rgb(0x374151))
+                    .text_color(::gpui::rgb(0xffffff)).child(#value_expr)
             };
             if let Some(class_expr) = find_arg_expr(el, "class") {
-                if let Some(styles) = try_transpile_class(class_expr) {
-                    for style in styles.normal {
-                        chain = quote! { #chain #style };
-                    }
+                if let Some(styles) = = try_transpile_class(class_expr) {
+                    for style in styles.normal { chain = quote! { #chain #style }; }
                 }
             }
             return chain;
@@ -190,21 +150,14 @@ fn emit_input(el: &Element) -> TokenStream {
     let input_id_str = format!("__quoin_input_{}", value_ident);
     let has_class = find_arg_expr(el, "class").is_some();
     let mut wrapper_styles = quote! {};
-
     if let Some(class_expr) = find_arg_expr(el, "class") {
         if let Some(styles) = try_transpile_class(class_expr) {
-            for style in styles.normal {
-                wrapper_styles = quote! { #wrapper_styles #style };
-            }
+            for style in styles.normal { wrapper_styles = quote! { #wrapper_styles #style }; }
         }
     }
 
     let input_construction = if has_class {
-        quote! {
-            ::gpui::div()
-                #wrapper_styles
-                .child(quoin::Input::new(&__entity).appearance(false))
-        }
+        quote! { ::gpui::div().#wrapper_styles.child(quoin::Input::new(&__entity).appearance(false)) }
     } else {
         quote! { quoin::Input::new(&__entity) }
     };
@@ -230,9 +183,7 @@ fn emit_input(el: &Element) -> TokenStream {
                 let __current: String = __entity.read(cx).value().to_string();
                 let __desired: String = self.#value_ident.get();
                 if __current != __desired {
-                    __entity.update(cx, |__state, cx| {
-                        __state.set_value(__desired, window, cx);
-                    });
+                    __entity.update(cx, |__state, cx| { __state.set_value(__desired, window, cx); });
                 }
             }
             let __entity = self._quoin_inputs.get(__input_id).unwrap().clone();
@@ -246,22 +197,16 @@ fn emit_tabs(el: &Element) -> TokenStream {
     let on_click_expr = find_arg_expr(el, "on_click").expect("tabs require 'on_click' callback");
     let on_click_no_move = strip_move_from_closure(on_click_expr);
 
-    let tab_labels: Vec<TokenStream> = el
-        .children
-        .iter()
-        .filter_map(|c| {
-            if let RenderNode::Element(e) = c {
-                if e.name == "tab" {
-                    let label = find_arg_string(e, "label").unwrap_or_default();
-                    let index = find_arg_expr(e, "index").expect("tab requires 'index'");
-                    return Some(quote! {
-                        ( #index, #label.to_string() )
-                    });
-                }
+    let tab_labels: Vec<TokenStream> = el.children.iter().filter_map(|c| {
+        if let RenderNode::Element(e) = c {
+            if e.name == "tab" {
+                let label = find_arg_string(e, "label").unwrap_or_default();
+                let index = find_arg_expr(e, "index").expect("tab requires 'index'");
+                return Some(quote! { ( #index, #label.to_string() ) });
             }
-            None
-        })
-        .collect();
+        }
+        None
+    }).collect();
 
     quote! {
         {
@@ -270,21 +215,12 @@ fn emit_tabs(el: &Element) -> TokenStream {
             let __labels: Vec<(usize, String)> = vec![#(#tab_labels),*];
             let __tab_elements: Vec<::gpui::AnyElement> = __labels.iter().map(|(idx, label)| {
                 let __is_active = *idx == __active;
-                let mut __el = ::gpui::div()
-                    .px(::gpui::px(16.0))
-                    .py(::gpui::px(8.0))
-                    .cursor_pointer()
-                    .child(label.clone());
-                if __is_active {
-                    __el = __el.text_color(::gpui::white());
-                } else {
-                    __el = __el.text_color(::gpui::rgb(0x9ca3af));
-                }
+                let mut __el = ::gpui::div().px(::gpui::px(16.0)).py(::gpui::px(8.0)).cursor_pointer().child(label.clone());
+                if __is_active { __el = __el.text_color(::gpui::white()); }
+                else { __el = __el.text_color(::gpui::rgb(0x9ca3af)); }
                 let __idx = *idx;
                 let __tab_on_click = __on_click.clone();
-                __el.on_mouse_down(::gpui::MouseButton::Left, move |_, _, _| {
-                    __tab_on_click(__idx)
-                }).into_any_element()
+                __el.on_mouse_down(::gpui::MouseButton::Left, move |_, _, _| { __tab_on_click(__idx) }).into_any_element()
             }).collect();
             ::gpui::div().flex().children(__tab_elements)
         }
@@ -293,20 +229,49 @@ fn emit_tabs(el: &Element) -> TokenStream {
 
 fn emit_data_table(el: &Element) -> TokenStream {
     let rows_expr = find_arg_expr(el, "rows").expect("data_table requires 'rows'");
+    let on_sort_expr = find_arg_expr(el, "on_sort");
+    let striped = find_arg_bool(el, "striped");
 
     let header_cells: Vec<TokenStream> = el.children.iter().filter_map(|c| {
         if let RenderNode::Element(e) = c {
             if e.name == "column" {
                 let label = find_arg_string(e, "label").unwrap_or_default();
-                return Some(quote! {
+                let key = find_arg_string(e, "key").unwrap_or_default();
+                let sortable = find_arg_bool(e, "sortable");
+                let width = find_arg_f32(e, "width");
+
+                let mut header = quote! {
                     ::gpui::div()
                         .px(::gpui::px(12.0))
                         .py(::gpui::px(8.0))
                         .text_color(::gpui::rgb(0x6b7280))
                         .font_weight(::gpui::FontWeight::MEDIUM)
                         .child(#label.to_string())
-                        .into_any_element()
-                });
+                };
+
+                if let Some(w) = width {
+                    header = quote! { #header.w(::gpui::px(#w)) };
+                }
+
+                if sortable {
+                    if let Some(on_sort) = on_sort_expr {
+                        let on_sort_no_move = strip_move_from_closure(on_sort);
+                        header = quote! {
+                            #header
+                                .cursor_pointer()
+                                .hover(|s| s.bg(::gpui::rgb(0x374151)))
+                                .on_mouse_down(::gpui::MouseButton::Left, {
+                                    let __handler = ::std::rc::Rc::new(#on_sort_no_move);
+                                    let __key = #key;
+                                    move |_, _, _| { __handler(__key, "asc"); }
+                                })
+                        };
+                    } else {
+                        header = quote! { #header.cursor_pointer() };
+                    }
+                }
+
+                return Some(quote! { #header.into_any_element() });
             }
         }
         None
@@ -315,28 +280,48 @@ fn emit_data_table(el: &Element) -> TokenStream {
     let row_cells: Vec<TokenStream> = el.children.iter().filter_map(|c| {
         if let RenderNode::Element(e) = c {
             if e.name == "column" {
-                let render_closure = find_arg_expr(e, "render").expect("column requires 'render' closure");
-                return Some(quote! {
+                let render_closure = find_arg_expr(e, "render").expect("column requires 'render'");
+                let width = find_arg_f32(e, "width");
+
+                let mut cell = quote! {
                     ::gpui::div()
-                        .w_full()
                         .px(::gpui::px(12.0))
                         .py(::gpui::px(8.0))
                         .text_color(::gpui::rgb(0xffffff))
                         .child((#render_closure)(&__row))
-                        .into_any_element()
-                });
+                };
+
+                if let Some(w) = width {
+                    cell = quote! { #cell.w(::gpui::px(#w)) };
+                }
+
+                return Some(quote! { #cell.into_any_element() });
             }
         }
         None
     }).collect();
 
+    let row_renderer = if striped {
+        quote! {
+            __rows.iter().enumerate().map(|(__i, __row)| {
+                let mut __row_el = ::gpui::div().flex().children(vec![#(#row_cells),*]);
+                if __i % 2 == 1 { __row_el = __row_el.bg(::gpui::rgb(0x1a1a2e)); }
+                __row_el.into_any_element()
+            }).collect::<Vec<_>>()
+        }
+    } else {
+        quote! {
+            __rows.iter().map(|__row| {
+                ::gpui::div().flex().children(vec![#(#row_cells),*]).into_any_element()
+            }).collect::<Vec<_>>()
+        }
+    };
+
     quote! {
         {
             let __rows = #rows_expr;
             let __header = ::gpui::div().flex().children(vec![#(#header_cells),*]);
-            let __row_elements: Vec<::gpui::AnyElement> = __rows.iter().map(|__row| {
-                ::gpui::div().flex().children(vec![#(#row_cells),*]).into_any_element()
-            }).collect();
+            let __row_elements: Vec<::gpui::AnyElement> = #row_renderer;
             ::gpui::div().flex_col().gap_1().size_full().child(__header).children(__row_elements)
         }
     }
@@ -350,21 +335,17 @@ fn emit_virtual_list(el: &Element) -> TokenStream {
                 if let syn::Lit::Float(f) = &lit.lit { return f.base10_parse::<f32>().ok(); }
             }
             None
-        })
-        .unwrap_or(32.0);
+        }).unwrap_or(32.0);
     let id_expr = find_arg_expr(el, "id")
         .and_then(|e| {
             if let syn::Expr::Lit(lit) = e {
                 if let syn::Lit::Str(s) = &lit.lit { return Some(s.value()); }
             }
             None
-        })
-        .unwrap_or_else(|| "virtual-list".to_string());
+        }).unwrap_or_else(|| "virtual-list".to_string());
 
     let item_render_tokens: Vec<TokenStream> = el.children.iter().map(emit_render).collect();
-    let item_render = quote! {
-        ::gpui::div().children(vec![#(#item_render_tokens),*]).into_any_element()
-    };
+    let item_render = quote! { ::gpui::div().children(vec![#(#item_render_tokens),*]).into_any_element() };
 
     generate_gpui_virtual_list(items_expr, estimated_height, &id_expr, item_render)
 }
@@ -396,16 +377,8 @@ fn emit_clipboard_button(el: &Element) -> TokenStream {
     };
 
     let mut chain = quote! {
-        ::gpui::div()
-            .cursor_pointer()
-            .rounded(::gpui::px(6.0))
-            .px(::gpui::px(8.0))
-            .py(::gpui::px(8.0))
-            .flex()
-            .items_center()
-            .justify_center()
-            .text_color(::gpui::white())
-            .bg(::gpui::rgb(0x4e4e4e))
+        ::gpui::div().cursor_pointer().rounded(::gpui::px(6.0)).px(::gpui::px(8.0)).py(::gpui::px(8.0))
+            .flex().items_center().justify_center().text_color(::gpui::white()).bg(::gpui::rgb(0x4e4e4e))
     };
 
     if let Some(class_expr) = find_arg_expr(el, "class") {
@@ -414,10 +387,7 @@ fn emit_clipboard_button(el: &Element) -> TokenStream {
         }
     }
 
-    for child in &el.children {
-        let child_elem = emit_render(child);
-        chain = quote! { #chain.child(#child_elem) };
-    }
+    for child in &el.children { chain = quote! { #chain.child(#child) }; }
 
     let copy_text_clone = copy_text.clone();
     chain = quote! {
@@ -452,10 +422,7 @@ fn emit_generic_element(el: &Element) -> TokenStream {
     if let Some(children_expr) = &el.children_expr {
         chain = quote! { #chain.children(#children_expr) };
     } else {
-        for child in &el.children {
-            let child_elem = emit_render(child);
-            chain = quote! { #chain.child(#child_elem) };
-        }
+        for child in &el.children { chain = quote! { #chain.child(#child) }; }
     }
 
     if let Some(handler_expr) = find_arg_expr(el, "on_click") {
@@ -497,13 +464,8 @@ fn emit_if_inner(if_node: &IfNode) -> TokenStream {
     let then_branch = emit_nodes(&if_node.then_branch);
     if let Some(else_branch) = &if_node.else_branch {
         let else_tokens = if else_branch.len() == 1 {
-            match &else_branch[0] {
-                RenderNode::If(nested_if) => emit_if(nested_if),
-                _ => emit_nodes(else_branch),
-            }
-        } else {
-            emit_nodes(else_branch)
-        };
+            match &else_branch[0] { RenderNode::If(nested_if) => emit_if(nested_if), _ => emit_nodes(else_branch) }
+        } else { emit_nodes(else_branch) };
         quote! { { if #cond { #then_branch } else { #else_tokens } } }
     } else {
         quote! { { if #cond { #then_branch } } }
@@ -540,9 +502,8 @@ fn find_arg_expr<'a>(el: &'a Element, key: &str) -> Option<&'a Expr> {
 fn find_arg_string(el: &Element, key: &str) -> Option<String> {
     find_arg_expr(el, key).and_then(|e| {
         if let Expr::Lit(expr_lit) = e {
-            if let syn::Lit::Str(s) = &expr_lit.lit { return Some(s.value()); }
-        }
-        None
+            if let syn::Lit::Str(s) = &expr_lit.lit { Some(s.value()) } else { None }
+        } else { None }
     })
 }
 
@@ -555,11 +516,19 @@ fn find_arg_bool(el: &Element, key: &str) -> bool {
     }).unwrap_or(false)
 }
 
+fn find_arg_f32(el: &Element, key: &str) -> Option<f32> {
+    find_arg_expr(el, key).and_then(|e| {
+        if let Expr::Lit(expr_lit) = e {
+            if let syn::Lit::Float(f) = &expr_lit.lit { return f.base10_parse::<f32>().ok(); }
+            if let syn::Lit::Int(i) = &expr_lit.lit { return i.base10_parse::<f32>().ok(); }
+        }
+        None
+    })
+}
+
 fn try_transpile_class(expr: &Expr) -> Option<TranspiledStyles> {
     if let Expr::Lit(expr_lit) = expr {
-        if let syn::Lit::Str(lit_str) = &expr_lit.lit {
-            return Some(transpile_class(&lit_str.value()));
-        }
+        if let syn::Lit::Str(lit_str) = &expr_lit.lit { return Some(transpile_class(&lit_str.value())); }
     }
     None
 }
