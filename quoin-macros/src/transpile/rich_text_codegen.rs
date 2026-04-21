@@ -1,7 +1,7 @@
-#[allow(dead_code)]
 use proc_macro2::TokenStream;
 use quote::quote;
 
+#[cfg(feature = "gpui")]
 pub fn generate_gpui_rich_text(
     text_expr: &syn::Expr,
     base_color: Option<&syn::Expr>,
@@ -38,6 +38,7 @@ pub fn generate_gpui_rich_text(
     }
 }
 
+#[cfg(feature = "leptos")]
 pub fn generate_leptos_rich_text(
     text_expr: &syn::Expr,
     base_color: Option<&syn::Expr>,
@@ -71,8 +72,9 @@ pub fn generate_leptos_rich_text(
     }
 }
 
+#[cfg(feature = "dioxus")]
 pub fn generate_dioxus_rich_text(
-    text_expr: &syn::Expr,
+    _text_expr: &syn::Expr, // Prefixed with _ to avoid unused variable warning when runs_expr is Some
     base_color: Option<&syn::Expr>,
     font_size: f32,
     runs_expr: Option<&syn::Expr>,
@@ -98,7 +100,7 @@ pub fn generate_dioxus_rich_text(
             quote! {}
         };
         quote! {
-            span { style: #style, #color_attr, "{#text_expr}" }
+            span { style: #style, #color_attr, "{#_text_expr}" }
         }
     }
 }

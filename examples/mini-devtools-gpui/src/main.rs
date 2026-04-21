@@ -106,7 +106,6 @@ impl Render for MiniDevtools {
         let event_count = self.event_count.get();
         let filter_text_val = self.filter_text.get();
 
-        // Reactive data derivation
         let filtered_events: Vec<TimelineEvent> = self
             .timeline_events
             .get()
@@ -138,35 +137,37 @@ impl Render for MiniDevtools {
                     format!("Filter value: {:?}", filter_text_val)
                 }
 
-                tabs(active: active_tab, on_click: |i| self.active_tab.set(i)) {
+                // FIX: Wrap closure in parentheses!
+                tabs(active: active_tab, on_click: (|i| self.active_tab.set(i))) {
                     tab(index: 0, label: "Timeline")
                     tab(index: 1, label: "Cache")
                     tab(index: 2, label: "Signals")
                 }
 
-                button(class: "px-4 py-2 bg-blue-600 text-white rounded-md cursor-pointer", primary: true, on_click: |_| self.event_count.update(|c| *c += 1)) {
+                // FIX: Wrap closure in parentheses!
+                button(class: "px-4 py-2 bg-blue-600 text-white rounded-md cursor-pointer", primary: true, on_click: (|_| self.event_count.update(|c| *c += 1))) {
                     "+ Add Event"
                 }
 
-                @if active_tab == 0 {
+                if[active_tab == 0] {
                     div(class: "flex flex-col gap-1 size-full") {
                         div(class: "text-sm text-gray-400") {
                             format!("{} timeline events (showing {} filtered)", event_count, filtered_events.len())
                         }
-                        @for event in filtered_events {
+                        for[event in filtered_events] {
                             div(class: "flex gap-4 p-2") {
                                 div(class: "text-xs text-gray-500") { event.timestamp.clone() }
                                 div(class: "text-sm text-white") { event.label.clone() }
                             }
                         }
                     }
-                } @else if active_tab == 1 {
+                } else if[active_tab == 1] {
                     data_table(rows: cache_entries, striped: true) {
-                        column(key: "key", label: "Key", render: |row: &CacheEntry| row.key.clone())
-                        column(key: "value", label: "Value", render: |row: &CacheEntry| row.value.clone())
-                        column(key: "hits", label: "Hits", render: |row: &CacheEntry| row.hits.to_string())
+                        column(key: "key", label: "Key", render: (|row: &CacheEntry| row.key.clone()))
+                        column(key: "value", label: "Value", render: (|row: &CacheEntry| row.value.clone()))
+                        column(key: "hits", label: "Hits", render: (|row: &CacheEntry| row.hits.to_string()))
                     }
-                } @else {
+                } else {
                     div(class: "flex flex-col gap-2 p-4") {
                         div(class: "text-sm text-gray-400") { "Active signals in current scope:" }
                         div(class: "p-2 bg-gray-800 rounded-md text-sm text-green-500") { "active_tab: usize = 0" }

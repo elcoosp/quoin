@@ -1,4 +1,3 @@
-#[allow(dead_code)]
 use proc_macro2::TokenStream;
 use quote::quote;
 
@@ -7,10 +6,8 @@ pub struct MenuItemDef {
     pub on_click: syn::Expr,
 }
 
-pub fn generate_gpui_dropdown(
-    trigger_expr: &syn::Expr,
-    menu_items: &[MenuItemDef],
-) -> TokenStream {
+#[cfg(feature = "gpui")]
+pub fn generate_gpui_dropdown(trigger_expr: &syn::Expr, menu_items: &[MenuItemDef]) -> TokenStream {
     let items = menu_items.iter().enumerate().map(|(i, item)| {
         let label = &item.label;
         let on_click = &item.on_click;
@@ -33,6 +30,7 @@ pub fn generate_gpui_dropdown(
     }}
 }
 
+#[cfg(feature = "leptos")]
 pub fn generate_leptos_dropdown(
     trigger_expr: &syn::Expr,
     menu_items: &[MenuItemDef],
@@ -58,6 +56,7 @@ pub fn generate_leptos_dropdown(
     }
 }
 
+#[cfg(feature = "dioxus")]
 pub fn generate_dioxus_dropdown(
     trigger_expr: &syn::Expr,
     menu_items: &[MenuItemDef],

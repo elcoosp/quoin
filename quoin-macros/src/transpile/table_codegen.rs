@@ -1,4 +1,3 @@
-#[allow(dead_code)]
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::Ident;
@@ -11,6 +10,7 @@ pub struct ColumnDef {
     pub render_closure: syn::Expr,
 }
 
+#[cfg(feature = "gpui")]
 pub fn generate_gpui_table_delegate(
     delegate_name: &Ident,
     row_type: &syn::Type,
@@ -18,28 +18,41 @@ pub fn generate_gpui_table_delegate(
 ) -> TokenStream {
     let col_count = columns.len();
 
-    let field_defs: Vec<TokenStream> = columns.iter().enumerate().map(|(i, _)| {
-        let fname = Ident::new(&format!("__col_{}", i), proc_macro2::Span::call_site());
-        quote! { #fname: std::sync::Arc<dyn Fn(&#row_type) -> gpui::AnyElement + Send + Sync> }
-    }).collect();
+    let field_defs: Vec<TokenStream> = columns
+        .iter()
+        .enumerate()
+        .map(|(i, _)| {
+            let fname = Ident::new(&format!("__col_{}", i), proc_macro2::Span::call_site());
+            quote! { #fname: std::sync::Arc<dyn Fn(&#row_type) -> gpui::AnyElement + Send + Sync> }
+        })
+        .collect();
 
-    let field_names: Vec<Ident> = columns.iter().enumerate()
+    let field_names: Vec<Ident> = columns
+        .iter()
+        .enumerate()
         .map(|(i, _)| Ident::new(&format!("__col_{}", i), proc_macro2::Span::call_site()))
         .collect();
 
-    let match_arms: Vec<TokenStream> = columns.iter().enumerate().map(|(i, _)| {
-        let idx = i;
-        let fname = &field_names[i];
-        quote! { #idx => (self.#fname)(row).into_any_element() }
-    }).collect();
+    let match_arms: Vec<TokenStream> = columns
+        .iter()
+        .enumerate()
+        .map(|(i, _)| {
+            let idx = i;
+            let fname = &field_names[i];
+            quote! { #idx => (self.#fname)(row).into_any_element() }
+        })
+        .collect();
 
-    let sort_arms: Vec<TokenStream> = columns.iter().enumerate()
+    let sort_arms: Vec<TokenStream> = columns
+        .iter()
+        .enumerate()
         .filter(|(_, col)| col.sortable)
         .map(|(i, col)| {
             let idx = i;
             let key = &col.key;
             quote! { #idx => #key.to_string() }
-        }).collect();
+        })
+        .collect();
 
     let sortable_count = columns.iter().filter(|c| c.sortable).count();
     let sort_arms_fallback = if sortable_count == 0 {
@@ -100,6 +113,7 @@ pub fn generate_gpui_table_delegate(
     }
 }
 
+#[cfg(feature = "leptos")]
 pub fn generate_leptos_table(
     row_type: &syn::Type,
     columns: &[ColumnDef],
@@ -155,8 +169,9 @@ pub fn generate_leptos_table(
     }
 }
 
+#[cfg(feature = "dioxus")]
 pub fn generate_dioxus_table(
-    row_type: &syn::Type,
+    _row_type: &syn::Type, // Prefixed with _ to avoid unused variable warning
     columns: &[ColumnDef],
     rows_expr: &syn::Expr,
     striped: bool,
@@ -179,7 +194,11 @@ pub fn generate_dioxus_table(
         }
     });
 
-    let striped_attr = if striped { quote! { striped: true } } else { quote! {} };
+    let striped_attr = if striped {
+        quote! { striped: true }
+    } else {
+        quote! {}
+    };
 
     quote! {
         shadcn_dioxus::table::Table { #striped_attr

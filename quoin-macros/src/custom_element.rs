@@ -1,14 +1,14 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::parse::{Parse, ParseStream};
-use syn::{braced, Ident, LitStr, Token};
+use syn::{Ident, LitStr, Token, braced};
 
 pub struct CustomElementDef {
     pub name: String,
     pub props: Vec<PropDef>,
 }
 
-struct PropDef {
+pub struct PropDef {
     name: Ident,
     ty: syn::Type,
 }
@@ -25,7 +25,10 @@ impl Parse for CustomElementDef {
             let prop_name: Ident = props_content.parse()?;
             props_content.parse::<Token![:]>()?;
             let prop_ty: syn::Type = props_content.parse()?;
-            props.push(PropDef { name: prop_name, ty: prop_ty });
+            props.push(PropDef {
+                name: prop_name,
+                ty: prop_ty,
+            });
             if !props_content.is_empty() {
                 props_content.parse::<Token![,]>()?;
             }

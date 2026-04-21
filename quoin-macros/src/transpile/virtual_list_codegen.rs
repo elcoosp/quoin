@@ -1,7 +1,7 @@
-#[allow(dead_code)]
 use proc_macro2::TokenStream;
 use quote::quote;
 
+#[cfg(feature = "gpui")]
 pub fn generate_gpui_virtual_list(
     items_expr: &syn::Expr,
     estimated_height: f32,
@@ -33,6 +33,7 @@ pub fn generate_gpui_virtual_list(
     }
 }
 
+#[cfg(feature = "leptos")]
 pub fn generate_leptos_virtual_list(
     items_expr: &syn::Expr,
     estimated_height: f32,
@@ -49,6 +50,7 @@ pub fn generate_leptos_virtual_list(
     }
 }
 
+#[cfg(feature = "dioxus")]
 pub fn generate_dioxus_virtual_list(
     items_expr: &syn::Expr,
     estimated_height: f32,
