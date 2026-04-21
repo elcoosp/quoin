@@ -1,7 +1,6 @@
+use crate::render_ast::{Element, ForNode, IfNode, RenderNode};
 use proc_macro2::TokenStream;
 use quote::quote;
-use crate::render_ast::{RenderNode, Element, IfNode, ForNode};
-use syn::Expr;
 
 pub fn emit_render(node: &RenderNode) -> TokenStream {
     let inner = emit_render_inner(node);
@@ -15,18 +14,28 @@ fn emit_render_inner(node: &RenderNode) -> TokenStream {
         RenderNode::Expr(e) => quote! { { #e } },
         RenderNode::If(if_node) => emit_if(if_node),
         RenderNode::For(for_node) => emit_for(for_node),
+        RenderNode::Root(nodes) => {
+            let tokens: Vec<TokenStream> = nodes.iter().map(emit_render_inner).collect();
+            quote! { #(#tokens)* }
+        }
     }
 }
 
 fn emit_element(el: &Element) -> TokenStream {
     let name_str = el.name.to_string();
     let tag = match name_str.as_str() {
-        "div" => "div", "h1" => "h1", "h2" => "h2", "h3" => "h3",
-        "p"|"text" => "p", "button" => "button", _ => "div",
+        "div" => "div",
+        "h1" => "h1",
+        "h2" => "h2",
+        "h3" => "h3",
+        "p" | "text" => "p",
+        "button" => "button",
+        _ => "div",
     };
     let mut attrs = Vec::new();
-    for (key, value) in &el.args {
-        let key_str = key.to_string();
+    for arg in &el.args {
+        let key_str = arg.key.to_string();
+        let value = &arg.value;
         match key_str.as_str() {
             "class" => attrs.push(quote! { class=#value }),
             "id" => attrs.push(quote! { id=#value }),

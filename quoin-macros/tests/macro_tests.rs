@@ -11,7 +11,14 @@ fn ui_tests_gpui() {
 #[cfg(feature = "leptos")]
 #[test]
 fn ui_tests_leptos() {
-    let t = TestCases::new();
+    let t = trybuild::TestCases::new();
     t.pass("tests/ui/render_leptos_pass.rs");
     t.pass("tests/ui/effect_leptos_pass.rs");
+}
+
+#[cfg(feature = "dioxus")]
+#[test]
+fn ui_tests_dioxus() {
+    let t = trybuild::TestCases::new();
+    t.pass("tests/ui/component_dioxus_pass.rs");
 }

@@ -1,6 +1,5 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::Ident;
 
 pub struct ColumnDef {
     pub key: String,
@@ -12,7 +11,7 @@ pub struct ColumnDef {
 
 #[cfg(feature = "gpui")]
 pub fn generate_gpui_table_delegate(
-    delegate_name: &Ident,
+    delegate_name: &proc_macro2::Ident,
     row_type: &syn::Type,
     columns: &[ColumnDef],
 ) -> TokenStream {
@@ -22,15 +21,18 @@ pub fn generate_gpui_table_delegate(
         .iter()
         .enumerate()
         .map(|(i, _)| {
-            let fname = Ident::new(&format!("__col_{}", i), proc_macro2::Span::call_site());
+            let fname =
+                proc_macro2::Ident::new(&format!("__col_{}", i), proc_macro2::Span::call_site());
             quote! { #fname: std::sync::Arc<dyn Fn(&#row_type) -> gpui::AnyElement + Send + Sync> }
         })
         .collect();
 
-    let field_names: Vec<Ident> = columns
+    let field_names: Vec<proc_macro2::Ident> = columns
         .iter()
         .enumerate()
-        .map(|(i, _)| Ident::new(&format!("__col_{}", i), proc_macro2::Span::call_site()))
+        .map(|(i, _)| {
+            proc_macro2::Ident::new(&format!("__col_{}", i), proc_macro2::Span::call_site())
+        })
         .collect();
 
     let match_arms: Vec<TokenStream> = columns
@@ -54,8 +56,7 @@ pub fn generate_gpui_table_delegate(
         })
         .collect();
 
-    let sortable_count = columns.iter().filter(|c| c.sortable).count();
-    let sort_arms_fallback = if sortable_count == 0 {
+    let sort_arms_fallback = if sort_arms.is_empty() {
         quote! { _ => return }
     } else {
         quote! { _ => return }
@@ -171,7 +172,7 @@ pub fn generate_leptos_table(
 
 #[cfg(feature = "dioxus")]
 pub fn generate_dioxus_table(
-    _row_type: &syn::Type, // Prefixed with _ to avoid unused variable warning
+    _row_type: &syn::Type,
     columns: &[ColumnDef],
     rows_expr: &syn::Expr,
     striped: bool,
@@ -179,18 +180,14 @@ pub fn generate_dioxus_table(
     let header_cells = columns.iter().map(|col| {
         let label = &col.label;
         quote! {
-            shadcn_dioxus::table::TableHead {
-                #label
-            }
+            th { #label }
         }
     });
 
     let row_cells = columns.iter().map(|col| {
         let render = &col.render_closure;
         quote! {
-            shadcn_dioxus::table::TableCell {
-                #render(row)
-            }
+            td { #render(row) }
         }
     });
 
@@ -201,19 +198,13 @@ pub fn generate_dioxus_table(
     };
 
     quote! {
-        shadcn_dioxus::table::Table { #striped_attr
-            shadcn_dioxus::table::TableHeader {
-                shadcn_dioxus::table::TableRow {
-                    #(#header_cells)*
-                }
+        table { #striped_attr
+            thead {
+                tr { #(#header_cells)* }
             }
-            shadcn_dioxus::table::TableBody {
+            tbody {
                 #rows_expr.iter().map(|row| {
-                    rsx! {
-                        shadcn_dioxus::table::TableRow {
-                            #(#row_cells)*
-                        }
-                    }
+                    rsx! { tr { #(#row_cells)* } }
                 })
             }
         }
