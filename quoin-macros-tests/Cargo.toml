@@ -2,31 +2,28 @@
 name = "quoin-macros-tests"
 version = "0.0.0"
 edition = "2021"
+build = "build.rs" # Keep the build.rs!
 
 [dependencies]
-# Core dependencies (always required)
 quoin = { path = "../quoin" }
 quoin-macros = { path = "../quoin-macros" }
 
-# Leptos and Dioxus remain optional, controlled by features
+# GPUI is a feature, just like you want!
+gpui = { git = "https://github.com/zed-industries/zed", optional = true }
+quoin-gpui = { path = "../quoin-gpui", optional = true }
+quoin-ui-gpui = { path = "../quoin-ui-gpui", optional = true }
+gpui-component = { git = "https://github.com/longbridge/gpui-component", optional = true }
+
 leptos = { version = "0.8", optional = true }
 quoin-leptos = { path = "../quoin-leptos", optional = true }
 
 dioxus = { version = "0.7", optional = true }
 quoin-dioxus = { path = "../quoin-dioxus", optional = true }
 
-# GPUI is a REQUIRED dependency, but only on macOS!
-# Because it's not optional, Cargo will always link it (on mac),
-# meaning trybuild will never fail to find it.
-[target.'cfg(target_os = "macos")'.dependencies]
-gpui = { git = "https://github.com/zed-industries/zed" }
-quoin-gpui = { path = "../quoin-gpui" }
-quoin-ui-gpui = { path = "../quoin-ui-gpui" }
-gpui-component = { git = "https://github.com/longbridge/gpui-component" }
-
 [features]
 default = []
-# GPUI is no longer a feature! It's automatically included on macOS.
+# Make sure quoin-macros/gpui is activated too!
+gpui = ["dep:gpui", "dep:quoin-gpui", "dep:quoin-ui-gpui", "dep:gpui-component", "quoin-macros/gpui"]
 leptos = ["dep:leptos", "dep:quoin-leptos", "quoin-macros/leptos"]
 dioxus = ["dep:dioxus", "dep:quoin-dioxus", "quoin-macros/dioxus"]
 

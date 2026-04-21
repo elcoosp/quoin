@@ -1,6 +1,17 @@
-// quoin-macros/tests/ui/effect_dioxus_pass.rs
-use quoin_macros::effect;
+use dioxus::prelude::*;
+use quoin_macros::{component, effect, quoin_render};
 
-fn main() {
-    effect! { watch: [count], || println!("changed") }
+fn main() {}
+
+#[component]
+fn TestEffect() -> Element {
+    let mut count = use_signal(|| 0);
+
+    effect! { watch: [count], || println!("changed: {}", count()) }
+
+    quoin_render! {
+        div(class: "container") {
+            "Effect Test"
+        }
+    }
 }

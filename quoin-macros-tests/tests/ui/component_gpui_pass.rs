@@ -1,7 +1,4 @@
-// quoin-macros/tests/ui/component_gpui_pass.rs
-use gpui::*;
-use quoin::ReactiveContext;
-use quoin_gpui::GpuiContext;
+use quoin::Signal;
 use quoin_macros::component;
 
 component! {
@@ -11,7 +8,9 @@ component! {
         }
         render {
             let _ = count.get();
-            div()
+            // GPUI's render block needs to return an element.
+            // A simple string literal or div() works perfectly!
+            "Hello GPUI"
         }
     }
 }

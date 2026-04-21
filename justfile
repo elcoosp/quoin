@@ -32,7 +32,7 @@ test-quoin-macros:
 
 # Run UI macro expansion tests (trybuild) for quoin-macros-tests
 test-quoin-macros-gpui:
-    cargo nextest run -p quoin-macros-tests
+    cargo nextest run -p quoin-macros-tests --features gpui
 
 test-quoin-macros-leptos:
     cargo nextest run -p quoin-macros-tests --features leptos
