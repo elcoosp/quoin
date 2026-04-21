@@ -17,6 +17,19 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
         })
         .collect();
 
+    let props_defaults: Vec<_> = ast
+        .props
+        .iter()
+        .map(|p| {
+            let fname = &p.name;
+            if let Some(default) = &p.default {
+                quote! { #fname: #default }
+            } else {
+                quote! { #fname: Default::default() }
+            }
+        })
+        .collect();
+
     let state_fields: Vec<_> = ast
         .state
         .iter()
@@ -48,6 +61,8 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
         })
         .collect();
 
+    // Plain clones — no Rc wrapping. The Rc wrapping happens inside each
+    // handler's block in render_gpui, after per-handler shadow clones.
     let state_clones: Vec<_> = ast
         .state
         .iter()
@@ -73,21 +88,21 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
         #[derive(Clone)]
         #vis struct #props_name {
             #(#props_fields),*
+            _phantom: ::std::marker::PhantomData<()>,
         }
 
         impl Default for #props_name {
             fn default() -> Self {
                 Self {
-                    #(
-                        #props_fields: Default::default()
-                    ),*
+                    #(#props_defaults,)*
+                    _phantom: ::std::marker::PhantomData,
                 }
             }
         }
 
         #vis struct #name {
             props: #props_name,
-            #(#state_fields,)* // FIX 1: Comma inside repetition
+            #(#state_fields,)*
             _quoin_inputs: quoin_ui_gpui::QuoinInputManager,
         }
 

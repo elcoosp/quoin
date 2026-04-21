@@ -3,6 +3,59 @@ use crate::transpile::tailwind::{TranspiledStyles, transpile_class};
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::Expr;
+use syn::visit::Visit;
+use syn::visit_mut::VisitMut;
+
+// ---------------------------------------------------------------------------
+// Ident collection (skips closure bodies to avoid collecting params/locals)
+// ---------------------------------------------------------------------------
+
+struct PathIdentCollector(Vec<proc_macro2::Ident>);
+
+impl<'ast> Visit<'ast> for PathIdentCollector {
+    fn visit_expr_path(&mut self, expr_path: &'ast syn::ExprPath) {
+        if expr_path.path.segments.len() == 1 && expr_path.path.leading_colon.is_none() {
+            if let Some(seg) = expr_path.path.segments.last() {
+                self.0.push(seg.ident.clone());
+            }
+        }
+        syn::visit::visit_expr_path(self, expr_path);
+    }
+
+    fn visit_expr_closure(&mut self, _node: &'ast syn::ExprClosure) {}
+}
+
+fn collect_handler_idents(expr: &Expr) -> Vec<proc_macro2::Ident> {
+    let mut collector = PathIdentCollector(vec![]);
+    collector.visit_expr(expr);
+    collector
+        .0
+        .sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+    collector.0.dedup_by(|a, b| a.to_string() == b.to_string());
+    collector.0
+}
+
+// ---------------------------------------------------------------------------
+// StripMove visitor
+// ---------------------------------------------------------------------------
+
+struct StripMove;
+
+impl VisitMut for StripMove {
+    fn visit_expr_closure_mut(&mut self, closure: &mut syn::ExprClosure) {
+        closure.movability = None;
+    }
+}
+
+fn strip_move_from_closure(expr: &Expr) -> syn::Expr {
+    let mut expr = expr.clone();
+    StripMove.visit_expr_mut(&mut expr);
+    expr
+}
+
+// ---------------------------------------------------------------------------
+// emit_render entry point
+// ---------------------------------------------------------------------------
 
 pub fn emit_render(node: &RenderNode) -> TokenStream {
     match node {
@@ -17,6 +70,10 @@ pub fn emit_render(node: &RenderNode) -> TokenStream {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Element emitters
+// ---------------------------------------------------------------------------
 
 fn emit_element(el: &Element) -> TokenStream {
     let name_str = el.name.to_string();
@@ -72,14 +129,22 @@ fn emit_button(el: &Element) -> TokenStream {
     }
 
     if let Some(handler_expr) = find_arg_expr(el, "on_click") {
-        // Wrap handler in Rc so it can be cloned and called multiple times (Fn)
+        let idents = collect_handler_idents(handler_expr);
+        let shadows: Vec<TokenStream> = idents
+            .iter()
+            .map(|id| {
+                quote! { let #id = #id.clone(); }
+            })
+            .collect();
+        let handler_no_move = strip_move_from_closure(handler_expr);
         chain = quote! {
-            {
-                let __on_click = ::std::rc::Rc::new(#handler_expr);
-                #chain.on_mouse_down(gpui::MouseButton::Left, move |_, _, _| {
-                    __on_click(()) // Pass the unit argument expected by |_| closures
-                })
-            }
+            #chain.on_mouse_down(gpui::MouseButton::Left, {
+                #(#shadows)*
+                let __handler = ::std::rc::Rc::new(#handler_no_move);
+                move |_, _, _| {
+                    __handler(())
+                }
+            })
         };
     }
 
@@ -209,6 +274,8 @@ fn emit_tabs(el: &Element) -> TokenStream {
     let active_expr = find_arg_expr(el, "active").expect("tabs require 'active' argument");
     let on_click_expr = find_arg_expr(el, "on_click").expect("tabs require 'on_click' callback");
 
+    let on_click_no_move = strip_move_from_closure(on_click_expr);
+
     let tab_labels: Vec<TokenStream> = el
         .children
         .iter()
@@ -229,8 +296,7 @@ fn emit_tabs(el: &Element) -> TokenStream {
     quote! {
         {
             let __active = #active_expr;
-            // Wrap in Rc to allow cloning across multiple tab iterations
-            let __on_click = ::std::rc::Rc::new(#on_click_expr);
+            let __on_click = ::std::rc::Rc::new(#on_click_no_move);
             let __labels: Vec<(usize, String)> = vec![#(#tab_labels),*];
             let __tab_elements: Vec<gpui::AnyElement> = __labels.iter().map(|(idx, label)| {
                 let __is_active = *idx == __active;
@@ -357,14 +423,22 @@ fn emit_generic_element(el: &Element) -> TokenStream {
     }
 
     if let Some(handler_expr) = find_arg_expr(el, "on_click") {
-        // Wrap handler in Rc so it can be cloned and called multiple times (Fn)
+        let idents = collect_handler_idents(handler_expr);
+        let shadows: Vec<TokenStream> = idents
+            .iter()
+            .map(|id| {
+                quote! { let #id = #id.clone(); }
+            })
+            .collect();
+        let handler_no_move = strip_move_from_closure(handler_expr);
         chain = quote! {
-            {
-                let __on_click = ::std::rc::Rc::new(#handler_expr);
-                #chain.on_mouse_down(gpui::MouseButton::Left, move |_, _, _| {
-                    __on_click(()) // Pass the unit argument expected by |_| closures
-                })
-            }
+            #chain.on_mouse_down(gpui::MouseButton::Left, {
+                #(#shadows)*
+                let __handler = ::std::rc::Rc::new(#handler_no_move);
+                move |_, _, _| {
+                    __handler(())
+                }
+            })
         };
     }
 
