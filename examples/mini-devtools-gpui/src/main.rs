@@ -28,7 +28,7 @@ struct MiniDevtools {
     timeline_events: quoin_gpui::GpuiSignal<Vec<TimelineEvent>>,
     cache_entries: quoin_gpui::GpuiSignal<Vec<CacheEntry>>,
     filter_text: quoin_gpui::GpuiSignal<String>,
-    _sort_direction: quoin_gpui::GpuiSignal<SortDirection>, // Prefixed to suppress warning
+    _sort_direction: quoin_gpui::GpuiSignal<SortDirection>,
     _quoin_inputs: quoin_ui_gpui::QuoinInputManager,
 }
 
@@ -101,19 +101,16 @@ impl MiniDevtools {
 }
 
 impl Render for MiniDevtools {
-    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
-        // 1. Extract all signal reads BEFORE the macro
+    // FIX: Remove underscores so the macro can find `window` and `cx`
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let active_tab = self.active_tab.get();
         let event_count = self.event_count.get();
         let filter_text_val = self.filter_text.get();
         let cache_entries = self.cache_entries.get();
 
-        // 2. Clone the signals themselves for use in closures
         let active_tab_signal = self.active_tab.clone();
         let event_count_signal = self.event_count.clone();
-        let filter_text_signal = self.filter_text.clone();
 
-        // 3. Compute derived data
         let filtered_events: Vec<TimelineEvent> = self
             .timeline_events
             .get()
@@ -127,7 +124,8 @@ impl Render for MiniDevtools {
             .collect();
 
         quoin_render! {
-            div(class: "flex flex-col gap-4 p-4 bg-gray-900 size-full overflow-y-auto") {
+            // FIX: removed overflow-y-auto, replaced with overflow-hidden
+            div(class: "flex flex-col gap-4 p-4 bg-gray-900 size-full overflow-hidden") {
                 div(class: "text-xl font-bold text-white") {
                     "Mini Devtools"
                 }
@@ -137,21 +135,24 @@ impl Render for MiniDevtools {
                     }
                 }
                 div(class: "p-2") {
-                    input(class: "px-4 py-2 bg-gray-800 text-white rounded-md", placeholder: "Filter events...", value: filter_text_signal)
+                    // FIX: Pass self.filter_text directly so the macro can bind to it
+                    input(class: "px-4 py-2 bg-gray-800 text-white rounded-md", placeholder: "Filter events...", value: self.filter_text)
                 }
                 div(class: "text-xs text-green-500") {
                     format!("Filter value: {:?}", filter_text_val)
                 }
 
-                tabs(active: active_tab, on_click: (|i| active_tab_signal.set(i))) {
-                    tab(index: 0, label: "Timeline")
-                    tab(index: 1, label: "Cache")
-                    tab(index: 2, label: "Signals")
+                // FIX: Removed unnecessary parentheses around closures
+                tabs(active: active_tab, on_click: move |i| active_tab_signal.set(i)) {
+                                   tab(index: 0, label: "Timeline")
+                                   tab(index: 1, label: "Cache")
+                                   tab(index: 2, label: "Signals")
                 }
 
-                button(class: "px-4 py-2 bg-blue-600 text-white rounded-md cursor-pointer", primary: true, on_click: (|_| event_count_signal.update(|c| *c += 1))) {
+                button(class: "px-4 py-2 bg-blue-600 text-white rounded-md cursor-pointer", primary: true, on_click: |_| event_count_signal.update(|c| *c += 1)) {
                     "+ Add Event"
                 }
+
                 if[active_tab == 0] {
                     div(class: "flex flex-col gap-1 size-full") {
                         div(class: "text-sm text-gray-400") {
@@ -166,9 +167,9 @@ impl Render for MiniDevtools {
                     }
                 } else if[active_tab == 1] {
                     data_table(rows: cache_entries, striped: true) {
-                        column(key: "key", label: "Key", render: (|row: &CacheEntry| row.key.clone()))
-                        column(key: "value", label: "Value", render: (|row: &CacheEntry| row.value.clone()))
-                        column(key: "hits", label: "Hits", render: (|row: &CacheEntry| row.hits.to_string()))
+                        column(key: "key", label: "Key", render: |row: &CacheEntry| row.key.clone())
+                        column(key: "value", label: "Value", render: |row: &CacheEntry| row.value.clone())
+                        column(key: "hits", label: "Hits", render: |row: &CacheEntry| row.hits.to_string())
                     }
                 } else {
                     div(class: "flex flex-col gap-2 p-4") {
