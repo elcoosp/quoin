@@ -73,19 +73,24 @@ pub trait ReactiveContext: Clone + Send + Sync + 'static {
     /// automatic reactivity, this may be a no‑op.
     fn request_update(&self);
 
+    /// Provide a global value that can be retrieved via `use_global`.
+    ///
+    /// The value is stored in a framework-specific context store. Subsequent
+    /// calls to [`use_global`](ReactiveContext::use_global) with the same type
+    /// will return a signal wrapping this value.
+    fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T);
+
     /// Retrieves a global signal from the framework's context provider.
     ///
-    /// Returns `Some(signal)` if a signal of type `T` has been provided
-    /// via the framework's context/provider mechanism, `None` otherwise.
+    /// Returns `Some(signal)` if a value of type `T` has been provided
+    /// via [`provide_global`](ReactiveContext::provide_global), `None` otherwise.
     ///
     /// # Framework Behavior
     ///
-    /// - **Leptos**: Uses `use_context::<RwSignal<T>>()` to retrieve from
+    /// - **Leptos**: Uses `use_context::<RwSignal<SendWrapper<T>>>()` to retrieve from
     ///   the reactive owner's context store.
-    /// - **GPUI**: Stub — always returns `None` until a global store is
-    ///   integrated.
-    /// - **Dioxus**: Stub — always returns `None` until context injection
-    ///   is supported.
+    /// - **GPUI**: Uses a thread-local type-map store.
+    /// - **Dioxus**: Uses `try_consume_context::<T>()`.
     ///
     /// # Example
     ///
@@ -94,8 +99,5 @@ pub trait ReactiveContext: Clone + Send + Sync + 'static {
     ///     let current = theme.get();
     /// }
     /// ```
-    /// Provide a global value that can be retrieved via `use_global`.
-    fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T);
-
     fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>>;
 }

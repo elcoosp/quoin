@@ -1,3 +1,5 @@
+// FILE: quoin-macros-core/src/transpile/dropdown_codegen.rs
+
 #[allow(unused)]
 use proc_macro2::TokenStream;
 #[allow(unused)]
@@ -9,34 +11,37 @@ pub struct MenuItemDef {
 }
 
 #[cfg(feature = "gpui")]
-pub fn generate_gpui_dropdown(
-    trigger_expr: &syn::Expr,
-    menu_items: &[MenuItemDef],
-) -> TokenStream {
-    let items: Vec<TokenStream> = menu_items.iter().map(|item| {
-        let label = &item.label;
-        let on_click = &item.on_click;
-        let idents = crate::transpile::collect_handler_idents(on_click);
-        let shadows: Vec<TokenStream> = idents.iter().map(|id| {
-            quote! { let #id = #id.clone(); }
-        }).collect();
-        let handler = crate::transpile::strip_move_from_closure(on_click);
-        quote! {
-            ::gpui::div()
-                .px(::gpui::px(12.0))
-                .py(::gpui::px(6.0))
-                .cursor_pointer()
-                .text_color(::gpui::white())
-                .hover(|s| s.bg(::gpui::rgb(0x4e4e4e)))
-                .child(#label)
-                .on_mouse_down(::gpui::MouseButton::Left, {
-                    #(#shadows)*
-                    let __handler = ::std::rc::Rc::new(#handler);
-                    move |_, _, _| { __handler(()); }
+pub fn generate_gpui_dropdown(trigger_expr: &syn::Expr, menu_items: &[MenuItemDef]) -> TokenStream {
+    let items: Vec<TokenStream> = menu_items
+        .iter()
+        .map(|item| {
+            let label = &item.label;
+            let on_click = &item.on_click;
+            let idents = crate::transpile::collect_handler_idents(on_click);
+            let shadows: Vec<TokenStream> = idents
+                .iter()
+                .map(|id| {
+                    quote! { let #id = #id.clone(); }
                 })
-                .into_any_element()
-        }
-    }).collect();
+                .collect();
+            let handler = crate::transpile::strip_move_from_closure(on_click);
+            quote! {
+                ::gpui::div()
+                    .px(::gpui::px(12.0))
+                    .py(::gpui::px(6.0))
+                    .cursor_pointer()
+                    .text_color(::gpui::white())
+                    .hover(|s| s.bg(::gpui::rgb(0x4e4e4e)))
+                    .child(#label)
+                    .on_mouse_down(::gpui::MouseButton::Left, {
+                        #(#shadows)*
+                        let __handler = ::std::rc::Rc::new(#handler);
+                        move |_, _, _| { __handler(()); }
+                    })
+                    .into_any_element()
+            }
+        })
+        .collect();
 
     quote! {
         {
@@ -55,7 +60,7 @@ pub fn generate_gpui_dropdown(
                         .rounded_md()
                         .py_1()
                         .flex_col()
-                        .children(#items)
+                        .children(vec![#(#items),*])
                         .into_any_element()
                 )
         }

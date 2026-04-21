@@ -171,6 +171,7 @@ impl Parse for ForNode {
 }
 
 const KNOWN_ELEMENTS: &[&str] = &[
+    // Standard HTML
     "div",
     "h1",
     "h2",
@@ -180,10 +181,6 @@ const KNOWN_ELEMENTS: &[&str] = &[
     "span",
     "button",
     "input",
-    "tabs",
-    "tab",
-    "data_table",
-    "column",
     "label",
     "img",
     "a",
@@ -195,11 +192,18 @@ const KNOWN_ELEMENTS: &[&str] = &[
     "textarea",
     "select",
     "form",
+    // UCP components
+    "tabs",
+    "tab",
+    "data_table",
+    "column",
     "virtual_list",
     "dropdown_menu",
     "rich_text",
     "clipboard_button",
     "item",
+    // Aliases
+    "tab_bar",
 ];
 
 impl Parse for RenderNode {
@@ -231,14 +235,22 @@ impl Parse for RenderNode {
 
                 if fork.peek(syn::token::Paren) {
                     if !KNOWN_ELEMENTS.contains(&ident_str.as_str()) {
-                        return Err(syn::Error::new_spanned(
-                            ident,
+                        let suggestion = crate::render_ast_diag::suggest_element(&ident_str);
+                        let msg = if let Some(sug) = suggestion {
+                            format!(
+                                "unknown element `{}`. Did you mean `{}`? Known elements: {}",
+                                ident_str,
+                                sug,
+                                KNOWN_ELEMENTS.join(", ")
+                            )
+                        } else {
                             format!(
                                 "unknown element `{}`. Known elements: {}. If this is a function call, wrap it in braces: `{{ expr }}`",
                                 ident_str,
                                 KNOWN_ELEMENTS.join(", ")
-                            ),
-                        ));
+                            )
+                        };
+                        return Err(syn::Error::new_spanned(ident, msg));
                     }
                     return Ok(RenderNode::Element(input.parse()?));
                 }

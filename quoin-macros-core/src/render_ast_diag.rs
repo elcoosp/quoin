@@ -9,18 +9,30 @@ const KNOWN_ARGS: &[&str] = &[
     "active", "rows", "striped", "label", "render", "key",
     "index", "href", "target", "src", "alt", "disabled", "required",
     "type", "name", "for", "title", "role", "tabindex", "autofocus",
-    // Phase 0-B: on_mouse_down (first-class arg)
-    "on_mouse_down",
-    // Phase 0-B: virtual_list args
+    // Mouse events
+    "on_mouse_down", "on_mouse_up", "on_mouse_enter", "on_mouse_leave",
+    // virtual_list args
     "estimated_height", "items",
-    // Phase 0-B: dropdown_menu args
+    // dropdown_menu args
     "trigger",
-    // Phase 0-B: clipboard_button args
+    // clipboard_button args
     "copy_text",
-    // Phase 0-B: data_table column args
+    // data_table column args
     "sortable", "width", "resizable", "selectable",
-    // Phase 0-B: data_table args
+    // data_table args
     "on_sort", "bordered", "size",
+    // Navigation
+    "navigate_to",
+    // Passthrough
+    "cfg",
+];
+
+const KNOWN_ELEMENTS: &[&str] = &[
+    "div", "h1", "h2", "h3", "p", "text", "span", "button", "input",
+    "label", "img", "a", "ul", "ol", "li", "hr", "br", "textarea",
+    "select", "form", "tabs", "tab", "data_table", "column",
+    "virtual_list", "dropdown_menu", "rich_text", "clipboard_button",
+    "item", "tab_bar",
 ];
 
 /// Check if an argument key looks like a typo of a known key.
@@ -28,6 +40,17 @@ const KNOWN_ARGS: &[&str] = &[
 pub fn suggest_arg(key: &str) -> Option<&'static str> {
     for known in KNOWN_ARGS {
         if levenshtein(key, known) <= 2 {
+            return Some(known);
+        }
+    }
+    None
+}
+
+/// Check if an element name looks like a typo of a known element.
+/// Returns `Some(suggestion)` if a close match is found.
+pub fn suggest_element(name: &str) -> Option<&'static str> {
+    for known in KNOWN_ELEMENTS {
+        if levenshtein(name, known) <= 2 {
             return Some(known);
         }
     }
@@ -87,10 +110,14 @@ pub fn check_element_args(element_name: &str, arg_keys: &[&Ident]) -> Vec<String
                     "unknown argument `{}` on `<{element_name}>`. Known args: {}",
                     key_str,
                     KNOWN_ARGS.iter()
-                        .filter(|k| !matches!(**k, "render" | "key" | "index" | "label"
+                        .filter(|k| !matches!(**k,
+                            "render" | "key" | "index" | "label"
                             | "estimated_height" | "items" | "trigger" | "copy_text"
                             | "sortable" | "width" | "resizable" | "selectable"
-                            | "on_sort" | "bordered" | "size" | "on_mouse_down"))
+                            | "on_sort" | "bordered" | "size" | "on_mouse_down"
+                            | "on_mouse_up" | "on_mouse_enter" | "on_mouse_leave"
+                            | "navigate_to" | "cfg"
+                        ))
                         .cloned()
                         .collect::<Vec<_>>()
                         .join(", ")
