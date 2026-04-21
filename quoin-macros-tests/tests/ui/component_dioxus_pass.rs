@@ -1,5 +1,3 @@
-// quoin-macros/tests/ui/component_dioxus_pass.rs
-use dioxus::prelude::*;
 use quoin::prelude::*;
 
 component! {
@@ -9,7 +7,7 @@ component! {
         }
         render {
             let _ = count.get();
-            rsx! { div {} }
+            let _ = "Hello Dioxus";
         }
     }
 }

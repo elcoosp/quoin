@@ -12,12 +12,14 @@ quoin-macros = { path = "../quoin-macros" }
 gpui = { git = "https://github.com/zed-industries/zed", optional = true }
 quoin-gpui = { path = "../quoin-gpui", optional = true }
 quoin-ui-gpui = { path = "../quoin-ui-gpui", optional = true }
-gpui-component = { git = "https://github.com/longbridge/gpui-component", optional = true }
+gpui-component = { git = "https://github.com/elcoosp/gpui-component", optional = true, branch = "fix/import-error-corner" }
 
 leptos = { version = "0.8", optional = true }
 quoin-leptos = { path = "../quoin-leptos", optional = true }
 
 dioxus = { version = "0.7", optional = true }
+dioxus-signals = { version = "0.7", optional = true }
+dioxus-core = { version = "0.7", optional = true }
 quoin-dioxus = { path = "../quoin-dioxus", optional = true }
 
 [features]
@@ -25,7 +27,13 @@ default = []
 # Make sure quoin-macros/gpui is activated too!
 gpui = ["dep:gpui", "dep:quoin-gpui", "dep:quoin-ui-gpui", "dep:gpui-component", "quoin-macros/gpui", "quoin/gpui"]
 leptos = ["dep:leptos", "dep:quoin-leptos", "quoin-macros/leptos", "quoin/leptos"]
-dioxus = ["dep:dioxus", "dep:quoin-dioxus", "quoin-macros/dioxus", "quoin/dioxus"]
-
+dioxus = [
+    "dep:dioxus",
+    "dep:dioxus-core",
+    "dep:dioxus-signals",
+    "dep:quoin-dioxus",
+    "quoin-macros/dioxus",
+    "quoin/dioxus"
+]
 [dev-dependencies]
 trybuild = "1.0"

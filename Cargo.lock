@@ -3845,50 +3845,7 @@ dependencies = [
  "enum-iterator",
  "futures",
  "gpui",
- "gpui-component-macros 0.5.1 (git+https://github.com/elcoosp/gpui-component?branch=fix%2Fimport-error-corner)",
- "gpui_macros",
- "html5ever",
- "instant",
- "itertools 0.13.0",
- "log",
- "lsp-types",
- "markdown",
- "markup5ever_rcdom",
- "notify",
- "num-traits",
- "once_cell",
- "paste",
- "regex",
- "ropey",
- "rust-i18n",
- "schemars",
- "serde",
- "serde_json",
- "serde_repr",
- "smallvec",
- "smol",
- "tracing",
- "tree-sitter",
- "tree-sitter-json",
- "unicode-segmentation",
- "uuid",
- "zed-sum-tree",
-]
-
-[[package]]
-name = "gpui-component"
-version = "0.5.1"
-source = "git+https://github.com/longbridge/gpui-component#b67d4ef84c615e27e69c2692893477a1b7f0ab6d"
-dependencies = [
- "aho-corasick",
- "anyhow",
- "async-channel 2.5.0",
- "chrono",
- "core-text",
- "enum-iterator",
- "futures",
- "gpui",
- "gpui-component-macros 0.5.1 (git+https://github.com/longbridge/gpui-component)",
+ "gpui-component-macros",
  "gpui_macros",
  "html5ever",
  "instant",
@@ -3922,16 +3879,6 @@ dependencies = [
 name = "gpui-component-macros"
 version = "0.5.1"
 source = "git+https://github.com/elcoosp/gpui-component?branch=fix%2Fimport-error-corner#c22213e9493a6c1f4af25eefe14c30e37a3721cb"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.117",
-]
-
-[[package]]
-name = "gpui-component-macros"
-version = "0.5.1"
-source = "git+https://github.com/longbridge/gpui-component#b67d4ef84c615e27e69c2692893477a1b7f0ab6d"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7269,8 +7216,10 @@ name = "quoin-macros-tests"
 version = "0.0.0"
 dependencies = [
  "dioxus",
+ "dioxus-core",
+ "dioxus-signals",
  "gpui",
- "gpui-component 0.5.1 (git+https://github.com/longbridge/gpui-component)",
+ "gpui-component",
  "leptos",
  "quoin",
  "quoin-dioxus",
@@ -7290,7 +7239,7 @@ name = "quoin-ui-gpui"
 version = "0.1.0"
 dependencies = [
  "gpui",
- "gpui-component 0.5.1 (git+https://github.com/elcoosp/gpui-component?branch=fix%2Fimport-error-corner)",
+ "gpui-component",
  "quoin-ui",
 ]
 
