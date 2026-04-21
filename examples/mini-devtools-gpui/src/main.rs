@@ -28,7 +28,7 @@ struct MiniDevtools {
     timeline_events: quoin_gpui::GpuiSignal<Vec<TimelineEvent>>,
     cache_entries: quoin_gpui::GpuiSignal<Vec<CacheEntry>>,
     filter_text: quoin_gpui::GpuiSignal<String>,
-    sort_direction: quoin_gpui::GpuiSignal<SortDirection>,
+    _sort_direction: quoin_gpui::GpuiSignal<SortDirection>, // Prefixed to suppress warning
     _quoin_inputs: quoin_ui_gpui::QuoinInputManager,
 }
 
@@ -93,7 +93,7 @@ impl MiniDevtools {
             timeline_events: ctx.create_signal(create_timeline_events()),
             cache_entries: ctx.create_signal(create_cache_entries()),
             filter_text: ctx.create_signal(String::new()),
-            sort_direction: ctx.create_signal(SortDirection::None),
+            _sort_direction: ctx.create_signal(SortDirection::None),
             _ctx: ctx,
             _quoin_inputs: quoin_ui_gpui::QuoinInputManager::new(),
         }
@@ -102,10 +102,18 @@ impl MiniDevtools {
 
 impl Render for MiniDevtools {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        // 1. Extract all signal reads BEFORE the macro
         let active_tab = self.active_tab.get();
         let event_count = self.event_count.get();
         let filter_text_val = self.filter_text.get();
+        let cache_entries = self.cache_entries.get();
 
+        // 2. Clone the signals themselves for use in closures
+        let active_tab_signal = self.active_tab.clone();
+        let event_count_signal = self.event_count.clone();
+        let filter_text_signal = self.filter_text.clone();
+
+        // 3. Compute derived data
         let filtered_events: Vec<TimelineEvent> = self
             .timeline_events
             .get()
@@ -118,8 +126,6 @@ impl Render for MiniDevtools {
             })
             .collect();
 
-        let cache_entries = self.cache_entries.get();
-
         quoin_render! {
             div(class: "flex flex-col gap-4 p-4 bg-gray-900 size-full overflow-y-auto") {
                 div(class: "text-xl font-bold text-white") {
@@ -131,24 +137,21 @@ impl Render for MiniDevtools {
                     }
                 }
                 div(class: "p-2") {
-                    input(class: "px-4 py-2 bg-gray-800 text-white rounded-md", placeholder: "Filter events...", value: self.filter_text)
+                    input(class: "px-4 py-2 bg-gray-800 text-white rounded-md", placeholder: "Filter events...", value: filter_text_signal)
                 }
                 div(class: "text-xs text-green-500") {
                     format!("Filter value: {:?}", filter_text_val)
                 }
 
-                // FIX: Wrap closure in parentheses!
-                tabs(active: active_tab, on_click: (|i| self.active_tab.set(i))) {
+                tabs(active: active_tab, on_click: (|i| active_tab_signal.set(i))) {
                     tab(index: 0, label: "Timeline")
                     tab(index: 1, label: "Cache")
                     tab(index: 2, label: "Signals")
                 }
 
-                // FIX: Wrap closure in parentheses!
-                button(class: "px-4 py-2 bg-blue-600 text-white rounded-md cursor-pointer", primary: true, on_click: (|_| self.event_count.update(|c| *c += 1))) {
+                button(class: "px-4 py-2 bg-blue-600 text-white rounded-md cursor-pointer", primary: true, on_click: (|_| event_count_signal.update(|c| *c += 1))) {
                     "+ Add Event"
                 }
-
                 if[active_tab == 0] {
                     div(class: "flex flex-col gap-1 size-full") {
                         div(class: "text-sm text-gray-400") {
