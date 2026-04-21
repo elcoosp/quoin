@@ -2,6 +2,7 @@ use proc_macro::TokenStream;
 
 #[proc_macro]
 pub fn component(input: TokenStream) -> TokenStream {
+    #[allow(unused)]
     let ast = match syn::parse::<quoin_macros_core::parse::ComponentAst>(input) {
         Ok(ast) => ast,
         Err(e) => return e.to_compile_error().into(),
@@ -32,6 +33,7 @@ pub fn component(input: TokenStream) -> TokenStream {
 
 #[proc_macro]
 pub fn quoin_render(input: TokenStream) -> TokenStream {
+    #[allow(unused)]
     let ast = match syn::parse::<quoin_macros_core::render_ast::RenderNode>(input) {
         Ok(ast) => ast,
         Err(e) => return e.to_compile_error().into(),
@@ -75,6 +77,7 @@ pub fn effect(input: TokenStream) -> TokenStream {
         Ok(eff) => eff,
         Err(e) => return e.to_compile_error().into(),
     };
+    #[allow(unused)]
     let body = &eff.body;
 
     #[cfg(all(feature = "gpui", not(any(feature = "leptos", feature = "dioxus"))))]
