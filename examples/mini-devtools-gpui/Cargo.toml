@@ -13,4 +13,5 @@ quoin = { path = "../../quoin", features = ["gpui"] }
 quoin-gpui = { path = "../../quoin-gpui" }
 quoin-ui = { path = "../../quoin-ui" }
 quoin-ui-gpui = { path = "../../quoin-ui-gpui" }
+ucp-lib = { path = "../ucp-lib", features = ["gpui"] }
 quoin-macros = { path = "../../quoin-macros", features = ["gpui"] }

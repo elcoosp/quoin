@@ -7,41 +7,65 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
     let name = &ast.name;
     let props_name = quote::format_ident!("{}Props", name);
 
-    let props_fields = ast.props.iter().map(|p| {
-        let fname = &p.name;
-        let fty = &p.ty;
-        quote! { pub #fname: #fty }
-    });
+    let props_fields: Vec<_> = ast
+        .props
+        .iter()
+        .map(|p| {
+            let fname = &p.name;
+            let fty = &p.ty;
+            quote! { pub #fname: #fty }
+        })
+        .collect();
 
-    let state_fields = ast.state.iter().map(|s| {
-        let fname = &s.name;
-        let sty = &s.ty;
-        quote! { #fname: quoin_gpui::GpuiSignal<#sty> }
-    });
+    let state_fields: Vec<_> = ast
+        .state
+        .iter()
+        .map(|s| {
+            let fname = &s.name;
+            let sty = &s.ty;
+            quote! { #fname: quoin_gpui::GpuiSignal<#sty> }
+        })
+        .collect();
 
-    let state_inits = ast.state.iter().map(|s| {
-        let fname = &s.name;
-        let default = &s.default;
-        quote! {
-            let #fname = ctx.create_signal(#default);
-        }
-    });
+    let state_inits: Vec<_> = ast
+        .state
+        .iter()
+        .map(|s| {
+            let fname = &s.name;
+            let default = &s.default;
+            quote! {
+                let #fname = ctx.create_signal(#default);
+            }
+        })
+        .collect();
 
-    let state_field_assignments = ast.state.iter().map(|s| {
-        let fname = &s.name;
-        quote! { #fname }
-    });
+    let state_field_assignments: Vec<_> = ast
+        .state
+        .iter()
+        .map(|s| {
+            let fname = &s.name;
+            quote! { #fname }
+        })
+        .collect();
 
-    let state_destructure = ast.state.iter().map(|s| {
-        let fname = &s.name;
-        quote! { let #fname = &self.#fname; }
-    });
+    let state_clones: Vec<_> = ast
+        .state
+        .iter()
+        .map(|s| {
+            let fname = &s.name;
+            quote! { let #fname = self.#fname.clone(); }
+        })
+        .collect();
 
-    let action_methods = ast.actions.iter().map(|func| {
-        let sig = &func.sig;
-        let block = &func.block;
-        quote! { #sig #block }
-    });
+    let action_methods: Vec<_> = ast
+        .actions
+        .iter()
+        .map(|func| {
+            let sig = &func.sig;
+            let block = &func.block;
+            quote! { #sig #block }
+        })
+        .collect();
 
     let render_stmts = &ast.render.stmts;
 
@@ -51,9 +75,20 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
             #(#props_fields),*
         }
 
+        impl Default for #props_name {
+            fn default() -> Self {
+                Self {
+                    #(
+                        #props_fields: Default::default()
+                    ),*
+                }
+            }
+        }
+
         #vis struct #name {
             props: #props_name,
-            #(#state_fields),*
+            #(#state_fields,)* // FIX 1: Comma inside repetition
+            _quoin_inputs: quoin_ui_gpui::QuoinInputManager,
         }
 
         impl #name {
@@ -63,6 +98,7 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
                 Self {
                     props,
                     #(#state_field_assignments,)*
+                    _quoin_inputs: quoin_ui_gpui::QuoinInputManager::new(),
                 }
             }
 
@@ -70,9 +106,9 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
         }
 
         impl gpui::Render for #name {
-            fn render(&mut self, _window: &mut gpui::Window, cx: &mut gpui::Context<Self>) -> impl gpui::IntoElement {
+            fn render(&mut self, window: &mut gpui::Window, cx: &mut gpui::Context<Self>) -> impl gpui::IntoElement {
                 use gpui::*;
-                #(#state_destructure)*
+                #(#state_clones)*
                 #(#render_stmts)*
             }
         }

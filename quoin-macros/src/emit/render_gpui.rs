@@ -72,10 +72,14 @@ fn emit_button(el: &Element) -> TokenStream {
     }
 
     if let Some(handler_expr) = find_arg_expr(el, "on_click") {
+        // Wrap handler in Rc so it can be cloned and called multiple times (Fn)
         chain = quote! {
-            #chain.on_mouse_down(gpui::MouseButton::Left, move |_, _, _| {
-                (#handler_expr)(())
-            })
+            {
+                let __on_click = ::std::rc::Rc::new(#handler_expr);
+                #chain.on_mouse_down(gpui::MouseButton::Left, move |_, _, _| {
+                    __on_click(()) // Pass the unit argument expected by |_| closures
+                })
+            }
         };
     }
 
@@ -157,8 +161,6 @@ fn emit_input(el: &Element) -> TokenStream {
         }
     }
 
-    // FIX: Use .appearance(false) to strip default Input styling,
-    // allowing it to inherit text color from the Tailwind-styled parent div.
     let input_construction = if has_class {
         quote! {
             gpui::div()
@@ -227,7 +229,8 @@ fn emit_tabs(el: &Element) -> TokenStream {
     quote! {
         {
             let __active = #active_expr;
-            let __on_click = #on_click_expr;
+            // Wrap in Rc to allow cloning across multiple tab iterations
+            let __on_click = ::std::rc::Rc::new(#on_click_expr);
             let __labels: Vec<(usize, String)> = vec![#(#tab_labels),*];
             let __tab_elements: Vec<gpui::AnyElement> = __labels.iter().map(|(idx, label)| {
                 let __is_active = *idx == __active;
@@ -244,7 +247,6 @@ fn emit_tabs(el: &Element) -> TokenStream {
                 }
 
                 let __idx = *idx;
-                // FIX: Clone the callback for each tab iteration so we satisfy FnMut
                 let __tab_on_click = __on_click.clone();
                 __el.on_mouse_down(gpui::MouseButton::Left, move |_, _, _| {
                     __tab_on_click(__idx)
@@ -255,6 +257,7 @@ fn emit_tabs(el: &Element) -> TokenStream {
         }
     }
 }
+
 fn emit_data_table(el: &Element) -> TokenStream {
     let rows_expr = find_arg_expr(el, "rows").expect("data_table requires 'rows'");
 
@@ -354,10 +357,14 @@ fn emit_generic_element(el: &Element) -> TokenStream {
     }
 
     if let Some(handler_expr) = find_arg_expr(el, "on_click") {
+        // Wrap handler in Rc so it can be cloned and called multiple times (Fn)
         chain = quote! {
-            #chain.on_mouse_down(gpui::MouseButton::Left, move |_, _, _| {
-                (#handler_expr)(())
-            })
+            {
+                let __on_click = ::std::rc::Rc::new(#handler_expr);
+                #chain.on_mouse_down(gpui::MouseButton::Left, move |_, _, _| {
+                    __on_click(()) // Pass the unit argument expected by |_| closures
+                })
+            }
         };
     }
 
@@ -386,7 +393,6 @@ fn emit_for(for_node: &ForNode) -> TokenStream {
     let pat = &for_node.pat;
     let iterable = &for_node.iterable;
     let body = emit_nodes(&for_node.body);
-    // FIX: Added missing turbofish and closing bracket for .collect()
     quote! {
         {
             gpui::div().children(
