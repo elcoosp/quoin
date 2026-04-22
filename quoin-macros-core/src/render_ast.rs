@@ -273,8 +273,6 @@ const KNOWN_ELEMENTS: &[&str] = &[
     "styled_text",
     "icon",
     "scroll_area",
-    "icon",
-    "scroll_area",
     "tab_bar",
 ];
 

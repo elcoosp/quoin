@@ -198,6 +198,7 @@ build-examples:
     cargo build --manifest-path examples/ucp-lib/Cargo.toml --features gpui
     cargo build --manifest-path examples/ucp-lib/Cargo.toml --features leptos
     cargo build --manifest-path examples/ucp-lib/Cargo.toml --features dioxus
+    @echo "Note: ucp-demo-leptos-shadcn requires shadcn deps — check crate availability"
     @echo "All examples build OK"
 
 # ---------------------------------------------------------------------

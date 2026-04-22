@@ -253,6 +253,21 @@ fn emit_scroll_area(
     bindings: &mut Vec<TokenStream>,
     inside_for: bool,
 ) -> TokenStream {
+    #[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
+    {
+        return emit_scroll_area_shadcn(el, bindings, inside_for);
+    }
+    #[cfg(not(all(feature = "leptos", feature = "leptos-shadcn")))]
+    {
+        emit_scroll_area_plain(el, bindings, inside_for)
+    }
+}
+
+fn emit_scroll_area_plain(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
     let direction = el
         .args
         .iter()
@@ -295,6 +310,33 @@ fn emit_scroll_area(
         children.push(emit_node(child, bindings, inside_for));
     }
     quote! { <div #(#attrs)*> #(#children)* </div> }
+}
+
+#[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
+fn emit_scroll_area_shadcn(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
+    let class_expr = el.args.iter().find(|a| a.key == "class").map(|a| &a.value);
+
+    let mut children: Vec<TokenStream> = Vec::new();
+    for child in &el.children {
+        children.push(emit_node(child, bindings, inside_for));
+    }
+
+    match class_expr {
+        Some(cls) => quote! {
+            <leptos_shadcn_scroll_area::ScrollArea class=#cls>
+                #(#children)*
+            </leptos_shadcn_scroll_area::ScrollArea>
+        },
+        None => quote! {
+            <leptos_shadcn_scroll_area::ScrollArea>
+                #(#children)*
+            </leptos_shadcn_scroll_area::ScrollArea>
+        },
+    }
 }
 
 // ---------------------------------------------------------------------------
