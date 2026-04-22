@@ -233,3 +233,6 @@ test-global:
 # Clear trybuild cache (use when tests show stale errors)
 clean-trybuild:
     rm -rf target/tests/trybuild
+
+wr:
+    watchexec -w ./wr.sh --clear -r "sh ./wr.sh"

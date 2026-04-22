@@ -79,6 +79,9 @@ thread_local! {
         std::cell::RefCell::new(HashMap::new());
 }
 
+/// Type alias for the update notifier callback stored in `GpuiContext`.
+type UpdateNotifier = Arc<dyn Fn() + Send + Sync>;
+
 /// The GPUI context, which holds an optional notification callback.
 /// The view is responsible for setting this callback to enable automatic UI updates.
 #[derive(Clone)]
@@ -97,9 +100,9 @@ thread_local! {
 pub struct GpuiContext {
     pub foreground: SendWrapper<ForegroundExecutor>,
     pub background: Option<SendWrapper<BackgroundExecutor>>,
-    // Callback invoked when any signal created from this context is mutated.
-    // Stored as Arc<Mutex<...>> to satisfy Send + Sync bounds.
-    update_notifier: Arc<Mutex<Option<Arc<dyn Fn() + Send + Sync>>>>,
+    /// Callback invoked when any signal created from this context is mutated.
+    /// Stored as Arc<Mutex<...>> to satisfy Send + Sync bounds.
+    update_notifier: Arc<Mutex<Option<UpdateNotifier>>>,
 }
 
 impl GpuiContext {
