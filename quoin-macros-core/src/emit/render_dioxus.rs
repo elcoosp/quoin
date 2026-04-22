@@ -100,7 +100,6 @@ fn emit_html_el(el: &Element, name_str: &str) -> TokenStream {
         let key_str = arg.key.to_string();
         let value = &arg.value;
         match key_str.as_str() {
-            // Event handlers — handler is already wrapped in { } by wrap_dioxus_handler
             "on_click" => {
                 let handler = wrap_dioxus_handler(value);
                 items.push(quote! { onclick: #handler })
@@ -129,7 +128,6 @@ fn emit_html_el(el: &Element, name_str: &str) -> TokenStream {
                 let handler = wrap_dioxus_handler(value);
                 items.push(quote! { onchange: #handler })
             }
-            // input value needs special handling
             "value" => {
                 if tag == "input" {
                     items.push(quote! { value: {#value.get()} });
@@ -137,15 +135,11 @@ fn emit_html_el(el: &Element, name_str: &str) -> TokenStream {
                     items.push(quote! { value: {#value} });
                 }
             }
-            // Skip quoin-specific args that aren't HTML attributes
             "primary" | "ghost" | "destructive" | "active" | "children" | "trigger"
             | "rows" | "striped" | "items" | "estimated_height" | "copy_text"
             | "sortable" | "width" | "resizable" | "selectable" | "on_sort"
             | "bordered" | "size" | "navigate_to" | "cfg" | "label" | "render"
             | "key" | "index" => {}
-            // ALL other attributes: ALWAYS wrap value in { } for rsx! compatibility.
-            // Dioxus rsx! requires either string literals or { expr } blocks for attr values.
-            // Bare expressions like filter_text.get() cause "expected identifier" parse errors.
             _ => {
                 let key = proc_macro2::Ident::new(&key_str, proc_macro2::Span::call_site());
                 items.push(quote! { #key: {#value} });
@@ -230,6 +224,8 @@ fn emit_data_table(el: &Element) -> TokenStream {
         })
         .collect();
 
+    // Each td cell must wrap the closure call in braces so rsx! parses it
+    // as an expression child, not as an attribute or element name.
     let row_cells: Vec<TokenStream> = el
         .children
         .iter()
@@ -242,7 +238,8 @@ fn emit_data_table(el: &Element) -> TokenStream {
                         .find(|a| a.key == "render")
                         .map(|a| &a.value)
                         .unwrap();
-                    return Some(quote!(td { (#render_closure)(&__row) }));
+                    // Wrap in extra braces: td { { (closure)(row) } }
+                    return Some(quote!(td { { (#render_closure)(&__row) } }));
                 }
             }
             None
