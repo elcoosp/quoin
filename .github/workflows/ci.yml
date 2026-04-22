@@ -1,0 +1,241 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # -----------------------------------------------------------------------
+  # Lint & format check (no framework features needed)
+  # -----------------------------------------------------------------------
+  check:
+    name: Check & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        components: rustfmt, clippy
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@cargo-nextest
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-check-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-check-
+
+      - name: Run just check
+        run: just check
+
+  # -----------------------------------------------------------------------
+  # Core & adapter tests (non-GPUI — no system deps needed)
+  # -----------------------------------------------------------------------
+  test-core:
+    name: Test Core & Non-GPUI Adapters
+    runs-on: ubuntu-latest
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        recipe:
+          - test-quoin
+          - test-quoin-leptos
+          - test-quoin-dioxus
+          - test-quoin-floem
+          - test-quoin-xilem
+          - test-conformance-leptos
+          - test-conformance-dioxus
+          - test-conformance-floem
+          - test-conformance-xilem
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@cargo-nextest
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-test-${{ matrix.recipe }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-test-
+
+      - name: Run just ${{ matrix.recipe }}
+        run: just ${{ matrix.recipe }}
+
+  # -----------------------------------------------------------------------
+  # Macro UI tests (one per framework feature — trybuild is sequential)
+  # -----------------------------------------------------------------------
+  test-macros:
+    name: Macro UI Tests
+    runs-on: ubuntu-latest
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        recipe:
+          - test-quoin-macros-leptos
+          - test-quoin-macros-dioxus
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@cargo-nextest
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-macros-${{ matrix.recipe }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-macros-
+
+      - name: Run just ${{ matrix.recipe }}
+        run: just ${{ matrix.recipe }}
+
+  # -----------------------------------------------------------------------
+  # GPUI tests — requires Linux system libraries
+  # -----------------------------------------------------------------------
+  test-gpui:
+    name: Test GPUI Adapter
+    runs-on: ubuntu-22.04
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@cargo-nextest
+
+      - name: Install GPUI system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libx11-dev \
+            libxcb1-dev \
+            libxkbcommon-dev \
+            libwayland-dev \
+            libfontconfig1-dev \
+            libssl-dev
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-gpui-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-gpui-
+
+      - name: Run just test-quoin-gpui
+        run: just test-quoin-gpui
+
+      - name: Run just test-conformance-gpui
+        run: just test-conformance-gpui
+
+      - name: Run just test-quoin-macros-gpui
+        run: just test-quoin-macros-gpui
+
+  # -----------------------------------------------------------------------
+  # Build all examples (compile-check, no windows opened)
+  # -----------------------------------------------------------------------
+  build-examples:
+    name: Build Examples
+    runs-on: ubuntu-22.04
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install GPUI system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libx11-dev \
+            libxcb1-dev \
+            libxkbcommon-dev \
+            libwayland-dev \
+            libfontconfig1-dev \
+            libssl-dev
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-examples-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-examples-
+
+      - name: Run just build-examples
+        run: just build-examples
+
+  # -----------------------------------------------------------------------
+  # Full test suite (nextest run --all)
+  # -----------------------------------------------------------------------
+  test-all:
+    name: Test All (nextest)
+    runs-on: ubuntu-22.04
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@cargo-nextest
+
+      - name: Install GPUI system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libx11-dev \
+            libxcb1-dev \
+            libxkbcommon-dev \
+            libwayland-dev \
+            libfontconfig1-dev \
+            libssl-dev
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-all-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-all-
+
+      - name: Run just test
+        run: just test

@@ -1,3 +1,71 @@
+//! Leptos adapter for quoin — reactive signals, async executors, and clipboard helpers.
+//!
+//! This crate implements [`ReactiveContext`] for the [Leptos](https://leptos.dev/)
+//! web framework, enabling framework-agnostic hooks and state to run inside
+//! Leptos components on both WASM (CSR) and server (SSR).
+//!
+//! # Core Types
+//!
+//! | Type | Role |
+//! |------|------|
+//! | [`LeptosContext`] | A zero-sized context. Creates signals via Leptos's `RwSignal`. |
+//! | [`LeptosSignal<T>`] | A `Clone` signal backed by `RwSignal<SendWrapper<T>>`. |
+//! | [`LeptosExecutor`] | Spawns tasks on a blocking `std::thread` (see notes below). |
+//! | [`LeptosJoinHandle<T>`] | A `JoinHandle` wrapping a oneshot channel for result retrieval. |
+//!
+//! # Creating a Context
+//!
+//! Call `LeptosContext::new()` inside any Leptos component or effect scope:
+//!
+//! ```ignore
+//! #[component]
+//! fn MyComponent() -> impl IntoView {
+//!     let ctx = LeptosContext::new();
+//!     let count = ctx.create_signal(0u32);
+//!     // ...
+//! }
+//! ```
+//!
+//! # Signal Threading Model
+//!
+//! Leptos signals are **not** `Send`. To satisfy quoin's `Signal: Send + Sync` bounds,
+//! values are wrapped in [`SendWrapper`](https://docs.rs/send_wrapper). This means:
+//!
+//! - `LeptosSignal<T>` is `Clone + Send + Sync` and can cross thread boundaries.
+//! - The underlying `RwSignal` can only be accessed on the thread that created it
+//!   (typically the main/WASM thread). Accessing from another thread will **panic**.
+//! - In practice this is fine: Leptos components run on the main thread, and
+//!   `LeptosExecutor` spawns work on background threads that communicate results
+//!   back via channels (not via signal mutations).
+//!
+//! # Executor Limitations
+//!
+//! The current `LeptosExecutor` spawns futures on `std::thread` with
+//! `futures::executor::block_on`. This is a **blocking** executor — it does not
+//! use Leptos's `spawn_local` or `tokio` runtime. For production use with async
+//! I/O, you should:
+//!
+//! 1. Create your own tokio/runtime and spawn via `leptos::task::spawn_local`.
+//! 2. Use the signal only for storing the final result.
+//!
+//! This will be improved in a future version.
+//!
+//! # Global State (Reactive Owner Tree)
+//!
+//! `provide_global` wraps the value in `RwSignal<SendWrapper<T>>` and calls
+//! Leptos's `provide_context`. `use_global` retrieves it via `use_context`.
+//!
+//! - Globals are scoped to the current reactive [`Owner`](leptos::prelude::Owner).
+//! - A single `provide_global` at the app root propagates to all descendants.
+//! - The returned `LeptosSignal` shares the same underlying `RwSignal`, so
+//!   mutations are visible to all holders.
+//! - Automatic cleanup when the owner is dropped.
+//!
+//! # Clipboard Helper
+//!
+//! The [`clipboard_write_text`] function provides a cross-platform (WASM) way to
+//! copy text, used internally by the `clipboard_button` element in `quoin_render!`.
+
 use leptos::prelude::*;
 use quoin_core::{Executor, JoinHandle, ReactiveContext, Signal};
 use send_wrapper::SendWrapper;

@@ -1,3 +1,69 @@
+//! GPUI adapter for quoin — reactive signals, async executors, and app bootstrap.
+//!
+//! This crate implements [`ReactiveContext`] for Zed's GPUI framework, enabling
+//! framework-agnostic hooks and state to run inside GPUI windows and views.
+//!
+//! # Core Types
+//!
+//! | Type | Role |
+//! |------|------|
+//! | [`GpuiContext`] | Holds foreground/background executors and an update notifier. The primary entry point for creating signals. |
+//! | [`GpuiSignal<T>`] | A `Clone + Send + Sync` signal backed by `Arc<RwLock<T>>`. Mutations automatically call `request_update()` to trigger view re-renders. |
+//! | [`GpuiExecutor`] | Spawns tasks on GPUI's foreground or background executor. |
+//! | [`GpuiJoinHandle<T>`] | A `JoinHandle` wrapping GPUI's `Task` with a oneshot channel for result retrieval. |
+//!
+//! # Creating a Context
+//!
+//! The idiomatic way is to convert from a GPUI `Context`:
+//!
+//! ```ignore
+//! impl MyView {
+//!     fn new(cx: &mut Context<Self>) -> Self {
+//!         let ctx: GpuiContext = cx.into();
+//!         let signal = ctx.create_signal(0u32);
+//!         // ...
+//!     }
+//! }
+//! ```
+//!
+//! # Automatic Re-rendering
+//!
+//! GPUI does not track signal reads automatically. You must connect the
+//! context to your view's update cycle **once** during construction:
+//!
+//! ```ignore
+//! ctx.set_view_update_notifier(cx.weak_entity(), window.to_async(cx));
+//! ```
+//!
+//! After this, any mutation to a `GpuiSignal` created from this context will
+//! call `cx.notify()`, which schedules a re-render of the view.
+//!
+//! If you don't call `set_view_update_notifier`, signal mutations will still
+//! update the underlying value but the view will **not** repaint.
+//!
+//! # Global State (Thread-Local)
+//!
+//! `provide_global` and `use_global` use a **thread-local** type-map. This means:
+//!
+//! - Globals are only visible on the thread that registered them.
+//! - If your app opens windows on multiple threads, call `provide_global` on each.
+//! - Each `use_global` call returns an **independent copy** of the value wrapped
+//!   in a new `Arc<RwLock<T>>`. Mutations do not propagate back to other copies.
+//!
+//! # App Bootstrap
+//!
+//! The [`launch`] function wraps `gpui_platform::application().run()`. Combined
+//! with the `run_app!` macro, a full GPUI app reduces to:
+//!
+//! ```ignore
+//! run_app!(MyView);
+//! ```
+//!
+//! # Minimum GPUI Version
+//!
+//! This crate tracks the `main` branch of the [Zed repository](https://github.com/zed-industries/zed).
+//! Breaking changes in GPUI may propagate here without a semver bump.
+
 use gpui::{AsyncWindowContext, BackgroundExecutor, Context, ForegroundExecutor, Task, WeakEntity};
 use quoin_core::{Executor, JoinHandle, ReactiveContext, Signal as QuoinSignal};
 use send_wrapper::SendWrapper;

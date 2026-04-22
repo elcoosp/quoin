@@ -1,3 +1,59 @@
+//! Dioxus adapter for quoin — reactive signals and async executors.
+//!
+//! This crate implements [`ReactiveContext`] for the [Dioxus](https://dioxuslabs.com/)
+//! framework, enabling framework-agnostic hooks and state to run inside
+//! Dioxus components.
+//!
+//! # Core Types
+//!
+//! | Type | Role |
+//! |------|------|
+//! | [`DioxusContext`] | A zero-sized context. Creates signals via Dioxus's `Signal`. |
+//! | [`DioxusSignal<T>`] | A `Clone` signal backed by `RefCell<Signal<T>>`. |
+//! | [`DioxusExecutor`] | Spawns tasks on a blocking `std::thread`. |
+//! | [`DioxusJoinHandle<T>`] | A `JoinHandle` wrapping a oneshot channel. |
+//!
+//! # Creating a Context
+//!
+//! Call `DioxusContext::new()` inside a Dioxus component, typically via `use_hook`:
+//!
+//! ```ignore
+//! fn app() -> Element {
+//!     let ctx = use_hook(DioxusContext::new);
+//!     let count = ctx.create_signal(0u32);
+//!     // ...
+//! }
+//! ```
+//!
+//! # Signal Threading Model
+//!
+//! Dioxus signals are `Copy` but tied to the Dioxus reactive graph. This adapter
+//! wraps them in `RefCell<Signal<T>>` to satisfy quoin's `Signal` trait, which
+//! requires `&self` access (no `&mut self`).
+//!
+//! - `DioxusSignal<T>` is `Clone` and can be used within a single component tree.
+//! - The `RefCell` borrow rules apply: you cannot hold a `.read()` borrow while
+//!   calling `.write()`. In practice this means don't nest signal reads/writes
+//!   within the same expression.
+//! - Signals are **not** thread-safe. Do not send `DioxusSignal` across threads.
+//!
+//! # Executor Limitations
+//!
+//! Like the Leptos adapter, `DioxusExecutor` uses `std::thread` + `block_on`.
+//! Dioxus has its own async runtime (`dioxus::prelude::spawn`), but it is not
+//! exposed as a standalone spawner. For background I/O, spawn via Dioxus's
+//! mechanisms and store results in signals.
+//!
+//! # Global State (Scope-Based)
+//!
+//! `provide_global` calls Dioxus's `provide_context`. `use_global` calls
+//! `try_consume_context`.
+//!
+//! - Globals are scoped to the Dioxus component scope (`ScopeId`).
+//! - `try_consume_context` is used (rather than `consume_context`) to avoid
+//!   removing the context on first access, allowing multiple consumers.
+//! - Cleaned up when the scope is released.
+
 use dioxus::prelude::*;
 use quoin_core::{Executor, JoinHandle, ReactiveContext, Signal as QuoinSignal};
 use std::cell::RefCell;
@@ -9,12 +65,6 @@ use std::pin::Pin;
 ///
 /// Use `DioxusContext::new()` inside a Dioxus component.
 pub struct DioxusContext;
-
-impl Default for DioxusContext {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 impl DioxusContext {
     pub fn new() -> Self {

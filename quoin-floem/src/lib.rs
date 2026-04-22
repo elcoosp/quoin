@@ -1,3 +1,45 @@
+//! Floem adapter for quoin — reactive signals and async executors.
+//!
+//! This crate implements [`ReactiveContext`] for the [Floem](https://github.com/lapce/floem)
+//! UI framework, enabling framework-agnostic hooks and state to run inside
+//! Floem views.
+//!
+//! # Core Types
+//!
+//! | Type | Role |
+//! |------|------|
+//! | [`FloemContext`] | A zero-sized context. Creates signals via Floem's `RwSignal`. |
+//! | [`FloemSignal<T>`] | A `Clone + Send + Sync` signal backed by `RwSignal<SendWrapper<T>>`. |
+//! | [`FloemExecutor`] | Spawns tasks on a blocking `std::thread`. |
+//! | [`FloemJoinHandle<T>`] | A `JoinHandle` wrapping a oneshot channel. |
+//!
+//! # Creating a Context
+//!
+//! ```ignore
+//! fn app_view() -> impl IntoView {
+//!     let ctx = FloemContext::new();
+//!     let count = ctx.create_signal(0u32);
+//!     // ...
+//! }
+//! ```
+//!
+//! # Signal Threading Model
+//!
+//! Like the Leptos adapter, Floem signals are not inherently `Send`. Values are
+//! wrapped in [`SendWrapper`](https://docs.rs/send_wrapper) to satisfy quoin's bounds:
+//!
+//! - `FloemSignal<T>` is `Clone + Send + Sync`.
+//! - The underlying `RwSignal` must be accessed on the main thread.
+//! - Safe for storing in structs that cross thread boundaries, but **do not**
+//!   call `.get()` / `.set()` from a background thread.
+//!
+//! # Global State (Thread-Local)
+//!
+//! `provide_global` and `use_global` use a **thread-local** type-map (same pattern
+//! as the GPUI adapter). Globals are only visible on the registering thread.
+//!
+//! Each `use_global` call creates an independent copy of the value in a new signal.
+
 use floem_reactive::{RwSignal, SignalGet, SignalUpdate, SignalWith};
 use quoin_core::{Executor, JoinHandle, ReactiveContext, Signal};
 use send_wrapper::SendWrapper;
@@ -39,9 +81,7 @@ impl ReactiveContext for FloemContext {
 
     fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T) {
         GLOBAL_STORE.with(|store| {
-            store
-                .borrow_mut()
-                .insert(TypeId::of::<T>(), Box::new(value));
+            store.borrow_mut().insert(TypeId::of::<T>(), Box::new(value));
         });
     }
 
