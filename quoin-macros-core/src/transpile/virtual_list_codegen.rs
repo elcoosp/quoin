@@ -1,3 +1,17 @@
+//! Virtual list (lazy scrolling) code generation.
+//!
+//! Generates framework-specific code for rendering large lists with
+//! viewport-based rendering. Currently all implementations fall back to
+//! simple scrollable containers because true virtual scrolling requires
+//! framework-specific entity/lifecycle management that cannot be expressed
+//! inline in `quoin_render!`:
+//!
+//! - **GPUI** ([`generate_gpui_virtual_list`]): `v_virtual_list` requires
+//!   `Entity<V>`, which cannot be created in a `Render` impl. Falls back to
+//!   `div().size_full().overflow_y_scroll()`.
+//! - **Leptos / Dioxus**: Stub implementations. Future work will integrate
+//!   with `leptos-virtual-scroll` or Dioxus virtual list components.
+
 #[allow(unused)]
 use proc_macro2::TokenStream;
 #[allow(unused)]

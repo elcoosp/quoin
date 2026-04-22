@@ -1,3 +1,38 @@
+//! Render AST — parsing and data structures for `quoin_render!`.
+//!
+//! This module defines the [`RenderNode`] enum, which is the intermediate
+//! representation produced by parsing `quoin_render!` input. Each variant
+//! corresponds to a syntactic construct in the macro DSL:
+//!
+//! - [`RenderNode::Element`] — an HTML-like element with arguments and children
+//!   (e.g., `div(class: "flex") { "Hello" }`).
+//! - [`RenderNode::Text`] — a string literal child (e.g., `"Hello"`).
+//! - [`RenderNode::Expr`] — an arbitrary Rust expression wrapped in braces
+//!   (e.g., `{my_expr}`).
+//! - [`RenderNode::If`] — a conditional branch with optional else/else-if chains
+//!   (e.g., `if[cond] { … } else { … }`).
+//! - [`RenderNode::For`] — a loop over an iterable
+//!   (e.g., `for[item in list] { … }`).
+//! - [`RenderNode::Root`] — a sequence of top-level nodes (the entire macro body).
+//!
+//! # Parsing Flow
+//!
+//! 1. The `quoin_render!` proc-macro receives raw tokens and calls
+//!    `syn::parse::<RenderNode>(input)`.
+//! 2. [`RenderNode::parse`] inspects the next token(s) to decide which variant
+//!    to parse:
+//!    - `if` followed by `[` → [`IfNode`]
+//!    - `for` followed by `[` → [`ForNode`]
+//!    - A string literal → [`RenderNode::Text`]
+//!    - An identifier followed by `(` that matches a known element name → [`Element`]
+//!    - Anything else → [`RenderNode::Expr`]
+//! 3. [`Element::parse`] reads outer attributes, the element name, a parenthesized
+//!    argument list (`key: value, …`), and an optional brace-delimited children block.
+//! 4. [`parse_nodes`] is called recursively to fill children lists.
+//!
+//! After parsing, the `RenderNode` tree is passed to a framework-specific emit
+//! function (see [`crate::emit`]) that converts it into framework-native Rust code.
+
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::{Attribute, Expr, Ident, LitStr, Result, Token, braced, bracketed, parenthesized};
@@ -110,7 +145,7 @@ impl Parse for Element {
         {
             let arg_keys: Vec<&Ident> = args.iter().map(|a| &a.key).collect();
             let warns = crate::render_ast_diag::check_element_args(&name.to_string(), &arg_keys);
-            if let Some(w) = warns.into_iter().next() {
+            for w in warns {
                 return Err(syn::Error::new_spanned(&name, w));
             }
         }

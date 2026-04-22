@@ -1,3 +1,27 @@
+//! Transpilation utilities for `quoin_render!`.
+//!
+//! This module contains helpers and framework-specific code generators that
+//! transform high-level quoin DSL constructs into framework-native code.
+//!
+//! # Submodule Overview
+//!
+//! | Submodule              | Description |
+//! |------------------------|-------------|
+//! | [`tailwind`]           | Transpiles Tailwind CSS class strings (e.g., `"flex gap-4 p-2 bg-blue-600"`) into GPUI builder-method chains (e.g., `.flex().gap(px(16.0)).p(px(8.0)).bg(rgb(0x2563eb))`). Handles `hover:` prefixed classes by emitting `.hover(\|s\| …)` callbacks. |
+//! | [`table_codegen`]      | Generates data-table render code: GPUI table delegates with `TableDelegate` impl, Leptos HTML `<table>` structures, and Dioxus `rsx!` tables. Handles sortable columns, striping, and per-column render closures. |
+//! | [`dropdown_codegen`]   | Generates dropdown menu code: GPUI absolute-positioned overlays with trigger elements and menu items; stub implementations for Leptos and Dioxus. |
+//! | [`virtual_list_codegen`]| Generates virtual list code. Currently falls back to a simple scrollable container in all frameworks because true virtual scrolling requires `Entity<V>` in GPUI and specialized components in Leptos/Dioxus. |
+//! | [`rich_text_codegen`]  | Generates rich text / styled text render code using `gpui_component::StyledText` (GPUI), inline `<span>` elements (Leptos), or Dioxus `rsx!` spans. Supports styled runs with per-run colors and backgrounds. |
+//!
+//! # Shared Utilities
+//!
+//! The module also provides AST visitor helpers used across all emitters:
+//!
+//! - [`collect_handler_idents`] — collects single-segment path idents from a closure body (skipping nested closures).
+//! - [`collect_block_idents`] — collects idents from a block, including nested closures.
+//! - [`collect_handler_idents_excluding_params`] — like `collect_handler_idents` but filters out closure parameter names.
+//! - [`force_move_on_closure`] — ensures the outermost closure in an expression has the `move` keyword.
+
 pub mod dropdown_codegen;
 pub mod rich_text_codegen;
 pub mod table_codegen;
@@ -17,8 +41,9 @@ pub fn collect_handler_idents(expr: &syn::Expr) -> Vec<proc_macro2::Ident> {
     let mut collector = PathIdentCollectorSkipClosures(vec![]);
     collector.visit_expr(body_expr);
     collector
-        .0.sort_by_key(|a| a.to_string());
-    collector.0.dedup_by(|a, b| *b == a.to_string());
+        .0
+        .sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+    collector.0.dedup_by(|a, b| a.to_string() == b.to_string());
     collector.0
 }
 
@@ -27,8 +52,9 @@ pub fn collect_block_idents(block: &syn::Block) -> Vec<proc_macro2::Ident> {
     let mut collector = PathIdentCollectorAll(vec![]);
     collector.visit_block(block);
     collector
-        .0.sort_by_key(|a| a.to_string());
-    collector.0.dedup_by(|a, b| *b == a.to_string());
+        .0
+        .sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+    collector.0.dedup_by(|a, b| a.to_string() == b.to_string());
     collector.0
 }
 
@@ -82,10 +108,11 @@ struct PathIdentCollectorSkipClosures(Vec<proc_macro2::Ident>);
 
 impl<'ast> Visit<'ast> for PathIdentCollectorSkipClosures {
     fn visit_expr_path(&mut self, expr_path: &'ast syn::ExprPath) {
-        if expr_path.path.segments.len() == 1 && expr_path.path.leading_colon.is_none()
-            && let Some(seg) = expr_path.path.segments.last() {
+        if expr_path.path.segments.len() == 1 && expr_path.path.leading_colon.is_none() {
+            if let Some(seg) = expr_path.path.segments.last() {
                 self.0.push(seg.ident.clone());
             }
+        }
         syn::visit::visit_expr_path(self, expr_path);
     }
 
@@ -96,10 +123,11 @@ struct PathIdentCollectorAll(Vec<proc_macro2::Ident>);
 
 impl<'ast> Visit<'ast> for PathIdentCollectorAll {
     fn visit_expr_path(&mut self, expr_path: &'ast syn::ExprPath) {
-        if expr_path.path.segments.len() == 1 && expr_path.path.leading_colon.is_none()
-            && let Some(seg) = expr_path.path.segments.last() {
+        if expr_path.path.segments.len() == 1 && expr_path.path.leading_colon.is_none() {
+            if let Some(seg) = expr_path.path.segments.last() {
                 self.0.push(seg.ident.clone());
             }
+        }
         syn::visit::visit_expr_path(self, expr_path);
     }
 }

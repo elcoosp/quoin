@@ -1,4 +1,3 @@
-
 # Contributor Covenant Code of Conduct
 
 ## Our Pledge
@@ -32,7 +31,7 @@ Examples of unacceptable behavior include:
   advances of any kind
 * Trolling, insulting or derogatory comments, and personal or political attacks
 * Public or private harassment
-* Publishing others` private information, such as a physical or email
+* Publishing others' private information, such as a physical or email
   address, without their explicit permission
 * Other conduct which could reasonably be considered inappropriate in a
   professional setting
@@ -53,12 +52,16 @@ decisions when appropriate.
 
 This Code of Conduct applies within all community spaces, and also applies when
 an individual is officially representing the community in public spaces.
+Examples of representing our community include using an official e-mail address,
+posting via an official social media account, or acting as an appointed
+representative at an online or offline event.
 
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported to the community leaders responsible for enforcement at
-[INSERT CONTACT METHOD].
+**conduct@quoin.dev** or by opening a [private GitHub issue](https://github.com/elcoosp/quoin/issues/new?template=security.md).
+
 All complaints will be reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the
@@ -113,15 +116,15 @@ the community.
 ## Attribution
 
 This Code of Conduct is adapted from the [Contributor Covenant][homepage],
-version 2.0, available at
-https://www.contributor-covenant.org/version/2/0/code_of_conduct.html.
+version 2.1, available at
+<https://www.contributor-covenant.org/version/2/1/code_of_conduct.html>.
 
-Community Impact Guidelines were inspired by [Mozilla`s code of conduct
-enforcement ladder](https://github.com/mozilla/diversity).
-
-[homepage]: https://www.contributor-covenant.org
+Community Impact Guidelines were inspired by [Mozilla's code of conduct
+enforcement ladder][mozilla].
 
 For answers to common questions about this code of conduct, see the FAQ at
-https://www.contributor-covenant.org/faq. Translations are available at
-https://www.contributor-covenant.org/translations.
+<https://www.contributor-covenant.org/faq>. Translations are available at
+<https://www.contributor-covenant.org/translations>.
 
+[homepage]: https://www.contributor-covenant.org
+[mozilla]: https://github.com/mozilla/diversity

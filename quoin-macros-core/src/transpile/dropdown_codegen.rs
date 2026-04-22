@@ -1,3 +1,13 @@
+//! Dropdown menu code generation.
+//!
+//! Defines [`MenuItemDef`] as a shared descriptor for dropdown items (label + on_click).
+//! Per-framework generators:
+//!
+//! - **GPUI** ([`generate_gpui_dropdown`]): Emits an absolutely-positioned overlay
+//!   panel with click handlers for each menu item. The trigger element is provided
+//!   as a `RenderNode` expression.
+//! - **Leptos / Dioxus**: Currently emit stub divs. Full implementations are
+//!   planned for future releases.
 
 pub struct MenuItemDef {
     pub label: syn::Expr,

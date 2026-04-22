@@ -1,3 +1,31 @@
+//! Tailwind CSS → GPUI builder-method transpiler.
+//!
+//! Converts Tailwind class strings into chains of GPUI `Styled` trait methods.
+//! This is the primary mechanism by which `quoin_render!` applies visual styling
+//! in GPUI output.
+//!
+//! # How It Works
+//!
+//! 1. [`transpile_class`] splits the input string on whitespace.
+//! 2. Classes prefixed with `hover:` are separated into a hover list.
+//! 3. Each class is looked up in [`transpile_single_class`], which returns a
+//!    `TokenStream` representing the corresponding GPUI method call.
+//! 4. Normal classes are collected into `TranspiledStyles::normal`; hover
+//!    classes into `TranspiledStyles::hover`.
+//! 5. The caller (in `render_gpui.rs`) applies normal styles directly via
+//!    method chaining, and hover styles via `.hover(|s| s …)`.
+//!
+//! # Coverage
+//!
+//! Currently supports: display, flexbox, alignment, gap, padding, margin,
+//! width/height, opacity, background colors, text colors, font sizes,
+//! font weights, border radius, cursor, position, overflow, whitespace,
+//! text alignment, borders, and border colors.
+//!
+//! Classes that are not recognized return `None` from `transpile_single_class`
+//! and are silently skipped. For Leptos and Dioxus, Tailwind classes are
+//! passed through as raw `class=` attribute strings (no transpilation needed).
+
 use proc_macro2::TokenStream;
 use quote::quote;
 

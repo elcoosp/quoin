@@ -1,3 +1,22 @@
+//! Rich text / styled text code generation.
+//!
+//! Generates framework-specific code for rendering text with per-run styling
+//! (e.g., colored substrings, mixed font weights). Each generator accepts:
+//!
+//! - `text_expr`: The base text expression.
+//! - `base_color`: Optional default text color.
+//! - `font_size`: Base font size in pixels.
+//! - `runs_expr`: Optional expression yielding styled run descriptors.
+//!
+//! # Framework Output
+//!
+//! - **GPUI** ([`generate_gpui_rich_text`]): Uses `gpui_component::StyledText`
+//!   with `.with_runs()` for per-run colors and backgrounds.
+//! - **Leptos** ([`generate_leptos_rich_text`]): Emits nested `<span>` elements
+//!   with inline `style` attributes for color and background.
+//! - **Dioxus** ([`generate_dioxus_rich_text`]): Emits `rsx!` nested spans with
+//!   inline styles.
+
 #[allow(unused)]
 use proc_macro2::TokenStream;
 #[allow(unused)]
