@@ -178,7 +178,7 @@ pub fn check_element_args(element_name: &str, arg_keys: &[&Ident]) -> Vec<String
             }
         }
         "icon" => {
-            if !el.args.iter().any(|k| *k == "icon_name") {
+            if !arg_keys.iter().any(|k| *k == "icon_name") {
                 warnings.push(
                     "icon requires an x27icon_name:x27 argument (e.g. icon_name: \"calendar\")"
                         .to_string(),
