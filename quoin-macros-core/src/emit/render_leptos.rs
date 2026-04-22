@@ -1,4 +1,4 @@
-use crate::render_ast::{Element, ForNode, IfNode, Node, RenderNode};
+use crate::render_ast::{Element, ForNode, IfNode, RenderNode};
 use crate::transpile::{
     collect_handler_idents, collect_handler_idents_excluding_params, force_move_on_closure,
 };
@@ -29,7 +29,7 @@ fn emit_node(node: &RenderNode, bindings: &mut Vec<TokenStream>, inside_for: boo
     match node {
         RenderNode::Element(el) => emit_element(el, bindings, inside_for),
         RenderNode::Text(t) => quote! { #t },
-        Node::Expr(e) => quote! { {#e} },
+        RenderNode::Expr(e) => quote! { {#e} },
         RenderNode::If(if_node) => emit_if(if_node, bindings, inside_for),
         RenderNode::For(for_node) => emit_for(for_node, bindings),
         RenderNode::Root(nodes) => {
@@ -70,7 +70,11 @@ fn emit_if(if_node: &IfNode, bindings: &mut Vec<TokenStream>, inside_for: bool) 
     wrap_with_cfg(&if_node.attrs, inner)
 }
 
-fn emit_if_inline(if_node: &IfNode, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
+fn emit_if_inline(
+    if_node: &IfNode,
+    bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
     let cond = &if_node.condition;
     let then_tokens: Vec<TokenStream> = if_node
         .then_branch
@@ -99,7 +103,11 @@ fn emit_if_inline(if_node: &IfNode, bindings: &mut Vec<TokenStream>, inside_for:
     }
 }
 
-fn emit_if_closure_body(if_node: &IfNode, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
+fn emit_if_closure_body(
+    if_node: &IfNode,
+    bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
     let cond = &if_node.condition;
     let then_tokens: Vec<TokenStream> = if_node
         .then_branch
@@ -161,7 +169,11 @@ fn emit_element(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool)
     wrap_with_cfg(&el.attrs, inner)
 }
 
-fn emit_element_inner(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
+fn emit_element_inner(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
     let name_str = el.name.to_string();
     match name_str.as_str() {
         "tabs" => emit_tabs(el),
@@ -236,13 +248,21 @@ fn emit_badge(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -
 // Scroll area
 // ---------------------------------------------------------------------------
 
-fn emit_scroll_area(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
+fn emit_scroll_area(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
     let direction = el
         .args
         .iter()
         .find(|a| a.key == "direction")
         .and_then(|a| {
-            if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }) = &a.value {
+            if let syn::Expr::Lit(syn::ExprLit {
+                lit: syn::Lit::Str(s),
+                ..
+            }) = &a.value
+            {
                 Some(s.value())
             } else {
                 None
@@ -292,9 +312,17 @@ fn emit_button(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) 
     }
 }
 
-fn emit_button_plain(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
+fn emit_button_plain(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
     let tooltip_text = el.args.iter().find(|a| a.key == "tooltip").and_then(|a| {
-        if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }) = &a.value {
+        if let syn::Expr::Lit(syn::ExprLit {
+            lit: syn::Lit::Str(s),
+            ..
+        }) = &a.value
+        {
             Some(s.value())
         } else {
             None
@@ -321,9 +349,17 @@ fn emit_button_plain(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: 
 }
 
 #[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
-fn emit_button_shadcn(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
+fn emit_button_shadcn(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
     let tooltip_text = el.args.iter().find(|a| a.key == "tooltip").and_then(|a| {
-        if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }) = &a.value {
+        if let syn::Expr::Lit(syn::ExprLit {
+            lit: syn::Lit::Str(s),
+            ..
+        }) = &a.value
+        {
             Some(s.value())
         } else {
             None
@@ -346,7 +382,12 @@ fn emit_button_shadcn(el: &Element, bindings: &mut Vec<TokenStream>, inside_for:
     };
 
     let mut on_click_tokens: Option<TokenStream> = None;
-    if let Some(handler_expr) = el.args.iter().find(|a| a.key == "on_click").map(|a| &a.value) {
+    if let Some(handler_expr) = el
+        .args
+        .iter()
+        .find(|a| a.key == "on_click")
+        .map(|a| &a.value)
+    {
         let handler = wrap_event_handler(handler_expr);
         on_click_tokens = Some(quote! { on_click=#handler });
     }
@@ -409,18 +450,30 @@ fn emit_input(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -
     }
 }
 
-fn emit_input_plain(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
+fn emit_input_plain(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
     emit_html_tag_inner(el, "input", bindings, inside_for)
 }
 
 #[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
-fn emit_input_shadcn(el: &Element, bindings: &mut Vec<TokenStream>, _inside_for: bool) -> TokenStream {
+fn emit_input_shadcn(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    _inside_for: bool,
+) -> TokenStream {
     let placeholder = el
         .args
         .iter()
         .find(|a| a.key == "placeholder")
         .and_then(|a| {
-            if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }) = &a.value {
+            if let syn::Expr::Lit(syn::ExprLit {
+                lit: syn::Lit::Str(s),
+                ..
+            }) = &a.value
+            {
                 Some(s.value())
             } else {
                 None
@@ -430,7 +483,11 @@ fn emit_input_shadcn(el: &Element, bindings: &mut Vec<TokenStream>, _inside_for:
 
     let class_expr = el.args.iter().find(|a| a.key == "class").map(|a| &a.value);
     let value_expr = el.args.iter().find(|a| a.key == "value").map(|a| &a.value);
-    let on_input_expr = el.args.iter().find(|a| a.key == "on_input").map(|a| &a.value);
+    let on_input_expr = el
+        .args
+        .iter()
+        .find(|a| a.key == "on_input")
+        .map(|a| &a.value);
     let disabled = find_arg_bool(el, "disabled");
 
     let auto_bind = value_expr.is_some() && on_input_expr.is_none();
@@ -489,7 +546,11 @@ fn emit_input_shadcn(el: &Element, bindings: &mut Vec<TokenStream>, _inside_for:
 
 fn emit_icon(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
     let name = el.args.iter().find(|a| a.key == "icon_name").and_then(|a| {
-        if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }) = &a.value {
+        if let syn::Expr::Lit(syn::ExprLit {
+            lit: syn::Lit::Str(s),
+            ..
+        }) = &a.value
+        {
             Some(s.value())
         } else {
             None
@@ -503,7 +564,11 @@ fn emit_icon(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) ->
         None => quote! { "w-4 h-4 inline-block" },
     };
 
-    let children: Vec<TokenStream> = el.children.iter().map(|c| emit_node(c, bindings, inside_for)).collect();
+    let children: Vec<TokenStream> = el
+        .children
+        .iter()
+        .map(|c| emit_node(c, bindings, inside_for))
+        .collect();
 
     match name {
         Some(n) => {
@@ -589,8 +654,16 @@ fn emit_styled_text(el: &Element, bindings: &mut Vec<TokenStream>) -> TokenStrea
 // Clipboard button
 // ---------------------------------------------------------------------------
 
-fn emit_clipboard_button(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
-    let copy_text = el.args.iter().find(|a| a.key == "copy_text").map(|a| &a.value);
+fn emit_clipboard_button(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
+    let copy_text = el
+        .args
+        .iter()
+        .find(|a| a.key == "copy_text")
+        .map(|a| &a.value);
     match copy_text {
         Some(ct) => {
             let clip_id = next_extract_id();
@@ -755,8 +828,7 @@ fn emit_tabs_plain(el: &Element) -> TokenStream {
         .map(|a| &a.value)
         .expect("tabs require 'on_click' callback");
 
-    let param_idents: Vec<proc_macro2::Ident> = if let syn::Expr::Closure(closure) = on_click_expr
-    {
+    let param_idents: Vec<proc_macro2::Ident> = if let syn::Expr::Closure(closure) = on_click_expr {
         closure
             .inputs
             .iter()
@@ -786,7 +858,9 @@ fn emit_tabs_plain(el: &Element) -> TokenStream {
         .children
         .iter()
         .filter_map(|c| {
-            if let RenderNode::Element(e) = c && e.name == "tab" {
+            if let RenderNode::Element(e) = c
+                && e.name == "tab"
+            {
                 let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
                 let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
 
@@ -844,7 +918,7 @@ fn emit_tabs_shadcn(el: &Element) -> TokenStream {
             if let RenderNode::Element(e) = c
                 && e.name == "tab"
             {
-                let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
+                let _label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
                 let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
                 let index_clone = index.clone();
                 return Some(quote! {
@@ -853,7 +927,7 @@ fn emit_tabs_shadcn(el: &Element) -> TokenStream {
                             let __tab_on_click = #on_click_with_move;
                             move |_| { __tab_on_click(#index_clone); }
                         }
-                    >{#label}</leptos_shadcn_tabs::TabsTrigger>
+                    >{#_label}</leptos_shadcn_tabs::TabsTrigger>
                 });
             }
             None
@@ -912,11 +986,7 @@ fn emit_dropdown_menu_plain(
         .filter_map(|c| {
             if let RenderNode::Element(e) = c {
                 if e.name == "item" {
-                    let label = e
-                        .args
-                        .iter()
-                        .find(|a| a.key == "label")
-                        .map(|a| &a.value)?;
+                    let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
                     let on_click = e
                         .args
                         .iter()
@@ -947,8 +1017,11 @@ fn emit_dropdown_menu_plain(
         })
         .collect();
 
-    let trigger_inner =
-        emit_node(&RenderNode::Expr(trigger_expr.clone()), bindings, inside_for);
+    let trigger_inner = emit_node(
+        &RenderNode::Expr(trigger_expr.clone()),
+        bindings,
+        inside_for,
+    );
 
     quote! {
         <div
@@ -999,7 +1072,11 @@ fn emit_dropdown_menu_shadcn(
             if let RenderNode::Element(e) = c {
                 if e.name == "item" {
                     let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
-                    let on_click = e.args.iter().find(|a| a.key == "on_click").map(|a| &a.value)?;
+                    let on_click = e
+                        .args
+                        .iter()
+                        .find(|a| a.key == "on_click")
+                        .map(|a| &a.value)?;
                     let handler = wrap_event_handler(on_click);
                     Some(quote! {
                         <leptos_shadcn_dropdown_menu::DropdownMenuItem on_click=#handler>
@@ -1015,7 +1092,11 @@ fn emit_dropdown_menu_shadcn(
         })
         .collect();
 
-    let trigger_inner = emit_node(&RenderNode::Expr(trigger_expr.clone()), bindings, inside_for);
+    let trigger_inner = emit_node(
+        &RenderNode::Expr(trigger_expr.clone()),
+        bindings,
+        inside_for,
+    );
 
     quote! {
         <leptos_shadcn_dropdown_menu::DropdownMenu>
@@ -1033,11 +1114,7 @@ fn emit_dropdown_menu_shadcn(
 // Data table
 // ---------------------------------------------------------------------------
 
-fn emit_data_table(
-    el: &Element,
-    bindings: &mut Vec<TokenStream>,
-    inside_for: bool,
-) -> TokenStream {
+fn emit_data_table(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
     #[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
     {
         emit_data_table_shadcn(el, bindings, inside_for)
@@ -1141,7 +1218,8 @@ fn emit_data_table_shadcn(
                 .unwrap_or(&empty_label);
             let width = e.args.iter().find(|a| a.key == "width").map(|a| &a.value);
 
-            let mut th_attrs: Vec<TokenStream> = vec![quote! { class="px-3 py-2 text-gray-400 font-medium" }];
+            let mut th_attrs: Vec<TokenStream> =
+                vec![quote! { class="px-3 py-2 text-gray-400 font-medium" }];
             if let Some(w) = width {
                 th_attrs.push(quote! { style=format!("width: {}px", #w) });
             }
@@ -1211,7 +1289,11 @@ fn find_arg_bool(el: &Element, key: &str) -> bool {
         .iter()
         .find(|a| a.key == key)
         .map(|a| {
-            if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Bool(b), .. }) = &a.value {
+            if let syn::Expr::Lit(syn::ExprLit {
+                lit: syn::Lit::Bool(b),
+                ..
+            }) = &a.value
+            {
                 return b.value;
             }
             false
