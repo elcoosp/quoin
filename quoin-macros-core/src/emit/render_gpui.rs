@@ -211,7 +211,7 @@ fn emit_input(el: &Element) -> TokenStream {
     }
 
     let input_construction = if has_class {
-        quote! { ::gpui::div().#wrapper_styles.child(quoin::Input::new(&__entity).appearance(false)) }
+        quote! { ::gpui::div()#wrapper_styles.child(quoin::Input::new(&__entity).appearance(false)) }
     } else {
         quote! { quoin::Input::new(&__entity) }
     };
