@@ -665,7 +665,7 @@ fn emit_html_el_inner(el: &Element, name_str: &str) -> TokenStream {
             .map(|a| &a.value)
             .unwrap();
         items.push(quote! {
-            oninput: move |ev: dioxus::prelude::Event<web_sys::InputEvent>| {
+            oninput: move |ev: dioxus::prelude::Event<FormData>| {
                 #value_expr.set(ev.value());
             }
         });
@@ -921,7 +921,7 @@ fn emit_dropdown_menu_plain(el: &Element) -> TokenStream {
                         class: "px-3 py-2 cursor-pointer text-white hover:bg-gray-600",
                         onclick: {
                             let __item_handler = #handler;
-                            move |ev: dioxus::prelude::Event<web_sys::MouseEvent>| {
+                            move |ev: dioxus::prelude::Event<MouseData>| {
                                 ev.stop_propagation();
                                 __open.set(false);
                                 __item_handler(ev);
@@ -944,7 +944,7 @@ fn emit_dropdown_menu_plain(el: &Element) -> TokenStream {
             dioxus::prelude::rsx! {
                 div {
                     class: "relative inline-block",
-                    onclick: move |ev: dioxus::prelude::Event<web_sys::MouseEvent>| {
+                    onclick: move |ev: dioxus::prelude::Event<MouseData>| {
                         ev.stop_propagation();
                         __open.toggle();
                     },
@@ -952,10 +952,10 @@ fn emit_dropdown_menu_plain(el: &Element) -> TokenStream {
                     if *__open.read() {
                         div {
                             class: "absolute top-full left-0 z-50 min-w-32 rounded-md border border-gray-700 bg-gray-800 py-1 shadow-lg",
-                            onclick: move |ev: dioxus::prelude::Event<web_sys::MouseEvent>| {
+                            onclick: move |ev: dioxus::prelude::Event<MouseData>| {
                                 ev.stop_propagation();
                             },
-                            onmousedown: move |ev: dioxus::prelude::Event<web_sys::MouseEvent>| {
+                            onmousedown: move |ev: dioxus::prelude::Event<MouseData>| {
                                 ev.prevent_default();
                             },
                             #(#item_tokens)*
