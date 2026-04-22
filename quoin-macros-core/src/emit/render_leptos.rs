@@ -180,6 +180,7 @@ fn emit_element_inner(el: &Element, bindings: &mut Vec<TokenStream>, inside_for:
         }
         "clipboard_button" => emit_clipboard_button(el, bindings, inside_for),
         "button" => emit_button(el, bindings, inside_for),
+        "input" => emit_input(el, bindings, inside_for),
         _ => emit_html_tag(
             el,
             match name_str.as_str() {
@@ -188,7 +189,6 @@ fn emit_element_inner(el: &Element, bindings: &mut Vec<TokenStream>, inside_for:
                 "h2" => "h2",
                 "h3" => "h3",
                 "p" | "text" => "p",
-                "input" => "input",
                 _ => "div",
             },
             bindings,
@@ -207,13 +207,24 @@ fn emit_badge(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -
     for child in &el.children {
         children.push(emit_node(child, bindings, inside_for));
     }
-    // Use the color expression as an inline style background-color if present
     match color_expr {
-        Some(color) => quote! {
-            <span class="inline-flex items-center px-1.5 rounded px-1 text-xs font-medium text-white" style=format!("background-color: {}", #color)>
-                #(#children)*
-            </span>
-        },
+        Some(color) => {
+            // If the color is a known theme token string (e.g. "primary"), use a CSS class.
+            // Otherwise fall back to inline style with the raw value.
+            let bg_class = crate::transpile::theme_tokens::try_resolve_bg_class(color);
+            match bg_class {
+                Some(cls) => quote! {
+                    <span class={concat!("inline-flex items-center px-1.5 rounded px-1 text-xs font-medium text-white ", #cls)}>
+                        #(#children)*
+                    </span>
+                },
+                None => quote! {
+                    <span class="inline-flex items-center px-1.5 rounded px-1 text-xs font-medium text-white" style=format!("background-color: {}", #color)>
+                        #(#children)*
+                    </span>
+                },
+            }
+        }
         None => quote! {
             <span class="inline-flex items-center px-1.5 rounded px-1 text-xs font-medium bg-gray-600 text-white">
                 #(#children)*
@@ -272,6 +283,17 @@ fn emit_scroll_area(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: b
 // ---------------------------------------------------------------------------
 
 fn emit_button(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
+    #[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
+    {
+        emit_button_shadcn(el, bindings, inside_for)
+    }
+    #[cfg(not(all(feature = "leptos", feature = "leptos-shadcn")))]
+    {
+        emit_button_plain(el, bindings, inside_for)
+    }
+}
+
+fn emit_button_plain(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
     let tooltip_text = el.args.iter().find(|a| a.key == "tooltip").and_then(|a| {
         if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }) = &a.value {
             Some(s.value())
@@ -296,6 +318,170 @@ fn emit_button(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) 
             </leptos::prelude::TooltipProvider>
         },
         None => inner_button,
+    }
+}
+
+#[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
+fn emit_button_shadcn(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
+    let tooltip_text = el.args.iter().find(|a| a.key == "tooltip").and_then(|a| {
+        if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }) = &a.value {
+            Some(s.value())
+        } else {
+            None
+        }
+    });
+
+    let primary = find_arg_bool(el, "primary");
+    let destructive = find_arg_bool(el, "destructive");
+    let ghost = find_arg_bool(el, "ghost");
+    let disabled = find_arg_bool(el, "disabled");
+
+    let variant = if destructive {
+        quote! { leptos_shadcn_button::ButtonVariant::Destructive }
+    } else if ghost {
+        quote! { leptos_shadcn_button::ButtonVariant::Ghost }
+    } else if primary {
+        quote! { leptos_shadcn_button::ButtonVariant::Default }
+    } else {
+        quote! { leptos_shadcn_button::ButtonVariant::Outline }
+    };
+
+    let mut on_click_tokens: Option<TokenStream> = None;
+    if let Some(handler_expr) = el.args.iter().find(|a| a.key == "on_click").map(|a| &a.value) {
+        let handler = wrap_event_handler(handler_expr);
+        on_click_tokens = Some(quote! { on_click=#handler });
+    }
+
+    let mut children = Vec::new();
+    for child in &el.children {
+        children.push(emit_node(child, bindings, inside_for));
+    }
+
+    let inner_button = if children.is_empty() {
+        quote! {
+            <leptos_shadcn_button::Button variant=#variant #on_click_tokens disabled=#disabled />
+        }
+    } else {
+        quote! {
+            <leptos_shadcn_button::Button variant=#variant #on_click_tokens disabled=#disabled>
+                #(#children)*
+            </leptos_shadcn_button::Button>
+        }
+    };
+
+    match tooltip_text {
+        Some(text) => quote! {
+            {
+                use leptos_shadcn_button::{Button, ButtonVariant};
+                use leptos_shadcn_tooltip::{Tooltip, TooltipContent, TooltipProvider, TooltipTrigger};
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger>
+                            #inner_button
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            {#text}
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+            }
+        },
+        None => quote! {
+            {
+                use leptos_shadcn_button::{Button, ButtonVariant};
+                #inner_button
+            }
+        },
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Input — plain HTML vs shadcn Input component
+// ---------------------------------------------------------------------------
+
+fn emit_input(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
+    #[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
+    {
+        emit_input_shadcn(el, bindings, inside_for)
+    }
+    #[cfg(not(all(feature = "leptos", feature = "leptos-shadcn")))]
+    {
+        emit_input_plain(el, bindings, inside_for)
+    }
+}
+
+fn emit_input_plain(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
+    emit_html_tag_inner(el, "input", bindings, inside_for)
+}
+
+#[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
+fn emit_input_shadcn(el: &Element, bindings: &mut Vec<TokenStream>, _inside_for: bool) -> TokenStream {
+    let placeholder = el
+        .args
+        .iter()
+        .find(|a| a.key == "placeholder")
+        .and_then(|a| {
+            if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }) = &a.value {
+                Some(s.value())
+            } else {
+                None
+            }
+        })
+        .unwrap_or_default();
+
+    let class_expr = el.args.iter().find(|a| a.key == "class").map(|a| &a.value);
+    let value_expr = el.args.iter().find(|a| a.key == "value").map(|a| &a.value);
+    let on_input_expr = el.args.iter().find(|a| a.key == "on_input").map(|a| &a.value);
+    let disabled = find_arg_bool(el, "disabled");
+
+    // Two-way binding: if value signal is given but no on_input, auto-bind
+    let auto_bind = value_expr.is_some() && on_input_expr.is_none();
+
+    let input_id = next_extract_id();
+    let on_input_name = quote::format_ident!("__quoin_input_on_{}", input_id);
+
+    if auto_bind {
+        let sig = value_expr.unwrap();
+        bindings.push(quote! {
+            let #on_input_name = {
+                let __signal = (#sig).clone();
+                move |val: String| { __signal.set(val); }
+            };
+        });
+    }
+
+    let on_input_prop = if auto_bind {
+        quote! { on_input=Some(leptos::callback(#on_input_name)) }
+    } else if let Some(handler) = on_input_expr {
+        let wrapped = wrap_event_handler(handler);
+        quote! { on_input=Some(leptos::callback(move |val: String| { #wrapped; })) }
+    } else {
+        quote! {}
+    };
+
+    let value_prop = if let Some(val) = value_expr {
+        quote! { value=Some(#val) }
+    } else {
+        quote! {}
+    };
+
+    let placeholder_prop = if placeholder.is_empty() {
+        quote! {}
+    } else {
+        quote! { placeholder=Some(#placeholder.to_string()) }
+    };
+
+    let class_prop = if let Some(cls) = class_expr {
+        quote! { class=Some(#cls.to_string()) }
+    } else {
+        quote! {}
+    };
+
+    quote! {
+        {
+            use leptos_shadcn_input::Input;
+            <Input #value_prop #on_input_prop #placeholder_prop #class_prop disabled=#disabled />
+        }
     }
 }
 
@@ -682,11 +868,6 @@ fn emit_data_table(
     _inside_for: bool,
 ) -> TokenStream {
     let rows_expr = el.args.iter().find(|a| a.key == "rows").map(|a| &a.value);
-    let _on_sort = el
-        .args
-        .iter()
-        .find(|a| a.key == "on_sort")
-        .map(|a| &a.value);
     let striped = find_arg_bool(el, "striped");
 
     let empty_label: syn::Expr = syn::parse_quote! { "" };

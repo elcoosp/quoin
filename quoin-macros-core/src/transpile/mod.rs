@@ -7,26 +7,29 @@
 //!
 //! | Submodule              | Description |
 //! |------------------------|-------------|
-//! | [`tailwind`]           | Transpiles Tailwind CSS class strings (e.g., `"flex gap-4 p-2 bg-blue-600"`) into GPUI builder-method chains (e.g., `.flex().gap(px(16.0)).p(px(8.0)).bg(rgb(0x2563eb))`). Handles `hover:` prefixed classes by emitting `.hover(\|s\| …)` callbacks. |
-//! | [`table_codegen`]      | Generates data-table render code: GPUI table delegates with `TableDelegate` impl, Leptos HTML `<table>` structures, and Dioxus `rsx!` tables. Handles sortable columns, striping, and per-column render closures. |
-//! | [`dropdown_codegen`]   | Generates dropdown menu code: GPUI absolute-positioned overlays with trigger elements and menu items; stub implementations for Leptos and Dioxus. |
-//! | [`virtual_list_codegen`]| Generates virtual list code. Currently falls back to a simple scrollable container in all frameworks because true virtual scrolling requires `Entity<V>` in GPUI and specialized components in Leptos/Dioxus. |
-//! | [`rich_text_codegen`]  | Generates rich text / styled text render code using `gpui_component::StyledText` (GPUI), inline `<span>` elements (Leptos), or Dioxus `rsx!` spans. Supports styled runs with per-run colors and backgrounds. |
+//! | [`tailwind`]           | Transpiles Tailwind CSS class strings into GPUI builder-method chains. |
+//! | [`table_codegen`]      | Generates data-table render code for each framework. |
+//! | [`dropdown_codegen`]   | Generates dropdown menu code for each framework. |
+//! | [`virtual_list_codegen`]| Generates virtual list code (currently falls back to scrollable div). |
+//! | [`rich_text_codegen`]  | Generates rich text / styled text render code. |
+//! | [`icon_codegen`]       | Maps icon names to inline SVG token streams. |
+//! | [`theme_tokens`]       | Maps theme token names to Tailwind CSS classes. |
 //!
 //! # Shared Utilities
 //!
 //! The module also provides AST visitor helpers used across all emitters:
 //!
-//! - [`collect_handler_idents`] — collects single-segment path idents from a closure body (skipping nested closures).
+//! - [`collect_handler_idents`] — collects single-segment path idents from a closure body.
 //! - [`collect_block_idents`] — collects idents from a block, including nested closures.
-//! - [`collect_handler_idents_excluding_params`] — like `collect_handler_idents` but filters out closure parameter names.
-//! - [`force_move_on_closure`] — ensures the outermost closure in an expression has the `move` keyword.
+//! - [`collect_handler_idents_excluding_params`] — like above but filters out closure params.
+//! - [`force_move_on_closure`] — ensures the outermost closure has the `move` keyword.
 
 pub mod dropdown_codegen;
 pub mod rich_text_codegen;
 pub mod icon_codegen;
 pub mod table_codegen;
 pub mod tailwind;
+pub mod theme_tokens;
 pub mod virtual_list_codegen;
 
 use syn::visit::Visit;

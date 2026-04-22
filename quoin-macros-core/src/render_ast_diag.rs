@@ -60,11 +60,12 @@ const KNOWN_ARGS: &[&str] = &[
     "query",
     "color",
     "direction",
-    "direction",
     "icon_name",
     "navigate_to",
     // Passthrough
     "cfg",
+    // Tooltip
+    "tooltip",
 ];
 
 const KNOWN_ELEMENTS: &[&str] = &[
@@ -98,6 +99,10 @@ const KNOWN_ELEMENTS: &[&str] = &[
     "clipboard_button",
     "item",
     "tab_bar",
+    "badge",
+    "styled_text",
+    "icon",
+    "scroll_area",
 ];
 
 /// Check if an argument key looks like a typo of a known key.
@@ -180,7 +185,7 @@ pub fn check_element_args(element_name: &str, arg_keys: &[&Ident]) -> Vec<String
         "icon" => {
             if !arg_keys.iter().any(|k| *k == "icon_name") {
                 warnings.push(
-                    "icon requires an x27icon_name:x27 argument (e.g. icon_name: \"calendar\")"
+                    "icon requires an 'icon_name' argument (e.g., icon_name: \"calendar\")"
                         .to_string(),
                 );
             }
@@ -263,6 +268,11 @@ pub fn check_element_args(element_name: &str, arg_keys: &[&Ident]) -> Vec<String
             | "tabs"
             | "tab"
             | "item"
+            | "icon"
+            | "badge"
+            | "styled_text"
+            | "scroll_area"
+            | "rich_text"
     );
 
     if !is_special {
@@ -302,6 +312,8 @@ pub fn check_element_args(element_name: &str, arg_keys: &[&Ident]) -> Vec<String
                                     | "on_mouse_leave"
                                     | "navigate_to"
                                     | "cfg"
+                                    | "tooltip"
+                                    | "icon_name"
                             ))
                             .cloned()
                             .collect::<Vec<_>>()

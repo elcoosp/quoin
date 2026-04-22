@@ -15,3 +15,7 @@ default = []
 gpui = []
 dioxus = []
 leptos = []
+# When enabled, emitters produce shadcn component calls instead of plain HTML.
+# The consumer crate must have the shadcn deps available for the emitted code to compile.
+leptos-shadcn = []
+dioxus-shadcn = []
