@@ -3,8 +3,6 @@
 //! Provides GPUI-specific implementations of `quoin-ui` adapter traits
 //! and render functions for UCP components.
 
-pub mod navigator;
-
 use gpui::{Entity, Hsla, IntoElement, ParentElement, Rgba, Styled, Subscription};
 use quoin_ui::{
     ButtonAdapter, ButtonVariant, ComponentSize, DropdownMenuAdapter, QuoinTheme, TabBarAdapter,
@@ -15,9 +13,6 @@ use std::sync::Arc;
 
 // Re-export GPUI component types for use in generated code
 pub use gpui_component::input::{Input, InputState};
-
-// Re-export navigator
-pub use navigator::GpuiNavigator;
 
 // -----------------------------------------------------------------------------
 // Input State Management

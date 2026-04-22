@@ -45,7 +45,7 @@ Building cross‑platform Rust UI applications often means choosing a framework 
 - **Unified Reactive API** — `Signal<T>`, `ReactiveContext`, and `Executor` traits that abstract over framework‑specific implementations.
 - **Declarative Macros** — `component!`, `quoin_render!`, `effect!`, and `run_app!` for cross‑framework UI definitions.
 - **Tailwind Class Transpilation** — Write Tailwind utility classes in `quoin_render!` and they are automatically converted to GPUI method chains.
-- **Universal Component Protocol (UCP)** — Abstract traits for data tables, virtual lists, dropdowns, clipboard, navigation, and more via `quoin-ui`.
+- **Universal Component Protocol (UCP)** — Abstract traits for data tables, virtual lists, dropdowns, clipboard, and more via `quoin-ui`.
 - **Cooperative Cancellation** — `CancellationToken` for gracefully stopping long‑running async tasks.
 - **Global State** — Provide and consume application‑wide reactive values with `provide_global`/`use_global`.
 - **Conformance Testing** — A shared test suite ensures all framework adapters behave identically.
@@ -372,7 +372,6 @@ Available traits:
 | `DropdownMenuAdapter` | Dropdown menus with items |
 | `TabBarAdapter` | Tab navigation |
 | `Clipboard` | Read/write system clipboard |
-| `Navigator` | Browser‑style routing and history |
 | `QuoinTheme` | Theme token resolution |
 
 Example: Using a UCP button

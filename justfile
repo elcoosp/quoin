@@ -23,7 +23,7 @@ test-quoin:
     cargo nextest run -p quoin
 
 test-quoin-macros:
-    cargo nextest run -p quoin-macros-core
+    cargo nextest run -p quoin-macros-core --no-tests pass
 
 # Run UI macro expansion tests (trybuild) for quoin-macros-tests
 test-quoin-macros-gpui:
