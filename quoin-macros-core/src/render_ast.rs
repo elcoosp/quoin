@@ -50,32 +50,18 @@ pub struct Element {
 }
 
 /// Collect tokens until a top‑level comma (or end of stream), then parse as an expression.
-/// This avoids syn's streaming parser restrictions and correctly handles `move` closures,
-/// nested delimiters, and complex expressions.
+/// Because `parenthesized!` has already extracted the arg list into a bounded stream,
+/// any `,` we see at the top level is guaranteed to be an argument separator.
+/// `TokenTree::Group` is already self‑contained, so commas inside nested expressions
+/// (e.g., `|c| *c += 1` inside `.update(…)`) are invisible at this level.
 fn collect_arg_value(input: ParseStream) -> Result<Expr> {
     let mut tokens = Vec::new();
-    let mut depth = 0;
 
     while !input.is_empty() {
-        if depth == 0 && input.peek(Token![,]) {
+        if input.peek(Token![,]) {
             break;
         }
         let tt: TokenTree = input.parse()?;
-        // Track nesting depth to ignore commas inside parentheses, brackets, or braces.
-        match &tt {
-            TokenTree::Group(g) if g.delimiter() == proc_macro2::Delimiter::Parenthesis => {
-                depth += 1;
-            }
-            TokenTree::Group(g) if g.delimiter() == proc_macro2::Delimiter::Bracket => {
-                depth += 1;
-            }
-            TokenTree::Group(g) if g.delimiter() == proc_macro2::Delimiter::Brace => {
-                depth += 1;
-            }
-            TokenTree::Group(_) => {}
-            TokenTree::Punct(p) if p.as_char() == ',' => {}
-            _ => {}
-        }
         tokens.push(tt);
     }
 

@@ -10,7 +10,11 @@ pub fn emit_render(node: &RenderNode) -> TokenStream {
 
 fn wrap_with_cfg(attrs: &[syn::Attribute], inner: TokenStream) -> TokenStream {
     let cfg_attrs: Vec<_> = attrs.iter().filter(|a| a.path().is_ident("cfg")).collect();
-    if cfg_attrs.is_empty() { inner } else { quote! { { #(#cfg_attrs)* { #inner } } } }
+    if cfg_attrs.is_empty() {
+        inner
+    } else {
+        quote! { { #(#cfg_attrs)* { #inner } } }
+    }
 }
 
 fn emit_render_inner(node: &RenderNode) -> TokenStream {
@@ -34,24 +38,37 @@ fn emit_element(el: &Element) -> TokenStream {
 
 fn emit_element_inner(el: &Element) -> TokenStream {
     let name_str = el.name.to_string();
-    let effective_name = match name_str.as_str() { "tab_bar" => "tabs", other => other };
+    let effective_name = match name_str.as_str() {
+        "tab_bar" => "tabs",
+        other => other,
+    };
 
     match effective_name {
         "dropdown_menu" => {
-            let children_tokens: Vec<TokenStream> = el.children.iter().map(emit_render_inner).collect();
+            let children_tokens: Vec<TokenStream> =
+                el.children.iter().map(emit_render_inner).collect();
             quote! { <div> #(#children_tokens)* </div> }
         }
         "virtual_list" => {
-            let children_tokens: Vec<TokenStream> = el.children.iter().map(emit_render_inner).collect();
+            let children_tokens: Vec<TokenStream> =
+                el.children.iter().map(emit_render_inner).collect();
             quote! { <div style="overflow-y: auto"> #(#children_tokens)* </div> }
         }
         "clipboard_button" => emit_html_tag(el, "button"),
         "tabs" => emit_tabs(el),
         "data_table" => emit_data_table(el),
-        _ => emit_html_tag(el, match effective_name {
-            "div" => "div", "h1" => "h1", "h2" => "h2", "h3" => "h3",
-            "p" | "text" => "p", "button" => "button", _ => "div",
-        }),
+        _ => emit_html_tag(
+            el,
+            match effective_name {
+                "div" => "div",
+                "h1" => "h1",
+                "h2" => "h2",
+                "h3" => "h3",
+                "p" | "text" => "p",
+                "button" => "button",
+                _ => "div",
+            },
+        ),
     }
 }
 
@@ -74,91 +91,133 @@ fn emit_html_tag(el: &Element, tag: &str) -> TokenStream {
         }
     }
     let mut children = Vec::new();
-    if let Some(children_expr) = &el.children_expr { children.push(quote! { {#children_expr} }); }
-    else { for child in &el.children { children.push(emit_render_inner(child)); } }
+    if let Some(children_expr) = &el.children_expr {
+        children.push(quote! { {#children_expr} });
+    } else {
+        for child in &el.children {
+            children.push(emit_render_inner(child));
+        }
+    }
     let tag_ident = proc_macro2::Ident::new(tag, proc_macro2::Span::call_site());
-    if children.is_empty() { quote! { <#tag_ident #(#attrs)* /> } }
-    else { quote! { <#tag_ident #(#attrs)*> #(#children)* </#tag_ident> } }
+    if children.is_empty() {
+        quote! { <#tag_ident #(#attrs)* /> }
+    } else {
+        quote! { <#tag_ident #(#attrs)*> #(#children)* </#tag_ident> }
+    }
 }
 
 fn emit_tabs(el: &Element) -> TokenStream {
     let active_expr = el.args.iter().find(|a| a.key == "active").map(|a| &a.value);
-    let on_click_expr = el.args.iter().find(|a| a.key == "on_click").map(|a| &a.value);
+    let on_click_expr = el
+        .args
+        .iter()
+        .find(|a| a.key == "on_click")
+        .map(|a| &a.value);
 
-    let tab_labels: Vec<TokenStream> = el.children.iter().filter_map(|c| {
-        if let RenderNode::Element(e) = c {
-            if e.name == "tab" {
-                let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value);
-                let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value);
-                if let (Some(label), Some(index)) = (label, index) {
-                    return Some(quote! {
-                        li {
-                            class={move || if *#index == #active_expr.unwrap_or(&quote!{0}) { "active" } else { "" }},
-                            on:click=move |_| { let _ = #on_click_expr; (#on_click_expr.unwrap_or(&quote!{|_|{}}))(*#index); },
-                            #label
-                        }
-                    });
+    let tab_labels: Vec<TokenStream> = el
+        .children
+        .iter()
+        .filter_map(|c| {
+            if let RenderNode::Element(e) = c {
+                if e.name == "tab" {
+                    let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value);
+                    let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value);
+                    if let (Some(label), Some(index)) = (label, index) {
+                        return Some(quote! {
+                            li {
+                                class={move || if *#index == #active_expr.unwrap_or(&quote!{0}) { "active" } else { "" }},
+                                on:click=move |_| { let _ = #on_click_expr; (#on_click_expr.unwrap_or(&quote!{|_|{}}))(*#index); },
+                                #label
+                            }
+                        });
+                    }
                 }
             }
-        }
-        None
-    }).collect();
+            None
+        })
+        .collect();
     quote! { <ul class="tabs"> #(#tab_labels)* </ul> }
 }
 
 fn emit_data_table(el: &Element) -> TokenStream {
     let rows = el.args.iter().find(|a| a.key == "rows").map(|a| &a.value);
-    let on_sort = el.args.iter().find(|a| a.key == "on_sort").map(|a| &a.value);
+    let on_sort = el
+        .args
+        .iter()
+        .find(|a| a.key == "on_sort")
+        .map(|a| &a.value);
     let striped = find_arg_bool(el, "striped");
 
-    let header_cells: Vec<TokenStream> = el.children.iter().filter_map(|c| {
-        if let RenderNode::Element(e) = c {
-            if e.name == "column" {
-                let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value);
-                let key = e.args.iter().find(|a| a.key == "key").map(|a| &a.value);
-                let sortable = e.args.iter().find(|a| a.key == "sortable").map(|a| &a.value);
-                let width = e.args.iter().find(|a| a.key == "width").map(|a| &a.value);
+    let header_cells: Vec<TokenStream> = el
+        .children
+        .iter()
+        .filter_map(|c| {
+            if let RenderNode::Element(e) = c {
+                if e.name == "column" {
+                    let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value);
+                    let key = e.args.iter().find(|a| a.key == "key").map(|a| &a.value);
+                    let width = e.args.iter().find(|a| a.key == "width").map(|a| &a.value);
 
-                let label_expr = label.unwrap_or(&syn::parse_quote! { "" });
-                let key_str = key.and_then(|k| {
-                    if let syn::Expr::Lit(lit) = k {
-                        if let syn::Lit::Str(s) = &lit.lit { Some(s.value()) } else { None }
-                    } else { None }
-                }).unwrap_or_default();
+                    // Default empty string expression with a let binding to extend lifetime.
+                    let empty_str: syn::Expr = syn::parse_quote! { "" };
+                    let label_expr = label.unwrap_or(&empty_str);
+                    let key_str = key
+                        .and_then(|k| {
+                            if let syn::Expr::Lit(lit) = k {
+                                if let syn::Lit::Str(s) = &lit.lit {
+                                    Some(s.value())
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
+                        })
+                        .unwrap_or_default();
 
-                let mut attrs = vec![quote! { class="px-3 py-2 text-gray-400 font-medium" }];
-                if let Some(w) = width { attrs.push(quote! { style=format!("width: {}px", #w) }); }
+                    let mut attrs = vec![quote! { class="px-3 py-2 text-gray-400 font-medium" }];
+                    if let Some(w) = width {
+                        attrs.push(quote! { style=format!("width: {}px", #w) });
+                    }
 
-                if let Some(true) = sortable {
-                    if let Some(on_sort_expr) = on_sort {
-                        let on_click = quote! { move |_| { #on_sort_expr(#key_str, "asc"); } };
-                        attrs.push(quote! { on:click=#on_click });
-                        attrs[0] = quote! { class="px-3 py-2 text-gray-400 font-medium cursor-pointer hover:bg-gray-700" };
-                    } else {
-                        attrs.push(quote! { class="px-3 py-2 text-gray-400 font-medium cursor-pointer" });
+                    if find_arg_bool(e, "sortable") {
+                        if let Some(on_sort_expr) = on_sort {
+                            let on_click = quote! { move |_| { #on_sort_expr(#key_str, "asc"); } };
+                            attrs.push(quote! { on:click=#on_click });
+                            attrs[0] = quote! { class="px-3 py-2 text-gray-400 font-medium cursor-pointer hover:bg-gray-700" };
+                        } else {
+                            attrs.push(quote! { class="px-3 py-2 text-gray-400 font-medium cursor-pointer" });
+                        }
+                    }
+
+                    return Some(quote! { <th #(#attrs)*> #label_expr </th> });
+                }
+            }
+            None
+        })
+        .collect();
+
+    let row_cells: Vec<TokenStream> = el
+        .children
+        .iter()
+        .filter_map(|c| {
+            if let RenderNode::Element(e) = c {
+                if e.name == "column" {
+                    let render_closure =
+                        e.args.iter().find(|a| a.key == "render").map(|a| &a.value);
+                    let width = e.args.iter().find(|a| a.key == "width").map(|a| &a.value);
+                    if let Some(render_closure) = render_closure {
+                        let mut attrs = vec![quote! { class="px-3 py-2 text-white" }];
+                        if let Some(w) = width {
+                            attrs.push(quote! { style=format!("width: {}px", #w) });
+                        }
+                        return Some(quote! { <td #(#attrs)*> {#render_closure}(&__row) </td> });
                     }
                 }
-
-                return Some(quote! { <th #(#attrs)*> #label_expr </th> });
             }
-        }
-        None
-    }).collect();
-
-    let row_cells: Vec<TokenStream> = el.children.iter().filter_map(|c| {
-        if let RenderNode::Element(e) = c {
-            if e.name == "column" {
-                let render_closure = e.args.iter().find(|a| a.key == "render").map(|a| &a.value);
-                let width = e.args.iter().find(|a| a.key == "width").map(|a| &a.value);
-                if let Some(render_closure) = render_closure {
-                    let mut attrs = vec![quote! { class="px-3 py-2 text-white" }];
-                    if let Some(w) = width { attrs.push(quote! { style=format!("width: {}px", #w) }); }
-                    return Some(quote! { <td #(#attrs)*> {#render_closure}(&__row) </td> });
-                }
-            }
-        }
-        None
-    }).collect();
+            None
+        })
+        .collect();
 
     let empty_rows: syn::Expr = syn::parse_quote! { Vec::<()>::new() };
     let rows_expr = rows.unwrap_or(&empty_rows);
@@ -213,10 +272,16 @@ fn emit_nodes(nodes: &[RenderNode]) -> TokenStream {
 }
 
 fn find_arg_bool(el: &Element, key: &str) -> bool {
-    el.args.iter().find(|a| a.key == key).map(|a| {
-        if let syn::Expr::Lit(expr_lit) = &a.value {
-            if let syn::Lit::Bool(b) = &expr_lit.lit { return b.value; }
-        }
-        false
-    }).unwrap_or(false)
+    el.args
+        .iter()
+        .find(|a| a.key == key)
+        .map(|a| {
+            if let syn::Expr::Lit(expr_lit) = &a.value {
+                if let syn::Lit::Bool(b) = &expr_lit.lit {
+                    return b.value;
+                }
+            }
+            false
+        })
+        .unwrap_or(false)
 }
