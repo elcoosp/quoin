@@ -1,6 +1,3 @@
-Here's an enhanced version of your `README.md` with improved structure, additional sections, and more detailed explanations.
-
-```markdown
 # Quoin
 
 **One Reactive Core, Many Frameworks**
