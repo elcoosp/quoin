@@ -209,7 +209,7 @@ pub fn effect(input: TokenStream) -> TokenStream {
 /// run_app!(MyComponent, window_opts: custom_window_options);
 /// ```
 pub fn run_app(input: TokenStream) -> TokenStream {
-    let ast = match syn::parse::<quoin_macros_core::run_app::RunAppInput>(input) {
+    let _ast = match syn::parse::<quoin_macros_core::run_app::RunAppInput>(input) {
         Ok(ast) => ast,
         Err(e) => return e.to_compile_error().into(),
     };

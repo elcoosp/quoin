@@ -39,10 +39,6 @@ fn emit_render_inner(node: &RenderNode) -> TokenStream {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Event handler wrapper — shadow-clones captured idents, adds move
-// ---------------------------------------------------------------------------
-
 fn wrap_dioxus_handler(handler_expr: &syn::Expr) -> TokenStream {
     let idents = collect_handler_idents_excluding_params(handler_expr);
     let shadows: Vec<TokenStream> = idents
@@ -57,10 +53,6 @@ fn wrap_dioxus_handler(handler_expr: &syn::Expr) -> TokenStream {
         }
     }
 }
-
-// ---------------------------------------------------------------------------
-// Element dispatch
-// ---------------------------------------------------------------------------
 
 fn emit_element(el: &Element) -> TokenStream {
     let inner = emit_element_inner(el);
@@ -92,38 +84,23 @@ fn emit_element_inner(el: &Element) -> TokenStream {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Generic HTML element
-// ---------------------------------------------------------------------------
-
 fn emit_html_el(el: &Element, name_str: &str) -> TokenStream {
     let tag = match name_str {
-        "div" => "div",
-        "h1" => "h1",
-        "h2" => "h2",
-        "h3" => "h3",
-        "p" | "text" => "p",
-        "button" => "button",
-        "input" => "input",
-        "span" => "span",
-        "label" => "label",
-        "a" => "a",
-        "ul" => "ul",
-        "ol" => "ol",
-        "li" => "li",
-        "hr" => "hr",
-        "br" => "br",
-        "textarea" => "textarea",
-        "select" => "select",
-        "form" => "form",
-        "img" => "img",
+        "div" => "div", "h1" => "h1", "h2" => "h2", "h3" => "h3",
+        "p" | "text" => "p", "button" => "button", "input" => "input",
+        "span" => "span", "label" => "label", "a" => "a",
+        "ul" => "ul", "ol" => "ol", "li" => "li",
+        "hr" => "hr", "br" => "br", "textarea" => "textarea",
+        "select" => "select", "form" => "form", "img" => "img",
         _ => "div",
     };
+
     let mut items = Vec::new();
     for arg in &el.args {
         let key_str = arg.key.to_string();
         let value = &arg.value;
         match key_str.as_str() {
+            // Event handlers — handler is already wrapped in { } by wrap_dioxus_handler
             "on_click" => {
                 let handler = wrap_dioxus_handler(value);
                 items.push(quote! { onclick: #handler })
@@ -152,19 +129,13 @@ fn emit_html_el(el: &Element, name_str: &str) -> TokenStream {
                 let handler = wrap_dioxus_handler(value);
                 items.push(quote! { onchange: #handler })
             }
-            "class" => items.push(quote! { class: #value }),
-            "id" => items.push(quote! { id: #value }),
-            "placeholder" => items.push(quote! { placeholder: #value }),
-            "disabled" => items.push(quote! { disabled: #value }),
+            // input value needs special handling
             "value" => {
                 if tag == "input" {
-                    items.push(quote! { value: #value.get() });
+                    items.push(quote! { value: {#value.get()} });
                 } else {
-                    items.push(quote! { value: #value });
+                    items.push(quote! { value: {#value} });
                 }
-            }
-            "href" | "src" | "alt" | "name" | "title" | "role" => {
-                items.push(quote! { #key_str: #value })
             }
             // Skip quoin-specific args that aren't HTML attributes
             "primary" | "ghost" | "destructive" | "active" | "children" | "trigger"
@@ -172,9 +143,12 @@ fn emit_html_el(el: &Element, name_str: &str) -> TokenStream {
             | "sortable" | "width" | "resizable" | "selectable" | "on_sort"
             | "bordered" | "size" | "navigate_to" | "cfg" | "label" | "render"
             | "key" | "index" => {}
+            // ALL other attributes: ALWAYS wrap value in { } for rsx! compatibility.
+            // Dioxus rsx! requires either string literals or { expr } blocks for attr values.
+            // Bare expressions like filter_text.get() cause "expected identifier" parse errors.
             _ => {
                 let key = proc_macro2::Ident::new(&key_str, proc_macro2::Span::call_site());
-                items.push(quote! { #key: #value });
+                items.push(quote! { #key: {#value} });
             }
         }
     }
@@ -192,10 +166,6 @@ fn emit_html_el(el: &Element, name_str: &str) -> TokenStream {
     }
 }
 
-// ---------------------------------------------------------------------------
-// If / else-if / else — emit as Dioxus rsx! native `if` (NO wrapping braces)
-// ---------------------------------------------------------------------------
-
 fn emit_if(if_node: &IfNode) -> TokenStream {
     let inner = emit_if_inner(if_node);
     wrap_with_cfg(&if_node.attrs, inner)
@@ -206,17 +176,11 @@ fn emit_if_inner(if_node: &IfNode) -> TokenStream {
     let then_tokens = emit_nodes_inner(&if_node.then_branch);
     if let Some(else_branch) = &if_node.else_branch {
         let else_tokens = emit_nodes_inner(else_branch);
-        // Dioxus rsx! `if` is a special form — must NOT be wrapped in { }
         quote! { if #cond { #then_tokens } else { #else_tokens } }
     } else {
-        // No else branch — bare `if` in rsx! (no .then() needed)
         quote! { if #cond { #then_tokens } }
     }
 }
-
-// ---------------------------------------------------------------------------
-// For — emit as Dioxus rsx! native `for` (NO wrapping braces)
-// ---------------------------------------------------------------------------
 
 fn emit_for(for_node: &ForNode) -> TokenStream {
     let inner = emit_for_inner(for_node);
@@ -227,7 +191,6 @@ fn emit_for_inner(for_node: &ForNode) -> TokenStream {
     let pat = &for_node.pat;
     let iterable = &for_node.iterable;
     let body = emit_nodes_inner(&for_node.body);
-    // Dioxus rsx! `for` is a special form — bare, no wrapping braces
     quote! { for #pat in #iterable { #body } }
 }
 
@@ -236,17 +199,9 @@ fn emit_nodes_inner(nodes: &[RenderNode]) -> TokenStream {
     quote! { #(#tokens)* }
 }
 
-// ---------------------------------------------------------------------------
-// Tabs (stub for Dioxus)
-// ---------------------------------------------------------------------------
-
 fn emit_tabs(_el: &Element) -> TokenStream {
     quote! { div {} }
 }
-
-// ---------------------------------------------------------------------------
-// Data table — uses Dioxus native `for` syntax
-// ---------------------------------------------------------------------------
 
 fn emit_data_table(el: &Element) -> TokenStream {
     let rows = el
