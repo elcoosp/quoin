@@ -4618,6 +4618,8 @@ name = "ucp-lib"
 version = "0.1.0"
 dependencies = [
  "dioxus",
+ "dioxus-core",
+ "dioxus-signals",
  "quoin",
  "quoin-macros",
  "quoin-ui",

@@ -160,7 +160,7 @@ pub fn effect(input: TokenStream) -> TokenStream {
 
 #[proc_macro]
 pub fn run_app(input: TokenStream) -> TokenStream {
-    let _ast = match syn::parse::<quoin_macros_core::run_app::RunAppInput>(input) {
+    let ast = match syn::parse::<quoin_macros_core::run_app::RunAppInput>(input) {
         Ok(ast) => ast,
         Err(e) => return e.to_compile_error().into(),
     };

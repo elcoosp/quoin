@@ -2,7 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/quoin.svg)](https://crates.io/crates/quoin)
 [![Docs.rs](https://docs.rs/quoin/badge.svg)](https://docs.rs/quoin)
-[![License: MIT OR Apache-2.0](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg)](#license)
+[![License: MIT](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg)](#license)
 
 **One reactive core, many frameworks.**
 

@@ -93,4 +93,4 @@ This adapter passes the `quoin-conformance` test suite, guaranteeing identical r
 
 ## License
 
-MIT OR Apache-2.0
+MIT

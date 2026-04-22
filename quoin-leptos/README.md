@@ -41,4 +41,4 @@ This adapter passes the `quoin-conformance` test suite.
 
 ## License
 
-MIT OR Apache-2.0
+MIT

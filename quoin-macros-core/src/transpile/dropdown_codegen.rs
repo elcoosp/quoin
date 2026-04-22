@@ -1,5 +1,4 @@
-use proc_macro2::TokenStream;
-use quote::quote;
+use syn::Expr;
 
 pub struct MenuItemDef {
     pub label: syn::Expr,
@@ -7,7 +6,10 @@ pub struct MenuItemDef {
 }
 
 #[cfg(feature = "gpui")]
-pub fn generate_gpui_dropdown(trigger_expr: &syn::Expr, menu_items: &[MenuItemDef]) -> TokenStream {
+pub fn generate_gpui_dropdown(trigger_expr: &syn::Expr, menu_items: &[MenuItemDef]) -> proc_macro2::TokenStream {
+    use proc_macro2::TokenStream;
+    use quote::quote;
+
     let items: Vec<TokenStream> = menu_items
         .iter()
         .map(|item| {
@@ -67,7 +69,8 @@ pub fn generate_gpui_dropdown(trigger_expr: &syn::Expr, menu_items: &[MenuItemDe
 pub fn generate_leptos_dropdown(
     _trigger_expr: &syn::Expr,
     _menu_items: &[MenuItemDef],
-) -> TokenStream {
+) -> proc_macro2::TokenStream {
+    use quote::quote;
     quote! { ::gpui::div() }
 }
 
@@ -75,6 +78,7 @@ pub fn generate_leptos_dropdown(
 pub fn generate_dioxus_dropdown(
     _trigger_expr: &syn::Expr,
     _menu_items: &[MenuItemDef],
-) -> TokenStream {
+) -> proc_macro2::TokenStream {
+    use quote::quote;
     quote! { ::gpui::div() }
 }

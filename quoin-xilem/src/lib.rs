@@ -1,8 +1,15 @@
 use quoin_core::{Executor, JoinHandle, ReactiveContext, Signal as QuoinSignal};
+use std::any::TypeId;
+use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use xilem::tokio::runtime::Runtime;
+
+thread_local! {
+    static GLOBAL_STORE: std::cell::RefCell<HashMap<TypeId, Box<dyn std::any::Any + Send + Sync>>> =
+        std::cell::RefCell::new(HashMap::new());
+}
 
 /// Context that holds a tokio runtime and an optional update notifier.
 #[derive(Clone)]
@@ -56,13 +63,24 @@ impl ReactiveContext for XilemContext {
         self.request_update();
     }
 
-    fn provide_global<T: Clone + Send + Sync + 'static>(&self, _value: T) {
-        // Xilem does not have a built-in context provider.
+    fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T) {
+        GLOBAL_STORE.with(|store| {
+            store.borrow_mut().insert(TypeId::of::<T>(), Box::new(value));
+        });
     }
 
     fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>> {
-        // Stub: Xilem does not have a built-in context provider mechanism.
-        None
+        GLOBAL_STORE.with(|store| {
+            store
+                .borrow()
+                .get(&TypeId::of::<T>())
+                .and_then(|v| v.downcast_ref::<T>())
+                .cloned()
+                .map(|v| XilemSignal {
+                    inner: Arc::new(std::sync::RwLock::new(v)),
+                    context: self.clone(),
+                })
+        })
     }
 }
 

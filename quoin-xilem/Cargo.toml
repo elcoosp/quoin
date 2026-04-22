@@ -3,7 +3,7 @@ name = "quoin-xilem"
 version = "0.1.0"
 edition = "2024"
 description = "Xilem adapter for quoin reactive abstraction"
-license = "MIT OR Apache-2.0"
+license = "MIT"
 repository = "https://github.com/username/quoin"
 
 [dependencies]
