@@ -1,20 +1,7 @@
 //! Data table code generation for framework-specific table components.
 //!
 //! Provides [`ColumnDef`] as a shared column descriptor, and per-framework
-//! generators:
-//!
-//! - **GPUI** ([`generate_gpui_table_delegate`]): Generates a struct implementing
-//!   `gpui_component::table::TableDelegate` with `row_count`, `column_count`,
-//!   `perform_sort`, and `render_td` methods. Each column's render closure is
-//!   stored as an `Arc<dyn Fn>`. Sortable columns map their index to a string key
-//!   for the `on_sort` callback.
-//!
-//! - **Leptos** ([`generate_leptos_table`]): Generates a `<table>` using
-//!   `leptos_shadcn_ui::table` components (or falls back to plain HTML `<table>`
-//!   if shadcn is unavailable). Uses `For` component for row iteration.
-//!
-//! - **Dioxus** ([`generate_dioxus_table`]): Generates an `rsx!` table with
-//!   `thead`/`tbody` and iterator-based row rendering.
+//! generators.
 //!
 //! > **Note:** The GPUI delegate generator is not currently used by the inline
 //! > `data_table` element in `render_gpui.rs` (which emits a simpler manual
@@ -79,11 +66,7 @@ pub fn generate_gpui_table_delegate(
         })
         .collect();
 
-    let sort_arms_fallback = if sort_arms.is_empty() {
-        quote! { _ => return }
-    } else {
-        quote! { _ => return }
-    };
+    let sort_arms_fallback = quote! { _ => return };
 
     quote! {
         struct #delegate_name {

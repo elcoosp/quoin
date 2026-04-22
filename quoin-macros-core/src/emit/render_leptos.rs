@@ -918,7 +918,7 @@ fn emit_tabs_shadcn(el: &Element) -> TokenStream {
             if let RenderNode::Element(e) = c
                 && e.name == "tab"
             {
-                let _label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
+                let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
                 let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
                 let index_clone = index.clone();
                 return Some(quote! {
@@ -927,7 +927,7 @@ fn emit_tabs_shadcn(el: &Element) -> TokenStream {
                             let __tab_on_click = #on_click_with_move;
                             move |_| { __tab_on_click(#index_clone); }
                         }
-                    >{#_label}</leptos_shadcn_tabs::TabsTrigger>
+                    >{#label}</leptos_shadcn_tabs::TabsTrigger>
                 });
             }
             None
@@ -984,33 +984,31 @@ fn emit_dropdown_menu_plain(
         .children
         .iter()
         .filter_map(|c| {
-            if let RenderNode::Element(e) = c {
-                if e.name == "item" {
-                    let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
-                    let on_click = e
-                        .args
-                        .iter()
-                        .find(|a| a.key == "on_click")
-                        .map(|a| &a.value)?;
+            if let RenderNode::Element(e) = c
+                && e.name == "item"
+            {
+                let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
+                let on_click = e
+                    .args
+                    .iter()
+                    .find(|a| a.key == "on_click")
+                    .map(|a| &a.value)?;
 
-                    let handler = wrap_event_handler(on_click);
-                    let close_open = quote! { #open_name.set(false); };
-                    Some(quote! {
-                        <div
-                            class="px-3 py-2 cursor-pointer text-white hover:bg-gray-600"
-                            on:click={
-                                let __item_handler = #handler;
-                                move |ev: leptos::ev::MouseEvent| {
-                                    ev.stop_propagation();
-                                    #close_open;
-                                    __item_handler(ev);
-                                }
+                let handler = wrap_event_handler(on_click);
+                let close_open = quote! { #open_name.set(false); };
+                Some(quote! {
+                    <div
+                        class="px-3 py-2 cursor-pointer text-white hover:bg-gray-600"
+                        on:click={
+                            let __item_handler = #handler;
+                            move |ev: leptos::ev::MouseEvent| {
+                                ev.stop_propagation();
+                                #close_open;
+                                __item_handler(ev);
                             }
-                        >{label}</div>
-                    })
-                } else {
-                    None
-                }
+                        }
+                    >{label}</div>
+                })
             } else {
                 None
             }
@@ -1069,23 +1067,21 @@ fn emit_dropdown_menu_shadcn(
         .children
         .iter()
         .filter_map(|c| {
-            if let RenderNode::Element(e) = c {
-                if e.name == "item" {
-                    let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
-                    let on_click = e
-                        .args
-                        .iter()
-                        .find(|a| a.key == "on_click")
-                        .map(|a| &a.value)?;
-                    let handler = wrap_event_handler(on_click);
-                    Some(quote! {
-                        <leptos_shadcn_dropdown_menu::DropdownMenuItem on_click=#handler>
-                            {label}
-                        </leptos_shadcn_dropdown_menu::DropdownMenuItem>
-                    })
-                } else {
-                    None
-                }
+            if let RenderNode::Element(e) = c
+                && e.name == "item"
+            {
+                let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
+                let on_click = e
+                    .args
+                    .iter()
+                    .find(|a| a.key == "on_click")
+                    .map(|a| &a.value)?;
+                let handler = wrap_event_handler(on_click);
+                Some(quote! {
+                    <leptos_shadcn_dropdown_menu::DropdownMenuItem on_click=#handler>
+                        {label}
+                    </leptos_shadcn_dropdown_menu::DropdownMenuItem>
+                })
             } else {
                 None
             }
@@ -1138,11 +1134,9 @@ fn emit_data_table_plain(
     let mut row_cells: Vec<TokenStream> = Vec::new();
 
     for c in &el.children {
-        if let RenderNode::Element(e) = c {
-            if e.name != "column" {
-                continue;
-            }
-
+        if let RenderNode::Element(e) = c
+            && e.name == "column"
+        {
             let label = e
                 .args
                 .iter()
@@ -1205,11 +1199,9 @@ fn emit_data_table_shadcn(
     let mut row_cells: Vec<TokenStream> = Vec::new();
 
     for c in &el.children {
-        if let RenderNode::Element(e) = c {
-            if e.name != "column" {
-                continue;
-            }
-
+        if let RenderNode::Element(e) = c
+            && e.name == "column"
+        {
             let label = e
                 .args
                 .iter()

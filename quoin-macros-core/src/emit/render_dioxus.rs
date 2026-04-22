@@ -777,35 +777,35 @@ fn emit_tabs_plain(el: &Element) -> TokenStream {
         .children
         .iter()
         .filter_map(|c| {
-            if let RenderNode::Element(e) = c {
-                if e.name == "tab" {
-                    let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
-                    let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
+            if let RenderNode::Element(e) = c
+                && e.name == "tab"
+            {
+                let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
+                let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
 
-                    let param_shadows: Vec<TokenStream> = param_idents
-                        .iter()
-                        .map(|id| quote! { let #id = #index; })
-                        .collect();
-                    let clone_shadows: Vec<TokenStream> = body_idents
-                        .iter()
-                        .map(|id| quote! { let #id = #id.clone(); })
-                        .collect();
-                    let call_args: Vec<TokenStream> =
-                        param_idents.iter().map(|id| quote! { #id }).collect();
+                let param_shadows: Vec<TokenStream> = param_idents
+                    .iter()
+                    .map(|id| quote! { let #id = #index; })
+                    .collect();
+                let clone_shadows: Vec<TokenStream> = body_idents
+                    .iter()
+                    .map(|id| quote! { let #id = #id.clone(); })
+                    .collect();
+                let call_args: Vec<TokenStream> =
+                    param_idents.iter().map(|id| quote! { #id }).collect();
 
-                    return Some(quote! {
-                        div {
-                            class: if #index == __active { "px-4 py-2 cursor-pointer text-white" } else { "px-4 py-2 cursor-pointer text-gray-400" },
-                            onclick: {
-                                #(#param_shadows)*
-                                #(#clone_shadows)*
-                                let __tab_on_click = #on_click_with_move;
-                                move |_| { __tab_on_click(#(#call_args)*) }
-                            },
-                            #label
-                        }
-                    });
-                }
+                return Some(quote! {
+                    div {
+                        class: if #index == __active { "px-4 py-2 cursor-pointer text-white" } else { "px-4 py-2 cursor-pointer text-gray-400" },
+                        onclick: {
+                            #(#param_shadows)*
+                            #(#clone_shadows)*
+                            let __tab_on_click = #on_click_with_move;
+                            move |_| { __tab_on_click(#(#call_args)*) }
+                        },
+                        #label
+                    }
+                });
             }
             None
         })
@@ -844,22 +844,22 @@ fn emit_tabs_shadcn(el: &Element) -> TokenStream {
         .children
         .iter()
         .filter_map(|c| {
-            if let RenderNode::Element(e) = c {
-                if e.name == "tab" {
-                    let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
-                    let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
-                    let index_clone = index.clone();
-                    return Some(quote! {
-                        shadcn_dioxus::tabs::TabsTrigger {
-                            value: "{#index.to_string()}",
-                            onclick: {
-                                let __tab_on_click = #on_click_with_move;
-                                move |_| { __tab_on_click(#index_clone); }
-                            },
-                            #label
-                        }
-                    });
-                }
+            if let RenderNode::Element(e) = c
+                && e.name == "tab"
+            {
+                let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
+                let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
+                let index_clone = index.clone();
+                return Some(quote! {
+                    shadcn_dioxus::tabs::TabsTrigger {
+                        value: "{#index.to_string()}",
+                        onclick: {
+                            let __tab_on_click = #on_click_with_move;
+                            move |_| { __tab_on_click(#index_clone); }
+                        },
+                        #label
+                    }
+                });
             }
             None
         })
@@ -905,33 +905,31 @@ fn emit_dropdown_menu_plain(el: &Element) -> TokenStream {
         .children
         .iter()
         .filter_map(|c| {
-            if let RenderNode::Element(e) = c {
-                if e.name == "item" {
-                    let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
-                    let on_click = e
-                        .args
-                        .iter()
-                        .find(|a| a.key == "on_click")
-                        .map(|a| &a.value)?;
+            if let RenderNode::Element(e) = c
+                && e.name == "item"
+            {
+                let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
+                let on_click = e
+                    .args
+                    .iter()
+                    .find(|a| a.key == "on_click")
+                    .map(|a| &a.value)?;
 
-                    let handler = wrap_dioxus_handler(on_click);
-                    Some(quote! {
-                        div {
-                            class: "px-3 py-2 cursor-pointer text-white hover:bg-gray-600",
-                            onclick: {
-                                let __item_handler = #handler;
-                                move |ev: dioxus::prelude::Event<web_sys::MouseEvent>| {
-                                    ev.stop_propagation();
-                                    __open.set(false);
-                                    __item_handler(ev);
-                                }
-                            },
-                            #label
-                        }
-                    })
-                } else {
-                    None
-                }
+                let handler = wrap_dioxus_handler(on_click);
+                Some(quote! {
+                    div {
+                        class: "px-3 py-2 cursor-pointer text-white hover:bg-gray-600",
+                        onclick: {
+                            let __item_handler = #handler;
+                            move |ev: dioxus::prelude::Event<web_sys::MouseEvent>| {
+                                ev.stop_propagation();
+                                __open.set(false);
+                                __item_handler(ev);
+                            }
+                        },
+                        #label
+                    }
+                })
             } else {
                 None
             }
@@ -980,20 +978,18 @@ fn emit_dropdown_menu_shadcn(el: &Element) -> TokenStream {
         .children
         .iter()
         .filter_map(|c| {
-            if let RenderNode::Element(e) = c {
-                if e.name == "item" {
-                    let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
-                    let on_click = e.args.iter().find(|a| a.key == "on_click").map(|a| &a.value)?;
-                    let handler = wrap_dioxus_handler(on_click);
-                    Some(quote! {
-                        shadcn_dioxus::dropdown_menu::DropdownMenuItem {
-                            onclick: #handler,
-                            #label
-                        }
-                    })
-                } else {
-                    None
-                }
+            if let RenderNode::Element(e) = c
+                && e.name == "item"
+            {
+                let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
+                let on_click = e.args.iter().find(|a| a.key == "on_click").map(|a| &a.value)?;
+                let handler = wrap_dioxus_handler(on_click);
+                Some(quote! {
+                    shadcn_dioxus::dropdown_menu::DropdownMenuItem {
+                        onclick: #handler,
+                        #label
+                    }
+                })
             } else {
                 None
             }
@@ -1039,16 +1035,16 @@ fn emit_data_table_plain(el: &Element) -> TokenStream {
         .children
         .iter()
         .filter_map(|c| {
-            if let RenderNode::Element(e) = c {
-                if e.name == "column" {
-                    let label = e
-                        .args
-                        .iter()
-                        .find(|a| a.key == "label")
-                        .map(|a| &a.value)
-                        .unwrap();
-                    return Some(quote!(th { #label }));
-                }
+            if let RenderNode::Element(e) = c
+                && e.name == "column"
+            {
+                let label = e
+                    .args
+                    .iter()
+                    .find(|a| a.key == "label")
+                    .map(|a| &a.value)
+                    .unwrap();
+                return Some(quote!(th { #label }));
             }
             None
         })
@@ -1058,16 +1054,16 @@ fn emit_data_table_plain(el: &Element) -> TokenStream {
         .children
         .iter()
         .filter_map(|c| {
-            if let RenderNode::Element(e) = c {
-                if e.name == "column" {
-                    let render_closure = e
-                        .args
-                        .iter()
-                        .find(|a| a.key == "render")
-                        .map(|a| &a.value)
-                        .unwrap();
-                    return Some(quote!(td { { (#render_closure)(&__row) } }));
-                }
+            if let RenderNode::Element(e) = c
+                && e.name == "column"
+            {
+                let render_closure = e
+                    .args
+                    .iter()
+                    .find(|a| a.key == "render")
+                    .map(|a| &a.value)
+                    .unwrap();
+                return Some(quote!(td { { (#render_closure)(&__row) } }));
             }
             None
         })
@@ -1098,16 +1094,16 @@ fn emit_data_table_shadcn(el: &Element) -> TokenStream {
         .children
         .iter()
         .filter_map(|c| {
-            if let RenderNode::Element(e) = c {
-                if e.name == "column" {
-                    let label = e
-                        .args
-                        .iter()
-                        .find(|a| a.key == "label")
-                        .map(|a| &a.value)
-                        .unwrap();
-                    return Some(quote!(th { class: "px-3 py-2 text-gray-400 font-medium", #label }));
-                }
+            if let RenderNode::Element(e) = c
+                && e.name == "column"
+            {
+                let label = e
+                    .args
+                    .iter()
+                    .find(|a| a.key == "label")
+                    .map(|a| &a.value)
+                    .unwrap();
+                return Some(quote!(th { class: "px-3 py-2 text-gray-400 font-medium", #label }));
             }
             None
         })
@@ -1117,16 +1113,16 @@ fn emit_data_table_shadcn(el: &Element) -> TokenStream {
         .children
         .iter()
         .filter_map(|c| {
-            if let RenderNode::Element(e) = c {
-                if e.name == "column" {
-                    let render_closure = e
-                        .args
-                        .iter()
-                        .find(|a| a.key == "render")
-                        .map(|a| &a.value)
-                        .unwrap();
-                    return Some(quote!(td { class: "px-3 py-2 text-white", { (#render_closure)(&__row) } }));
-                }
+            if let RenderNode::Element(e) = c
+                && e.name == "column"
+            {
+                let render_closure = e
+                    .args
+                    .iter()
+                    .find(|a| a.key == "render")
+                    .map(|a| &a.value)
+                    .unwrap();
+                return Some(quote!(td { class: "px-3 py-2 text-white", { (#render_closure)(&__row) } }));
             }
             None
         })
@@ -1152,10 +1148,10 @@ fn find_arg_bool(el: &Element, key: &str) -> bool {
         .iter()
         .find(|a| a.key == key)
         .map(|a| {
-            if let syn::Expr::Lit(expr_lit) = &a.value {
-                if let syn::Lit::Bool(b) = &expr_lit.lit {
-                    return b.value;
-                }
+            if let syn::Expr::Lit(expr_lit) = &a.value
+                && let syn::Lit::Bool(b) = &expr_lit.lit
+            {
+                return b.value;
             }
             false
         })

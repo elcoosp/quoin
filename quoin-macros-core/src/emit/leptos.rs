@@ -31,10 +31,10 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
             .inputs
             .iter()
             .filter_map(|arg| {
-                if let syn::FnArg::Typed(pat_type) = arg {
-                    if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
-                        return Some(pat_ident.ident.to_string());
-                    }
+                if let syn::FnArg::Typed(pat_type) = arg
+                    && let syn::Pat::Ident(pat_ident) = &*pat_type.pat
+                {
+                    return Some(pat_ident.ident.to_string());
                 }
                 None
             })
@@ -44,10 +44,10 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
             .inputs
             .iter()
             .filter_map(|arg| {
-                if let syn::FnArg::Typed(pat_type) = arg {
-                    if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
-                        return Some((pat_ident.ident.clone(), &*pat_type.ty));
-                    }
+                if let syn::FnArg::Typed(pat_type) = arg
+                    && let syn::Pat::Ident(pat_ident) = &*pat_type.pat
+                {
+                    return Some((pat_ident.ident.clone(), &*pat_type.ty));
                 }
                 None
             })

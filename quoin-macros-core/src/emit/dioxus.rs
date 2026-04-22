@@ -38,10 +38,10 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
             .inputs
             .iter()
             .filter_map(|arg| {
-                if let syn::FnArg::Typed(pat_type) = arg {
-                    if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
-                        return Some(pat_ident.ident.to_string());
-                    }
+                if let syn::FnArg::Typed(pat_type) = arg
+                    && let syn::Pat::Ident(pat_ident) = &*pat_type.pat
+                {
+                    return Some(pat_ident.ident.to_string());
                 }
                 None
             })
@@ -51,10 +51,10 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
             .inputs
             .iter()
             .filter_map(|arg| {
-                if let syn::FnArg::Typed(pat_type) = arg {
-                    if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
-                        return Some((pat_ident.ident.clone(), &*pat_type.ty));
-                    }
+                if let syn::FnArg::Typed(pat_type) = arg
+                    && let syn::Pat::Ident(pat_ident) = &*pat_type.pat
+                {
+                    return Some((pat_ident.ident.clone(), &*pat_type.ty));
                 }
                 None
             })
@@ -133,7 +133,7 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
     // Result<VNode, RenderError>. If the last render statement is a
     // let-binding (ends with ;), it returns () — we need to append
     // a fallback Element.
-    let needs_fallback = ast.render.stmts.last().map_or(true, |last| {
+    let needs_fallback = ast.render.stmts.last().is_none_or(|last| {
         matches!(last, syn::Stmt::Local(_) | syn::Stmt::Item(_))
             || matches!(last, syn::Stmt::Expr(_, Some(_)))
     });

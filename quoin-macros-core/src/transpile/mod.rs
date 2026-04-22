@@ -47,7 +47,7 @@ pub fn collect_handler_idents(expr: &syn::Expr) -> Vec<proc_macro2::Ident> {
     collector
         .0
         .sort_by_key(|id| id.to_string());
-    collector.0.dedup_by(|a, b| a.to_string() == b.to_string());
+    collector.0.dedup_by(|a, b| *a == *b);
     collector.0
 }
 
@@ -58,7 +58,7 @@ pub fn collect_block_idents(block: &syn::Block) -> Vec<proc_macro2::Ident> {
     collector
         .0
         .sort_by_key(|id| id.to_string());
-    collector.0.dedup_by(|a, b| a.to_string() == b.to_string());
+    collector.0.dedup_by(|a, b| *a == *b);
     collector.0
 }
 

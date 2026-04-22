@@ -8,7 +8,6 @@
 /// Implementations are provided by framework adapter crates:
 /// - `quoin-ui-gpui` uses GPUI's `cx.write_to_clipboard()`
 /// - Web adapters (future) use `web_sys::Clipboard`
-/// A cross-platform clipboard interface.
 ///
 /// # Example
 ///

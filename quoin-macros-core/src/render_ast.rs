@@ -39,7 +39,7 @@ use syn::{Attribute, Expr, Ident, LitStr, Result, Token, braced, bracketed, pare
 
 #[derive(Debug)]
 pub enum RenderNode {
-    Element(Element),
+    Element(Box<Element>),
     Text(LitStr),
     Expr(Expr),
     If(IfNode),
@@ -145,7 +145,7 @@ impl Parse for Element {
         {
             let arg_keys: Vec<&Ident> = args.iter().map(|a| &a.key).collect();
             let warns = crate::render_ast_diag::check_element_args(&name.to_string(), &arg_keys);
-            for w in warns {
+            if let Some(w) = warns.into_iter().next() {
                 return Err(syn::Error::new_spanned(&name, w));
             }
         }
