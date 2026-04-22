@@ -1,12 +1,39 @@
-pub mod tailwind;
-pub mod table_codegen;
-pub mod virtual_list_codegen;
-pub mod rich_text_codegen;
 pub mod dropdown_codegen;
+pub mod rich_text_codegen;
+pub mod table_codegen;
+pub mod tailwind;
+pub mod virtual_list_codegen;
 
 use syn::visit::Visit;
 use syn::visit_mut::VisitMut;
+/// Collect identifiers from a closure body, but exclude the closure's own parameters.
+pub fn collect_handler_idents_excluding_params(expr: &syn::Expr) -> Vec<proc_macro2::Ident> {
+    let param_idents: std::collections::HashSet<String> = match expr {
+        syn::Expr::Closure(c) => c
+            .inputs
+            .iter()
+            .filter_map(|pat| {
+                if let syn::Pat::Ident(pi) = pat {
+                    Some(pi.ident.to_string())
+                } else if let syn::Pat::Type(pt) = pat {
+                    if let syn::Pat::Ident(pi) = pt.pat.as_ref() {
+                        Some(pi.ident.to_string())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .collect(),
+        _ => std::collections::HashSet::new(),
+    };
 
+    collect_handler_idents(expr)
+        .into_iter()
+        .filter(|id| !param_idents.contains(&id.to_string()))
+        .collect()
+}
 /// Collect all single-segment path idents from an expression, skipping nested
 /// closures (they have their own capture scope).
 pub fn collect_handler_idents(expr: &syn::Expr) -> Vec<proc_macro2::Ident> {
