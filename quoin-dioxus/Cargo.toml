@@ -12,6 +12,7 @@ dioxus = "0.7"
 dioxus-core = "0.7"
 futures = "0.3"
 send_wrapper = "0.6"
+web-sys = { version = "0.3", features = ["Window", "Navigator", "Clipboard"] }
 
 # shadcn-dioxus — not published on crates.io, use git.
 # The crate name inside the repo is "ui", so we rename it.

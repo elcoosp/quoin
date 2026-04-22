@@ -106,7 +106,7 @@ fn emit_element_inner(el: &Element) -> TokenStream {
                 }
             }
         }
-        "clipboard_button" => emit_html_el(el, "button"),
+        "clipboard_button" => emit_clipboard_button(el),
         "button" => emit_button(el),
         "icon" => emit_icon(el),
         "input" => emit_input(el),
@@ -530,6 +530,45 @@ fn emit_styled_text(el: &Element) -> TokenStream {
         }
     }
 }
+// ---------------------------------------------------------------------------
+// Clipboard button
+// ---------------------------------------------------------------------------
+
+fn emit_clipboard_button(el: &Element) -> TokenStream {
+    let copy_text = match el.args.iter().find(|a| a.key == "copy_text").map(|a| &a.value) {
+        Some(ct) => ct,
+        None => return emit_html_el(el, "button"),
+    };
+
+    let mut attrs = Vec::new();
+    for arg in &el.args {
+        let key_str = arg.key.to_string();
+        let value = &arg.value;
+        match key_str.as_str() {
+            "class" => attrs.push(quote! { class: #value }),
+            "disabled" => attrs.push(quote! { disabled: #value }),
+            "copy_text" => {}
+            _ => {}
+        }
+    }
+
+    let mut children: Vec<TokenStream> = el.children.iter().map(emit_render_inner).collect();
+
+    if children.is_empty() {
+        children.push(quote! { "Copy" });
+    }
+
+    quote! {
+        button {
+            #(#attrs),*
+            onclick: move |_| {
+                quoin::clipboard_write_text(&(#copy_text).to_string());
+            },
+            #(#children)*
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // HTML element emitter
 // ---------------------------------------------------------------------------

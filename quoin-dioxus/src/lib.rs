@@ -171,6 +171,21 @@ impl<T: Send + 'static> std::future::IntoFuture for DioxusJoinHandle<T> {
     }
 }
 
+/// Write text to the system clipboard (Web/WASM only).
+///
+/// Falls back silently if the clipboard API is unavailable (e.g., desktop mode).
+/// This function is called by the `clipboard_button` element in `quoin_render!`.
+pub fn clipboard_write_text(text: &str) {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = web_sys::window().and_then(|w| w.navigator().clipboard().write_text(text).ok());
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let _ = text;
+    }
+}
+
 impl<T: Clone + std::fmt::Debug + 'static> std::fmt::Debug for DioxusSignal<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DioxusSignal")
