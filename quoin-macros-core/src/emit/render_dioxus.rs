@@ -140,7 +140,7 @@ fn emit_badge_plain(el: &Element) -> TokenStream {
             match bg_class {
                 Some(cls) => quote! {
                     span {
-                        class: format!("inline-flex items-center px-1.5 rounded text-xs font-medium text-white {}", #cls),
+                        class=format!("inline-flex items-center px-1.5 rounded text-xs font-medium text-white {}", #cls),
                         #(#children)*
                     }
                 },
@@ -227,9 +227,9 @@ fn emit_scroll_area(el: &Element) -> TokenStream {
                     ..
                 }) = value
                 {
-                    attrs.push(quote! { class: format!("{} {}", #s, #overflow_class) });
+                    attrs.push(quote! { class=format!("{} {}", #s, #overflow_class) });
                 } else {
-                    attrs.push(quote! { class: format!("{} {}", #value, #overflow_class) });
+                    attrs.push(quote! { class=format!("{} {}", #value, #overflow_class) });
                 }
             }
             "direction" => {}
@@ -237,7 +237,7 @@ fn emit_scroll_area(el: &Element) -> TokenStream {
         }
     }
     if attrs.is_empty() {
-        attrs.push(quote! { class: #overflow_class });
+        attrs.push(quote! { class={#overflow_class} });
     }
     let children: Vec<TokenStream> = el.children.iter().map(emit_render_inner).collect();
     quote! { div { #(#attrs),* #(#children)* } }
@@ -350,7 +350,7 @@ fn emit_button_shadcn(el: &Element) -> TokenStream {
         .map(|a| &a.value)
     {
         let handler = wrap_dioxus_handler(handler_expr);
-        on_click_attr = Some(quote! { onclick: #handler })
+        on_click_attr = Some(quote! { onclick={#handler} })
     }
 
     let children = Vec::new();
@@ -451,7 +451,7 @@ fn emit_input_shadcn(el: &Element) -> TokenStream {
     let placeholder_attr = if placeholder.is_empty() {
         quote! {}
     } else {
-        quote! { placeholder: #placeholder }
+        quote! { placeholder={#placeholder} }
     };
 
     let disabled_attr = if disabled {
@@ -605,12 +605,12 @@ fn emit_clipboard_button(el: &Element) -> TokenStream {
                     ..
                 }) = value
                 {
-                    attrs.push(quote! { class: #s });
+                    attrs.push(quote! { class={#s} });
                 } else {
-                    attrs.push(quote! { class: {#value} });
+                    attrs.push(quote! { class={#value} });
                 }
             }
-            "disabled" => attrs.push(quote! { disabled: #value }),
+            "disabled" => attrs.push(quote! { disabled={#value} }),
             "copy_text" => {}
             _ => {}
         }
@@ -680,37 +680,37 @@ fn emit_html_el_inner(el: &Element, name_str: &str) -> TokenStream {
         match key_str.as_str() {
             "on_click" => {
                 let handler = wrap_dioxus_handler(value);
-                attrs.push(quote! { onclick: #handler })
+                attrs.push(quote! { onclick={#handler} })
             }
             "on_mouse_down" => {
                 let handler = wrap_dioxus_handler(value);
-                attrs.push(quote! { onmousedown: #handler })
+                attrs.push(quote! { onmousedown={#handler} })
             }
             "on_mouse_up" => {
                 let handler = wrap_dioxus_handler(value);
-                attrs.push(quote! { onmouseup: #handler })
+                attrs.push(quote! { onmouseup={#handler} })
             }
             "on_mouse_enter" => {
                 let handler = wrap_dioxus_handler(value);
-                attrs.push(quote! { onmouseenter: #handler })
+                attrs.push(quote! { onmouseenter={#handler} })
             }
             "on_mouse_leave" => {
                 let handler = wrap_dioxus_handler(value);
-                attrs.push(quote! { onmouseleave: #handler })
+                attrs.push(quote! { onmouseleave={#handler} })
             }
             "on_input" => {
                 let handler = wrap_dioxus_handler(value);
-                attrs.push(quote! { oninput: #handler })
+                attrs.push(quote! { oninput={#handler} })
             }
             "on_change" => {
                 let handler = wrap_dioxus_handler(value);
-                attrs.push(quote! { onchange: #handler })
+                attrs.push(quote! { onchange={#handler} })
             }
             "value" => {
                 if tag == "input" {
-                    attrs.push(quote! { value: "{#value.get()}" });
+                    attrs.push(quote! { value="{#value.get()}" });
                 } else {
-                    attrs.push(quote! { value: #value });
+                    attrs.push(quote! { value={#value} });
                 }
             }
             "primary" | "ghost" | "destructive" | "active" | "children" | "trigger" | "rows"
@@ -725,9 +725,9 @@ fn emit_html_el_inner(el: &Element, name_str: &str) -> TokenStream {
                     ..
                 }) = value
                 {
-                    attrs.push(quote! { #key_ident: #s });
+                    attrs.push(quote! { #key_ident={#s} });
                 } else {
-                    attrs.push(quote! { #key_ident: {#value} });
+                    attrs.push(quote! { #key_ident={#value} });
                 }
             }
         }
@@ -888,7 +888,7 @@ fn emit_tabs_plain(el: &Element) -> TokenStream {
 
                 return Some(quote! {
                     div {
-                        class: if #index == #active_expr { "px-4 py-2 cursor-pointer text-white" } else { "px-4 py-2 cursor-pointer text-gray-400" },
+                        class={if #index == #active_expr { "px-4 py-2 cursor-pointer text-white" } else { "px-4 py-2 cursor-pointer text-gray-400" },
                         onclick: {
                             #(#param_shadows)*
                             #(#clone_shadows)*
@@ -897,7 +897,7 @@ fn emit_tabs_plain(el: &Element) -> TokenStream {
                         },
                         #label
                     }
-                })
+                }})
             }
             None
         })
@@ -945,7 +945,7 @@ fn emit_tabs_shadcn(el: &Element) -> TokenStream {
                         },
                         #label
                     }
-                })
+                });
             }
             None
         })
@@ -1077,10 +1077,10 @@ fn emit_dropdown_menu_shadcn(el: &Element) -> TokenStream {
                 let handler = wrap_dioxus_handler(on_click);
                 return Some(quote! {
                     shadcn_dioxus::dropdown_menu::DropdownMenuItem {
-                        onclick: #handler,
+                        onclick={#handler},
                         #label
                     }
-                })
+                });
             } else {
                 None
             }
@@ -1135,7 +1135,7 @@ fn emit_data_table_plain(el: &Element) -> TokenStream {
                     .find(|a| a.key == "label")
                     .map(|a| &a.value)
                     .unwrap();
-                return Some(quote!(th { #label }))
+                return Some(quote!(th { #label }));
             }
             None
         })
@@ -1154,7 +1154,7 @@ fn emit_data_table_plain(el: &Element) -> TokenStream {
                     .find(|a| a.key == "render")
                     .map(|a| &a.value)
                     .unwrap();
-                return Some(quote!(td { { (#render_closure)(&__row) } }))
+                return Some(quote!(td { { (#render_closure)(&__row) } }));
             }
             None
         })
@@ -1195,7 +1195,7 @@ fn emit_data_table_shadcn(el: &Element) -> TokenStream {
                     .find(|a| a.key == "label")
                     .map(|a| &a.value)
                     .unwrap();
-                return Some(quote!(th { class: "px-3 py-2 text-gray-400 font-medium", #label }))
+                return Some(quote!(th { class: "px-3 py-2 text-gray-400 font-medium", #label }));
             }
             None
         })
@@ -1214,7 +1214,9 @@ fn emit_data_table_shadcn(el: &Element) -> TokenStream {
                     .find(|a| a.key == "render")
                     .map(|a| &a.value)
                     .unwrap();
-                return Some(quote!(td { class: "px-3 py-2 text-white", { (#render_closure)(&__row) } }))
+                return Some(
+                    quote!(td { class: "px-3 py-2 text-white", { (#render_closure)(&__row) } }),
+                );
             }
             None
         })
