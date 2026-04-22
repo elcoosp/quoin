@@ -53,27 +53,21 @@ pub struct Element {
 /// trees up to the next top-level comma or end-of-stream, then re-parsing
 /// the collected tokens as a single `Expr`.
 ///
-/// This is necessary because `syn::parse2::<Expr>()` (and `ParseStream::parse`)
-/// greedily terminate closure bodies at the first sub-expression. For example:
+/// `syn::parse2::<Expr>()` greedily terminates closure bodies at the first
+/// sub-expression. For example:
 ///
 /// ```
 /// |i| active_tab.clone().set(i)
 /// ```
 ///
-/// would be parsed as the closure `|i| active_tab` with `.clone().set(i)`
-/// left as trailing tokens — causing an "unexpected token `.`" error.
+/// would be parsed as `|i| active_tab` with `.clone().set(i)` left as
+/// trailing tokens — causing an "unexpected token `.`" error.
 ///
-/// By wrapping the collected tokens in parentheses before parsing:
-///
-/// ```
-/// ( |i| active_tab.clone().set(i) )
-/// ```
-///
-/// the parenthesized-expression parser forces the closure body to extend
-/// to the closing `)`, consuming the full method chain.
-///
-/// Commas inside `Group`s (parens, brackets, braces) are invisible at this
-/// level because `Group` is an atomic `TokenTree`.
+/// Wrapping the tokens in parentheses before parsing forces the closure body
+/// to extend to the closing `)`, consuming the full method chain.
+/// The outer parens are then stripped before returning so that downstream
+/// code sees the clean `Expr` variant (e.g. `Expr::Closure`, `Expr::Path`)
+/// rather than `Expr::Paren`.
 fn collect_arg_value(input: ParseStream) -> Result<Expr> {
     let mut tokens = Vec::new();
     while !input.is_empty() {
@@ -84,11 +78,16 @@ fn collect_arg_value(input: ParseStream) -> Result<Expr> {
         tokens.push(tt);
     }
     let token_stream: proc_macro2::TokenStream = tokens.into_iter().collect();
-    // Wrap in parentheses so that syn parses the full token sequence as a
-    // single parenthesized expression. Without this, syn stops closure bodies
-    // at the first sub-expression, leaving trailing method calls unparsed.
+    // Wrap in parentheses so syn parses the full token sequence as a single
+    // parenthesized expression, forcing closure bodies to extend through
+    // method chains instead of stopping at the first sub-expression.
     let wrapped: proc_macro2::TokenStream = quote::quote! { ( #token_stream ) };
-    syn::parse2(wrapped)
+    let parsed: Expr = syn::parse2(wrapped)?;
+    // Strip the outer parens — they were only a parsing aid.
+    match parsed {
+        Expr::Paren(paren) => Ok(*paren.expr),
+        other => Ok(other),
+    }
 }
 
 impl Parse for Element {
