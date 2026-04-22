@@ -77,22 +77,19 @@ test-macros-ui-all: test-quoin-macros-gpui test-quoin-macros-leptos test-quoin-m
 # Counter Examples (excluded from workspace — use --manifest-path)
 # ---------------------------------------------------------------------
 
-run-gpui:
+run-counter-gpui:
     cargo run --manifest-path examples/counter-gpui/Cargo.toml
 
-run-dioxus:
+run-counter-dioxus:
     cd examples/counter-dioxus && cargo run
 
-run-leptos:
-    cargo leptos serve -p counter-leptos
-
-serve-leptos:
+run-counter-leptos:
     cd examples/counter-leptos && trunk serve
 
-run-floem:
+run-counter-floem:
     cargo run --manifest-path examples/counter-floem/Cargo.toml
 
-run-xilem:
+run-counter-xilem:
     cargo run --manifest-path examples/counter-xilem/Cargo.toml
 
 # ---------------------------------------------------------------------
@@ -104,6 +101,12 @@ run-ucp-gpui:
 
 run-ucp-dioxus:
     cd examples/ucp-demo-dioxus && cargo run
+
+run-ucp-leptos:
+    cd examples/ucp-demo-leptos && trunk serve
+
+run-ucp-leptos-shadcn:
+    cd examples/ucp-demo-leptos-shadcn && trunk serve
 
 build-ucp-lib framework="gpui":
     cargo build --manifest-path examples/ucp-lib/Cargo.toml --features {{ framework }}
@@ -140,16 +143,19 @@ check: fmt-check lint
 fix:
     cargo fix --allow-dirty --all-targets
 
-watch-gpui:
+watch-counter-gpui:
     cargo watch --manifest-path examples/counter-gpui/Cargo.toml -x run
 
-watch-dioxus:
+watch-counter-dioxus:
     cd examples/counter-dioxus && cargo watch -x run
 
-watch-floem:
+watch-counter-leptos:
+    cd examples/counter-leptos && cargo watch -x "trunk serve"
+
+watch-counter-floem:
     cargo watch --manifest-path examples/counter-floem/Cargo.toml -x run
 
-watch-xilem:
+watch-counter-xilem:
     cargo watch --manifest-path examples/counter-xilem/Cargo.toml -x run
 
 watch-ucp-gpui:
@@ -157,6 +163,12 @@ watch-ucp-gpui:
 
 watch-ucp-dioxus:
     cd examples/ucp-demo-dioxus && cargo watch -x run
+
+watch-ucp-leptos:
+    cd examples/ucp-demo-leptos && cargo watch -x "trunk serve"
+
+watch-ucp-leptos-shadcn:
+    cd examples/ucp-demo-leptos-shadcn && cargo watch -x "trunk serve"
 
 # ---------------------------------------------------------------------
 # Leptos SSR (Native) Helpers
@@ -174,13 +186,18 @@ leptos-build:
 
 build-examples:
     cargo build --manifest-path examples/counter-gpui/Cargo.toml
-    cargo build --manifest-path examples/ucp-demo-gpui/Cargo.toml
-    cargo build --manifest-path examples/mini-devtools-gpui/Cargo.toml
-    cargo build --manifest-path examples/ucp-lib/Cargo.toml --features gpui
+    cargo build --manifest-path examples/counter-dioxus/Cargo.toml
     cargo build --manifest-path examples/counter-leptos/Cargo.toml
-    cargo build --manifest-path examples/ucp-demo-leptos/Cargo.toml
     cargo build --manifest-path examples/counter-floem/Cargo.toml
     cargo build --manifest-path examples/counter-xilem/Cargo.toml
+    cargo build --manifest-path examples/ucp-demo-gpui/Cargo.toml
+    cargo build --manifest-path examples/ucp-demo-dioxus/Cargo.toml
+    cargo build --manifest-path examples/ucp-demo-leptos/Cargo.toml
+    cargo build --manifest-path examples/ucp-demo-leptos-shadcn/Cargo.toml
+    cargo build --manifest-path examples/mini-devtools-gpui/Cargo.toml
+    cargo build --manifest-path examples/ucp-lib/Cargo.toml --features gpui
+    cargo build --manifest-path examples/ucp-lib/Cargo.toml --features leptos
+    cargo build --manifest-path examples/ucp-lib/Cargo.toml --features dioxus
     @echo "All examples build OK"
 
 # ---------------------------------------------------------------------
@@ -212,7 +229,7 @@ run-all:
     cd examples/counter-dioxus && cargo run &
     cargo run --manifest-path examples/counter-floem/Cargo.toml &
     cargo run --manifest-path examples/counter-xilem/Cargo.toml &
-    cargo leptos serve -p counter-leptos &
+    cd examples/counter-leptos && trunk serve &
     cargo run --manifest-path examples/ucp-demo-gpui/Cargo.toml &
     cargo run --manifest-path examples/mini-devtools-gpui/Cargo.toml &
 
