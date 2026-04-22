@@ -215,6 +215,17 @@ fn emit_element_inner(
 // ---------------------------------------------------------------------------
 
 fn emit_badge(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
+    #[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
+    {
+        return emit_badge_shadcn(el, bindings, inside_for);
+    }
+    #[cfg(not(all(feature = "leptos", feature = "leptos-shadcn")))]
+    {
+        emit_badge_plain(el, bindings, inside_for)
+    }
+}
+
+fn emit_badge_plain(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
     let color_expr = el.args.iter().find(|a| a.key == "color").map(|a| &a.value);
     let mut children: Vec<TokenStream> = Vec::new();
     for child in &el.children {
@@ -241,6 +252,31 @@ fn emit_badge(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -
                 #(#children)*
             </span>
         },
+    }
+}
+
+#[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
+fn emit_badge_shadcn(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
+    let color_expr = el.args.iter().find(|a| a.key == "color").map(|a| &a.value);
+    let mut children: Vec<TokenStream> = Vec::new();
+    for child in &el.children {
+        children.push(emit_node(child, bindings, inside_for));
+    }
+
+    let variant = if let Some(color) = color_expr {
+        let bg_class = crate::transpile::theme_tokens::try_resolve_bg_class(color);
+        match bg_class {
+            Some(cls) => quote! { class=format!("inline-flex items-center px-1.5 rounded text-xs font-medium text-white {}", #cls) },
+            None => quote! { class=format!("inline-flex items-center px-1.5 rounded text-xs font-medium text-white") style=format!("background-color: {}", #color) },
+        }
+    } else {
+        quote! { class="inline-flex items-center px-1.5 rounded text-xs font-medium bg-gray-600 text-white" }
+    };
+
+    if children.is_empty() {
+        quote! { <leptos_shadcn_badge::Badge #variant /> }
+    } else {
+        quote! { <leptos_shadcn_badge::Badge #variant> #(#children)* </leptos_shadcn_badge::Badge> }
     }
 }
 
@@ -1037,11 +1073,22 @@ fn emit_dropdown_menu_plain(
                     .find(|a| a.key == "on_click")
                     .map(|a| &a.value)?;
 
+                let checked = e.args.iter().any(|a| a.key == "checked" && {
+                    matches!(&a.value, syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Bool(b), .. }) if b.value)
+                });
+
                 let handler = wrap_event_handler(on_click);
                 let close_open = quote! { #open_name.set(false); };
+
+                let checked_icon = if checked {
+                    Some(quote! { <span class="mr-2">"✓"</span> })
+                } else {
+                    None
+                };
+
                 Some(quote! {
                     <div
-                        class="px-3 py-2 cursor-pointer text-white hover:bg-gray-600"
+                        class="px-3 py-2 cursor-pointer text-white hover:bg-gray-600 flex items-center"
                         on:click={
                             let __item_handler = #handler;
                             move |ev: leptos::ev::MouseEvent| {
@@ -1050,7 +1097,7 @@ fn emit_dropdown_menu_plain(
                                 __item_handler(ev);
                             }
                         }
-                    >{label}</div>
+                    >{#checked_icon}{label}</div>
                 })
             } else {
                 None

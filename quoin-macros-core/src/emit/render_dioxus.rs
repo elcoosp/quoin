@@ -120,6 +120,17 @@ fn emit_element_inner(el: &Element) -> TokenStream {
 // ---------------------------------------------------------------------------
 
 fn emit_badge(el: &Element) -> TokenStream {
+    #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
+    {
+        return emit_badge_shadcn(el);
+    }
+    #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
+    {
+        emit_badge_plain(el)
+    }
+}
+
+fn emit_badge_plain(el: &Element) -> TokenStream {
     let color_expr = el.args.iter().find(|a| a.key == "color").map(|a| &a.value);
     let mut children: Vec<TokenStream> = Vec::new();
     for child in &el.children {
@@ -146,6 +157,31 @@ fn emit_badge(el: &Element) -> TokenStream {
         None => quote! {
             span { class: "inline-flex items-center px-1.5 rounded text-xs font-medium bg-gray-600 text-white", #(#children)* }
         },
+    }
+}
+
+#[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
+fn emit_badge_shadcn(el: &Element) -> TokenStream {
+    let color_expr = el.args.iter().find(|a| a.key == "color").map(|a| &a.value);
+    let mut children: Vec<TokenStream> = Vec::new();
+    for child in &el.children {
+        children.push(emit_render_inner(child));
+    }
+
+    let class_str = if let Some(color) = color_expr {
+        let bg_class = crate::transpile::theme_tokens::try_resolve_bg_class(color);
+        match bg_class {
+            Some(cls) => format!("inline-flex items-center px-1.5 rounded text-xs font-medium text-white {}", cls),
+            None => "inline-flex items-center px-1.5 rounded text-xs font-medium text-white bg-gray-600".to_string(),
+        }
+    } else {
+        "inline-flex items-center px-1.5 rounded text-xs font-medium bg-gray-600 text-white".to_string()
+    };
+
+    if children.is_empty() {
+        quote! { shadcn_dioxus::badge::Badge { class: #class_str } }
+    } else {
+        quote! { shadcn_dioxus::badge::Badge { class: #class_str, #(#children)* } }
     }
 }
 
@@ -916,10 +952,15 @@ fn emit_dropdown_menu_plain(el: &Element) -> TokenStream {
                     .find(|a| a.key == "on_click")
                     .map(|a| &a.value)?;
 
+                let checked = e.args.iter().any(|a| a.key == "checked" && {
+                    matches!(&a.value, syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Bool(b), .. }) if b.value)
+                });
+
                 let handler = wrap_dioxus_handler(on_click);
+                let check_mark = if checked { "\u{2713} " } else { "" };
                 Some(quote! {
                     div {
-                        class: "px-3 py-2 cursor-pointer text-white hover:bg-gray-600",
+                        class: "px-3 py-2 cursor-pointer text-white hover:bg-gray-600 flex items-center",
                         onclick: {
                             let __item_handler = #handler;
                             move |ev: dioxus::prelude::Event<MouseData>| {
@@ -928,6 +969,7 @@ fn emit_dropdown_menu_plain(el: &Element) -> TokenStream {
                                 __item_handler(ev);
                             }
                         },
+                        #check_mark
                         #label
                     }
                 })

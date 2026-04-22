@@ -39,6 +39,7 @@ const KNOWN_ARGS: &[&str] = &[
     "on_mouse_up",
     "on_mouse_enter",
     "on_mouse_leave",
+    "checked",
     "estimated_height",
     "items",
     "copy_text",
