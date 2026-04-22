@@ -987,6 +987,7 @@ fn emit_dropdown_menu_plain(
             if let RenderNode::Element(e) = c
                 && e.name == "item"
             {
+                #[allow(unused)]
                 let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
                 let on_click = e
                     .args
