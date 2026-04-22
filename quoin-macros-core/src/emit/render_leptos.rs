@@ -1,78 +1,248 @@
 use crate::render_ast::{Element, ForNode, IfNode, RenderNode};
+use crate::transpile::{
+    collect_handler_idents, collect_handler_idents_excluding_params, force_move_on_closure,
+};
 use proc_macro2::TokenStream;
 use quote::quote;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+static EXTRACT_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+fn next_extract_id() -> usize {
+    EXTRACT_COUNTER.fetch_add(1, Ordering::Relaxed)
+}
 
 pub fn emit_render(node: &RenderNode) -> TokenStream {
-    let inner = emit_render_inner(node);
-    let view_block = quote! { { use leptos::prelude::*; view! { #inner } } };
-    wrap_with_cfg(node.attrs(), view_block)
-}
+    let mut bindings = Vec::new();
+    let inner = emit_node(node, &mut bindings, false);
 
-fn wrap_with_cfg(attrs: &[syn::Attribute], inner: TokenStream) -> TokenStream {
-    let cfg_attrs: Vec<_> = attrs.iter().filter(|a| a.path().is_ident("cfg")).collect();
-    if cfg_attrs.is_empty() {
-        inner
+    let tokens = if bindings.is_empty() {
+        quote! { { use leptos::prelude::*; view! { #inner } } }
     } else {
-        quote! { { #(#cfg_attrs)* { #inner } } }
-    }
+        quote! { { use leptos::prelude::*; #(#bindings)* view! { #inner } } }
+    };
+
+    wrap_with_cfg(node.attrs(), tokens)
 }
 
-fn emit_render_inner(node: &RenderNode) -> TokenStream {
+// ---------------------------------------------------------------------------
+// Core dispatch
+// ---------------------------------------------------------------------------
+
+fn emit_node(node: &RenderNode, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
     match node {
-        RenderNode::Element(el) => emit_element(el),
+        RenderNode::Element(el) => emit_element(el, bindings, inside_for),
         RenderNode::Text(t) => quote! { #t },
-        RenderNode::Expr(e) => quote! { { #e } },
-        RenderNode::If(if_node) => emit_if(if_node),
-        RenderNode::For(for_node) => emit_for(for_node),
+        RenderNode::Expr(e) => quote! { {#e} },
+        RenderNode::If(if_node) => emit_if(if_node, bindings, inside_for),
+        RenderNode::For(for_node) => emit_for(for_node, bindings),
         RenderNode::Root(nodes) => {
-            let tokens: Vec<TokenStream> = nodes.iter().map(emit_render).collect();
+            let tokens: Vec<TokenStream> = nodes
+                .iter()
+                .map(|n| emit_node(n, bindings, inside_for))
+                .collect();
             quote! { #(#tokens)* }
         }
     }
 }
 
-fn emit_element(el: &Element) -> TokenStream {
-    let inner = emit_element_inner(el);
+// ---------------------------------------------------------------------------
+// Event handler wrapper — shadow-clones captured idents before move
+// ---------------------------------------------------------------------------
+
+fn wrap_event_handler(handler_expr: &syn::Expr) -> TokenStream {
+    let idents = collect_handler_idents_excluding_params(handler_expr);
+    let shadows: Vec<TokenStream> = idents
+        .iter()
+        .map(|id| quote! { let #id = #id.clone(); })
+        .collect();
+    let handler_with_move = force_move_on_closure(handler_expr);
+    quote! {
+        {
+            #(#shadows)*
+            #handler_with_move
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// If / else-if / else
+// ---------------------------------------------------------------------------
+
+fn emit_if(if_node: &IfNode, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
+    let inner = if inside_for {
+        emit_if_inline(if_node, bindings, true)
+    } else {
+        let id = next_extract_id();
+        let name = quote::format_ident!("__quoin_if_{}", id);
+        let closure = emit_if_closure_body(if_node, bindings, false);
+        bindings.push(quote! { let #name = ::std::rc::Rc::new(#closure); });
+        quote! { { (*#name)() } }
+    };
+    wrap_with_cfg(&if_node.attrs, inner)
+}
+
+fn emit_if_inline(
+    if_node: &IfNode,
+    bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
+    let cond = &if_node.condition;
+    let then_tokens: Vec<TokenStream> = if_node
+        .then_branch
+        .iter()
+        .map(|n| emit_node(n, bindings, inside_for))
+        .collect();
+    let then_view = quote! { #(#then_tokens)* };
+
+    if let Some(else_branch) = &if_node.else_branch {
+        let else_tokens: Vec<TokenStream> = else_branch
+            .iter()
+            .map(|n| emit_node(n, bindings, inside_for))
+            .collect();
+        let else_view = quote! { #(#else_tokens)* };
+        quote! {
+            {if #cond {
+                ::leptos::prelude::view! { #then_view }.into_any()
+            } else {
+                ::leptos::prelude::view! { #else_view }.into_any()
+            }}
+        }
+    } else {
+        quote! {
+            {#cond.then(|| ::leptos::prelude::view! { #then_view }.into_any())}
+        }
+    }
+}
+
+fn emit_if_closure_body(
+    if_node: &IfNode,
+    bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
+    let cond = &if_node.condition;
+    let then_tokens: Vec<TokenStream> = if_node
+        .then_branch
+        .iter()
+        .map(|n| emit_node(n, bindings, inside_for))
+        .collect();
+    let then_view = quote! { #(#then_tokens)* };
+
+    if let Some(else_branch) = &if_node.else_branch {
+        let else_tokens: Vec<TokenStream> = else_branch
+            .iter()
+            .map(|n| emit_node(n, bindings, inside_for))
+            .collect();
+        let else_view = quote! { #(#else_tokens)* };
+        quote! {
+            || if #cond {
+                ::leptos::prelude::view! { #then_view }.into_any()
+            } else {
+                ::leptos::prelude::view! { #else_view }.into_any()
+            }
+        }
+    } else {
+        quote! {
+            || #cond.then(|| ::leptos::prelude::view! { #then_view }.into_any())
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// For
+// ---------------------------------------------------------------------------
+
+fn emit_for(for_node: &ForNode, bindings: &mut Vec<TokenStream>) -> TokenStream {
+    let inner = emit_for_inner(for_node, bindings);
+    wrap_with_cfg(&for_node.attrs, inner)
+}
+
+fn emit_for_inner(for_node: &ForNode, bindings: &mut Vec<TokenStream>) -> TokenStream {
+    let pat = &for_node.pat;
+    let iterable = &for_node.iterable;
+    let body_tokens: Vec<TokenStream> = for_node
+        .body
+        .iter()
+        .map(|n| emit_node(n, bindings, true))
+        .collect();
+    let body_view = quote! { #(#body_tokens)* };
+
+    let iter_id = next_extract_id();
+    let iter_name = quote::format_ident!("__quoin_for_{}", iter_id);
+    bindings.push(quote! { let #iter_name = #iterable.clone(); });
+
+    quote! {
+        {
+            #iter_name.iter().map(|#pat| {
+                ::leptos::prelude::view! { #body_view }
+            }).collect::<Vec<_>>()
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Element dispatch
+// ---------------------------------------------------------------------------
+
+fn emit_element(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
+    let inner = emit_element_inner(el, bindings, inside_for);
     wrap_with_cfg(&el.attrs, inner)
 }
 
-fn emit_element_inner(el: &Element) -> TokenStream {
+fn emit_element_inner(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
     let name_str = el.name.to_string();
-    let effective_name = match name_str.as_str() {
-        "tab_bar" => "tabs",
-        other => other,
-    };
-
-    match effective_name {
+    match name_str.as_str() {
+        "tabs" => emit_tabs(el),
+        "data_table" => emit_data_table(el, bindings, inside_for),
         "dropdown_menu" => {
-            let children_tokens: Vec<TokenStream> =
-                el.children.iter().map(emit_render_inner).collect();
+            let children_tokens: Vec<TokenStream> = el
+                .children
+                .iter()
+                .map(|c| emit_node(c, bindings, inside_for))
+                .collect();
             quote! { <div> #(#children_tokens)* </div> }
         }
         "virtual_list" => {
-            let children_tokens: Vec<TokenStream> =
-                el.children.iter().map(emit_render_inner).collect();
+            let children_tokens: Vec<TokenStream> = el
+                .children
+                .iter()
+                .map(|c| emit_node(c, bindings, inside_for))
+                .collect();
             quote! { <div style="overflow-y: auto"> #(#children_tokens)* </div> }
         }
-        "clipboard_button" => emit_html_tag(el, "button"),
-        "tabs" => emit_tabs(el),
-        "data_table" => emit_data_table(el),
+        "clipboard_button" => emit_html_tag(el, "button", bindings, inside_for),
         _ => emit_html_tag(
             el,
-            match effective_name {
+            match name_str.as_str() {
                 "div" => "div",
                 "h1" => "h1",
                 "h2" => "h2",
                 "h3" => "h3",
                 "p" | "text" => "p",
                 "button" => "button",
+                "input" => "input",
                 _ => "div",
             },
+            bindings,
+            inside_for,
         ),
     }
 }
 
-fn emit_html_tag(el: &Element, tag: &str) -> TokenStream {
+// ---------------------------------------------------------------------------
+// Generic HTML tag
+// ---------------------------------------------------------------------------
+
+fn emit_html_tag(
+    el: &Element,
+    tag: &str,
+    bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
     let mut attrs = Vec::new();
     for arg in &el.args {
         let key_str = arg.key.to_string();
@@ -81,23 +251,43 @@ fn emit_html_tag(el: &Element, tag: &str) -> TokenStream {
             "class" => attrs.push(quote! { class=#value }),
             "id" => attrs.push(quote! { id=#value }),
             "placeholder" => attrs.push(quote! { placeholder=#value }),
-            "value" => attrs.push(quote! { value=#value }),
             "disabled" => attrs.push(quote! { disabled=#value }),
-            "on_click" => attrs.push(quote! { on:click=#value }),
-            "on_mouse_down" => attrs.push(quote! { on:mousedown=#value }),
-            "on_input" => attrs.push(quote! { on:input=#value }),
-            "on_change" => attrs.push(quote! { on:change=#value }),
+            "on_click" => {
+                let handler = wrap_event_handler(value);
+                attrs.push(quote! { on:click=#handler })
+            }
+            "on_mouse_down" => {
+                let handler = wrap_event_handler(value);
+                attrs.push(quote! { on:mousedown=#handler })
+            }
+            "on_input" => {
+                let handler = wrap_event_handler(value);
+                attrs.push(quote! { on:input=#handler })
+            }
+            "on_change" => {
+                let handler = wrap_event_handler(value);
+                attrs.push(quote! { on:change=#handler })
+            }
+            "value" => {
+                if tag == "input" {
+                    attrs.push(quote! { value={#value.get()} });
+                } else {
+                    attrs.push(quote! { value={#value} });
+                }
+            }
             _ => {}
         }
     }
+
     let mut children = Vec::new();
     if let Some(children_expr) = &el.children_expr {
         children.push(quote! { {#children_expr} });
     } else {
         for child in &el.children {
-            children.push(emit_render_inner(child));
+            children.push(emit_node(child, bindings, inside_for));
         }
     }
+
     let tag_ident = proc_macro2::Ident::new(tag, proc_macro2::Span::call_site());
     if children.is_empty() {
         quote! { <#tag_ident #(#attrs)* /> }
@@ -106,7 +296,10 @@ fn emit_html_tag(el: &Element, tag: &str) -> TokenStream {
     }
 }
 
-// AFTER (fixed — .expect() runs at macro-expansion time, HTML-like syntax)
+// ---------------------------------------------------------------------------
+// Tabs
+// ---------------------------------------------------------------------------
+
 fn emit_tabs(el: &Element) -> TokenStream {
     let active_expr = el
         .args
@@ -121,188 +314,167 @@ fn emit_tabs(el: &Element) -> TokenStream {
         .map(|a| &a.value)
         .expect("tabs require 'on_click' callback");
 
+    // Extract parameter names from the user's closure (e.g., `i` in `|i| ...`)
+    let param_idents: Vec<proc_macro2::Ident> = if let syn::Expr::Closure(closure) = on_click_expr {
+        closure
+            .inputs
+            .iter()
+            .filter_map(|pat| {
+                if let syn::Pat::Ident(pat_ident) = pat {
+                    Some(pat_ident.ident.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
+
+    let param_names: std::collections::HashSet<String> =
+        param_idents.iter().map(|id| id.to_string()).collect();
+
+    // Get idents referenced in the closure body (excluding params).
+    // These need to be cloned before the move closure so each tab's
+    // closure captures its own independent copy.
+    let body_idents: Vec<proc_macro2::Ident> = collect_handler_idents(on_click_expr)
+        .into_iter()
+        .filter(|id| !param_names.contains(&id.to_string()))
+        .collect();
+
+    // Add `move` to the user's closure so it owns its captures.
+    // This means each tab's closure is independent — no shared borrows.
+    let on_click_with_move = force_move_on_closure(on_click_expr);
+
     let tab_labels: Vec<TokenStream> = el
         .children
         .iter()
         .filter_map(|c| {
             if let RenderNode::Element(e) = c {
                 if e.name == "tab" {
-                    let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value);
-                    let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value);
-                    if let (Some(label), Some(index)) = (label, index) {
-                        return Some(quote! {
-                            <li
-                                class={move || if *#index == #active_expr { "active" } else { "" }}
-                                on:click={move |_| (#on_click_expr)(*#index)}
-                            >#label</li>
-                        });
-                    }
+                    let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
+                    let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
+
+                    // Shadow param names with literal tab index (e.g., let i = 0)
+                    let param_shadows: Vec<TokenStream> = param_idents
+                        .iter()
+                        .map(|id| quote! { let #id = #index; })
+                        .collect();
+                    // Clone body idents before creating the move closure
+                    let clone_shadows: Vec<TokenStream> = body_idents
+                        .iter()
+                        .map(|id| quote! { let #id = #id.clone(); })
+                        .collect();
+                    // Args to pass when calling the closure
+                    let call_args: Vec<TokenStream> =
+                        param_idents.iter().map(|id| quote! { #id }).collect();
+
+                    return Some(quote! {
+                        <li
+                            class={move || if #index == #active_expr { "active" } else { "" }}
+                            on:click={
+                                #(#param_shadows)*
+                                #(#clone_shadows)*
+                                let __tab_on_click = #on_click_with_move;
+                                move |_| { __tab_on_click(#(#call_args)*) }
+                            }
+                        >#label</li>
+                    });
                 }
             }
             None
         })
         .collect();
+
     quote! { <ul class="tabs"> #(#tab_labels)* </ul> }
 }
-fn emit_data_table(el: &Element) -> TokenStream {
-    let rows = el.args.iter().find(|a| a.key == "rows").map(|a| &a.value);
-    let on_sort = el
+
+// ---------------------------------------------------------------------------
+// Data table
+// ---------------------------------------------------------------------------
+
+fn emit_data_table(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    _inside_for: bool,
+) -> TokenStream {
+    let rows_expr = el.args.iter().find(|a| a.key == "rows").map(|a| &a.value);
+    let _on_sort = el
         .args
         .iter()
         .find(|a| a.key == "on_sort")
         .map(|a| &a.value);
     let striped = find_arg_bool(el, "striped");
 
-    let header_cells: Vec<TokenStream> = el
-        .children
-        .iter()
-        .filter_map(|c| {
-            if let RenderNode::Element(e) = c {
-                if e.name == "column" {
-                    let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value);
-                    let key = e.args.iter().find(|a| a.key == "key").map(|a| &a.value);
-                    let width = e.args.iter().find(|a| a.key == "width").map(|a| &a.value);
+    let empty_label: syn::Expr = syn::parse_quote! { "" };
+    let mut header_cells: Vec<TokenStream> = Vec::new();
+    let mut row_cells: Vec<TokenStream> = Vec::new();
 
-                    // Default empty string expression with a let binding to extend lifetime.
-                    let empty_str: syn::Expr = syn::parse_quote! { "" };
-                    let label_expr = label.unwrap_or(&empty_str);
-                    let key_str = key
-                        .and_then(|k| {
-                            if let syn::Expr::Lit(lit) = k {
-                                if let syn::Lit::Str(s) = &lit.lit {
-                                    Some(s.value())
-                                } else {
-                                    None
-                                }
-                            } else {
-                                None
-                            }
-                        })
-                        .unwrap_or_default();
-
-                    let mut attrs = vec![quote! { class="px-3 py-2 text-gray-400 font-medium" }];
-                    if let Some(w) = width {
-                        attrs.push(quote! { style=format!("width: {}px", #w) });
-                    }
-
-                    if find_arg_bool(e, "sortable") {
-                        if let Some(on_sort_expr) = on_sort {
-                            let on_click = quote! { move |_| { #on_sort_expr(#key_str, "asc"); } };
-                            attrs.push(quote! { on:click=#on_click });
-                            attrs[0] = quote! { class="px-3 py-2 text-gray-400 font-medium cursor-pointer hover:bg-gray-700" };
-                        } else {
-                            attrs.push(quote! { class="px-3 py-2 text-gray-400 font-medium cursor-pointer" });
-                        }
-                    }
-
-                    return Some(quote! { <th #(#attrs)*> #label_expr </th> });
-                }
+    for c in &el.children {
+        if let RenderNode::Element(e) = c {
+            if e.name != "column" {
+                continue;
             }
-            None
-        })
-        .collect();
 
-    let row_cells: Vec<TokenStream> = el
-        .children
-        .iter()
-        .filter_map(|c| {
-            if let RenderNode::Element(e) = c {
-                if e.name == "column" {
-                    let render_closure =
-                        e.args.iter().find(|a| a.key == "render").map(|a| &a.value);
-                    let width = e.args.iter().find(|a| a.key == "width").map(|a| &a.value);
-                    if let Some(render_closure) = render_closure {
-                        let mut attrs = vec![quote! { class="px-3 py-2 text-white" }];
-                        if let Some(w) = width {
-                            attrs.push(quote! { style=format!("width: {}px", #w) });
-                        }
-                        return Some(quote! { <td #(#attrs)*> {#render_closure}(&__row) </td> });
-                    }
-                }
+            let label = e
+                .args
+                .iter()
+                .find(|a| a.key == "label")
+                .map(|a| &a.value)
+                .unwrap_or(&empty_label);
+            let _key = e.args.iter().find(|a| a.key == "key").map(|a| &a.value);
+            let width = e.args.iter().find(|a| a.key == "width").map(|a| &a.value);
+
+            let mut th_attrs = vec![quote! { class="px-3 py-2 text-gray-400 font-medium" }];
+            if let Some(w) = width {
+                th_attrs.push(quote! { style=format!("width: {}px", #w) });
             }
-            None
-        })
-        .collect();
+            header_cells.push(quote! { <th #(#th_attrs)*>#label</th> });
+
+            let render_closure = e.args.iter().find(|a| a.key == "render").map(|a| &a.value);
+            let col_id = next_extract_id();
+            let render_name = quote::format_ident!("__quoin_col_{}", col_id);
+
+            if let Some(rc) = render_closure {
+                bindings.push(quote! { let #render_name = ::std::rc::Rc::new(#rc); });
+                let mut td_attrs = vec![quote! { class="px-3 py-2 text-white" }];
+                if let Some(w) = width {
+                    td_attrs.push(quote! { style=format!("width: {}px", #w) });
+                }
+                row_cells.push(quote! { <td #(#td_attrs)*>{(#render_name)(&__row)}</td> });
+            } else {
+                row_cells.push(quote! { <td class="px-3 py-2 text-white"></td> });
+            }
+        }
+    }
 
     let empty_rows: syn::Expr = syn::parse_quote! { Vec::<()>::new() };
-    let rows_expr = rows.unwrap_or(&empty_rows);
+    let rows = rows_expr.unwrap_or(&empty_rows);
     let striped_class = if striped { " table-striped" } else { "" };
+
     quote! {
         <table class={concat!("w-full", #striped_class)}>
             <thead><tr> #(#header_cells)* </tr></thead>
             <tbody>
-                {#rows_expr.iter().map(|__row| view! { <tr> #(#row_cells)* </tr> }).collect::<Vec<_>>()}
+                {#rows.iter().map(|__row| {
+                    ::leptos::prelude::view! { <tr> #(#row_cells)* </tr> }
+                }).collect::<Vec<_>>()}
             </tbody>
         </table>
     }
 }
 
-fn emit_if(if_node: &IfNode) -> TokenStream {
-    let inner = emit_if_inner(if_node);
-    wrap_with_cfg(&if_node.attrs, inner)
-}
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
-fn emit_if_inner(if_node: &IfNode) -> TokenStream {
-    let cond = &if_node.condition;
-    let then_branch = emit_nodes(&if_node.then_branch);
-
-    if let Some(else_branch) = &if_node.else_branch {
-        let else_tokens = if else_branch.len() == 1 {
-            match &else_branch[0] {
-                RenderNode::If(nested_if) => {
-                    // Nested if: get the closure, then call it from the outer else
-                    emit_if_inner(nested_if)
-                }
-                _ => {
-                    let else_nodes = emit_nodes(else_branch);
-                    quote! { move || ::leptos::prelude::view! { #else_nodes }.into_any() }
-                }
-            }
-        } else {
-            let else_nodes = emit_nodes(else_branch);
-            quote! { move || ::leptos::prelude::view! { #else_nodes }.into_any() }
-        };
-
-        quote! {
-            {
-                move || if #cond {
-                    ::leptos::prelude::view! { #then_branch }.into_any()
-                } else {
-                    (#else_tokens)()
-                }
-            }
-        }
+fn wrap_with_cfg(attrs: &[syn::Attribute], inner: TokenStream) -> TokenStream {
+    let cfg_attrs: Vec<_> = attrs.iter().filter(|a| a.path().is_ident("cfg")).collect();
+    if cfg_attrs.is_empty() {
+        inner
     } else {
-        quote! {
-            {
-                move || #cond.then(|| {
-                    ::leptos::prelude::view! { #then_branch }.into_any()
-                })
-            }
-        }
+        quote! { { #(#cfg_attrs)* { #inner } } }
     }
-}
-fn emit_for(for_node: &ForNode) -> TokenStream {
-    let inner = emit_for_inner(for_node);
-    wrap_with_cfg(&for_node.attrs, inner)
-}
-
-fn emit_for_inner(for_node: &ForNode) -> TokenStream {
-    let pat = &for_node.pat;
-    let iterable = &for_node.iterable;
-    let body = emit_nodes(&for_node.body);
-    quote! {
-        <leptos::prelude::For
-            each=move || #iterable.clone().into_iter().collect::<Vec<_>>()
-            key=|item| item.id
-            children=move |#pat| view! { #body }
-        />
-    }
-}
-
-fn emit_nodes(nodes: &[RenderNode]) -> TokenStream {
-    let tokens: Vec<_> = nodes.iter().map(emit_render_inner).collect();
-    quote! { #(#tokens)* }
 }
 
 fn find_arg_bool(el: &Element, key: &str) -> bool {

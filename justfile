@@ -53,6 +53,7 @@ test-quoin-xilem:
 
 # Run conformance tests per adapter
 # Note: GPUI conformance runs inside quoin-conformance (has gpui dep).
+
 # Leptos/Dioxus/Floem/Xilem conformance runs inside their adapter crates.
 test-conformance-gpui:
     cargo nextest run -p quoin-conformance --features gpui
@@ -221,8 +222,8 @@ run-all:
 
 # Expand macros for inspection
 expand component="ucp-lib" feature="gpui":
-    cargo expand --manifest-path examples/{{component}}/Cargo.toml \
-        --features {{feature}} > examples/{{component}}/expanded.rs
+    cargo expand --manifest-path examples/{{ component }}/Cargo.toml \
+        --features {{ feature }}
 
 # Run global-state conformance tests
 test-global:
