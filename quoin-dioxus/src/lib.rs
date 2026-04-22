@@ -7,7 +7,7 @@
 //! # Core Types
 //!
 //! | Type | Role |
-//! |------|------|
+//!------|------|
 //! | [`DioxusContext`] | A zero-sized context. Creates signals via Dioxus's `Signal`. |
 //! | [`DioxusSignal<T>`] | A `Clone` signal backed by `RefCell<Signal<T>>`. |
 //! | [`DioxusExecutor`] | Spawns tasks on a blocking `std::thread`. |
@@ -60,7 +60,7 @@ use std::cell::RefCell;
 use std::future::Future;
 use std::pin::Pin;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 /// Dioxus reactive context.
 ///
 /// Use `DioxusContext::new()` inside a Dioxus component.
