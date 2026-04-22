@@ -677,7 +677,7 @@ fn emit_html_el_inner(el: &Element, name_str: &str) -> TokenStream {
             }
             "value" => {
                 if tag == "input" {
-                    items.push(quote! { value: {#value.get()} });
+                    items.push(quote! { value: "{#value.get()}" });
                 } else {
                     items.push(quote! { value: {#value} });
                 }
