@@ -3835,7 +3835,7 @@ dependencies = [
 [[package]]
 name = "gpui-component"
 version = "0.5.1"
-source = "git+https://github.com/elcoosp/gpui-component?branch=fix%2Fimport-error-corner#c22213e9493a6c1f4af25eefe14c30e37a3721cb"
+source = "git+https://github.com/longbridge/gpui-component#be000a7eb26649460609fbf3e7ed4e535de4b9c1"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -3878,7 +3878,7 @@ dependencies = [
 [[package]]
 name = "gpui-component-macros"
 version = "0.5.1"
-source = "git+https://github.com/elcoosp/gpui-component?branch=fix%2Fimport-error-corner#c22213e9493a6c1f4af25eefe14c30e37a3721cb"
+source = "git+https://github.com/longbridge/gpui-component#be000a7eb26649460609fbf3e7ed4e535de4b9c1"
 dependencies = [
  "proc-macro2",
  "quote",
