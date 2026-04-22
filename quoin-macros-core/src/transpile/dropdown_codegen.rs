@@ -1,4 +1,3 @@
-use syn::Expr;
 
 pub struct MenuItemDef {
     pub label: syn::Expr,

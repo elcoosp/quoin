@@ -5416,6 +5416,7 @@ dependencies = [
  "leptos",
  "quoin-core",
  "send_wrapper",
+ "web-sys",
 ]
 
 [[package]]
@@ -7400,6 +7401,8 @@ name = "ucp-lib"
 version = "0.1.0"
 dependencies = [
  "dioxus",
+ "dioxus-core",
+ "dioxus-signals",
  "gpui",
  "leptos",
  "quoin",

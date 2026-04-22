@@ -193,7 +193,7 @@ fn emit_html_el(el: &Element, name_str: &str) -> TokenStream {
 }
 
 // ---------------------------------------------------------------------------
-// If / else-if / else
+// If / else-if / else — emit as Dioxus rsx! native `if` (NO wrapping braces)
 // ---------------------------------------------------------------------------
 
 fn emit_if(if_node: &IfNode) -> TokenStream {
@@ -206,14 +206,16 @@ fn emit_if_inner(if_node: &IfNode) -> TokenStream {
     let then_tokens = emit_nodes_inner(&if_node.then_branch);
     if let Some(else_branch) = &if_node.else_branch {
         let else_tokens = emit_nodes_inner(else_branch);
-        quote! { {if #cond { #then_tokens } else { #else_tokens }} }
+        // Dioxus rsx! `if` is a special form — must NOT be wrapped in { }
+        quote! { if #cond { #then_tokens } else { #else_tokens } }
     } else {
-        quote! { {#cond.then(|| #then_tokens)} }
+        // No else branch — bare `if` in rsx! (no .then() needed)
+        quote! { if #cond { #then_tokens } }
     }
 }
 
 // ---------------------------------------------------------------------------
-// For
+// For — emit as Dioxus rsx! native `for` (NO wrapping braces)
 // ---------------------------------------------------------------------------
 
 fn emit_for(for_node: &ForNode) -> TokenStream {
@@ -225,8 +227,7 @@ fn emit_for_inner(for_node: &ForNode) -> TokenStream {
     let pat = &for_node.pat;
     let iterable = &for_node.iterable;
     let body = emit_nodes_inner(&for_node.body);
-    // Use Dioxus's native `for` syntax instead of .map(|..| rsx!{..})
-    // to avoid nested rsx! calls which the parser cannot handle.
+    // Dioxus rsx! `for` is a special form — bare, no wrapping braces
     quote! { for #pat in #iterable { #body } }
 }
 
@@ -244,7 +245,7 @@ fn emit_tabs(_el: &Element) -> TokenStream {
 }
 
 // ---------------------------------------------------------------------------
-// Data table — uses Dioxus native `for` to avoid nested rsx!
+// Data table — uses Dioxus native `for` syntax
 // ---------------------------------------------------------------------------
 
 fn emit_data_table(el: &Element) -> TokenStream {
@@ -293,7 +294,6 @@ fn emit_data_table(el: &Element) -> TokenStream {
         })
         .collect();
 
-    // Use Dioxus's native `for` syntax to avoid nested rsx! calls.
     quote!(
         table {
             thead { tr { #(#header_cells)* } }
