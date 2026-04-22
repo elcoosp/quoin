@@ -10,6 +10,8 @@ pub fn emit_run_app(input: &RunAppInput) -> TokenStream {
     };
 
     quote! {
+        use gpui::AppContext;
+
         fn main() {
             quoin::launch(|app_cx: &mut gpui::App| {
                 app_cx

@@ -1,19 +1,6 @@
-use proc_macro2::TokenTree;
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::{Attribute, Expr, Ident, LitStr, Result, Token, braced, bracketed, parenthesized};
-
-fn peek_debug(input: ParseStream) -> String {
-    let mut out = String::new();
-    let f = input.fork();
-    for _ in 0..5 {
-        if f.is_empty() { break; }
-        if let Ok(tt) = f.parse::<TokenTree>() {
-            out.push_str(&format!("{:?} ", tt));
-        } else { break; }
-    }
-    out
-}
 
 #[derive(Debug)]
 pub enum RenderNode {
@@ -67,11 +54,9 @@ fn collect_arg_value(input: ParseStream) -> Result<Expr> {
         if input.peek(Token![,]) {
             break;
         }
-        let tt: TokenTree = input.parse()?;
+        let tt: proc_macro2::TokenTree = input.parse()?;
         tokens.push(tt);
     }
-    let display: String = tokens.iter().map(|t| format!("{:?}", t)).collect::<Vec<_>>().join(" ");
-    eprintln!("[QUOIN] collect_arg_value tokens: [{}]", display);
     let token_stream: proc_macro2::TokenStream = tokens.into_iter().collect();
     let wrapped: proc_macro2::TokenStream = quote::quote! { ( #token_stream ) };
     match syn::parse2::<Expr>(wrapped) {
@@ -80,13 +65,9 @@ fn collect_arg_value(input: ParseStream) -> Result<Expr> {
                 Expr::Paren(paren) => *paren.expr,
                 other => other,
             };
-            eprintln!("[QUOIN]   -> parsed OK as {:?}", inner);
             Ok(inner)
         }
-        Err(e) => {
-            eprintln!("[QUOIN]   -> PARSE ERROR: {}  on tokens: [{}]", e, display);
-            Err(e)
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -94,7 +75,6 @@ impl Parse for Element {
     fn parse(input: ParseStream) -> Result<Self> {
         let attrs = input.call(Attribute::parse_outer)?;
         let name: Ident = input.call(Ident::parse_any)?;
-        eprintln!("[QUOIN] Element '{}'", name);
 
         let args_content;
         parenthesized!(args_content in input);
@@ -122,7 +102,6 @@ impl Parse for Element {
         let children = if input.peek(syn::token::Brace) {
             let content;
             braced!(content in input);
-            eprintln!("[QUOIN]   children block for {}", name);
             parse_nodes(&content)?
         } else {
             Vec::new()
@@ -132,12 +111,18 @@ impl Parse for Element {
             let arg_keys: Vec<&Ident> = args.iter().map(|a| &a.key).collect();
             let warns = crate::render_ast_diag::check_element_args(&name.to_string(), &arg_keys);
             for w in warns {
-                eprintln!("[QUOIN]   DIAG WARN on '{}': {}", name, w);
                 return Err(syn::Error::new_spanned(&name, w));
             }
         }
 
-        Ok(Element { attrs, name, args, children, children_expr, trigger_expr })
+        Ok(Element {
+            attrs,
+            name,
+            args,
+            children,
+            children_expr,
+            trigger_expr,
+        })
     }
 }
 
@@ -153,7 +138,6 @@ impl Parse for IfNode {
     fn parse(input: ParseStream) -> Result<Self> {
         let attrs = input.call(Attribute::parse_outer)?;
         input.parse::<Token![if]>()?;
-        eprintln!("[QUOIN] IfNode");
         let condition_content;
         bracketed!(condition_content in input);
         let condition: Expr = condition_content.parse()?;
@@ -181,7 +165,12 @@ impl Parse for IfNode {
         } else {
             None
         };
-        Ok(IfNode { attrs, condition, then_branch, else_branch })
+        Ok(IfNode {
+            attrs,
+            condition,
+            then_branch,
+            else_branch,
+        })
     }
 }
 
@@ -197,7 +186,6 @@ impl Parse for ForNode {
     fn parse(input: ParseStream) -> Result<Self> {
         let attrs = input.call(Attribute::parse_outer)?;
         input.parse::<Token![for]>()?;
-        eprintln!("[QUOIN] ForNode");
         let for_content;
         bracketed!(for_content in input);
         let pat: Ident = for_content.parse()?;
@@ -206,16 +194,46 @@ impl Parse for ForNode {
         let body_content;
         braced!(body_content in input);
         let body = parse_nodes(&body_content)?;
-        Ok(ForNode { attrs, pat, iterable, body })
+        Ok(ForNode {
+            attrs,
+            pat,
+            iterable,
+            body,
+        })
     }
 }
 
 const KNOWN_ELEMENTS: &[&str] = &[
-    "div", "h1", "h2", "h3", "p", "text", "span", "button", "input",
-    "label", "img", "a", "ul", "ol", "li", "hr", "br", "textarea",
-    "select", "form", "tabs", "tab", "data_table", "column",
-    "virtual_list", "dropdown_menu", "rich_text", "clipboard_button",
-    "item", "tab_bar",
+    "div",
+    "h1",
+    "h2",
+    "h3",
+    "p",
+    "text",
+    "span",
+    "button",
+    "input",
+    "label",
+    "img",
+    "a",
+    "ul",
+    "ol",
+    "li",
+    "hr",
+    "br",
+    "textarea",
+    "select",
+    "form",
+    "tabs",
+    "tab",
+    "data_table",
+    "column",
+    "virtual_list",
+    "dropdown_menu",
+    "rich_text",
+    "clipboard_button",
+    "item",
+    "tab_bar",
 ];
 
 impl Parse for RenderNode {
@@ -274,12 +292,15 @@ impl Parse for RenderNode {
                         let msg = if let Some(sug) = suggestion {
                             format!(
                                 "unknown element `{}`. Did you mean `{}`? Known elements: {}",
-                                ident_str, sug, KNOWN_ELEMENTS.join(", ")
+                                ident_str,
+                                sug,
+                                KNOWN_ELEMENTS.join(", ")
                             )
                         } else {
                             format!(
                                 "unknown element `{}`. Known elements: {}. If this is a function call, wrap it in braces: `{{ expr }}`",
-                                ident_str, KNOWN_ELEMENTS.join(", ")
+                                ident_str,
+                                KNOWN_ELEMENTS.join(", ")
                             )
                         };
                         return Err(syn::Error::new_spanned(ident, msg));
@@ -287,17 +308,11 @@ impl Parse for RenderNode {
                     return Ok(RenderNode::Element(input.parse()?));
                 }
 
-                eprintln!("[QUOIN] RenderNode::Expr  peek=[{}]", peek_debug(input));
                 let result = input.parse::<Expr>();
-                match &result {
-                    Ok(expr) => eprintln!("[QUOIN]   -> OK {:?}", expr),
-                    Err(e) => eprintln!("[QUOIN]   -> ERR {}", e),
-                }
                 return Ok(RenderNode::Expr(result?));
             }
         }
 
-        eprintln!("[QUOIN] RenderNode fallback  peek=[{}]", peek_debug(input));
         Ok(RenderNode::Expr(input.parse()?))
     }
 }
@@ -305,7 +320,6 @@ impl Parse for RenderNode {
 fn parse_nodes(input: ParseStream) -> Result<Vec<RenderNode>> {
     let mut nodes = Vec::new();
     while !input.is_empty() {
-        eprintln!("[QUOIN] parse_nodes  peek=[{}]", peek_debug(input));
         nodes.push(input.parse::<RenderNode>()?);
     }
     Ok(nodes)
