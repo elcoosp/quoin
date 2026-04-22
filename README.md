@@ -1,254 +1,121 @@
-# quoin
+# Quoin
 
-> *"One reactive core, many frameworks."*
+**One Reactive Core, Many Frameworks**
 
-**`quoin`** is the foundational reactive abstraction layer for the Rust UI ecosystem. It enables library authors to write reactive logic **once** and support multiple UI frameworks—GPUI, Dioxus, Leptos, Xilem, Floem, and beyond—with only a feature flag toggle.
+Quoin is a framework-agnostic reactive abstraction layer for Rust. Write your reactive business logic once using signals, effects, and async tasks—then run it with GPUI, Dioxus, Leptos, Xilem, or Floem.
 
-[![License: MIT OR Apache-2.0](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg)](#license)
-[![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](#)
-[![Status: Alpha](https://img.shields.io/badge/status-alpha-yellow.svg)](#)
+## Features
 
----
+- **Unified Reactive API** — `Signal<T>`, `ReactiveContext`, and `Executor` traits that abstract over framework-specific implementations
+- **Declarative Macros** — `component!`, `quoin_render!`, `effect!`, and `run_app!` for cross-framework UI definitions
+- **Tailwind Transpilation** — Write Tailwind classes in `quoin_render!` and get native GPUI method chains
+- **Universal Component Protocol** — Abstract traits for data tables, virtual lists, dropdowns, and more via `quoin-ui`
+- **Cooperative Cancellation** — `CancellationToken` for long-running async tasks
+- **Conformance Testing** — Shared test suite ensuring all adapters behave identically
 
-## 📖 Table of Contents
+## Supported Frameworks
 
-- [The Problem](#-the-problem)
-- [The Solution](#-the-solution)
-- [Current Status](#-current-status)
-- [Architecture at a Glance](#-architecture-at-a-glance)
-- [Getting Started](#-getting-started)
-- [Core Abstractions](#-core-abstractions)
-- [Framework Adapters](#-framework-adapters)
-- [Declarative UI Macros](#-declarative-ui-macros)
-- [Universal Component Protocol (UCP)](#-universal-component-protocol-ucp)
-- [Examples](#-examples)
-- [Specification Suite](#-specification-suite)
-- [Getting Involved](#-getting-involved)
-- [License](#-license)
+| Framework | Adapter Crate | Status |
+|-----------|---------------|--------|
+| [GPUI](https://github.com/zed-industries/zed) | `quoin-gpui` | ✅ Full support |
+| [Leptos](https://leptos.dev/) | `quoin-leptos` | ✅ Full support |
+| [Dioxus](https://dioxuslabs.com/) | `quoin-dioxus` | ✅ Full support |
+| [Xilem](https://github.com/linebender/xilem) | `quoin-xilem` | ✅ Full support |
+| [Floem](https://github.com/lapce/floem) | `quoin-floem` | ✅ Full support |
 
----
+## Quick Start
 
-## 🚨 The Problem
-
-The Rust UI ecosystem is **balkanized**. Every major framework—GPUI, Dioxus, Leptos, Xilem, Floem—implements its own primitives for signals, effects, context, and async execution. For library authors, this means:
-
-- **Duplicated effort:** Maintaining bespoke integrations for each framework.
-- **Vendor lock‑in:** Application developers are trapped in a single ecosystem.
-- **Fragmentation:** A rich library for one framework doesn't benefit others.
-
-`quoin` fixes this.
-
----
-
-## 💡 The Solution
-
-`quoin` provides a **single, shared reactive abstraction** built on three core traits:
-
-| Trait | Purpose |
-|-------|---------|
-| **`ReactiveContext`** | The framework's reactive runtime. Creates signals and provides an executor. |
-| **`Signal<T>`** | A readable (and optionally writable) reactive value. |
-| **`Executor`** | Spawns asynchronous tasks on the framework's native runtime. |
-
-**Write once, run anywhere:**
-
-```rust
-// Your library's core logic uses `quoin` traits.
-fn use_counter<C: ReactiveContext>(cx: &C) -> impl Signal<u32> {
-    cx.create_signal(0)
-}
-```
-
-**Downstream users select a framework with a feature flag:**
-
-```toml
-# Cargo.toml
-[dependencies]
-my-agnostic-lib = { version = "1.0", features = ["gpui"] }
-```
-
-At compile time, only the code for the chosen framework is included. **Zero runtime overhead.**
-
----
-
-## 🚦 Current Status
-
-`quoin` is **actively developed** and **production‑ready for early adopters**. All major components are implemented and tested.
-
-| Component | Status | Description |
-|-----------|--------|-------------|
-| **`quoin` core** | ✅ Stable | `ReactiveContext`, `Signal`, `Executor`, `CancellationToken` |
-| **`quoin-gpui` adapter** | ✅ Stable | Full GPUI integration, including view update notifier |
-| **`quoin-leptos` adapter** | ✅ Stable | Leptos 0.8 integration |
-| **`quoin-dioxus` adapter** | ✅ Stable | Dioxus 0.7 integration |
-| **`quoin-floem` adapter** | ✅ Stable | Floem integration |
-| **`quoin-xilem` adapter** | ✅ Stable | Xilem integration |
-| **`quoin-macros`** | ✅ Stable | `component!`, `quoin_render!`, `quoin_element!` |
-| **`quoin-ui`** | ✅ Stable | Universal Component Protocol traits |
-| **`quoin-ui-gpui`** | 🚧 In progress | Native GPUI implementations of UCP components |
-| **Conformance Suite** | ✅ Complete | All adapters pass the full test suite |
-
----
-
-## 🏗️ Architecture at a Glance
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Downstream Library                        │
-│  (e.g., rs‑query, navi)                                     │
-│  - Depends on `quoin`                                       │
-│  - Selects one adapter via feature flag                      │
-└─────────────────────────┬───────────────────────────────────┘
-                          │
-          ┌───────────────┴───────────────┐
-          │                               │
-┌─────────▼─────────┐             ┌───────▼───────┐
-│    quoin (core)   │             │  quoin‑gpui   │
-│  - ReactiveContext│◄────────────│  (adapter)    │
-│  - Signal<T>      │  implements │               │
-│  - Executor       │             └───────────────┘
-└───────────────────┘
-          ▲
-          │ implements
-┌─────────┴─────────┐     ┌───────────────┐     ┌───────────────┐
-│  quoin‑dioxus     │     │  quoin‑leptos │     │  quoin‑xilem  │
-└───────────────────┘     └───────────────┘     └───────────────┘
-```
-
-All adapters are **equal**. Any crate that implements `ReactiveContext` and passes the conformance test suite is a first‑class `quoin` adapter.
-
----
-
-## 🚀 Getting Started
-
-### Add `quoin` to Your Library
+Add `quoin` to your `Cargo.toml` with exactly one framework feature:
 
 ```toml
 [dependencies]
-quoin = "0.1"
+quoin = { path = "quoin", features = ["gpui"] }
 ```
 
-### Select an Adapter in Your Application
-
-```toml
-# For GPUI (Zed's native GUI framework)
-quoin = { version = "0.1", features = ["gpui"] }
-
-# For Leptos (web)
-quoin = { version = "0.1", features = ["leptos"] }
-
-# For Dioxus (web & desktop)
-quoin = { version = "0.1", features = ["dioxus"] }
-```
-
-### Write Framework‑Agnostic Code
+### Framework-Agnostic Counter Hook
 
 ```rust
-use quoin::{ReactiveContext, Signal};
+// counter-lib/src/lib.rs
+use quoin_core::prelude::*;
+use std::rc::Rc;
 
 pub struct Counter<S: Signal<u32>> {
     pub count: S,
-    pub increment: std::rc::Rc<dyn Fn()>,
+    pub increment: Rc<dyn Fn()>,
 }
 
 pub fn use_counter<C: ReactiveContext>(cx: &C) -> Counter<C::Signal<u32>> {
     let count = cx.create_signal(0u32);
     let increment = {
         let count = count.clone();
-        std::rc::Rc::new(move || count.update(|c| *c += 1))
+        Rc::new(move || count.update(|c| *c += 1))
     };
     Counter { count, increment }
 }
 ```
 
-See the [`examples/`](examples/) directory for complete, runnable examples.
-
----
-
-## 🧩 Core Abstractions
-
-### `ReactiveContext`
-
-The entry point for creating signals and accessing the async executor.
+### Use in GPUI
 
 ```rust
-pub trait ReactiveContext: Clone + Send + Sync + 'static {
-    type Signal<T: Clone + 'static>: Signal<T>;
-    type Executor: Executor;
+// counter-gpui/src/main.rs
+use quoin::prelude::*;
 
-    fn create_signal<T: Clone + 'static>(&self, initial: T) -> Self::Signal<T>;
-    fn executor(&self) -> Self::Executor;
-    fn request_update(&self);
+struct CounterView {
+    counter: counter_lib::Counter<quoin::GpuiSignal<u32>>,
+    _ctx: GpuiContext,
+}
+
+impl Render for CounterView {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let count = self.counter.count.get();
+        div().flex().child(format!("Count: {count}"))
+            .child(/* button calling self.counter.increment */)
+    }
+}
+
+run_app!(CounterView);
+```
+
+### Use in Leptos
+
+```rust
+// counter-leptos/src/lib.rs
+use quoin::prelude::*;
+
+#[component]
+pub fn App() -> impl IntoView {
+    let ctx = LeptosContext::new();
+    let counter = use_counter(&ctx);
+
+    view! {
+        <div>
+            <p>"Count: " {move || counter.count.get()}</p>
+            <button on:click=move |_| (counter.increment)()>"Increment"</button>
+        </div>
+    }
 }
 ```
 
-### `Signal<T>`
+## Declarative Macros
 
-A readable and writable reactive value.
-
-```rust
-pub trait Signal<T: Clone + 'static>: Clone {
-    fn get(&self) -> T;
-    fn with<U>(&self, f: impl FnOnce(&T) -> U) -> U;
-    fn set(&self, value: T);
-    fn update(&self, f: impl FnOnce(&mut T));
-}
-```
-
-### `Executor`
-
-Abstraction over framework‑specific async runtimes.
-
-```rust
-pub trait Executor: Clone + Send + Sync + 'static {
-    type JoinHandle<T: Send + 'static>: JoinHandle<T>;
-    fn spawn<F>(&self, future: F) -> Self::JoinHandle<F::Output>
-    where
-        F: Future + Send + 'static,
-        F::Output: Send + 'static;
-}
-```
-
----
-
-## 🔌 Framework Adapters
-
-`quoin` ships with reference adapters for five major frameworks. All adapters are **tested against the same conformance suite** to guarantee identical behavior.
-
-| Adapter | Crate | Framework | Key Integration |
-|---------|-------|-----------|-----------------|
-| **GPUI** | `quoin-gpui` | [Zed's GPUI](https://github.com/zed-industries/zed) | Manual view invalidation via `set_view_update_notifier` |
-| **Leptos** | `quoin-leptos` | [Leptos 0.8](https://leptos.dev) | `RwSignal` backing; automatic reactivity |
-| **Dioxus** | `quoin-dioxus` | [Dioxus 0.7](https://dioxuslabs.com) | `Signal` backing; automatic reactivity |
-| **Floem** | `quoin-floem` | [Floem](https://github.com/lapce/floem) | `RwSignal` backing |
-| **Xilem** | `quoin-xilem` | [Xilem](https://github.com/linebender/xilem) | Thread‑safe signals with tokio runtime |
-
----
-
-## 🎨 Declarative UI Macros
-
-`quoin-macros` provides a complete suite of procedural macros for writing framework‑agnostic component code.
-
-### `component!`
-
-Define reactive components with state, actions, and a render block. The same macro expands to GPUI structs, Leptos components, or Dioxus components based on the active feature flag.
+### `component!` — Define a component once, render anywhere
 
 ```rust
 component! {
-    pub Counter {
+    pub DemoApp {
         state {
             count: u32 = 0,
-        }
-
-        fn increment(&self) {
-            self.count.update(|c| *c += 1);
+            selected: String = "Option A".to_string(),
         }
 
         render {
+            let count_text = format!("Count: {}", count.get());
+            
             quoin_render! {
-                div(class: "flex gap-2") {
-                    div { format!("Count: {}", self.count.get()) }
-                    button(on_click: |this: &mut Counter| this.increment()) {
+                div(class: "flex flex-col gap-4 p-4 bg-gray-900") {
+                    div(class: "text-2xl font-bold") { "Quoin Render Demo" }
+                    button(class: "px-4 py-2 bg-blue-600 text-white rounded-md",
+                        on_click: move |_| count.clone().update(|c| *c += 1)) {
                         "Increment"
                     }
                 }
@@ -258,155 +125,197 @@ component! {
 }
 ```
 
-### `quoin_render!`
-
-Declarative, Tailwind‑inspired view syntax that transpiles to native framework code:
-
-- **GPUI:** Expands to builder chains (`div().flex().flex_col().gap_4()`)
-- **Leptos:** Expands to `view! { <div class="flex flex-col gap-4">...</div> }`
-- **Dioxus:** Expands to `rsx! { div { class: "flex flex-col gap-4", ... } }`
+### `quoin_render!` — Tailwind-like declarative UI
 
 ```rust
 quoin_render! {
-    div(class: "flex flex-col gap-4 p-4") {
-        h1(class: "text-2xl font-bold") { "Welcome" }
-        @for person in people.iter() {
-            div(class: "p-2 bg-gray-800 rounded") {
-                format!("{} - {}", person.name, person.age)
-            }
+    div(class: "flex flex-col gap-4 p-4 bg-gray-900 text-white h-full") {
+        div(class: "text-2xl font-bold") { "Hello" }
+        button(class: "px-4 py-2 bg-blue-600 rounded-md cursor-pointer",
+               on_click: move |_| handle_click()) {
+            "Click me"
         }
-        @if count.get() > 5 {
-            div(class: "text-red-500") { "High count!" }
+        if[show_details] {
+            div(class: "p-2 bg-gray-800 rounded-md") { details }
+        }
+        for[item in items] {
+            div(class: "text-sm") { item.name.clone() }
         }
     }
 }
 ```
 
-### `effect!`
-
-Run side effects that automatically track signal dependencies.
+### `effect!` — Reactive side effects
 
 ```rust
-effect! {
-    watch: [count, selected],
-    || {
-        println!("Count is {}, selected is {}", count.get(), selected.get());
+effect! { deps: [count], run: || println!("Count: {}", count.get()) }
+effect! { deps: [query], run: || fetch_data(), cleanup: || cancel_request() }
+```
+
+### `run_app!` — One-line app bootstrap
+
+```rust
+run_app!(MyComponent);  // GPUI: opens window, sets up reactive context
+run_app!(MyComponent);  // Leptos: mounts to body
+run_app!(MyComponent);  // Dioxus: launches desktop app
+```
+
+## Core Traits
+
+### `Signal<T>` — Reactive value
+
+```rust
+let signal = cx.create_signal(42);
+signal.get();                    // → 42
+signal.with(|v| println!("{}", v));  // borrow without clone
+signal.set(100);                  // mutate
+signal.update(|v| *v += 1);      // mutate in-place
+```
+
+### `ReactiveContext` — Framework entry point
+
+```rust
+let signal = cx.create_signal(initial_value);
+let executor = cx.executor();
+cx.request_update();              // mark UI dirty
+cx.provide_global(theme);         // provide to children
+let theme = cx.use_global::<Theme>();  // retrieve from parent
+```
+
+### `Executor` — Async task spawning
+
+```rust
+let handle = executor.spawn(async {
+    let data = fetch().await;
+    signal.set(data);
+});
+handle.abort();  // cancel
+```
+
+### `CancellationToken` — Cooperative cancellation
+
+```rust
+let token = CancellationToken::new();
+executor.spawn({
+    let token = token.clone();
+    async move {
+        loop {
+            if token.is_cancelled() { break; }
+            do_work().await;
+        }
     }
-}
+});
+token.cancel();  // signal all waiters
 ```
 
----
+## UCP (Universal Component Protocol)
 
-## 🧱 Universal Component Protocol (UCP)
+The `quoin-ui` crate provides abstract traits for complex UI components:
 
-`quoin-ui` defines framework‑agnostic adapter traits for complex UI components. Each framework backend provides native implementations.
+```rust
+use quoin_ui::{
+    VirtualListAdapter, TableAdapter, TextInputAdapter,
+    ButtonAdapter, DropdownMenuAdapter, TabBarAdapter,
+    Clipboard, Navigator, SortDirection,
+};
+```
 
-| Component | Trait | Status |
-|-----------|-------|--------|
-| **Button** | `ButtonAdapter` | ✅ Implemented |
-| **TextInput** | `TextInputAdapter` | ✅ Implemented |
-| **DataTable** | `TableAdapter` | ✅ Implemented |
-| **VirtualList** | `VirtualListAdapter` | ✅ Implemented |
-| **DropdownMenu** | `DropdownAdapter` | ✅ Implemented |
-| **TabBar** | `TabBarAdapter` | 🚧 In progress |
-| **RichText** | `RichTextAdapter` | 🚧 In progress |
+Framework-specific implementations live in adapter crates (e.g., `quoin-ui-gpui`).
 
-Theme tokens (`ThemeToken`) provide a unified color system that maps to each framework's theming mechanism.
+## Crate Overview
 
----
+```
+quoin/                    # Facade — re-exports everything
+├── quoin-core/           # Core traits (Signal, ReactiveContext, Executor)
+├── quoin-macros/         # Proc macro entry points
+├── quoin-macros-core/    # Macro parsing and code generation
+├── quoin-gpui/           # GPUI adapter
+├── quoin-leptos/         # Leptos adapter
+├── quoin-dioxus/         # Dioxus adapter
+├── quoin-xilem/          # Xilem adapter
+├── quoin-floem/          # Floem adapter
+├── quoin-ui/             # UCP traits
+├── quoin-ui-gpui/        # GPUI UCP implementation
+└── quoin-conformance/    # Shared conformance test suite
+```
 
-## 📂 Examples
+## Development
 
-The `examples/` directory contains runnable demonstrations for every framework.
+### Prerequisites
 
-### Counter (Core Abstraction)
+- Rust nightly (for some proc-macro features)
+- `cargo-nextest` for testing
+- `cargo-watch` for dev workflows
+- `just` for task running
 
-| Example | Framework | Run Command |
-|---------|-----------|-------------|
-| `counter-gpui` | GPUI | `cargo run -p counter-gpui` |
-| `counter-leptos` | Leptos | `cd examples/counter-leptos && trunk serve` |
-| `counter-dioxus` | Dioxus | `cargo run -p counter-dioxus` |
-| `counter-floem` | Floem | `cargo run -p counter-floem` |
-| `counter-xilem` | Xilem | `cargo run -p counter-xilem` |
-
-### UCP Demo (Macros + Shared Library)
-
-The `ucp-lib` crate demonstrates a complete cross‑framework component library:
+### Build & Test
 
 ```bash
-# GPUI native app
-cargo run -p ucp-demo-gpui
-
-# Leptos web app
-cd examples/ucp-demo-leptos && trunk serve
-
-# Dioxus desktop app
-cargo run -p ucp-demo-dioxus
+just build              # Build workspace
+just test               # Run all tests (nextest)
+just test-quoin         # Test core only
+just test-quoin-macros  # Test macro parsing
+just check              # Format check + clippy
+just fix                # Auto-fix clippy warnings
 ```
 
-All three demos use the **exact same** `ucp-lib` source code, proving `quoin`'s write‑once, run‑anywhere capability.
-
----
-
-## 📚 Specification Suite
-
-The `quoin` project is guided by a complete, evidence‑backed specification suite. Each document is traceable to the next, forming a rigorous foundation for implementation.
-
-| Document | Description |
-|----------|-------------|
-| **[Vision & Strategic Alignment](docs/vision.md)** | The "why" – problem statement, target users, success metrics |
-| **[Business & Stakeholder Requirements (BRS)](docs/brs.md)** | Stakeholder goals, business rules, conceptual domain model |
-| **[Software Requirements Specification (SRS)](docs/srs.md)** | Functional and non‑functional requirements (EARS‑style) |
-| **[Architecture & Design Specification](docs/architecture.md)** | Structural design, ADRs, API contracts |
-| **[Behavioral Spec & Test Verification](docs/test-verification.md)** | BDD scenarios, conformance test suite, traceability matrix |
-
-📁 **All documents are available in the [`docs/`](docs/) directory.**
-
----
-
-## 🤝 Getting Involved
-
-`quoin` is a community‑driven project. We welcome contributions of all kinds!
-
-### For Library Authors
-- **Adopt `quoin`:** Make your crate framework‑agnostic.
-- **Provide feedback:** Open an issue to discuss your use case or pain points.
-
-### For Framework Enthusiasts
-- **Write an adapter:** Implement `ReactiveContext` for your favorite UI framework.
-- **Get listed:** Once your adapter passes the conformance suite, submit a PR to have it listed here.
-
-### Development
+### Framework-Specific Tests
 
 ```bash
-# Clone the repository
-git clone https://github.com/elcoosp/quoin.git
-cd quoin
-
-# Run all tests
-cargo nextest run --all
-
-# Run specific adapter tests
-just test-quoin-gpui
-just test-quoin-leptos
-
-# Run macro UI tests
-just test-macros-ui-all
+just test-quoin-gpui        # GPUI adapter + conformance
+just test-quoin-leptos      # Leptos adapter + conformance
+just test-quoin-dioxus      # Dioxus adapter + conformance
+just test-quoin-floem       # Floem adapter + conformance
+just test-quoin-xilem       # Xilem adapter + conformance
+just test-conformance-gpui  # GPUI conformance only
+just test-conformance-leptos
+just test-conformance-dioxus
+just test-macros-ui-all     # All macro UI tests (trybuild)
 ```
 
-See the [`justfile`](justfile) for all available commands.
+### Run Examples
 
----
+```bash
+just run-gpui           # GPUI counter
+just run-dioxus         # Dioxus counter
+just run-leptos         # Leptos counter (SSR)
+just run-floem          # Floem counter
+just run-xilem          # Xilem counter
+just run-ucp-gpui       # UCP demo (GPUI)
+just run-ucp-dioxus     # UCP demo (Dioxus)
+just run-mini-devtools  # Mini devtools (GPUI)
+```
 
-## 📄 License
+### Watch Mode
 
-All `quoin` crates are dual‑licensed under:
+```bash
+just watch-gpui         # Auto-rebuild GPUI counter
+just watch-dioxus       # Auto-rebuild Dioxus counter
+just watch-floem        # Auto-rebuild Floem counter
+just watch-xilem        # Auto-rebuild Xilem counter
+just watch-ucp-gpui     # Auto-rebuild UCP demo
+just watch-mini-devtools
+```
 
-- [MIT License](LICENSE-MIT)
-- [Apache License, Version 2.0](LICENSE-APACHE)
+### Build All Examples
 
-at your option.
+```bash
+just build-examples     # Compile-check every example
+```
 
----
+### Macro Expansion
 
-*Built with ❤️ for the Rust UI ecosystem.*
+```bash
+just expand ucp-lib gpui   # Expand macros to examples/ucp-lib/expanded.rs
+```
+
+### Cleanup
+
+```bash
+just clean            # cargo clean
+just clean-trybuild   # Clear trybuild cache
+```
+
+## License
+
+MIT OR Apache-2.0

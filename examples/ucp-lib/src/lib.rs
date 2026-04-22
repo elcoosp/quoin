@@ -120,14 +120,14 @@ component! {
                     div(class: "flex items-center gap-2") {
                         div(class: "text-lg") { count_text }
                         button(class: "px-4 py-2 bg-blue-600 text-white rounded-md cursor-pointer",
-                            on_click: move |_| count.clone().update(|c| *c += 1)) { "Increment" }
+                            on_click: |_| count.clone().update(|c| *c += 1)) { "Increment" }
                     }
                     div(class: "flex items-center gap-2") {
                         div(class: "text-lg") { selected_text }
                         button(class: "px-4 py-2 bg-green-600 text-white rounded-md cursor-pointer",
-                            on_click: move |_| selected.clone().set("Option A".to_string())) { "Option A" }
+                            on_click: |_| selected.clone().set("Option A".to_string())) { "Option A" }
                         button(class: "px-4 py-2 bg-purple-600 text-white rounded-md cursor-pointer",
-                            on_click: move |_| selected.clone().set("Option B".to_string())) { "Option B" }
+                            on_click: |_| selected.clone().set("Option B".to_string())) { "Option B" }
                     }
                     div(class: "text-lg font-semibold") { "People:" }
                     div(class: "flex flex-col gap-1", children: people_items)
@@ -176,13 +176,13 @@ component! {
                         format!("Filter value: {:?}", filter_text_val)
                     }
 
-                    tabs(active: active_tab_val, on_click: move |i| active_tab.clone().set(i)) {
+                    tabs(active: active_tab_val, on_click: |i| active_tab.clone().set(i)) {
                         tab(index: 0, label: "Timeline")
                         tab(index: 1, label: "Cache")
                         tab(index: 2, label: "Signals")
                     }
 
-                    button(class: "px-4 py-2 bg-blue-600 text-white rounded-md cursor-pointer", primary: true, on_click: move |_| event_count.clone().update(|c| *c += 1)) {
+                    button(class: "px-4 py-2 bg-blue-600 text-white rounded-md cursor-pointer", primary: true, on_click: |_| event_count.clone().update(|c| *c += 1)) {
                         "+ Add Event"
                     }
 

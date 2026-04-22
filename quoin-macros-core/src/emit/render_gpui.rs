@@ -1,7 +1,7 @@
 use crate::render_ast::{Element, ForNode, IfNode, RenderNode};
 use crate::transpile::collect_handler_idents_excluding_params;
 use crate::transpile::dropdown_codegen::{MenuItemDef, generate_gpui_dropdown};
-use crate::transpile::strip_move_from_closure;
+use crate::transpile::force_move_on_closure;
 use crate::transpile::tailwind::{TranspiledStyles, transpile_class};
 use crate::transpile::virtual_list_codegen::generate_gpui_virtual_list;
 use proc_macro2::TokenStream;
@@ -60,7 +60,6 @@ fn emit_element_inner(el: &Element) -> TokenStream {
     }
 }
 
-/// Check if a closure has parameters other than `|_|` or `|()|`.
 fn closure_has_params(handler_expr: &Expr) -> bool {
     match handler_expr {
         Expr::Closure(closure) => !closure.inputs.is_empty(),
@@ -68,36 +67,34 @@ fn closure_has_params(handler_expr: &Expr) -> bool {
     }
 }
 
-/// Emit shadow-clone handler wrap (no Rc, suitable for multi-arg closures and per-use-site).
 fn emit_handler_shadow_wrap(handler_expr: &Expr) -> TokenStream {
     let idents = collect_handler_idents_excluding_params(handler_expr);
     let shadows: Vec<TokenStream> = idents
         .iter()
         .map(|id| quote! { let #id = #id.clone(); })
         .collect();
-    let handler_no_move = strip_move_from_closure(handler_expr);
+    let handler_with_move = force_move_on_closure(handler_expr);
     quote! {
         {
             #(#shadows)*
-            let __handler = ::std::rc::Rc::new(move #handler_no_move);
-            move |_, _, _| { __handler(()) }
+            let __handler = ::std::rc::Rc::new(#handler_with_move);
+            cx.listener(move |_this, _event, _window, _cx| { __handler(()) })
         }
     }
 }
 
-/// Emit Rc-handler wrap (for unit-arg closures like on_click where it's called from multiple places).
 fn emit_handler_rc_wrap(handler_expr: &Expr) -> TokenStream {
     let idents = collect_handler_idents_excluding_params(handler_expr);
     let shadows: Vec<TokenStream> = idents
         .iter()
         .map(|id| quote! { let #id = #id.clone(); })
         .collect();
-    let handler_no_move = strip_move_from_closure(handler_expr);
+    let handler_with_move = force_move_on_closure(handler_expr);
     quote! {
         {
             #(#shadows)*
-            let __handler = ::std::rc::Rc::new(move #handler_no_move);
-            move |_, _, _| { __handler(()) }
+            let __handler = ::std::rc::Rc::new(#handler_with_move);
+            cx.listener(move |_this, _event, _window, _cx| { __handler(()) })
         }
     }
 }
@@ -252,7 +249,7 @@ fn emit_input(el: &Element) -> TokenStream {
 fn emit_tabs(el: &Element) -> TokenStream {
     let active_expr = find_arg_expr(el, "active").expect("tabs require 'active' argument");
     let on_click_expr = find_arg_expr(el, "on_click").expect("tabs require 'on_click' callback");
-    let on_click_no_move = strip_move_from_closure(on_click_expr);
+    let on_click_with_move = force_move_on_closure(on_click_expr);
 
     let tab_labels: Vec<TokenStream> = el
         .children
@@ -272,7 +269,7 @@ fn emit_tabs(el: &Element) -> TokenStream {
     quote! {
         {
             let __active = #active_expr;
-            let __on_click = ::std::rc::Rc::new(#on_click_no_move);
+            let __on_click = ::std::rc::Rc::new(#on_click_with_move);
             let __labels: Vec<(usize, String)> = vec![#(#tab_labels),*];
             let __tab_elements: Vec<::gpui::AnyElement> = __labels.iter().map(|(idx, label)| {
                 let __is_active = *idx == __active;
@@ -281,7 +278,9 @@ fn emit_tabs(el: &Element) -> TokenStream {
                 else { __el = __el.text_color(::gpui::rgb(0x9ca3af)); }
                 let __idx = *idx;
                 let __tab_on_click = __on_click.clone();
-                __el.on_mouse_down(::gpui::MouseButton::Left, move |_, _, _| { __tab_on_click(__idx) }).into_any_element()
+                __el.on_mouse_down(::gpui::MouseButton::Left,
+                    cx.listener(move |_this, _event, _window, _cx| { __tab_on_click(__idx) })
+                ).into_any_element()
             }).collect();
             ::gpui::div().flex().children(__tab_elements)
         }
@@ -325,15 +324,15 @@ fn emit_data_table(el: &Element) -> TokenStream {
                                 .iter()
                                 .map(|id| quote! { let #id = #id.clone(); })
                                 .collect();
-                            let handler_no_move = strip_move_from_closure(on_sort);
+                            let handler_with_move = force_move_on_closure(on_sort);
                             header = quote! {
                                 #header
                                     .cursor_pointer()
                                     .hover(|s| s.bg(::gpui::rgb(0x374151)))
                                     .on_mouse_down(::gpui::MouseButton::Left, {
                                         #(#shadows)*
-                                        let __handler = ::std::rc::Rc::new(move #handler_no_move);
-                                        move |_, _, _| { __handler(#key_str, "asc"); }
+                                        let __handler = ::std::rc::Rc::new(#handler_with_move);
+                                        cx.listener(move |_this, _event, _window, _cx| { __handler(#key_str, "asc"); })
                                     })
                             };
                         } else {
@@ -486,9 +485,11 @@ fn emit_clipboard_button(el: &Element) -> TokenStream {
 
     let copy_text_clone = copy_text.clone();
     chain = quote! {
-        #chain.on_mouse_down(::gpui::MouseButton::Left, move |_, _window, cx| {
-            cx.write_to_clipboard(::gpui::ClipboardItem::new_string(#copy_text_clone.to_string()));
-        })
+        #chain.on_mouse_down(::gpui::MouseButton::Left,
+            cx.listener(move |_this, _event, _window, cx| {
+                cx.write_to_clipboard(::gpui::ClipboardItem::new_string(#copy_text_clone.to_string()));
+            })
+        )
     };
 
     chain

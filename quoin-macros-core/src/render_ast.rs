@@ -48,6 +48,8 @@ pub struct Element {
     pub children_expr: Option<Expr>,
     pub trigger_expr: Option<Expr>,
 }
+
+/// Collect tokens until a top‑level comma (or end of stream), then parse as an expression.
 fn collect_arg_value(input: ParseStream) -> Result<Expr> {
     let mut tokens = Vec::new();
     while !input.is_empty() {
@@ -60,6 +62,7 @@ fn collect_arg_value(input: ParseStream) -> Result<Expr> {
     let token_stream: proc_macro2::TokenStream = tokens.into_iter().collect();
     syn::parse2(token_stream)
 }
+
 impl Parse for Element {
     fn parse(input: ParseStream) -> Result<Self> {
         let attrs = input.call(Attribute::parse_outer)?;
@@ -76,8 +79,8 @@ impl Parse for Element {
             let key: Ident = args_content.call(Ident::parse_any)?;
             args_content.parse::<Token![:]>()?;
 
-            // Use the expression parser that handles `move` closures correctly.
             let value = collect_arg_value(&args_content)?;
+
             if key == "children" {
                 children_expr = Some(value);
             } else if key == "trigger" {
@@ -204,36 +207,11 @@ impl Parse for ForNode {
 }
 
 const KNOWN_ELEMENTS: &[&str] = &[
-    "div",
-    "h1",
-    "h2",
-    "h3",
-    "p",
-    "text",
-    "span",
-    "button",
-    "input",
-    "label",
-    "img",
-    "a",
-    "ul",
-    "ol",
-    "li",
-    "hr",
-    "br",
-    "textarea",
-    "select",
-    "form",
-    "tabs",
-    "tab",
-    "data_table",
-    "column",
-    "virtual_list",
-    "dropdown_menu",
-    "rich_text",
-    "clipboard_button",
-    "item",
-    "tab_bar",
+    "div", "h1", "h2", "h3", "p", "text", "span", "button", "input",
+    "label", "img", "a", "ul", "ol", "li", "hr", "br", "textarea",
+    "select", "form", "tabs", "tab", "data_table", "column",
+    "virtual_list", "dropdown_menu", "rich_text", "clipboard_button",
+    "item", "tab_bar",
 ];
 
 impl Parse for RenderNode {
@@ -292,15 +270,12 @@ impl Parse for RenderNode {
                         let msg = if let Some(sug) = suggestion {
                             format!(
                                 "unknown element `{}`. Did you mean `{}`? Known elements: {}",
-                                ident_str,
-                                sug,
-                                KNOWN_ELEMENTS.join(", ")
+                                ident_str, sug, KNOWN_ELEMENTS.join(", ")
                             )
                         } else {
                             format!(
                                 "unknown element `{}`. Known elements: {}. If this is a function call, wrap it in braces: `{{ expr }}`",
-                                ident_str,
-                                KNOWN_ELEMENTS.join(", ")
+                                ident_str, KNOWN_ELEMENTS.join(", ")
                             )
                         };
                         return Err(syn::Error::new_spanned(ident, msg));

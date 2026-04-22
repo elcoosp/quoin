@@ -1,8 +1,4 @@
-// FILE: quoin-macros-core/src/transpile/dropdown_codegen.rs
-
-#[allow(unused)]
 use proc_macro2::TokenStream;
-#[allow(unused)]
 use quote::quote;
 
 pub struct MenuItemDef {
@@ -24,7 +20,7 @@ pub fn generate_gpui_dropdown(trigger_expr: &syn::Expr, menu_items: &[MenuItemDe
                     quote! { let #id = #id.clone(); }
                 })
                 .collect();
-            let handler = crate::transpile::strip_move_from_closure(on_click);
+            let handler = crate::transpile::force_move_on_closure(on_click);
             quote! {
                 ::gpui::div()
                     .px(::gpui::px(12.0))
@@ -36,7 +32,7 @@ pub fn generate_gpui_dropdown(trigger_expr: &syn::Expr, menu_items: &[MenuItemDe
                     .on_mouse_down(::gpui::MouseButton::Left, {
                         #(#shadows)*
                         let __handler = ::std::rc::Rc::new(#handler);
-                        move |_, _, _| { __handler(()); }
+                        cx.listener(move |_this, _event, _window, _cx| { __handler(()); })
                     })
                     .into_any_element()
             }
