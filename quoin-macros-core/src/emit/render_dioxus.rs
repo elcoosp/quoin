@@ -729,7 +729,7 @@ fn emit_tabs(el: &Element) -> TokenStream {
     }
     #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
     {
-        emit_tabs_plain(el);
+        emit_tabs_plain(el)
     }
 }
 
@@ -891,7 +891,7 @@ fn emit_dropdown_menu(el: &Element) -> TokenStream {
     }
     #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
     {
-        emit_dropdown_menu_plain(el);
+        emit_dropdown_menu_plain(el)
     }
 }
 
@@ -1019,7 +1019,7 @@ fn emit_data_table(el: &Element) -> TokenStream {
     }
     #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
     {
-        emit_data_table_plain(el);
+        emit_data_table_plain(el)
     }
 }
 
