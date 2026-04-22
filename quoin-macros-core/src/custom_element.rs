@@ -47,7 +47,11 @@ impl Parse for CustomElementDef {
             None
         };
 
-        Ok(CustomElementDef { name, props, render_fn })
+        Ok(CustomElementDef {
+            name,
+            props,
+            render_fn,
+        })
     }
 }
 
@@ -60,6 +64,7 @@ pub fn expand_custom_element(def: CustomElementDef) -> TokenStream {
         quote! { pub #name: #ty }
     });
 
+    #[cfg(feature = "gpui")]
     let render_impl = match &def.render_fn {
         Some(render_expr) => {
             quote! {
@@ -88,6 +93,57 @@ pub fn expand_custom_element(def: CustomElementDef) -> TokenStream {
                     }
                 }
             }
+        }
+    };
+
+    #[cfg(feature = "leptos")]
+    let render_impl = match &def.render_fn {
+        Some(render_expr) => {
+            quote! {
+                impl #element_ident {
+                    pub fn render(&self) -> impl leptos::prelude::IntoView {
+                        #render_expr
+                    }
+                }
+            }
+        }
+        None => {
+            quote! {
+                impl #element_ident {
+                    pub fn render(&self) -> impl leptos::prelude::IntoView {
+                        leptos::prelude::view! { <div></div> }
+                    }
+                }
+            }
+        }
+    };
+
+    #[cfg(feature = "dioxus")]
+    let render_impl = match &def.render_fn {
+        Some(render_expr) => {
+            quote! {
+                impl #element_ident {
+                    pub fn render(&self) -> dioxus::prelude::Element {
+                        dioxus::prelude::rsx! { #render_expr }
+                    }
+                }
+            }
+        }
+        None => {
+            quote! {
+                impl #element_ident {
+                    pub fn render(&self) -> dioxus::prelude::Element {
+                        dioxus::prelude::rsx! { div {} }
+                    }
+                }
+            }
+        }
+    };
+
+    #[cfg(not(any(feature = "gpui", feature = "leptos", feature = "dioxus")))]
+    let render_impl = {
+        quote! {
+            compile_error!("quoin_element! requires a framework feature (gpui, leptos, or dioxus)");
         }
     };
 

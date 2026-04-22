@@ -46,20 +46,35 @@ impl Parse for Effect {
                             input.parse::<Token![,]>()?;
                             let cleanup_kw: Ident = input.parse()?;
                             if cleanup_kw != "cleanup" {
-                                return Err(syn::Error::new(cleanup_kw.span(), "expected `cleanup`"));
+                                return Err(syn::Error::new(
+                                    cleanup_kw.span(),
+                                    "expected `cleanup`",
+                                ));
                             }
                             input.parse::<Token![:]>()?;
                             cleanup = Some(input.parse()?);
                         }
 
-                        Ok(Effect { deps, body, cleanup })
+                        Ok(Effect {
+                            deps,
+                            body,
+                            cleanup,
+                        })
                     } else {
                         let body: Expr = input.parse()?;
-                        Ok(Effect { deps, body, cleanup: None })
+                        Ok(Effect {
+                            deps,
+                            body,
+                            cleanup: None,
+                        })
                     }
                 } else {
                     let body: Expr = input.parse()?;
-                    Ok(Effect { deps, body, cleanup: None })
+                    Ok(Effect {
+                        deps,
+                        body,
+                        cleanup: None,
+                    })
                 }
             }
             _ => Err(syn::Error::new(kw.span(), "expected `watch` or `deps`")),

@@ -115,3 +115,18 @@ impl<T: Clone + std::fmt::Debug + 'static> std::fmt::Debug for LeptosSignal<T> {
             .finish()
     }
 }
+
+/// Write text to the system clipboard (Web/WASM only).
+///
+/// Falls back silently if the clipboard API is unavailable (e.g., SSR context).
+/// This function is called by the `clipboard_button` element in `quoin_render!`.
+pub fn clipboard_write_text(text: &str) {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = web_sys::window().and_then(|w| w.navigator().clipboard().write_text(text).ok());
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let _ = text;
+    }
+}

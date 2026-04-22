@@ -1,12 +1,12 @@
 use gpui::{AsyncWindowContext, BackgroundExecutor, Context, ForegroundExecutor, Task, WeakEntity};
 use quoin_core::{Executor, JoinHandle, ReactiveContext, Signal as QuoinSignal};
 use send_wrapper::SendWrapper;
+use std::any::TypeId;
+use std::collections::HashMap;
 use std::future::Future;
 use std::ops::Deref;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
-use std::any::TypeId;
-use std::collections::HashMap;
 
 thread_local! {
     static GLOBAL_STORE: std::cell::RefCell<HashMap<TypeId, Box<dyn std::any::Any + Send + Sync>>> =
@@ -122,7 +122,9 @@ impl ReactiveContext for GpuiContext {
 
     fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T) {
         GLOBAL_STORE.with(|store| {
-            store.borrow_mut().insert(TypeId::of::<T>(), Box::new(value));
+            store
+                .borrow_mut()
+                .insert(TypeId::of::<T>(), Box::new(value));
         });
     }
 

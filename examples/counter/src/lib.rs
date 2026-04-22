@@ -1,5 +1,5 @@
-use std::rc::Rc;
 use quoin_core::prelude::*;
+use std::rc::Rc;
 
 #[derive(Clone)] // <-- add this
 pub struct Counter<S: Signal<u32>> {

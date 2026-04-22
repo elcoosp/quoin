@@ -73,18 +73,78 @@ impl QuoinTheme for GpuiTheme {
 
     fn resolve(token: ThemeToken) -> Self::Color {
         match token {
-            ThemeToken::Primary => Hsla::from(Rgba { r: 0.23, g: 0.46, b: 0.97, a: 1.0 }),
-            ThemeToken::Secondary => Hsla::from(Rgba { r: 0.42, g: 0.45, b: 0.50, a: 1.0 }),
-            ThemeToken::Background => Hsla::from(Rgba { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }),
-            ThemeToken::Foreground => Hsla::from(Rgba { r: 0.0, g: 0.0, b: 0.0, a: 1.0 }),
-            ThemeToken::Muted => Hsla::from(Rgba { r: 0.96, g: 0.96, b: 0.96, a: 1.0 }),
-            ThemeToken::MutedForeground => Hsla::from(Rgba { r: 0.45, g: 0.45, b: 0.45, a: 1.0 }),
-            ThemeToken::Accent | ThemeToken::Info => Hsla::from(Rgba { r: 0.23, g: 0.46, b: 0.97, a: 1.0 }),
-            ThemeToken::Warning => Hsla::from(Rgba { r: 0.98, g: 0.72, b: 0.18, a: 1.0 }),
-            ThemeToken::Danger => Hsla::from(Rgba { r: 0.94, g: 0.27, b: 0.27, a: 1.0 }),
-            ThemeToken::Border => Hsla::from(Rgba { r: 0.90, g: 0.90, b: 0.90, a: 1.0 }),
-            ThemeToken::Input => Hsla::from(Rgba { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }),
-            ThemeToken::Ring => Hsla::from(Rgba { r: 0.23, g: 0.46, b: 0.97, a: 0.4 }),
+            ThemeToken::Primary => Hsla::from(Rgba {
+                r: 0.23,
+                g: 0.46,
+                b: 0.97,
+                a: 1.0,
+            }),
+            ThemeToken::Secondary => Hsla::from(Rgba {
+                r: 0.42,
+                g: 0.45,
+                b: 0.50,
+                a: 1.0,
+            }),
+            ThemeToken::Background => Hsla::from(Rgba {
+                r: 1.0,
+                g: 1.0,
+                b: 1.0,
+                a: 1.0,
+            }),
+            ThemeToken::Foreground => Hsla::from(Rgba {
+                r: 0.0,
+                g: 0.0,
+                b: 0.0,
+                a: 1.0,
+            }),
+            ThemeToken::Muted => Hsla::from(Rgba {
+                r: 0.96,
+                g: 0.96,
+                b: 0.96,
+                a: 1.0,
+            }),
+            ThemeToken::MutedForeground => Hsla::from(Rgba {
+                r: 0.45,
+                g: 0.45,
+                b: 0.45,
+                a: 1.0,
+            }),
+            ThemeToken::Accent | ThemeToken::Info => Hsla::from(Rgba {
+                r: 0.23,
+                g: 0.46,
+                b: 0.97,
+                a: 1.0,
+            }),
+            ThemeToken::Warning => Hsla::from(Rgba {
+                r: 0.98,
+                g: 0.72,
+                b: 0.18,
+                a: 1.0,
+            }),
+            ThemeToken::Danger => Hsla::from(Rgba {
+                r: 0.94,
+                g: 0.27,
+                b: 0.27,
+                a: 1.0,
+            }),
+            ThemeToken::Border => Hsla::from(Rgba {
+                r: 0.90,
+                g: 0.90,
+                b: 0.90,
+                a: 1.0,
+            }),
+            ThemeToken::Input => Hsla::from(Rgba {
+                r: 1.0,
+                g: 1.0,
+                b: 1.0,
+                a: 1.0,
+            }),
+            ThemeToken::Ring => Hsla::from(Rgba {
+                r: 0.23,
+                g: 0.46,
+                b: 0.97,
+                a: 0.4,
+            }),
         }
     }
 
@@ -157,7 +217,11 @@ pub fn render_button(label: Option<String>, variant: ButtonVariant) -> gpui::Div
 // -----------------------------------------------------------------------------
 
 pub fn render_input(placeholder: Option<String>, value: String) -> gpui::Div {
-    let display = if value.is_empty() { placeholder.unwrap_or_default() } else { value };
+    let display = if value.is_empty() {
+        placeholder.unwrap_or_default()
+    } else {
+        value
+    };
     gpui::div()
         .rounded(gpui::px(6.0))
         .px(gpui::px(12.0))
@@ -244,7 +308,9 @@ pub struct GpuiVirtualListAdapter;
 impl VirtualListAdapter for GpuiVirtualListAdapter {}
 
 #[derive(Default, Clone)]
-pub struct GpuiTableAdapter { pub striped: bool }
+pub struct GpuiTableAdapter {
+    pub striped: bool,
+}
 impl TableAdapter for GpuiTableAdapter {}
 
 #[derive(Default, Clone)]
@@ -277,13 +343,20 @@ impl GpuiClipboard {
         write_fn: impl Fn(&str) + Send + Sync + 'static,
         read_fn: impl Fn() -> Option<String> + Send + Sync + 'static,
     ) -> Self {
-        Self { write_fn: Arc::new(write_fn), read_fn: Arc::new(read_fn) }
+        Self {
+            write_fn: Arc::new(write_fn),
+            read_fn: Arc::new(read_fn),
+        }
     }
 }
 
 impl Clipboard for GpuiClipboard {
-    fn write_text(&self, text: &str) { (self.write_fn)(text); }
-    fn read_text(&self) -> Option<String> { (self.read_fn)() }
+    fn write_text(&self, text: &str) {
+        (self.write_fn)(text);
+    }
+    fn read_text(&self) -> Option<String> {
+        (self.read_fn)()
+    }
 }
 
 // -----------------------------------------------------------------------------

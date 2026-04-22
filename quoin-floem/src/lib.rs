@@ -1,8 +1,15 @@
 use floem_reactive::{RwSignal, SignalGet, SignalUpdate, SignalWith};
 use quoin_core::{Executor, JoinHandle, ReactiveContext, Signal};
 use send_wrapper::SendWrapper;
+use std::any::TypeId;
+use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
+
+thread_local! {
+    static GLOBAL_STORE: std::cell::RefCell<HashMap<TypeId, Box<dyn std::any::Any + Send + Sync>>> =
+        std::cell::RefCell::new(HashMap::new());
+}
 
 #[derive(Clone, Default)]
 pub struct FloemContext;
@@ -29,19 +36,26 @@ impl ReactiveContext for FloemContext {
         // Floem's reactivity is automatic.
     }
 
-    fn provide_global<T: Clone + Send + Sync + 'static>(&self, _value: T) {
-        // Floem does not have a built-in context provider.
+    fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T) {
+        GLOBAL_STORE.with(|store| {
+            store.borrow_mut().insert(TypeId::of::<T>(), Box::new(value));
+        });
     }
 
     fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>> {
-        // Stub: Floem does not have a built-in context provider mechanism.
-        None
+        GLOBAL_STORE.with(|store| {
+            store
+                .borrow()
+                .get(&TypeId::of::<T>())
+                .and_then(|v| v.downcast_ref::<T>())
+                .cloned()
+                .map(|v| FloemSignal::new(v))
+        })
     }
 }
 
 #[derive(Clone)]
 pub struct FloemSignal<T: Clone + 'static> {
-    // Store the full RwSignal so we can call set/update.
     inner: RwSignal<SendWrapper<T>>,
 }
 

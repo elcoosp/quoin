@@ -64,11 +64,19 @@ pub fn quoin_render(input: TokenStream) -> TokenStream {
 
 #[proc_macro]
 pub fn quoin_element(input: TokenStream) -> TokenStream {
+    #[allow(unused)]
     let def = match syn::parse::<quoin_macros_core::custom_element::CustomElementDef>(input) {
         Ok(def) => def,
         Err(e) => return e.to_compile_error().into(),
     };
-    quoin_macros_core::custom_element::expand_custom_element(def).into()
+
+    #[cfg(not(any(feature = "gpui", feature = "leptos", feature = "dioxus")))]
+    let tokens = quote::quote! { compile_error!("quoin_element! requires a framework feature"); };
+
+    #[cfg(any(feature = "gpui", feature = "leptos", feature = "dioxus"))]
+    let tokens = quoin_macros_core::custom_element::expand_custom_element(def);
+
+    tokens.into()
 }
 
 #[proc_macro]
@@ -86,8 +94,16 @@ pub fn effect(input: TokenStream) -> TokenStream {
     #[cfg(all(feature = "gpui", not(any(feature = "leptos", feature = "dioxus"))))]
     let tokens = match cleanup {
         Some(cleanup_expr) => quote::quote! {{
-            #body;
-            let _cleanup = || #cleanup_expr;
+            {
+                struct __QuoinEffectGuard;
+                impl Drop for __QuoinEffectGuard {
+                    fn drop(&mut self) {
+                        #cleanup_expr;
+                    }
+                }
+                (#body)();
+                let _guard = __QuoinEffectGuard;
+            }
         }},
         None => quote::quote! {{
             (#body)();
@@ -144,7 +160,7 @@ pub fn effect(input: TokenStream) -> TokenStream {
 
 #[proc_macro]
 pub fn run_app(input: TokenStream) -> TokenStream {
-    let ast = match syn::parse::<quoin_macros_core::run_app::RunAppInput>(input) {
+    let _ast = match syn::parse::<quoin_macros_core::run_app::RunAppInput>(input) {
         Ok(ast) => ast,
         Err(e) => return e.to_compile_error().into(),
     };

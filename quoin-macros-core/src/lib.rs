@@ -11,6 +11,6 @@ pub mod parse;
 pub mod render_ast;
 
 pub mod emit;
-pub mod transpile;
 pub mod render_ast_diag;
 pub mod run_app;
+pub mod transpile;

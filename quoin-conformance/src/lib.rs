@@ -40,11 +40,11 @@
 //! define_conformance_tests!(gpui, TestHarness);
 //! ```
 
-use std::future::Future;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
-use std::time::Duration;
 use quoin_core::prelude::*;
+use std::future::Future;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 // -----------------------------------------------------------------------------
 // Helper traits
@@ -188,11 +188,12 @@ pub mod tests {
     }
 }
 
-
 /// Verify provide_global / use_global round-trip.
 pub async fn provide_and_use_global<C: ReactiveContext>(cx: &C) {
     cx.provide_global(99u32);
-    let sig = cx.use_global::<u32>().expect("global must exist after provide");
+    let sig = cx
+        .use_global::<u32>()
+        .expect("global must exist after provide");
     assert_eq!(sig.get(), 99);
     sig.set(100);
     assert_eq!(sig.get(), 100);
@@ -205,8 +206,9 @@ pub async fn provide_and_use_global<C: ReactiveContext>(cx: &C) {
 #[macro_export]
 macro_rules! define_conformance_tests {
     (sync, $cx_type:ty) => {
-        use $crate::tests::*;
         use $crate::TestContextProvider;
+        use $crate::provide_and_use_global;
+        use $crate::tests::*;
 
         #[test]
         fn test_create_signal_initial_value() {
@@ -294,6 +296,7 @@ macro_rules! define_conformance_tests {
     };
 
     (gpui, $cx_type:ty) => {
+        use $crate::provide_and_use_global;
         use $crate::tests::*;
         // Expect `gpui::TestAppContext` to be in scope.
 

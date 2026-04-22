@@ -52,13 +52,7 @@ impl GpuiNavigator {
     /// Useful for components that don't need navigation.
     #[must_use]
     pub fn noop() -> Self {
-        Self::new(
-            |_| {},
-            |_| {},
-            || {},
-            || {},
-            || String::new(),
-        )
+        Self::new(|_| {}, |_| {}, || {}, || {}, || String::new())
     }
 }
 

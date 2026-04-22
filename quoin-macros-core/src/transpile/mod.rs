@@ -1,8 +1,8 @@
-pub mod tailwind;
-pub mod table_codegen;
-pub mod virtual_list_codegen;
-pub mod rich_text_codegen;
 pub mod dropdown_codegen;
+pub mod rich_text_codegen;
+pub mod table_codegen;
+pub mod tailwind;
+pub mod virtual_list_codegen;
 
 use syn::visit::Visit;
 use syn::visit_mut::VisitMut;
@@ -16,7 +16,9 @@ pub fn collect_handler_idents(expr: &syn::Expr) -> Vec<proc_macro2::Ident> {
 
     let mut collector = PathIdentCollectorSkipClosures(vec![]);
     collector.visit_expr(body_expr);
-    collector.0.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+    collector
+        .0
+        .sort_by(|a, b| a.to_string().cmp(&b.to_string()));
     collector.0.dedup_by(|a, b| a.to_string() == b.to_string());
     collector.0
 }
@@ -25,7 +27,9 @@ pub fn collect_handler_idents(expr: &syn::Expr) -> Vec<proc_macro2::Ident> {
 pub fn collect_block_idents(block: &syn::Block) -> Vec<proc_macro2::Ident> {
     let mut collector = PathIdentCollectorAll(vec![]);
     collector.visit_block(block);
-    collector.0.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+    collector
+        .0
+        .sort_by(|a, b| a.to_string().cmp(&b.to_string()));
     collector.0.dedup_by(|a, b| a.to_string() == b.to_string());
     collector.0
 }
@@ -46,19 +50,23 @@ pub fn force_move_on_closure(expr: &syn::Expr) -> syn::Expr {
 
 pub fn collect_handler_idents_excluding_params(expr: &syn::Expr) -> Vec<proc_macro2::Ident> {
     let param_idents: std::collections::HashSet<String> = match expr {
-        syn::Expr::Closure(c) => c.inputs.iter().filter_map(|pat| {
-            if let syn::Pat::Ident(pi) = pat {
-                Some(pi.ident.to_string())
-            } else if let syn::Pat::Type(pt) = pat {
-                if let syn::Pat::Ident(pi) = pt.pat.as_ref() {
+        syn::Expr::Closure(c) => c
+            .inputs
+            .iter()
+            .filter_map(|pat| {
+                if let syn::Pat::Ident(pi) = pat {
                     Some(pi.ident.to_string())
+                } else if let syn::Pat::Type(pt) = pat {
+                    if let syn::Pat::Ident(pi) = pt.pat.as_ref() {
+                        Some(pi.ident.to_string())
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
-            } else {
-                None
-            }
-        }).collect(),
+            })
+            .collect(),
         _ => std::collections::HashSet::new(),
     };
 

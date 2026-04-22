@@ -36,10 +36,9 @@ impl ReactiveContext for DioxusContext {
     }
 
     fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>> {
-        dioxus::prelude::try_consume_context::<T>()
-            .map(|v| DioxusSignal {
-                inner: RefCell::new(Signal::new(v)),
-            })
+        dioxus::prelude::try_consume_context::<T>().map(|v| DioxusSignal {
+            inner: RefCell::new(Signal::new(v)),
+        })
     }
 }
 

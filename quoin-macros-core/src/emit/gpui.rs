@@ -7,86 +7,130 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
     let name = &ast.name;
     let props_name = quote::format_ident!("{}Props", name);
 
-    let props_fields: Vec<_> = ast.props.iter().map(|p| {
-        let fname = &p.name;
-        let fty = &p.ty;
-        quote! { pub #fname: #fty }
-    }).collect();
+    let props_fields: Vec<_> = ast
+        .props
+        .iter()
+        .map(|p| {
+            let fname = &p.name;
+            let fty = &p.ty;
+            quote! { pub #fname: #fty }
+        })
+        .collect();
 
-    let props_defaults: Vec<_> = ast.props.iter().map(|p| {
-        let fname = &p.name;
-        if let Some(default) = &p.default {
-            quote! { #fname: #default }
-        } else {
-            quote! { #fname: Default::default() }
-        }
-    }).collect();
+    let props_defaults: Vec<_> = ast
+        .props
+        .iter()
+        .map(|p| {
+            let fname = &p.name;
+            if let Some(default) = &p.default {
+                quote! { #fname: #default }
+            } else {
+                quote! { #fname: Default::default() }
+            }
+        })
+        .collect();
 
-    let state_fields: Vec<_> = ast.state.iter().map(|s| {
-        let fname = &s.name;
-        let sty = &s.ty;
-        quote! { #fname: quoin::GpuiSignal<#sty> }
-    }).collect();
+    let state_fields: Vec<_> = ast
+        .state
+        .iter()
+        .map(|s| {
+            let fname = &s.name;
+            let sty = &s.ty;
+            quote! { #fname: quoin::GpuiSignal<#sty> }
+        })
+        .collect();
 
-    let state_inits: Vec<_> = ast.state.iter().map(|s| {
-        let fname = &s.name;
-        let default = &s.default;
-        quote! { let #fname = ctx.create_signal(#default); }
-    }).collect();
+    let state_inits: Vec<_> = ast
+        .state
+        .iter()
+        .map(|s| {
+            let fname = &s.name;
+            let default = &s.default;
+            quote! { let #fname = ctx.create_signal(#default); }
+        })
+        .collect();
 
-    let state_field_assignments: Vec<_> = ast.state.iter().map(|s| {
-        let fname = &s.name;
-        quote! { #fname }
-    }).collect();
+    let state_field_assignments: Vec<_> = ast
+        .state
+        .iter()
+        .map(|s| {
+            let fname = &s.name;
+            quote! { #fname }
+        })
+        .collect();
 
     // Global struct fields: name: Option<GpuiSignal<Ty>>
-    let global_struct_fields: Vec<_> = ast.globals.iter().map(|g| {
-        let fname = &g.name;
-        let fty = &g.ty;
-        quote! { #fname: Option<quoin::GpuiSignal<#fty>> }
-    }).collect();
+    let global_struct_fields: Vec<_> = ast
+        .globals
+        .iter()
+        .map(|g| {
+            let fname = &g.name;
+            let fty = &g.ty;
+            quote! { #fname: Option<quoin::GpuiSignal<#fty>> }
+        })
+        .collect();
 
     // Global init calls: use_global with observe tracking
-    let global_inits: Vec<_> = ast.globals.iter().map(|g| {
-        let fname = &g.name;
-        let fty = &g.ty;
-        let observe = g.observe;
-        if observe {
-            // When observe is true, ensure the global signal's mutations trigger re-renders.
-            // The GpuiSignal's set() already calls context.request_update() via the notifier chain,
-            // but we make it explicit by storing a guard that logs when the global changes.
-            quote! {
-                let __global_val: Option<quoin::GpuiSignal<#fty>> = ctx.use_global::<#fty>();
-                // Global #fname is observed: mutations will trigger re-render
-                let #fname = __global_val;
+    let global_inits: Vec<_> = ast
+        .globals
+        .iter()
+        .map(|g| {
+            let fname = &g.name;
+            let fty = &g.ty;
+            let observe = g.observe;
+            if observe {
+                // When observe is true, ensure the global signal's mutations trigger re-renders.
+                // The GpuiSignal's set() already calls context.request_update() via the notifier chain,
+                // but we make it explicit by storing a guard that logs when the global changes.
+                quote! {
+                    let __global_val: Option<quoin::GpuiSignal<#fty>> = ctx.use_global::<#fty>();
+                    // Global #fname is observed: mutations will trigger re-render
+                    let #fname = __global_val;
+                }
+            } else {
+                quote! { let #fname: Option<quoin::GpuiSignal<#fty>> = ctx.use_global::<#fty>(); }
             }
-        } else {
-            quote! { let #fname: Option<quoin::GpuiSignal<#fty>> = ctx.use_global::<#fty>(); }
-        }
-    }).collect();
+        })
+        .collect();
 
     // Global self field assignments
-    let global_self_fields: Vec<_> = ast.globals.iter().map(|g| {
-        let fname = &g.name;
-        quote! { #fname }
-    }).collect();
+    let global_self_fields: Vec<_> = ast
+        .globals
+        .iter()
+        .map(|g| {
+            let fname = &g.name;
+            quote! { #fname }
+        })
+        .collect();
 
-    let state_clones: Vec<_> = ast.state.iter().map(|s| {
-        let fname = &s.name;
-        quote! { let #fname = self.#fname.clone(); }
-    }).collect();
+    let state_clones: Vec<_> = ast
+        .state
+        .iter()
+        .map(|s| {
+            let fname = &s.name;
+            quote! { let #fname = self.#fname.clone(); }
+        })
+        .collect();
 
     // Clone global fields for render access
-    let global_clones: Vec<_> = ast.globals.iter().map(|g| {
-        let fname = &g.name;
-        quote! { let #fname = self.#fname.clone(); }
-    }).collect();
+    let global_clones: Vec<_> = ast
+        .globals
+        .iter()
+        .map(|g| {
+            let fname = &g.name;
+            quote! { let #fname = self.#fname.clone(); }
+        })
+        .collect();
 
-    let action_methods: Vec<_> = ast.actions.iter().map(|func| {
-        let sig = &func.sig;
-        let block = &func.block;
-        quote! { #sig #block }
-    }).collect();
+    let action_methods: Vec<_> = ast
+        .actions
+        .iter()
+        .map(|func| {
+            let sig = &func.sig;
+            let block = &func.block;
+            quote! { #sig #block }
+        })
+        .collect();
 
     let on_mount_stmts: Vec<TokenStream> = match &ast.on_mount {
         Some(block) => block.stmts.iter().map(|s| quote! { #s }).collect(),

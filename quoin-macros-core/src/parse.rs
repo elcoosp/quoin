@@ -81,7 +81,11 @@ impl Parse for ComponentAst {
                         if inner.peek(Token![,]) {
                             inner.parse::<Token![,]>()?;
                         }
-                        props.push(PropField { name: fname, ty: fty, default });
+                        props.push(PropField {
+                            name: fname,
+                            ty: fty,
+                            default,
+                        });
                     }
                 }
                 "state" => {
@@ -103,7 +107,11 @@ impl Parse for ComponentAst {
                         if inner.peek(Token![,]) {
                             inner.parse::<Token![,]>()?;
                         }
-                        state.push(StateField { name: fname, ty: fty, default });
+                        state.push(StateField {
+                            name: fname,
+                            ty: fty,
+                            default,
+                        });
                     }
                 }
                 "globals" => {
@@ -122,7 +130,11 @@ impl Parse for ComponentAst {
                         if inner.peek(Token![,]) {
                             inner.parse::<Token![,]>()?;
                         }
-                        globals.push(GlobalField { name: fname, ty: fty, observe });
+                        globals.push(GlobalField {
+                            name: fname,
+                            ty: fty,
+                            observe,
+                        });
                     }
                 }
                 "on_mount" => {
@@ -154,7 +166,14 @@ impl Parse for ComponentAst {
         }
 
         Ok(ComponentAst {
-            vis, name, props, state, globals, actions, on_mount, on_unmount,
+            vis,
+            name,
+            props,
+            state,
+            globals,
+            actions,
+            on_mount,
+            on_unmount,
             render: render_block.unwrap(),
         })
     }

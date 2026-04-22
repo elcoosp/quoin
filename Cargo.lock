@@ -7184,6 +7184,7 @@ dependencies = [
  "quoin-conformance",
  "quoin-core",
  "send_wrapper",
+ "web-sys",
 ]
 
 [[package]]

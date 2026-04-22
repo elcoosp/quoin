@@ -4,21 +4,57 @@ use syn::Ident;
 
 const KNOWN_ARGS: &[&str] = &[
     // Standard HTML-ish
-    "class", "id", "on_click", "on_input", "on_change", "on_submit",
-    "children", "placeholder", "value", "primary", "ghost", "destructive",
-    "active", "rows", "striped", "label", "render", "key",
-    "index", "href", "target", "src", "alt", "disabled", "required",
-    "type", "name", "for", "title", "role", "tabindex", "autofocus",
+    "class",
+    "id",
+    "on_click",
+    "on_input",
+    "on_change",
+    "on_submit",
+    "children",
+    "placeholder",
+    "value",
+    "primary",
+    "ghost",
+    "destructive",
+    "active",
+    "rows",
+    "striped",
+    "label",
+    "render",
+    "key",
+    "index",
+    "href",
+    "target",
+    "src",
+    "alt",
+    "disabled",
+    "required",
+    "type",
+    "name",
+    "for",
+    "title",
+    "role",
+    "tabindex",
+    "autofocus",
     // Mouse events
-    "on_mouse_down", "on_mouse_up", "on_mouse_enter", "on_mouse_leave",
+    "on_mouse_down",
+    "on_mouse_up",
+    "on_mouse_enter",
+    "on_mouse_leave",
     // virtual_list args
-    "estimated_height", "items",
+    "estimated_height",
+    "items",
     // clipboard_button args
     "copy_text",
     // data_table column args
-    "sortable", "width", "resizable", "selectable",
+    "sortable",
+    "width",
+    "resizable",
+    "selectable",
     // data_table args
-    "on_sort", "bordered", "size",
+    "on_sort",
+    "bordered",
+    "size",
     // Navigation
     "navigate_to",
     // Passthrough
@@ -26,11 +62,36 @@ const KNOWN_ARGS: &[&str] = &[
 ];
 
 const KNOWN_ELEMENTS: &[&str] = &[
-    "div", "h1", "h2", "h3", "p", "text", "span", "button", "input",
-    "label", "img", "a", "ul", "ol", "li", "hr", "br", "textarea",
-    "select", "form", "tabs", "tab", "data_table", "column",
-    "virtual_list", "dropdown_menu", "rich_text", "clipboard_button",
-    "item", "tab_bar",
+    "div",
+    "h1",
+    "h2",
+    "h3",
+    "p",
+    "text",
+    "span",
+    "button",
+    "input",
+    "label",
+    "img",
+    "a",
+    "ul",
+    "ol",
+    "li",
+    "hr",
+    "br",
+    "textarea",
+    "select",
+    "form",
+    "tabs",
+    "tab",
+    "data_table",
+    "column",
+    "virtual_list",
+    "dropdown_menu",
+    "rich_text",
+    "clipboard_button",
+    "item",
+    "tab_bar",
 ];
 
 /// Check if an argument key looks like a typo of a known key.
@@ -88,12 +149,16 @@ pub fn check_element_args(element_name: &str, arg_keys: &[&Ident]) -> Vec<String
     match element_name {
         "data_table" => {
             if !arg_keys.iter().any(|k| k.to_string() == "rows") {
-                warnings.push("data_table requires a 'rows:' argument (e.g., rows: my_data)".to_string());
+                warnings.push(
+                    "data_table requires a 'rows:' argument (e.g., rows: my_data)".to_string(),
+                );
             }
         }
         "virtual_list" => {
             if !arg_keys.iter().any(|k| k.to_string() == "items") {
-                warnings.push("virtual_list requires an 'items:' argument (e.g., items: events)".to_string());
+                warnings.push(
+                    "virtual_list requires an 'items:' argument (e.g., items: events)".to_string(),
+                );
             }
             if !arg_keys.iter().any(|k| k.to_string() == "estimated_height") {
                 warnings.push("virtual_list requires an 'estimated_height:' argument (e.g., estimated_height: 32.0)".to_string());
@@ -104,7 +169,10 @@ pub fn check_element_args(element_name: &str, arg_keys: &[&Ident]) -> Vec<String
                 warnings.push("column requires a 'render:' closure (e.g., render: |row: &T| row.field.clone())".to_string());
             }
             if !arg_keys.iter().any(|k| k.to_string() == "key") {
-                warnings.push("column should have a 'key:' argument for sorting (e.g., key: \"field_name\")".to_string());
+                warnings.push(
+                    "column should have a 'key:' argument for sorting (e.g., key: \"field_name\")"
+                        .to_string(),
+                );
             }
         }
         "clipboard_button" => {
@@ -114,7 +182,10 @@ pub fn check_element_args(element_name: &str, arg_keys: &[&Ident]) -> Vec<String
         }
         "tabs" => {
             if !arg_keys.iter().any(|k| k.to_string() == "active") {
-                warnings.push("tabs requires an 'active:' argument (e.g., active: current_tab.get())".to_string());
+                warnings.push(
+                    "tabs requires an 'active:' argument (e.g., active: current_tab.get())"
+                        .to_string(),
+                );
             }
             if !arg_keys.iter().any(|k| k.to_string() == "on_click") {
                 warnings.push("tabs requires an 'on_click:' callback (e.g., on_click: move |i| active.set(i))".to_string());
@@ -125,7 +196,9 @@ pub fn check_element_args(element_name: &str, arg_keys: &[&Ident]) -> Vec<String
                 warnings.push("tab requires an 'index:' argument (e.g., index: 0)".to_string());
             }
             if !arg_keys.iter().any(|k| k.to_string() == "label") {
-                warnings.push("tab requires a 'label:' argument (e.g., label: \"Tab Name\")".to_string());
+                warnings.push(
+                    "tab requires a 'label:' argument (e.g., label: \"Tab Name\")".to_string(),
+                );
             }
         }
         "input" | "button" | "div" => {
@@ -135,9 +208,22 @@ pub fn check_element_args(element_name: &str, arg_keys: &[&Ident]) -> Vec<String
             // Generic validation for standard HTML elements
             let is_standard = matches!(
                 element_name,
-                "h1" | "h2" | "h3" | "p" | "text" | "span"
-                | "a" | "img" | "label" | "ul" | "ol" | "li" | "hr"
-                | "br" | "textarea" | "select" | "form"
+                "h1" | "h2"
+                    | "h3"
+                    | "p"
+                    | "text"
+                    | "span"
+                    | "a"
+                    | "img"
+                    | "label"
+                    | "ul"
+                    | "ol"
+                    | "li"
+                    | "hr"
+                    | "br"
+                    | "textarea"
+                    | "select"
+                    | "form"
             );
 
             if !is_standard {
@@ -159,8 +245,14 @@ pub fn check_element_args(element_name: &str, arg_keys: &[&Ident]) -> Vec<String
     // Check for unknown args on all elements
     let is_special = matches!(
         element_name,
-        "data_table" | "virtual_list" | "column" | "clipboard_button"
-        | "dropdown_menu" | "tabs" | "tab" | "item"
+        "data_table"
+            | "virtual_list"
+            | "column"
+            | "clipboard_button"
+            | "dropdown_menu"
+            | "tabs"
+            | "tab"
+            | "item"
     );
 
     if !is_special {
@@ -176,14 +268,30 @@ pub fn check_element_args(element_name: &str, arg_keys: &[&Ident]) -> Vec<String
                     warnings.push(format!(
                         "unknown argument `{}` on `<{element_name}>`. Known args: {}",
                         key_str,
-                        KNOWN_ARGS.iter()
-                            .filter(|k| !matches!(**k,
-                                "render" | "key" | "index" | "label"
-                                | "estimated_height" | "items" | "copy_text"
-                                | "sortable" | "width" | "resizable" | "selectable"
-                                | "on_sort" | "bordered" | "size" | "on_mouse_down"
-                                | "on_mouse_up" | "on_mouse_enter" | "on_mouse_leave"
-                                | "navigate_to" | "cfg"
+                        KNOWN_ARGS
+                            .iter()
+                            .filter(|k| !matches!(
+                                **k,
+                                "render"
+                                    | "key"
+                                    | "index"
+                                    | "label"
+                                    | "estimated_height"
+                                    | "items"
+                                    | "copy_text"
+                                    | "sortable"
+                                    | "width"
+                                    | "resizable"
+                                    | "selectable"
+                                    | "on_sort"
+                                    | "bordered"
+                                    | "size"
+                                    | "on_mouse_down"
+                                    | "on_mouse_up"
+                                    | "on_mouse_enter"
+                                    | "on_mouse_leave"
+                                    | "navigate_to"
+                                    | "cfg"
                             ))
                             .cloned()
                             .collect::<Vec<_>>()

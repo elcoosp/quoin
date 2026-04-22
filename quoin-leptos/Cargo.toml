@@ -12,6 +12,8 @@ quoin-core = { path = "../quoin-core", default-features = false, features = ["le
 futures = { version = "0.3", features = ["executor"] }
 leptos = { version = "0.8" }
 send_wrapper = "0.6"
+web-sys = { version = "0.3", features = ["Window", "Navigator", "Clipboard"] }
+
 [dev-dependencies]
 quoin-conformance = { path = "../quoin-conformance", features = ["leptos"] }
 futures-timer = "3.0"

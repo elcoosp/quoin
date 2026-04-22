@@ -2,6 +2,7 @@
 mod tests {
     use std::env;
 
+    #[allow(dead_code)]
     fn setup_trybuild_features() {
         let features_str = include_str!(concat!(env!("OUT_DIR"), "/features.txt"));
 

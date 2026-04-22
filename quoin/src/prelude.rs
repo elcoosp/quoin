@@ -27,5 +27,10 @@ pub use quoin_floem::*;
 pub use quoin_xilem::*;
 
 // Macros — when any framework (or explicit macros feature) is active
-#[cfg(any(feature = "gpui", feature = "leptos", feature = "dioxus", feature = "macros"))]
+#[cfg(any(
+    feature = "gpui",
+    feature = "leptos",
+    feature = "dioxus",
+    feature = "macros"
+))]
 pub use quoin_macros::{component, effect, quoin_element, quoin_render, run_app};

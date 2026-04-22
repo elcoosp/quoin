@@ -228,7 +228,7 @@ expand component="ucp-lib" feature="gpui":
 # Run global-state conformance tests
 test-global:
     cargo nextest run -p quoin-conformance --features leptos -- provide_and_use_global
-    cargo nextest run -p quoin-conformance --features gpui   -- provide_and_use_use_global
+    cargo nextest run -p quoin-conformance --features gpui   -- provide_and_use_global
 
 # Clear trybuild cache (use when tests show stale errors)
 clean-trybuild:

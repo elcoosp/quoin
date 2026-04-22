@@ -12,9 +12,9 @@ pub mod render_gpui;
 #[cfg(feature = "leptos")]
 pub mod render_leptos;
 
+#[cfg(feature = "dioxus")]
+pub mod run_app_dioxus;
 #[cfg(feature = "gpui")]
 pub mod run_app_gpui;
 #[cfg(feature = "leptos")]
 pub mod run_app_leptos;
-#[cfg(feature = "dioxus")]
-pub mod run_app_dioxus;
