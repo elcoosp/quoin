@@ -97,23 +97,13 @@ const KNOWN_ELEMENTS: &[&str] = &[
 /// Check if an argument key looks like a typo of a known key.
 /// Returns `Some(suggestion)` if a close match is found.
 pub fn suggest_arg(key: &str) -> Option<&'static str> {
-    for known in KNOWN_ARGS {
-        if levenshtein(key, known) <= 2 {
-            return Some(known);
-        }
-    }
-    None
+    KNOWN_ARGS.iter().find(|&known| levenshtein(key, known) <= 2).map(|v| v as _)
 }
 
 /// Check if an element name looks like a typo of a known element.
 /// Returns `Some(suggestion)` if a close match is found.
 pub fn suggest_element(name: &str) -> Option<&'static str> {
-    for known in KNOWN_ELEMENTS {
-        if levenshtein(name, known) <= 2 {
-            return Some(known);
-        }
-    }
-    None
+    KNOWN_ELEMENTS.iter().find(|&known| levenshtein(name, known) <= 2).map(|v| v as _)
 }
 
 /// Simple Levenshtein distance for typo detection.
@@ -148,27 +138,27 @@ pub fn check_element_args(element_name: &str, arg_keys: &[&Ident]) -> Vec<String
     // Specific element validation with helpful messages
     match element_name {
         "data_table" => {
-            if !arg_keys.iter().any(|k| k.to_string() == "rows") {
+            if !arg_keys.iter().any(|k| *k == "rows") {
                 warnings.push(
                     "data_table requires a 'rows:' argument (e.g., rows: my_data)".to_string(),
                 );
             }
         }
         "virtual_list" => {
-            if !arg_keys.iter().any(|k| k.to_string() == "items") {
+            if !arg_keys.iter().any(|k| *k == "items") {
                 warnings.push(
                     "virtual_list requires an 'items:' argument (e.g., items: events)".to_string(),
                 );
             }
-            if !arg_keys.iter().any(|k| k.to_string() == "estimated_height") {
+            if !arg_keys.iter().any(|k| *k == "estimated_height") {
                 warnings.push("virtual_list requires an 'estimated_height:' argument (e.g., estimated_height: 32.0)".to_string());
             }
         }
         "column" => {
-            if !arg_keys.iter().any(|k| k.to_string() == "render") {
+            if !arg_keys.iter().any(|k| *k == "render") {
                 warnings.push("column requires a 'render:' closure (e.g., render: |row: &T| row.field.clone())".to_string());
             }
-            if !arg_keys.iter().any(|k| k.to_string() == "key") {
+            if !arg_keys.iter().any(|k| *k == "key") {
                 warnings.push(
                     "column should have a 'key:' argument for sorting (e.g., key: \"field_name\")"
                         .to_string(),
@@ -176,26 +166,26 @@ pub fn check_element_args(element_name: &str, arg_keys: &[&Ident]) -> Vec<String
             }
         }
         "clipboard_button" => {
-            if !arg_keys.iter().any(|k| k.to_string() == "copy_text") {
+            if !arg_keys.iter().any(|k| *k == "copy_text") {
                 warnings.push("clipboard_button requires a 'copy_text:' argument (e.g., copy_text: \"hello\")".to_string());
             }
         }
         "tabs" => {
-            if !arg_keys.iter().any(|k| k.to_string() == "active") {
+            if !arg_keys.iter().any(|k| *k == "active") {
                 warnings.push(
                     "tabs requires an 'active:' argument (e.g., active: current_tab.get())"
                         .to_string(),
                 );
             }
-            if !arg_keys.iter().any(|k| k.to_string() == "on_click") {
+            if !arg_keys.iter().any(|k| *k == "on_click") {
                 warnings.push("tabs requires an 'on_click:' callback (e.g., on_click: move |i| active.set(i))".to_string());
             }
         }
         "tab" => {
-            if !arg_keys.iter().any(|k| k.to_string() == "index") {
+            if !arg_keys.iter().any(|k| *k == "index") {
                 warnings.push("tab requires an 'index:' argument (e.g., index: 0)".to_string());
             }
-            if !arg_keys.iter().any(|k| k.to_string() == "label") {
+            if !arg_keys.iter().any(|k| *k == "label") {
                 warnings.push(
                     "tab requires a 'label:' argument (e.g., label: \"Tab Name\")".to_string(),
                 );

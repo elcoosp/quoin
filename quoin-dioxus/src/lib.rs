@@ -10,6 +10,12 @@ use std::pin::Pin;
 /// Use `DioxusContext::new()` inside a Dioxus component.
 pub struct DioxusContext;
 
+impl Default for DioxusContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DioxusContext {
     pub fn new() -> Self {
         Self

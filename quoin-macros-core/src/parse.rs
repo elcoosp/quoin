@@ -123,7 +123,7 @@ impl Parse for ComponentAst {
                         let fty: Type = inner.parse()?;
                         let observe = if inner.peek(syn::Ident) {
                             let kw: syn::Ident = inner.parse()?;
-                            kw.to_string() == "observe"
+                            kw == "observe"
                         } else {
                             false
                         };

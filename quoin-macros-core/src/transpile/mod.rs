@@ -17,9 +17,8 @@ pub fn collect_handler_idents(expr: &syn::Expr) -> Vec<proc_macro2::Ident> {
     let mut collector = PathIdentCollectorSkipClosures(vec![]);
     collector.visit_expr(body_expr);
     collector
-        .0
-        .sort_by(|a, b| a.to_string().cmp(&b.to_string()));
-    collector.0.dedup_by(|a, b| a.to_string() == b.to_string());
+        .0.sort_by_key(|a| a.to_string());
+    collector.0.dedup_by(|a, b| *b == a.to_string());
     collector.0
 }
 
@@ -28,9 +27,8 @@ pub fn collect_block_idents(block: &syn::Block) -> Vec<proc_macro2::Ident> {
     let mut collector = PathIdentCollectorAll(vec![]);
     collector.visit_block(block);
     collector
-        .0
-        .sort_by(|a, b| a.to_string().cmp(&b.to_string()));
-    collector.0.dedup_by(|a, b| a.to_string() == b.to_string());
+        .0.sort_by_key(|a| a.to_string());
+    collector.0.dedup_by(|a, b| *b == a.to_string());
     collector.0
 }
 
@@ -84,11 +82,10 @@ struct PathIdentCollectorSkipClosures(Vec<proc_macro2::Ident>);
 
 impl<'ast> Visit<'ast> for PathIdentCollectorSkipClosures {
     fn visit_expr_path(&mut self, expr_path: &'ast syn::ExprPath) {
-        if expr_path.path.segments.len() == 1 && expr_path.path.leading_colon.is_none() {
-            if let Some(seg) = expr_path.path.segments.last() {
+        if expr_path.path.segments.len() == 1 && expr_path.path.leading_colon.is_none()
+            && let Some(seg) = expr_path.path.segments.last() {
                 self.0.push(seg.ident.clone());
             }
-        }
         syn::visit::visit_expr_path(self, expr_path);
     }
 
@@ -99,11 +96,10 @@ struct PathIdentCollectorAll(Vec<proc_macro2::Ident>);
 
 impl<'ast> Visit<'ast> for PathIdentCollectorAll {
     fn visit_expr_path(&mut self, expr_path: &'ast syn::ExprPath) {
-        if expr_path.path.segments.len() == 1 && expr_path.path.leading_colon.is_none() {
-            if let Some(seg) = expr_path.path.segments.last() {
+        if expr_path.path.segments.len() == 1 && expr_path.path.leading_colon.is_none()
+            && let Some(seg) = expr_path.path.segments.last() {
                 self.0.push(seg.ident.clone());
             }
-        }
         syn::visit::visit_expr_path(self, expr_path);
     }
 }
