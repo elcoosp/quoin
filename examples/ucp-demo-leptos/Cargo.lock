@@ -1119,6 +1119,7 @@ dependencies = [
  "leptos",
  "quoin-core",
  "send_wrapper",
+ "web-sys",
 ]
 
 [[package]]
