@@ -10,8 +10,10 @@ quoin-ui = { path = "../../quoin-ui" }
 
 # Framework-specific dependencies (optional)
 gpui = { git = "https://github.com/zed-industries/zed", optional = true }
+leptos = { version = "0.8", optional = true }
+dioxus = { version = "0.7", optional = true }
 
 [features]
 gpui = ["dep:gpui", "quoin/gpui", "quoin-macros/gpui"]
-leptos = ["quoin/leptos", "quoin-macros/leptos"]
-dioxus = ["quoin/dioxus", "quoin-macros/dioxus"]
+leptos = ["dep:leptos", "quoin/leptos", "quoin-macros/leptos"]
+dioxus = ["dep:dioxus", "quoin/dioxus", "quoin-macros/dioxus"]

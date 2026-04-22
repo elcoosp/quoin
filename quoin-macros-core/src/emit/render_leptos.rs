@@ -106,13 +106,20 @@ fn emit_html_tag(el: &Element, tag: &str) -> TokenStream {
     }
 }
 
+// AFTER (fixed — .expect() runs at macro-expansion time, HTML-like syntax)
 fn emit_tabs(el: &Element) -> TokenStream {
-    let active_expr = el.args.iter().find(|a| a.key == "active").map(|a| &a.value);
+    let active_expr = el
+        .args
+        .iter()
+        .find(|a| a.key == "active")
+        .map(|a| &a.value)
+        .expect("tabs require 'active' argument");
     let on_click_expr = el
         .args
         .iter()
         .find(|a| a.key == "on_click")
-        .map(|a| &a.value);
+        .map(|a| &a.value)
+        .expect("tabs require 'on_click' callback");
 
     let tab_labels: Vec<TokenStream> = el
         .children
@@ -124,11 +131,10 @@ fn emit_tabs(el: &Element) -> TokenStream {
                     let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value);
                     if let (Some(label), Some(index)) = (label, index) {
                         return Some(quote! {
-                            li {
-                                class={move || if *#index == #active_expr.unwrap_or(&quote!{0}) { "active" } else { "" }},
-                                on:click=move |_| { let _ = #on_click_expr; (#on_click_expr.unwrap_or(&quote!{|_|{}}))(*#index); },
-                                #label
-                            }
+                            <li
+                                class={move || if *#index == #active_expr { "active" } else { "" }}
+                                on:click={move |_| (#on_click_expr)(*#index)}
+                            >#label</li>
                         });
                     }
                 }
@@ -138,7 +144,6 @@ fn emit_tabs(el: &Element) -> TokenStream {
         .collect();
     quote! { <ul class="tabs"> #(#tab_labels)* </ul> }
 }
-
 fn emit_data_table(el: &Element) -> TokenStream {
     let rows = el.args.iter().find(|a| a.key == "rows").map(|a| &a.value);
     let on_sort = el
@@ -240,14 +245,43 @@ fn emit_if(if_node: &IfNode) -> TokenStream {
 fn emit_if_inner(if_node: &IfNode) -> TokenStream {
     let cond = &if_node.condition;
     let then_branch = emit_nodes(&if_node.then_branch);
+
     if let Some(else_branch) = &if_node.else_branch {
-        let else_branch = emit_nodes(else_branch);
-        quote! { {move || if #cond { #then_branch } else { #else_branch }} }
+        let else_tokens = if else_branch.len() == 1 {
+            match &else_branch[0] {
+                RenderNode::If(nested_if) => {
+                    // Nested if: get the closure, then call it from the outer else
+                    emit_if_inner(nested_if)
+                }
+                _ => {
+                    let else_nodes = emit_nodes(else_branch);
+                    quote! { move || ::leptos::prelude::view! { #else_nodes }.into_any() }
+                }
+            }
+        } else {
+            let else_nodes = emit_nodes(else_branch);
+            quote! { move || ::leptos::prelude::view! { #else_nodes }.into_any() }
+        };
+
+        quote! {
+            {
+                move || if #cond {
+                    ::leptos::prelude::view! { #then_branch }.into_any()
+                } else {
+                    (#else_tokens)()
+                }
+            }
+        }
     } else {
-        quote! { {move || if #cond { #then_branch }} }
+        quote! {
+            {
+                move || #cond.then(|| {
+                    ::leptos::prelude::view! { #then_branch }.into_any()
+                })
+            }
+        }
     }
 }
-
 fn emit_for(for_node: &ForNode) -> TokenStream {
     let inner = emit_for_inner(for_node);
     wrap_with_cfg(&for_node.attrs, inner)
