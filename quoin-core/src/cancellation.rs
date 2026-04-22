@@ -50,7 +50,7 @@ impl Inner {
 /// # Example
 ///
 /// ```rust,ignore
-/// use quoin::CancellationToken;
+/// use quoin_core::CancellationToken;
 ///
 /// let token = CancellationToken::new();
 /// let clone = token.clone();
@@ -92,7 +92,7 @@ impl CancellationToken {
     /// # Example
     ///
     /// ```
-    /// use quoin::CancellationToken;
+    /// use quoin_core::CancellationToken;
     /// let token = CancellationToken::new();
     /// assert!(!token.is_cancelled());
     /// ```
@@ -112,7 +112,7 @@ impl CancellationToken {
     /// # Example
     ///
     /// ```
-    /// use quoin::CancellationToken;
+    /// use quoin_core::CancellationToken;
     /// let token = CancellationToken::new();
     /// token.cancel();
     /// assert!(token.is_cancelled());
@@ -126,7 +126,7 @@ impl CancellationToken {
     /// # Example
     ///
     /// ```
-    /// use quoin::CancellationToken;
+    /// use quoin_core::CancellationToken;
     /// let token = CancellationToken::new();
     /// assert!(!token.is_cancelled());
     /// token.cancel();
@@ -147,7 +147,7 @@ impl CancellationToken {
     /// # Example
     ///
     /// ```rust,ignore
-    /// use quoin::CancellationToken;
+    /// use quoin_core::CancellationToken;
     /// # async {
     /// let token = CancellationToken::new();
     /// // ... later

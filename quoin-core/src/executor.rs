@@ -34,7 +34,7 @@ pub trait JoinHandle<T>: Send + Sync {
 /// # Example
 ///
 /// ```rust,ignore
-/// use quoin::Executor;
+/// use quoin_core::Executor;
 ///
 /// fn spawn_work<E: Executor>(executor: &E) {
 ///     executor.spawn(async {

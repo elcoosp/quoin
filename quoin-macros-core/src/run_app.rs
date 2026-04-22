@@ -1,7 +1,8 @@
 //! Parser for the `run_app!` macro.
 //!
 //! Syntax:
-//! ```
+//!
+//! ```ignore
 //! run_app!(ComponentName)
 //! run_app!(ComponentName, window_opts: expr)
 //! ```
@@ -20,7 +21,6 @@ impl Parse for RunAppInput {
 
         let window_opts = if input.peek(Token![,]) {
             input.parse::<Token![,]>()?;
-            // Expect "window_opts:"
             let key: Ident = input.parse()?;
             if key != "window_opts" {
                 return Err(syn::Error::new(key.span(), "expected `window_opts`"));

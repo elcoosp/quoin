@@ -13,7 +13,7 @@
 /// # Example
 ///
 /// ```rust,ignore
-/// use quoin::Signal;
+/// use quoin_core::Signal;
 ///
 /// fn increment_counter<S: Signal<u32>>(signal: &S) {
 ///     signal.update(|value| *value += 1);

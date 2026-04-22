@@ -41,7 +41,7 @@ use crate::{Executor, Signal};
 /// # Example
 ///
 /// ```rust,ignore
-/// use quoin::ReactiveContext;
+/// use quoin_core::ReactiveContext;
 ///
 /// fn create_counter<C: ReactiveContext>(cx: &C) -> C::Signal<u32> {
 ///     cx.create_signal(0u32)
