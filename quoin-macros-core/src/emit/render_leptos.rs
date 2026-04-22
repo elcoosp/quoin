@@ -210,8 +210,6 @@ fn emit_badge(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -
     }
     match color_expr {
         Some(color) => {
-            // If the color is a known theme token string (e.g. "primary"), use a CSS class.
-            // Otherwise fall back to inline style with the raw value.
             let bg_class = crate::transpile::theme_tokens::try_resolve_bg_class(color);
             match bg_class {
                 Some(cls) => quote! {
@@ -435,7 +433,6 @@ fn emit_input_shadcn(el: &Element, bindings: &mut Vec<TokenStream>, _inside_for:
     let on_input_expr = el.args.iter().find(|a| a.key == "on_input").map(|a| &a.value);
     let disabled = find_arg_bool(el, "disabled");
 
-    // Two-way binding: if value signal is given but no on_input, auto-bind
     let auto_bind = value_expr.is_some() && on_input_expr.is_none();
 
     let input_id = next_extract_id();
@@ -734,6 +731,17 @@ fn emit_html_tag_inner(
 // ---------------------------------------------------------------------------
 
 fn emit_tabs(el: &Element) -> TokenStream {
+    #[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
+    {
+        return emit_tabs_shadcn(el);
+    }
+    #[cfg(not(all(feature = "leptos", feature = "leptos-shadcn")))]
+    {
+        return emit_tabs_plain(el);
+    }
+}
+
+fn emit_tabs_plain(el: &Element) -> TokenStream {
     let active_expr = el
         .args
         .iter()
@@ -814,11 +822,75 @@ fn emit_tabs(el: &Element) -> TokenStream {
     quote! { <ul class="tabs"> #(#tab_labels)* </ul> }
 }
 
+#[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
+fn emit_tabs_shadcn(el: &Element) -> TokenStream {
+    let active_expr = el
+        .args
+        .iter()
+        .find(|a| a.key == "active")
+        .map(|a| &a.value)
+        .expect("tabs require 'active' argument");
+    let on_click_expr = el
+        .args
+        .iter()
+        .find(|a| a.key == "on_click")
+        .map(|a| &a.value)
+        .expect("tabs require 'on_click' callback");
+
+    let on_click_with_move = force_move_on_closure(on_click_expr);
+
+    let tab_triggers: Vec<TokenStream> = el
+        .children
+        .iter()
+        .filter_map(|c| {
+            if let RenderNode::Element(e) = c {
+                if e.name == "tab" {
+                    let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
+                    let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
+                    let index_clone = index.clone();
+                    return Some(quote! {
+                        <leptos_shadcn_tabs::TabsTrigger value={#index.to_string()}
+                            on_click={
+                                let __tab_on_click = #on_click_with_move;
+                                move |_| { __tab_on_click(#index_clone); }
+                            }
+                        >{#label}</leptos_shadcn_tabs::TabsTrigger>
+                    });
+                }
+            }
+            None
+        })
+        .collect();
+
+    quote! {
+        <leptos_shadcn_tabs::Tabs value={#active_expr.to_string()}>
+            <leptos_shadcn_tabs::TabsList>
+                #(#tab_triggers)*
+            </leptos_shadcn_tabs::TabsList>
+        </leptos_shadcn_tabs::Tabs>
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Dropdown menu
 // ---------------------------------------------------------------------------
 
 fn emit_dropdown_menu(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
+    #[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
+    {
+        return emit_dropdown_menu_shadcn(el, bindings, inside_for);
+    }
+    #[cfg(not(all(feature = "leptos", feature = "leptos-shadcn")))]
+    {
+        return emit_dropdown_menu_plain(el, bindings, inside_for);
+    }
+}
+
+fn emit_dropdown_menu_plain(
     el: &Element,
     bindings: &mut Vec<TokenStream>,
     inside_for: bool,
@@ -908,6 +980,54 @@ fn emit_dropdown_menu(
                 })
             }
         </div>
+    }
+}
+
+#[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
+fn emit_dropdown_menu_shadcn(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
+    let trigger_expr = match &el.trigger_expr {
+        Some(e) => e,
+        None => return quote! { <div>"dropdown: missing trigger"</div> },
+    };
+
+    let item_tokens: Vec<TokenStream> = el
+        .children
+        .iter()
+        .filter_map(|c| {
+            if let RenderNode::Element(e) = c {
+                if e.name == "item" {
+                    let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
+                    let on_click = e.args.iter().find(|a| a.key == "on_click").map(|a| &a.value)?;
+                    let handler = wrap_event_handler(on_click);
+                    Some(quote! {
+                        <leptos_shadcn_dropdown_menu::DropdownMenuItem on_click=#handler>
+                            {label}
+                        </leptos_shadcn_dropdown_menu::DropdownMenuItem>
+                    })
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let trigger_inner = emit_node(&RenderNode::Expr(trigger_expr.clone()), bindings, inside_for);
+
+    quote! {
+        <leptos_shadcn_dropdown_menu::DropdownMenu>
+            <leptos_shadcn_dropdown_menu::DropdownMenuTrigger>
+                {#trigger_inner}
+            </leptos_shadcn_dropdown_menu::DropdownMenuTrigger>
+            <leptos_shadcn_dropdown_menu::DropdownMenuContent>
+                #(#item_tokens)*
+            </leptos_shadcn_dropdown_menu::DropdownMenuContent>
+        </leptos_shadcn_dropdown_menu::DropdownMenu>
     }
 }
 
