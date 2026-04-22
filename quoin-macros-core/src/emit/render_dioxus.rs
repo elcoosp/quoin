@@ -1,7 +1,5 @@
 use crate::render_ast::{Element, ForNode, IfNode, RenderNode};
-use crate::transpile::{
-    collect_handler_idents_excluding_params, force_move_on_closure,
-};
+use crate::transpile::{collect_handler_idents_excluding_params, force_move_on_closure};
 use proc_macro2::TokenStream;
 use quote::quote;
 
@@ -86,12 +84,25 @@ fn emit_element_inner(el: &Element) -> TokenStream {
 
 fn emit_html_el(el: &Element, name_str: &str) -> TokenStream {
     let tag = match name_str {
-        "div" => "div", "h1" => "h1", "h2" => "h2", "h3" => "h3",
-        "p" | "text" => "p", "button" => "button", "input" => "input",
-        "span" => "span", "label" => "label", "a" => "a",
-        "ul" => "ul", "ol" => "ol", "li" => "li",
-        "hr" => "hr", "br" => "br", "textarea" => "textarea",
-        "select" => "select", "form" => "form", "img" => "img",
+        "div" => "div",
+        "h1" => "h1",
+        "h2" => "h2",
+        "h3" => "h3",
+        "p" | "text" => "p",
+        "button" => "button",
+        "input" => "input",
+        "span" => "span",
+        "label" => "label",
+        "a" => "a",
+        "ul" => "ul",
+        "ol" => "ol",
+        "li" => "li",
+        "hr" => "hr",
+        "br" => "br",
+        "textarea" => "textarea",
+        "select" => "select",
+        "form" => "form",
+        "img" => "img",
         _ => "div",
     };
 
@@ -135,11 +146,10 @@ fn emit_html_el(el: &Element, name_str: &str) -> TokenStream {
                     items.push(quote! { value: {#value} });
                 }
             }
-            "primary" | "ghost" | "destructive" | "active" | "children" | "trigger"
-            | "rows" | "striped" | "items" | "estimated_height" | "copy_text"
-            | "sortable" | "width" | "resizable" | "selectable" | "on_sort"
-            | "bordered" | "size" | "navigate_to" | "cfg" | "label" | "render"
-            | "key" | "index" => {}
+            "primary" | "ghost" | "destructive" | "active" | "children" | "trigger" | "rows"
+            | "striped" | "items" | "estimated_height" | "copy_text" | "sortable" | "width"
+            | "resizable" | "selectable" | "on_sort" | "bordered" | "size" | "navigate_to"
+            | "cfg" | "label" | "render" | "key" | "index" => {}
             _ => {
                 let key = proc_macro2::Ident::new(&key_str, proc_macro2::Span::call_site());
                 items.push(quote! { #key: {#value} });

@@ -65,7 +65,9 @@ impl ReactiveContext for XilemContext {
 
     fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T) {
         GLOBAL_STORE.with(|store| {
-            store.borrow_mut().insert(TypeId::of::<T>(), Box::new(value));
+            store
+                .borrow_mut()
+                .insert(TypeId::of::<T>(), Box::new(value));
         });
     }
 

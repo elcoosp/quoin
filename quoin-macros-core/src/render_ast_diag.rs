@@ -97,13 +97,19 @@ const KNOWN_ELEMENTS: &[&str] = &[
 /// Check if an argument key looks like a typo of a known key.
 /// Returns `Some(suggestion)` if a close match is found.
 pub fn suggest_arg(key: &str) -> Option<&'static str> {
-    KNOWN_ARGS.iter().find(|&known| levenshtein(key, known) <= 2).map(|v| v as _)
+    KNOWN_ARGS
+        .iter()
+        .find(|&known| levenshtein(key, known) <= 2)
+        .map(|v| v as _)
 }
 
 /// Check if an element name looks like a typo of a known element.
 /// Returns `Some(suggestion)` if a close match is found.
 pub fn suggest_element(name: &str) -> Option<&'static str> {
-    KNOWN_ELEMENTS.iter().find(|&known| levenshtein(name, known) <= 2).map(|v| v as _)
+    KNOWN_ELEMENTS
+        .iter()
+        .find(|&known| levenshtein(name, known) <= 2)
+        .map(|v| v as _)
 }
 
 /// Simple Levenshtein distance for typo detection.

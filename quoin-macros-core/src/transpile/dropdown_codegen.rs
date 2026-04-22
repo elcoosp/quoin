@@ -15,7 +15,10 @@ pub struct MenuItemDef {
 }
 
 #[cfg(feature = "gpui")]
-pub fn generate_gpui_dropdown(trigger_expr: &syn::Expr, menu_items: &[MenuItemDef]) -> proc_macro2::TokenStream {
+pub fn generate_gpui_dropdown(
+    trigger_expr: &syn::Expr,
+    menu_items: &[MenuItemDef],
+) -> proc_macro2::TokenStream {
     use proc_macro2::TokenStream;
     use quote::quote;
 
