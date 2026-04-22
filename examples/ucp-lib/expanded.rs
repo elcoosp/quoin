@@ -252,7 +252,9 @@ impl gpui::Render for DemoApp {
                                     let __handler = ::std::rc::Rc::new(move |_| {
                                         count.clone().update(|c| *c += 1)
                                     });
-                                    move |_, _, _| { __handler(()) }
+                                    cx.listener(move |_this, _event, _window, _cx| {
+                                        __handler(())
+                                    })
                                 },
                             ),
                     ),
@@ -288,7 +290,9 @@ impl gpui::Render for DemoApp {
                                     let __handler = ::std::rc::Rc::new(move |_| {
                                         selected.clone().set("Option A".to_string())
                                     });
-                                    move |_, _, _| { __handler(()) }
+                                    cx.listener(move |_this, _event, _window, _cx| {
+                                        __handler(())
+                                    })
                                 },
                             ),
                     )
@@ -317,7 +321,9 @@ impl gpui::Render for DemoApp {
                                     let __handler = ::std::rc::Rc::new(move |_| {
                                         selected.clone().set("Option B".to_string())
                                     });
-                                    move |_, _, _| { __handler(()) }
+                                    cx.listener(move |_this, _event, _window, _cx| {
+                                        __handler(())
+                                    })
                                 },
                             ),
                     ),
@@ -545,7 +551,10 @@ impl gpui::Render for MiniDevtools {
                         let __tab_on_click = __on_click.clone();
                         __el.on_mouse_down(
                                 ::gpui::MouseButton::Left,
-                                move |_, _, _| { __tab_on_click(__idx) },
+                                cx
+                                    .listener(move |_this, _event, _window, _cx| {
+                                        __tab_on_click(__idx)
+                                    }),
                             )
                             .into_any_element()
                     })
@@ -577,7 +586,9 @@ impl gpui::Render for MiniDevtools {
                             let __handler = ::std::rc::Rc::new(move |_| {
                                 event_count.clone().update(|c| *c += 1)
                             });
-                            move |_, _, _| { __handler(()) }
+                            cx.listener(move |_this, _event, _window, _cx| {
+                                __handler(())
+                            })
                         },
                     ),
             )

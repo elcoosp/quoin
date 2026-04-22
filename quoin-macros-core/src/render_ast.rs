@@ -34,7 +34,7 @@ impl Parse for ArgPair {
     fn parse(input: ParseStream) -> Result<Self> {
         let key: Ident = input.call(Ident::parse_any)?;
         input.parse::<Token![:]>()?;
-        let value: Expr = input.parse()?;
+        let value = collect_arg_value(input)?;
         Ok(ArgPair { key, value })
     }
 }
@@ -49,7 +49,31 @@ pub struct Element {
     pub trigger_expr: Option<Expr>,
 }
 
-/// Collect tokens until a top‑level comma (or end of stream), then parse as an expression.
+/// Collect an argument value from the parse stream by gathering raw token
+/// trees up to the next top-level comma or end-of-stream, then re-parsing
+/// the collected tokens as a single `Expr`.
+///
+/// This is necessary because `syn::parse2::<Expr>()` (and `ParseStream::parse`)
+/// greedily terminate closure bodies at the first sub-expression. For example:
+///
+/// ```
+/// |i| active_tab.clone().set(i)
+/// ```
+///
+/// would be parsed as the closure `|i| active_tab` with `.clone().set(i)`
+/// left as trailing tokens — causing an "unexpected token `.`" error.
+///
+/// By wrapping the collected tokens in parentheses before parsing:
+///
+/// ```
+/// ( |i| active_tab.clone().set(i) )
+/// ```
+///
+/// the parenthesized-expression parser forces the closure body to extend
+/// to the closing `)`, consuming the full method chain.
+///
+/// Commas inside `Group`s (parens, brackets, braces) are invisible at this
+/// level because `Group` is an atomic `TokenTree`.
 fn collect_arg_value(input: ParseStream) -> Result<Expr> {
     let mut tokens = Vec::new();
     while !input.is_empty() {
@@ -60,7 +84,11 @@ fn collect_arg_value(input: ParseStream) -> Result<Expr> {
         tokens.push(tt);
     }
     let token_stream: proc_macro2::TokenStream = tokens.into_iter().collect();
-    syn::parse2(token_stream)
+    // Wrap in parentheses so that syn parses the full token sequence as a
+    // single parenthesized expression. Without this, syn stops closure bodies
+    // at the first sub-expression, leaving trailing method calls unparsed.
+    let wrapped: proc_macro2::TokenStream = quote::quote! { ( #token_stream ) };
+    syn::parse2(wrapped)
 }
 
 impl Parse for Element {

@@ -32,7 +32,7 @@ pub fn generate_gpui_dropdown(trigger_expr: &syn::Expr, menu_items: &[MenuItemDe
                     .on_mouse_down(::gpui::MouseButton::Left, {
                         #(#shadows)*
                         let __handler = ::std::rc::Rc::new(#handler);
-                        cx.listener(move |_this, _event, _window, _cx| { __handler(()); })
+                        move |_, _, _| { __handler(()); }
                     })
                     .into_any_element()
             }

@@ -78,7 +78,7 @@ fn emit_handler_shadow_wrap(handler_expr: &Expr) -> TokenStream {
         {
             #(#shadows)*
             let __handler = ::std::rc::Rc::new(#handler_with_move);
-            cx.listener(move |_this, _event, _window, _cx| { __handler(()) })
+            move |_, _, _| { __handler(()) }
         }
     }
 }
@@ -94,7 +94,7 @@ fn emit_handler_rc_wrap(handler_expr: &Expr) -> TokenStream {
         {
             #(#shadows)*
             let __handler = ::std::rc::Rc::new(#handler_with_move);
-            cx.listener(move |_this, _event, _window, _cx| { __handler(()) })
+            move |_, _, _| { __handler(()) }
         }
     }
 }
@@ -279,7 +279,7 @@ fn emit_tabs(el: &Element) -> TokenStream {
                 let __idx = *idx;
                 let __tab_on_click = __on_click.clone();
                 __el.on_mouse_down(::gpui::MouseButton::Left,
-                    cx.listener(move |_this, _event, _window, _cx| { __tab_on_click(__idx) })
+                    move |_, _, _| { __tab_on_click(__idx) }
                 ).into_any_element()
             }).collect();
             ::gpui::div().flex().children(__tab_elements)
@@ -332,7 +332,7 @@ fn emit_data_table(el: &Element) -> TokenStream {
                                     .on_mouse_down(::gpui::MouseButton::Left, {
                                         #(#shadows)*
                                         let __handler = ::std::rc::Rc::new(#handler_with_move);
-                                        cx.listener(move |_this, _event, _window, _cx| { __handler(#key_str, "asc"); })
+                                        move |_, _, _| { __handler(#key_str, "asc"); }
                                     })
                             };
                         } else {
@@ -486,9 +486,9 @@ fn emit_clipboard_button(el: &Element) -> TokenStream {
     let copy_text_clone = copy_text.clone();
     chain = quote! {
         #chain.on_mouse_down(::gpui::MouseButton::Left,
-            cx.listener(move |_this, _event, _window, cx| {
+            move |_, _, cx| {
                 cx.write_to_clipboard(::gpui::ClipboardItem::new_string(#copy_text_clone.to_string()));
-            })
+            }
         )
     };
 
