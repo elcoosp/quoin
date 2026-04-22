@@ -257,7 +257,14 @@ fn transpile_single_class(class: &str) -> Option<TokenStream> {
         "border-t-0" => quote! { .border_t_0() },
         "border-l" => quote! { .border_l_1() },
         "border-r" => quote! { .border_r_1() },
-        _ => return None,
+        _ => {
+            // Try resolving as a shadcn theme token (e.g. "text-primary", "bg-destructive")
+            #[cfg(feature = "gpui")]
+            if let Some(color_token) = crate::transpile::theme_tokens::try_resolve_gpui_color(class) {
+                return Some(color_token);
+            }
+            return None;
+        }
     };
     Some(token)
 }
