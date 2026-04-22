@@ -181,6 +181,7 @@ fn emit_element_inner(el: &Element, bindings: &mut Vec<TokenStream>, inside_for:
         "clipboard_button" => emit_clipboard_button(el, bindings, inside_for),
         "button" => emit_button(el, bindings, inside_for),
         "input" => emit_input(el, bindings, inside_for),
+        "icon" => emit_icon(el, bindings, inside_for),
         _ => emit_html_tag(
             el,
             match name_str.as_str() {
@@ -481,6 +482,58 @@ fn emit_input_shadcn(el: &Element, bindings: &mut Vec<TokenStream>, _inside_for:
         {
             use leptos_shadcn_input::Input;
             <Input #value_prop #on_input_prop #placeholder_prop #class_prop disabled=#disabled />
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Icon — inline SVG from icon_codegen
+// ---------------------------------------------------------------------------
+
+fn emit_icon(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
+    let name = el.args.iter().find(|a| a.key == "icon_name").and_then(|a| {
+        if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }) = &a.value {
+            Some(s.value())
+        } else {
+            None
+        }
+    });
+
+    let size_class = el.args.iter().find(|a| a.key == "class").map(|a| &a.value);
+
+    let class_str = match size_class {
+        Some(c) => quote! { format!("{} w-4 h-4 inline-block", #c) },
+        None => quote! { "w-4 h-4 inline-block" },
+    };
+
+    let children: Vec<TokenStream> = el.children.iter().map(|c| emit_node(c, bindings, inside_for)).collect();
+
+    match name {
+        Some(n) => {
+            if let Some(svg) = crate::transpile::icon_codegen::icon_to_svg(&n) {
+                quote! {
+                    <span class=#class_str>
+                        #svg
+                    </span>
+                }
+            } else {
+                quote! {
+                    <span class=#class_str>"❓"</span>
+                }
+            }
+        }
+        None => {
+            if children.is_empty() {
+                quote! {
+                    <span class=#class_str>"❓"</span>
+                }
+            } else {
+                quote! {
+                    <span class=#class_str>
+                        #(#children)*
+                    </span>
+                }
+            }
         }
     }
 }
