@@ -153,6 +153,7 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
         #[dioxus::prelude::component]
         #vis fn #name() -> dioxus::prelude::Element {
             use quoin::ReactiveContext;
+            use quoin::Signal;
             let ctx = dioxus::prelude::use_hook(quoin::DioxusContext::new);
             #(#state_inits)*
             #(#global_inits)*
