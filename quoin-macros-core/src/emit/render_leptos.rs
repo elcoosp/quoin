@@ -29,7 +29,7 @@ fn emit_node(node: &RenderNode, bindings: &mut Vec<TokenStream>, inside_for: boo
     match node {
         RenderNode::Element(el) => emit_element(el, bindings, inside_for),
         RenderNode::Text(t) => quote! { #t },
-        RenderNode::Expr(e) => quote! { {#e} },
+        Node::Expr(e) => quote! { {#e} },
         RenderNode::If(if_node) => emit_if(if_node, bindings, inside_for),
         RenderNode::For(for_node) => emit_for(for_node, bindings),
         RenderNode::Root(nodes) => {
@@ -733,11 +733,11 @@ fn emit_html_tag_inner(
 fn emit_tabs(el: &Element) -> TokenStream {
     #[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
     {
-        return emit_tabs_shadcn(el);
+        emit_tabs_shadcn(el)
     }
     #[cfg(not(all(feature = "leptos", feature = "leptos-shadcn")))]
     {
-        return emit_tabs_plain(el);
+        emit_tabs_plain(el)
     }
 }
 
@@ -786,8 +786,7 @@ fn emit_tabs_plain(el: &Element) -> TokenStream {
         .children
         .iter()
         .filter_map(|c| {
-            if let RenderNode::Element(e) = c {
-                if e.name == "tab" {
+            if let RenderNode::Element(e) = c && e.name == "tab" {
                     let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
                     let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
 
@@ -843,20 +842,20 @@ fn emit_tabs_shadcn(el: &Element) -> TokenStream {
         .children
         .iter()
         .filter_map(|c| {
-            if let RenderNode::Element(e) = c {
-                if e.name == "tab" {
-                    let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
-                    let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
-                    let index_clone = index.clone();
-                    return Some(quote! {
-                        <leptos_shadcn_tabs::TabsTrigger value={#index.to_string()}
-                            on_click={
-                                let __tab_on_click = #on_click_with_move;
-                                move |_| { __tab_on_click(#index_clone); }
-                            }
-                        >{#label}</leptos_shadcn_tabs::TabsTrigger>
-                    });
-                }
+            if let RenderNode::Element(e) = c
+                && e.name == "tab"
+            {
+                let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
+                let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
+                let index_clone = index.clone();
+                return Some(quote! {
+                    <leptos_shadcn_tabs::TabsTrigger value={#index.to_string()}
+                        on_click={
+                            let __tab_on_click = #on_click_with_move;
+                            move |_| { __tab_on_click(#index_clone); }
+                        }
+                    >{#label}</leptos_shadcn_tabs::TabsTrigger>
+                });
             }
             None
         })
@@ -882,11 +881,11 @@ fn emit_dropdown_menu(
 ) -> TokenStream {
     #[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
     {
-        return emit_dropdown_menu_shadcn(el, bindings, inside_for);
+        emit_dropdown_menu_shadcn(el, bindings, inside_for)
     }
     #[cfg(not(all(feature = "leptos", feature = "leptos-shadcn")))]
     {
-        return emit_dropdown_menu_plain(el, bindings, inside_for);
+        emit_dropdown_menu_plain(el, bindings, inside_for)
     }
 }
 
@@ -1042,11 +1041,11 @@ fn emit_data_table(
 ) -> TokenStream {
     #[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
     {
-        return emit_data_table_shadcn(el, bindings, inside_for);
+        emit_data_table_shadcn(el, bindings, inside_for)
     }
     #[cfg(not(all(feature = "leptos", feature = "leptos-shadcn")))]
     {
-        return emit_data_table_plain(el, bindings, inside_for);
+        emit_data_table_plain(el, bindings, inside_for)
     }
 }
 
@@ -1213,10 +1212,8 @@ fn find_arg_bool(el: &Element, key: &str) -> bool {
         .iter()
         .find(|a| a.key == key)
         .map(|a| {
-            if let syn::Expr::Lit(expr_lit) = &a.value {
-                if let syn::Lit::Bool(b) = &expr_lit.lit {
-                    return b.value;
-                }
+            if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Bool(b), .. }) = &a.value {
+                return b.value;
             }
             false
         })
