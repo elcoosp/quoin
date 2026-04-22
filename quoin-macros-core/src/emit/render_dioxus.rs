@@ -1146,6 +1146,7 @@ fn emit_data_table_shadcn(el: &Element) -> TokenStream {
     }
 }
 
+#[allow(dead_code)]
 fn find_arg_bool(el: &Element, key: &str) -> bool {
     el.args
         .iter()

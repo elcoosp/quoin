@@ -134,13 +134,13 @@ pub fn try_resolve_gpui_color(class: &str) -> Option<proc_macro2::TokenStream> {
     };
 
     let rgb_val: u32 = u32::from_str_radix(color, 16).unwrap_or(0);
-    let r = ((rgb_val >> 16) & 0xFF) as f32 / 255.0;
-    let g = ((rgb_val >> 8) & 0xFF) as f32 / 255.0;
-    let b = (rgb_val & 0xFF) as f32 / 255.0;
+    let _r = ((rgb_val >> 16) & 0xFF) as f32 / 255.0;
+    let _g = ((rgb_val >> 8) & 0xFF) as f32 / 255.0;
+    let _b = (rgb_val & 0xFF) as f32 / 255.0;
 
     if class.starts_with("text-") {
-        Some(quote! { .text_color(gpui::rgba(r, g, b, 1.0)) })
+        Some(quote! { .text_color(gpui::rgba(_r, _g, _b, 1.0)) })
     } else {
-        Some(quote! { .bg(gpui::rgba(r, g, b, 1.0)) })
+        Some(quote! { .bg(gpui::rgba(_r, _g, _b, 1.0)) })
     }
 }

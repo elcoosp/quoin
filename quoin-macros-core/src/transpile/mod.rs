@@ -6,14 +6,14 @@
 //! # Submodule Overview
 //!
 //! | Submodule              | Description |
-//! |------------------------|-------------|
-//! | [`tailwind`]           | Transpiles Tailwind CSS class strings into GPUI builder-method chains. |
-//! | [`table_codegen`]      | Generates data-table render code for each framework. |
-//! | [`dropdown_codegen`]   | Generates dropdown menu code for each framework. |
-//! | [`virtual_list_codegen`]| Generates virtual list code (currently falls back to scrollable div). |
-//! | [`rich_text_codegen`]  | Generates rich text / styled text render code. |
-//! | [`icon_codegen`]       | Maps icon names to inline SVG token streams. |
-//! | [`theme_tokens`]       | Maps theme token names to Tailwind CSS classes. |
+//!------------------------|-------------|
+//! [`tailwind`]           | Transpiles Tailwind CSS class strings into GPUI builder-method chains. |
+//! [`table_codegen`]      | Generates data-table render code for each framework. |
+//! [`dropdown_codegen`]   | Generates dropdown menu code for each framework. |
+//! [`virtual_list_codegen`]| Generates virtual list code (currently falls back to scrollable div). |
+//! [`rich_text_codegen`]  | Generates rich text / styled text render code. |
+//! [`icon_codegen`]       | Maps icon names to inline SVG token streams. |
+//! [`theme_tokens`]       | Maps theme token names to Tailwind CSS classes. |
 //!
 //! # Shared Utilities
 //!
@@ -46,7 +46,7 @@ pub fn collect_handler_idents(expr: &syn::Expr) -> Vec<proc_macro2::Ident> {
     collector.visit_expr(body_expr);
     collector
         .0
-        .sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+        .sort_by_key(|id| id.to_string());
     collector.0.dedup_by(|a, b| a.to_string() == b.to_string());
     collector.0
 }
@@ -57,7 +57,7 @@ pub fn collect_block_idents(block: &syn::Block) -> Vec<proc_macro2::Ident> {
     collector.visit_block(block);
     collector
         .0
-        .sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+        .sort_by_key(|id| id.to_string());
     collector.0.dedup_by(|a, b| a.to_string() == b.to_string());
     collector.0
 }
@@ -68,7 +68,6 @@ pub fn force_move_on_closure(expr: &syn::Expr) -> syn::Expr {
     impl VisitMut for ForceMove {
         fn visit_expr_closure_mut(&mut self, closure: &mut syn::ExprClosure) {
             closure.capture = Some(syn::Token![move](proc_macro2::Span::call_site()));
-            // Do not recurse; only outermost needs move
         }
     }
     let mut expr = expr.clone();
@@ -112,10 +111,11 @@ struct PathIdentCollectorSkipClosures(Vec<proc_macro2::Ident>);
 
 impl<'ast> Visit<'ast> for PathIdentCollectorSkipClosures {
     fn visit_expr_path(&mut self, expr_path: &'ast syn::ExprPath) {
-        if expr_path.path.segments.len() == 1 && expr_path.path.leading_colon.is_none() {
-            if let Some(seg) = expr_path.path.segments.last() {
-                self.0.push(seg.ident.clone());
-            }
+        if expr_path.path.segments.len() == 1
+            && expr_path.path.leading_colon.is_none()
+            && let Some(seg) = expr_path.path.segments.last()
+        {
+            self.0.push(seg.ident.clone());
         }
         syn::visit::visit_expr_path(self, expr_path);
     }
@@ -127,10 +127,11 @@ struct PathIdentCollectorAll(Vec<proc_macro2::Ident>);
 
 impl<'ast> Visit<'ast> for PathIdentCollectorAll {
     fn visit_expr_path(&mut self, expr_path: &'ast syn::ExprPath) {
-        if expr_path.path.segments.len() == 1 && expr_path.path.leading_colon.is_none() {
-            if let Some(seg) = expr_path.path.segments.last() {
-                self.0.push(seg.ident.clone());
-            }
+        if expr_path.path.segments.len() == 1
+            && expr_path.path.leading_colon.is_none()
+            && let Some(seg) = expr_path.path.segments.last()
+        {
+            self.0.push(seg.ident.clone());
         }
         syn::visit::visit_expr_path(self, expr_path);
     }

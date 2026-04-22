@@ -3,7 +3,6 @@
 use syn::Ident;
 
 const KNOWN_ARGS: &[&str] = &[
-    // Standard HTML-ish
     "class",
     "id",
     "on_click",
@@ -36,35 +35,27 @@ const KNOWN_ARGS: &[&str] = &[
     "role",
     "tabindex",
     "autofocus",
-    // Mouse events
     "on_mouse_down",
     "on_mouse_up",
     "on_mouse_enter",
     "on_mouse_leave",
-    // virtual_list args
     "estimated_height",
     "items",
-    // clipboard_button args
     "copy_text",
-    // data_table column args
     "sortable",
     "width",
     "resizable",
     "selectable",
-    // data_table args
     "on_sort",
     "bordered",
     "size",
-    // Navigation
     "text",
     "query",
     "color",
     "direction",
     "icon_name",
     "navigate_to",
-    // Passthrough
     "cfg",
-    // Tooltip
     "tooltip",
 ];
 
@@ -97,16 +88,14 @@ const KNOWN_ELEMENTS: &[&str] = &[
     "dropdown_menu",
     "rich_text",
     "clipboard_button",
-    "item",
     "tab_bar",
     "badge",
     "styled_text",
     "icon",
     "scroll_area",
+    "item",
 ];
 
-/// Check if an argument key looks like a typo of a known key.
-/// Returns `Some(suggestion)` if a close match is found.
 pub fn suggest_arg(key: &str) -> Option<&'static str> {
     KNOWN_ARGS
         .iter()
@@ -114,8 +103,6 @@ pub fn suggest_arg(key: &str) -> Option<&'static str> {
         .map(|v| v as _)
 }
 
-/// Check if an element name looks like a typo of a known element.
-/// Returns `Some(suggestion)` if a close match is found.
 pub fn suggest_element(name: &str) -> Option<&'static str> {
     KNOWN_ELEMENTS
         .iter()
@@ -123,7 +110,6 @@ pub fn suggest_element(name: &str) -> Option<&'static str> {
         .map(|v| v as _)
 }
 
-/// Simple Levenshtein distance for typo detection.
 fn levenshtein(a: &str, b: &str) -> usize {
     let a: Vec<char> = a.chars().collect();
     let b: Vec<char> = b.chars().collect();
@@ -148,11 +134,9 @@ fn levenshtein(a: &str, b: &str) -> usize {
     matrix[a.len()][b.len()]
 }
 
-/// Emit an error for unrecognized arguments on well-known elements.
 pub fn check_element_args(element_name: &str, arg_keys: &[&Ident]) -> Vec<String> {
     let mut warnings = Vec::new();
 
-    // Specific element validation with helpful messages
     match element_name {
         "data_table" => {
             if !arg_keys.iter().any(|k| *k == "rows") {
@@ -216,11 +200,8 @@ pub fn check_element_args(element_name: &str, arg_keys: &[&Ident]) -> Vec<String
                 );
             }
         }
-        "input" | "button" | "div" => {
-            // These are valid without specific required args
-        }
+        "input" | "button" | "div" => {}
         _ => {
-            // Generic validation for standard HTML elements
             let is_standard = matches!(
                 element_name,
                 "h1" | "h2"
@@ -245,7 +226,6 @@ pub fn check_element_args(element_name: &str, arg_keys: &[&Ident]) -> Vec<String
                 return warnings;
             }
 
-            // Elements that should not have event args
             let no_event_elements = ["img", "hr", "br"];
             let has_event = arg_keys.iter().any(|k| {
                 let s = k.to_string();
@@ -257,7 +237,6 @@ pub fn check_element_args(element_name: &str, arg_keys: &[&Ident]) -> Vec<String
         }
     }
 
-    // Check for unknown args on all elements
     let is_special = matches!(
         element_name,
         "data_table"
