@@ -775,7 +775,7 @@ fn emit_html_tag_inner(
             let #bind_name = {
                 let __signal = (#value_expr).clone();
                 move |ev: leptos::ev::Event| {
-                    __signal.set(leptos::ev::event_target_value(&ev));
+                    __signal.set(leptos::prelude::event_target_value(&ev));
                 }
             };
         });

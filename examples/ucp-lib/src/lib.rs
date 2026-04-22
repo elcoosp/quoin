@@ -1,4 +1,3 @@
-use quoin::Signal;
 use quoin_macros::{component, quoin_render};
 
 #[derive(Clone)]
