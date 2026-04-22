@@ -2,7 +2,7 @@
 name = "quoin-macros-tests"
 version = "0.0.0"
 edition = "2021"
-build = "build.rs" # Keep the build.rs!
+build = "build.rs"
 
 [dependencies]
 quoin = { path = "../quoin" }
@@ -18,21 +18,22 @@ leptos = { version = "0.8", optional = true }
 quoin-leptos = { path = "../quoin-leptos", optional = true }
 
 dioxus = { version = "0.7", optional = true }
-dioxus-signals = { version = "0.7", optional = true }
 dioxus-core = { version = "0.7", optional = true }
+dioxus-signals = { version = "0.7", optional = true }
 quoin-dioxus = { path = "../quoin-dioxus", optional = true }
 
 [features]
 default = []
-# Make sure quoin-macros/gpui is activated too!
 gpui = ["dep:gpui", "dep:quoin-gpui", "dep:quoin-ui-gpui", "dep:gpui-component", "quoin-macros/gpui", "quoin/gpui"]
 leptos = ["dep:leptos", "dep:quoin-leptos", "quoin-macros/leptos", "quoin/leptos"]
 dioxus = [
     "dep:dioxus",
     "dep:dioxus-core",
+    "dep:dioxus-signals",
     "dep:quoin-dioxus",
     "quoin-macros/dioxus",
     "quoin/dioxus"
 ]
+
 [dev-dependencies]
 trybuild = "1.0"

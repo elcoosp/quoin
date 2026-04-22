@@ -198,14 +198,7 @@ fn emit_element_inner(
     match name_str.as_str() {
         "tabs" => emit_tabs(el),
         "data_table" => emit_data_table(el, bindings, inside_for),
-        "dropdown_menu" => {
-            let children_tokens: Vec<TokenStream> = el
-                .children
-                .iter()
-                .map(|c| emit_node(c, bindings, inside_for))
-                .collect();
-            quote! { <div> #(#children_tokens)* </div> }
-        }
+        "dropdown_menu" => emit_dropdown_menu(el, bindings, inside_for),
         "virtual_list" => {
             let children_tokens: Vec<TokenStream> = el
                 .children
@@ -234,7 +227,7 @@ fn emit_element_inner(
 }
 
 // ---------------------------------------------------------------------------
-// Clipboard button (Leptos: uses web_sys clipboard API via quoin helper)
+// Clipboard button
 // ---------------------------------------------------------------------------
 
 fn emit_clipboard_button(
@@ -286,7 +279,7 @@ fn emit_clipboard_button(
 }
 
 // ---------------------------------------------------------------------------
-// Generic HTML tag
+// Generic HTML tag (with auto two-way input binding)
 // ---------------------------------------------------------------------------
 
 fn emit_html_tag(
@@ -296,6 +289,11 @@ fn emit_html_tag(
     inside_for: bool,
 ) -> TokenStream {
     let mut attrs = Vec::new();
+
+    let has_value = el.args.iter().any(|a| a.key == "value");
+    let has_on_input = el.args.iter().any(|a| a.key == "on_input");
+    let auto_bind_input = tag == "input" && has_value && !has_on_input;
+
     for arg in &el.args {
         let key_str = arg.key.to_string();
         let value = &arg.value;
@@ -322,13 +320,28 @@ fn emit_html_tag(
             }
             "value" => {
                 if tag == "input" {
-                    attrs.push(quote! { value={#value.get()} });
+                    attrs.push(quote! { prop:value={move || #value.get()} });
                 } else {
                     attrs.push(quote! { value={#value} });
                 }
             }
             _ => {}
         }
+    }
+
+    if auto_bind_input {
+        let value_expr = el.args.iter().find(|a| a.key == "value").map(|a| &a.value).unwrap();
+        let bind_id = next_extract_id();
+        let bind_name = quote::format_ident!("__quoin_input_bind_{}", bind_id);
+        bindings.push(quote! {
+            let #bind_name = {
+                let __signal = (#value_expr).clone();
+                move |ev: leptos::ev::Event| {
+                    __signal.set(leptos::ev::event_target_value(&ev));
+                }
+            };
+        });
+        attrs.push(quote! { on:input=#bind_name });
     }
 
     let mut children = Vec::new();
@@ -366,7 +379,6 @@ fn emit_tabs(el: &Element) -> TokenStream {
         .map(|a| &a.value)
         .expect("tabs require 'on_click' callback");
 
-    // Extract parameter names from the user's closure (e.g., `i` in `|i| ...`)
     let param_idents: Vec<proc_macro2::Ident> = if let syn::Expr::Closure(closure) = on_click_expr {
         closure
             .inputs
@@ -386,16 +398,11 @@ fn emit_tabs(el: &Element) -> TokenStream {
     let param_names: std::collections::HashSet<String> =
         param_idents.iter().map(|id| id.to_string()).collect();
 
-    // Get idents referenced in the closure body (excluding params).
-    // These need to be cloned before the move closure so each tab's
-    // closure captures its own independent copy.
     let body_idents: Vec<proc_macro2::Ident> = collect_handler_idents(on_click_expr)
         .into_iter()
         .filter(|id| !param_names.contains(&id.to_string()))
         .collect();
 
-    // Add `move` to the user's closure so it owns its captures.
-    // This means each tab's closure is independent — no shared borrows.
     let on_click_with_move = force_move_on_closure(on_click_expr);
 
     let tab_labels: Vec<TokenStream> = el
@@ -407,17 +414,14 @@ fn emit_tabs(el: &Element) -> TokenStream {
                     let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
                     let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
 
-                    // Shadow param names with literal tab index (e.g., let i = 0)
                     let param_shadows: Vec<TokenStream> = param_idents
                         .iter()
                         .map(|id| quote! { let #id = #index; })
                         .collect();
-                    // Clone body idents before creating the move closure
                     let clone_shadows: Vec<TokenStream> = body_idents
                         .iter()
                         .map(|id| quote! { let #id = #id.clone(); })
                         .collect();
-                    // Args to pass when calling the closure
                     let call_args: Vec<TokenStream> =
                         param_idents.iter().map(|id| quote! { #id }).collect();
 
@@ -439,6 +443,101 @@ fn emit_tabs(el: &Element) -> TokenStream {
         .collect();
 
     quote! { <ul class="tabs"> #(#tab_labels)* </ul> }
+}
+
+// ---------------------------------------------------------------------------
+// Dropdown menu — open/close state + absolute panel + click-outside dismiss
+// ---------------------------------------------------------------------------
+
+fn emit_dropdown_menu(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
+    let trigger_expr = match &el.trigger_expr {
+        Some(e) => e,
+        None => return quote! { <div>"dropdown: missing trigger"</div> },
+    };
+
+    // Create a unique signal for open/close state
+    let dd_id = next_extract_id();
+    let open_name = quote::format_ident!("__quoin_dd_open_{}", dd_id);
+    let node_ref_name = quote::format_ident!("__quoin_dd_ref_{}", dd_id);
+    bindings.push(quote! {
+        let #open_name = leptos::prelude::create_signal(false);
+        let #node_ref_name = leptos::prelude::create_node_ref::<html::Div>();
+    });
+
+    // Build item elements from `item(label: ..., on_click: ...)` children
+    let item_tokens: Vec<TokenStream> = el
+        .children
+        .iter()
+        .filter_map(|c| {
+            if let RenderNode::Element(e) = c {
+                if e.name == "item" {
+                    let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
+                    let on_click = e.args.iter().find(|a| a.key == "on_click").map(|a| &a.value)?;
+
+                    let handler = wrap_event_handler(on_click);
+                    let close_open = quote! { #open_name.set(false); };
+                    Some(quote! {
+                        <div
+                            class="px-3 py-2 cursor-pointer text-white hover:bg-gray-600"
+                            on:click={
+                                let __item_handler = #handler;
+                                move |ev: leptos::ev::MouseEvent| {
+                                    ev.stop_propagation();
+                                    #close_open;
+                                    __item_handler(ev);
+                                }
+                            }
+                        >{label}</div>
+                    })
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    // Build the trigger — toggles open, stops propagation
+    let trigger_inner = emit_node(
+        &RenderNode::Expr(trigger_expr.clone()),
+        bindings,
+        inside_for,
+    );
+
+    quote! {
+        <div
+            node_ref=#node_ref_name
+            class="relative inline-block"
+            on:click=move |ev: leptos::ev::MouseEvent| {
+                ev.stop_propagation();
+                #open_name.update(|v| *v = !*v);
+            }
+        >
+            {#trigger_inner}
+            {
+                move || #open_name.get().then(|| {
+                    ::leptos::prelude::view! {
+                        <div
+                            class="absolute top-full left-0 z-50 min-w-32 rounded-md border border-gray-700 bg-gray-800 py-1 shadow-lg"
+                            on:click=move |ev: leptos::ev::MouseEvent| {
+                                ev.stop_propagation();
+                            }
+                            on:mousedown=move |ev: leptos::ev::MouseEvent| {
+                                ev.prevent_default();
+                            }
+                        >
+                            #(#item_tokens)*
+                        </div>
+                    }.into_any()
+                })
+            }
+        </div>
+    }
 }
 
 // ---------------------------------------------------------------------------

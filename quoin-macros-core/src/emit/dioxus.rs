@@ -127,9 +127,22 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
         })
         .collect::<Vec<_>>();
 
-    // Emit render stmts directly — quoin_render! provides its own rsx! wrapper.
-    // Do NOT wrap in another rsx! here, as let-bindings are invalid inside rsx!.
     let render_stmts = &ast.render.stmts;
+
+    // Dioxus 0.7's #[component] requires the function body to return
+    // Result<VNode, RenderError>. If the last render statement is a
+    // let-binding (ends with ;), it returns () — we need to append
+    // a fallback Element.
+    let needs_fallback = ast.render.stmts.last().map_or(true, |last| {
+        matches!(last, syn::Stmt::Local(_) | syn::Stmt::Item(_))
+            || matches!(last, syn::Stmt::Expr(_, Some(_)))
+    });
+
+    let fallback = if needs_fallback {
+        quote! { Ok(dioxus::prelude::VNode::placeholder()) }
+    } else {
+        quote! {}
+    };
 
     quote! {
         #[derive(Clone)]
@@ -148,6 +161,7 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
             #on_unmount_tokens
 
             #(#render_stmts)*
+            #fallback
         }
     }
 }

@@ -37,3 +37,10 @@ xilem  = ["dep:quoin-xilem"]
 floem  = ["dep:quoin-floem"]
 macros = ["dep:quoin-macros"]
 ui     = ["dep:quoin-ui"]
+
+# shadcn component backing — use together with the framework feature.
+# e.g. features = ["leptos", "leptos-shadcn"]
+# This activates the shadcn feature on the adapter crate so the component
+# deps are resolved. Emitter code (future phases) will target these.
+leptos-shadcn = ["quoin-leptos?/shadcn"]
+dioxus-shadcn = ["quoin-dioxus?/shadcn"]

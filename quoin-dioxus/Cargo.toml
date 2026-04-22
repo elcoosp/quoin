@@ -13,7 +13,14 @@ dioxus-core = "0.7"
 futures = "0.3"
 send_wrapper = "0.6"
 
+# shadcn-dioxus — not published on crates.io, use git.
+# The crate name inside the repo is "ui", so we rename it.
+shadcn-dioxus = { package = "ui", git = "https://github.com/MBeliou/shadcn-dioxus", optional = true }
+
 [dev-dependencies]
 quoin-conformance = { path = "../quoin-conformance", features = ["dioxus"] }
 dioxus-core = "0.7"
 futures-timer = "3.0"
+
+[features]
+shadcn = ["dep:shadcn-dioxus"]
