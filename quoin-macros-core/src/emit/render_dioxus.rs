@@ -1017,6 +1017,17 @@ fn emit_dropdown_menu_shadcn(el: &Element) -> TokenStream {
 }
 
 fn emit_data_table(el: &Element) -> TokenStream {
+    #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
+    {
+        return emit_data_table_shadcn(el);
+    }
+    #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
+    {
+        return emit_data_table_plain(el);
+    }
+}
+
+fn emit_data_table_plain(el: &Element) -> TokenStream {
     let rows = el
         .args
         .iter()
@@ -1072,6 +1083,67 @@ fn emit_data_table(el: &Element) -> TokenStream {
             }
         }
     )
+}
+
+#[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
+fn emit_data_table_shadcn(el: &Element) -> TokenStream {
+    let rows = el
+        .args
+        .iter()
+        .find(|a| a.key == "rows")
+        .map(|a| &a.value)
+        .unwrap();
+
+    let header_cells: Vec<TokenStream> = el
+        .children
+        .iter()
+        .filter_map(|c| {
+            if let RenderNode::Element(e) = c {
+                if e.name == "column" {
+                    let label = e
+                        .args
+                        .iter()
+                        .find(|a| a.key == "label")
+                        .map(|a| &a.value)
+                        .unwrap();
+                    return Some(quote!(th { class: "px-3 py-2 text-gray-400 font-medium", #label }));
+                }
+            }
+            None
+        })
+        .collect();
+
+    let row_cells: Vec<TokenStream> = el
+        .children
+        .iter()
+        .filter_map(|c| {
+            if let RenderNode::Element(e) = c {
+                if e.name == "column" {
+                    let render_closure = e
+                        .args
+                        .iter()
+                        .find(|a| a.key == "render")
+                        .map(|a| &a.value)
+                        .unwrap();
+                    return Some(quote!(td { class: "px-3 py-2 text-white", { (#render_closure)(&__row) } }));
+                }
+            }
+            None
+        })
+        .collect();
+
+    quote! {
+        dioxus::prelude::rsx! {
+            table { class: "w-full text-sm",
+                thead { tr { #(#header_cells)* } }
+                tbody {
+                    for __row in #rows {
+                        tr { #(#row_cells)* }
+                    }
+                }
+            }
+        }
+    }
 }
 
 fn find_arg_bool(el: &Element, key: &str) -> bool {

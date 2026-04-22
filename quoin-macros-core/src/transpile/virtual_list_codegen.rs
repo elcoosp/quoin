@@ -9,8 +9,8 @@
 //! - **GPUI** ([`generate_gpui_virtual_list`]): `v_virtual_list` requires
 //!   `Entity<V>`, which cannot be created in a `Render` impl. Falls back to
 //!   `div().size_full().overflow_y_scroll()`.
-//! - **Leptos / Dioxus**: Stub implementations. Future work will integrate
-//!   with `leptos-virtual-scroll` or Dioxus virtual list components.
+//! - **Leptos / Dioxus**: Emit scrollable divs. True windowing can be added
+//!   later via `leptos-virtual-scroll` or `dioxus-primitives` RecycleList.
 
 #[allow(unused)]
 use proc_macro2::TokenStream;
@@ -39,7 +39,11 @@ pub fn generate_leptos_virtual_list(
     _estimated_height: f32,
     _item_render: TokenStream,
 ) -> TokenStream {
-    quote! { ::gpui::div() }
+    // TODO: upgrade to leptos-virtual-scroll when estimated_height is provided
+    quote! {
+        ::leptos::html::div()
+            .attr("style", "overflow-y: auto")
+    }
 }
 
 #[cfg(feature = "dioxus")]
@@ -48,5 +52,10 @@ pub fn generate_dioxus_virtual_list(
     _estimated_height: f32,
     _item_render: TokenStream,
 ) -> TokenStream {
-    quote! { ::gpui::div() }
+    // TODO: upgrade to dioxus-primitives RecycleList when available
+    quote! {
+        ::dioxus::prelude::rsx! {
+            div { style: "overflow-y: auto" }
+        }
+    }
 }
