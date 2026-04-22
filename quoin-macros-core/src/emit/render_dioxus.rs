@@ -723,6 +723,17 @@ fn emit_nodes_inner(nodes: &[RenderNode]) -> TokenStream {
 // ---------------------------------------------------------------------------
 
 fn emit_tabs(el: &Element) -> TokenStream {
+    #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
+    {
+        return emit_tabs_shadcn(el);
+    }
+    #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
+    {
+        return emit_tabs_plain(el);
+    }
+}
+
+fn emit_tabs_plain(el: &Element) -> TokenStream {
     let active_expr = el
         .args
         .iter()
@@ -812,11 +823,79 @@ fn emit_tabs(el: &Element) -> TokenStream {
     }
 }
 
+#[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
+fn emit_tabs_shadcn(el: &Element) -> TokenStream {
+    let active_expr = el
+        .args
+        .iter()
+        .find(|a| a.key == "active")
+        .map(|a| &a.value)
+        .expect("tabs require 'active' argument");
+    let on_click_expr = el
+        .args
+        .iter()
+        .find(|a| a.key == "on_click")
+        .map(|a| &a.value)
+        .expect("tabs require 'on_click' callback");
+
+    let on_click_with_move = force_move_on_closure(on_click_expr);
+
+    let tab_triggers: Vec<TokenStream> = el
+        .children
+        .iter()
+        .filter_map(|c| {
+            if let RenderNode::Element(e) = c {
+                if e.name == "tab" {
+                    let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
+                    let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
+                    let index_clone = index.clone();
+                    return Some(quote! {
+                        shadcn_dioxus::tabs::TabsTrigger {
+                            value: "{#index.to_string()}",
+                            onclick: {
+                                let __tab_on_click = #on_click_with_move;
+                                move |_| { __tab_on_click(#index_clone); }
+                            },
+                            #label
+                        }
+                    });
+                }
+            }
+            None
+        })
+        .collect();
+
+    quote! {
+        {
+            let __active = #active_expr;
+            dioxus::prelude::rsx! {
+                shadcn_dioxus::tabs::Tabs {
+                    value: "{__active}",
+                    shadcn_dioxus::tabs::TabsList {
+                        #(#tab_triggers)*
+                    }
+                }
+            }
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Dropdown menu
 // ---------------------------------------------------------------------------
 
 fn emit_dropdown_menu(el: &Element) -> TokenStream {
+    #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
+    {
+        return emit_dropdown_menu_shadcn(el);
+    }
+    #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
+    {
+        return emit_dropdown_menu_plain(el);
+    }
+}
+
+fn emit_dropdown_menu_plain(el: &Element) -> TokenStream {
     let trigger_expr = match &el.trigger_expr {
         Some(e) => e,
         None => return quote! { div { "dropdown: missing trigger" } },
@@ -884,6 +963,53 @@ fn emit_dropdown_menu(el: &Element) -> TokenStream {
                             #(#item_tokens)*
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+#[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
+fn emit_dropdown_menu_shadcn(el: &Element) -> TokenStream {
+    let trigger_expr = match &el.trigger_expr {
+        Some(e) => e,
+        None => return quote! { div { "dropdown: missing trigger" } },
+    };
+
+    let item_tokens: Vec<TokenStream> = el
+        .children
+        .iter()
+        .filter_map(|c| {
+            if let RenderNode::Element(e) = c {
+                if e.name == "item" {
+                    let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
+                    let on_click = e.args.iter().find(|a| a.key == "on_click").map(|a| &a.value)?;
+                    let handler = wrap_dioxus_handler(on_click);
+                    Some(quote! {
+                        shadcn_dioxus::dropdown_menu::DropdownMenuItem {
+                            onclick: #handler,
+                            #label
+                        }
+                    })
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let trigger_inner = emit_render_inner(&RenderNode::Expr(trigger_expr.clone()));
+
+    quote! {
+        dioxus::prelude::rsx! {
+            shadcn_dioxus::dropdown_menu::DropdownMenu {
+                shadcn_dioxus::dropdown_menu::DropdownMenuTrigger {
+                    #trigger_inner
+                }
+                shadcn_dioxus::dropdown_menu::DropdownMenuContent {
+                    #(#item_tokens)*
                 }
             }
         }
