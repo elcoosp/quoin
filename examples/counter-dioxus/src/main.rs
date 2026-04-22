@@ -7,12 +7,9 @@ fn app() -> Element {
     let ctx = use_hook(DioxusContext::new);
     let counter = use_hook(|| use_counter(&ctx));
 
-    // Extract signal values outside rsx! to avoid Dioxus Readable trait conflict
-    let count = counter.count.get();
-
     rsx! {
         div {
-            "Count: {count}"
+            "Count: {counter.count.get()}"
             button {
                 onclick: move |_| (counter.increment)(),
                 "Increment"

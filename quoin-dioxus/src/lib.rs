@@ -193,3 +193,27 @@ impl<T: Clone + std::fmt::Debug + 'static> std::fmt::Debug for DioxusSignal<T> {
             .finish()
     }
 }
+
+impl<T: Clone + 'static> DioxusSignal<T> {
+    /// Read the current value. Preferred over `QuoinSignal::get()` in Dioxus
+    /// code because it avoids Dioxus 0.7 ReadableVecExt/ReadableHashMapExt
+    /// blanket impl trait resolution conflicts.
+    pub fn get(&self) -> T {
+        QuoinSignal::get(self)
+    }
+
+    /// Access the value through a closure without cloning.
+    pub fn with<U>(&self, f: impl FnOnce(&T) -> U) -> U {
+        QuoinSignal::with(self, f)
+    }
+
+    /// Set the value.
+    pub fn set(&self, value: T) {
+        QuoinSignal::set(self, value);
+    }
+
+    /// Update the value with a closure.
+    pub fn update(&self, f: impl FnOnce(&mut T)) {
+        QuoinSignal::update(self, f);
+    }
+}
