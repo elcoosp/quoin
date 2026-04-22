@@ -79,7 +79,7 @@ fn emit_handler_shadow_wrap(handler_expr: &Expr) -> TokenStream {
     quote! {
         {
             #(#shadows)*
-            let __handler = ::std::rc::Rc::new(#handler_no_move);
+            let __handler = ::std::rc::Rc::new(move #handler_no_move);
             move |_, _, _| { __handler(()) }
         }
     }
@@ -96,7 +96,7 @@ fn emit_handler_rc_wrap(handler_expr: &Expr) -> TokenStream {
     quote! {
         {
             #(#shadows)*
-            let __handler = ::std::rc::Rc::new(#handler_no_move);
+            let __handler = ::std::rc::Rc::new(move #handler_no_move);
             move |_, _, _| { __handler(()) }
         }
     }
@@ -332,7 +332,7 @@ fn emit_data_table(el: &Element) -> TokenStream {
                                     .hover(|s| s.bg(::gpui::rgb(0x374151)))
                                     .on_mouse_down(::gpui::MouseButton::Left, {
                                         #(#shadows)*
-                                        let __handler = ::std::rc::Rc::new(#handler_no_move);
+                                        let __handler = ::std::rc::Rc::new(move #handler_no_move);
                                         move |_, _, _| { __handler(#key_str, "asc"); }
                                     })
                             };
