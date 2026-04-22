@@ -1038,6 +1038,21 @@ fn emit_dropdown_menu_shadcn(
 fn emit_data_table(
     el: &Element,
     bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
+    #[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
+    {
+        return emit_data_table_shadcn(el, bindings, inside_for);
+    }
+    #[cfg(not(all(feature = "leptos", feature = "leptos-shadcn")))]
+    {
+        return emit_data_table_plain(el, bindings, inside_for);
+    }
+}
+
+fn emit_data_table_plain(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
     _inside_for: bool,
 ) -> TokenStream {
     let rows_expr = el.args.iter().find(|a| a.key == "rows").map(|a| &a.value);
@@ -1098,6 +1113,89 @@ fn emit_data_table(
                 }).collect::<Vec<_>>()}
             </tbody>
         </table>
+    }
+}
+
+#[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
+fn emit_data_table_shadcn(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    _inside_for: bool,
+) -> TokenStream {
+    let rows_expr = el.args.iter().find(|a| a.key == "rows").map(|a| &a.value);
+    let striped = find_arg_bool(el, "striped");
+
+    let empty_label: syn::Expr = syn::parse_quote! { "" };
+    let mut header_cells: Vec<TokenStream> = Vec::new();
+    let mut row_cells: Vec<TokenStream> = Vec::new();
+
+    for c in &el.children {
+        if let RenderNode::Element(e) = c {
+            if e.name != "column" {
+                continue;
+            }
+
+            let label = e
+                .args
+                .iter()
+                .find(|a| a.key == "label")
+                .map(|a| &a.value)
+                .unwrap_or(&empty_label);
+            let width = e.args.iter().find(|a| a.key == "width").map(|a| &a.value);
+
+            let mut th_attrs: Vec<TokenStream> = vec![quote! { class="px-3 py-2 text-gray-400 font-medium" }];
+            if let Some(w) = width {
+                th_attrs.push(quote! { style=format!("width: {}px", #w) });
+            }
+            header_cells.push(quote! {
+                <leptos_shadcn_table::TableHeader>
+                    <leptos_shadcn_table::TableRow>
+                        <leptos_shadcn_table::TableHead #(#th_attrs)*>#label</leptos_shadcn_table::TableHead>
+                    </leptos_shadcn_table::TableRow>
+                </leptos_shadcn_table::TableHeader>
+            });
+
+            let render_closure = e.args.iter().find(|a| a.key == "render").map(|a| &a.value);
+            let col_id = next_extract_id();
+            let render_name = quote::format_ident!("__quoin_col_{}", col_id);
+
+            if let Some(rc) = render_closure {
+                bindings.push(quote! { let #render_name = ::std::rc::Rc::new(#rc); });
+                let mut td_attrs: Vec<TokenStream> = vec![quote! { class="px-3 py-2 text-white" }];
+                if let Some(w) = width {
+                    td_attrs.push(quote! { style=format!("width: {}px", #w) });
+                }
+                row_cells.push(quote! {
+                    <leptos_shadcn_table::TableCell #(#td_attrs)*>{(#render_name)(&__row)}</leptos_shadcn_table::TableCell>
+                });
+            } else {
+                row_cells.push(quote! {
+                    <leptos_shadcn_table::TableCell class="px-3 py-2 text-white"></leptos_shadcn_table::TableCell>
+                });
+            }
+        }
+    }
+
+    let empty_rows: syn::Expr = syn::parse_quote! { Vec::<()>::new() };
+    let rows = rows_expr.unwrap_or(&empty_rows);
+    let striped_class = if striped { " table-striped" } else { "" };
+
+    quote! {
+        {
+            use leptos_shadcn_table::{Table, TableBody, TableCell, TableHead, TableHeader, TableRow};
+            <Table class={concat!("w-full", #striped_class)}>
+                #(#header_cells)*
+                <TableBody>
+                    {#rows.iter().map(|__row| {
+                        ::leptos::prelude::view! {
+                            <TableRow>
+                                #(#row_cells)*
+                            </TableRow>
+                        }
+                    }).collect::<Vec<_>>()}
+                </TableBody>
+            </Table>
+        }
     }
 }
 
