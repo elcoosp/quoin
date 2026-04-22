@@ -79,11 +79,13 @@ thread_local! {
         std::cell::RefCell::new(HashMap::new());
 }
 
+type UpdateNotifier = Arc<dyn Fn() + Send + Sync>;
+
 /// Context that holds a tokio runtime and an optional update notifier.
 #[derive(Clone)]
 pub struct XilemContext {
     runtime: Arc<Runtime>,
-    update_notifier: Arc<Mutex<Option<Arc<dyn Fn() + Send + Sync>>>>,
+    update_notifier: Arc<Mutex<Option<UpdateNotifier>>>,
 }
 
 impl XilemContext {
