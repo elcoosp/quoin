@@ -10,6 +10,7 @@ pub fn emit_render(node: &RenderNode) -> TokenStream {
     quote! {
         {
             use dioxus::prelude::dioxus_elements;
+            use dioxus::prelude::{FormData, MouseData};
             let __quoin_node: dioxus::prelude::Element = dioxus::prelude::rsx! { #inner };
             __quoin_node
         }
