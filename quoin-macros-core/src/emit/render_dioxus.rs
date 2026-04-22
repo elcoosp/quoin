@@ -7,15 +7,8 @@ use quote::quote;
 
 pub fn emit_render(node: &RenderNode) -> TokenStream {
     let inner = emit_render_inner(node);
-    let tokens = quote! {
-        {
-            use dioxus::prelude::dioxus_elements;
-            use dioxus::prelude::{FormData, MouseData};
-            let __quoin_node: dioxus::prelude::Element = dioxus::prelude::rsx! { #inner };
-            __quoin_node
-        }
-    };
-    wrap_with_cfg(node.attrs(), tokens)
+    let token_str = format!("{}", inner);
+    return quote! { compile_error!(#token_str); };
 }
 
 fn wrap_with_cfg(attrs: &[syn::Attribute], inner: TokenStream) -> TokenStream {
