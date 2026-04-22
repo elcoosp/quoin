@@ -1,0 +1,28 @@
+[package]
+name = "ucp-demo-leptos-shadcn"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+leptos = { version = "0.8", features = ["csr"] }
+console_error_panic_hook = "0.1"
+console_log = "1.0"
+log = "0.4"
+wasm-bindgen = "0.2"
+quoin = { path = "../../quoin", features = ["leptos", "leptos-shadcn"] }
+ucp-lib = { path = "../ucp-lib", features = ["leptos"] }
+
+# NOTE: These deps require manual resolution. The leptos-shadcn-ui crate
+# provides individual component crates. Uncomment and adjust versions
+# as needed based on what's available on crates.io.
+#
+# leptos-shadcn-button  = "0.4"
+# leptos-shadcn-input   = "0.4"
+# leptos-shadcn-tabs    = "0.4"
+# leptos-shadcn-badge   = "0.4"
+# leptos-shadcn-table   = "0.4"
+# leptos-shadcn-tooltip = "0.4"
+# leptos-shadcn-dropdown-menu = "0.4"
