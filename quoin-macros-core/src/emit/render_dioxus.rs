@@ -142,11 +142,7 @@ fn emit_data_table(el: &Element) -> TokenStream {
                         .map(|a| &a.value)
                         .unwrap();
                     let key = e.args.iter().find(|a| a.key == "key").map(|a| &a.value);
-                    let sortable = e
-                        .args
-                        .iter()
-                        .find(|a| a.key == "sortable")
-                        .map(|a| &a.value);
+                    let sortable = find_arg_bool(e, "sortable");
                     let width = e.args.iter().find(|a| a.key == "width").map(|a| &a.value);
 
                     let key_str = key
@@ -162,11 +158,10 @@ fn emit_data_table(el: &Element) -> TokenStream {
                             }
                         })
                         .unwrap_or_default();
-                    let sortable = find_arg_bool(e, "sortable");
 
                     let mut attrs = vec![quote!(class: "px-3 py-2 text-gray-400 font-medium")];
                     if let Some(w) = width {
-                        attrs.push(quote!(style: "width: {w}px"));
+                        attrs.push(quote!(style: format!("width: {}px", #w)));
                     }
 
                     if sortable {
@@ -204,9 +199,8 @@ fn emit_data_table(el: &Element) -> TokenStream {
                     let width = e.args.iter().find(|a| a.key == "width").map(|a| &a.value);
                     let mut attrs = vec![quote!(class: "px-3 py-2 text-white")];
                     if let Some(w) = width {
-                        attrs.push(quote!(style: "width: {w}px"));
+                        attrs.push(quote!(style: format!("width: {}px", #w)));
                     }
-                    // Changed from quote! { ... } to quote!( ... )
                     return Some(quote!(td { #(#attrs)* } (#render_closure)(&__row)));
                 }
             }
@@ -219,7 +213,6 @@ fn emit_data_table(el: &Element) -> TokenStream {
     } else {
         quote!()
     };
-    // Also changed this to quote!( ... ) since it contains braces
     quote!(
         table { #striped_attr
             thead { tr { #(#header_cells)* } }

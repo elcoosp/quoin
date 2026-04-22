@@ -1,4 +1,3 @@
-use proc_macro2::TokenTree;
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::{Attribute, Expr, Ident, LitStr, Result, Token, braced, bracketed, parenthesized};
@@ -49,26 +48,6 @@ pub struct Element {
     pub trigger_expr: Option<Expr>,
 }
 
-/// Collect tokens until a top‑level comma (or end of stream), then parse as an expression.
-/// Because `parenthesized!` has already extracted the arg list into a bounded stream,
-/// any `,` we see at the top level is guaranteed to be an argument separator.
-/// `TokenTree::Group` is already self‑contained, so commas inside nested expressions
-/// (e.g., `|c| *c += 1` inside `.update(…)`) are invisible at this level.
-fn collect_arg_value(input: ParseStream) -> Result<Expr> {
-    let mut tokens = Vec::new();
-
-    while !input.is_empty() {
-        if input.peek(Token![,]) {
-            break;
-        }
-        let tt: TokenTree = input.parse()?;
-        tokens.push(tt);
-    }
-
-    let token_stream: proc_macro2::TokenStream = tokens.into_iter().collect();
-    syn::parse2(token_stream)
-}
-
 impl Parse for Element {
     fn parse(input: ParseStream) -> Result<Self> {
         let attrs = input.call(Attribute::parse_outer)?;
@@ -85,7 +64,8 @@ impl Parse for Element {
             let key: Ident = args_content.call(Ident::parse_any)?;
             args_content.parse::<Token![:]>()?;
 
-            let value = collect_arg_value(&args_content)?;
+            // Use the expression parser that handles `move` closures correctly.
+            let value = Expr::parse_with_earlier_boundary_rule(&args_content)?;
 
             if key == "children" {
                 children_expr = Some(value);
