@@ -1,3 +1,4 @@
+use proc_macro2::TokenTree;
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::{Attribute, Expr, Ident, LitStr, Result, Token, braced, bracketed, parenthesized};
@@ -48,6 +49,40 @@ pub struct Element {
     pub trigger_expr: Option<Expr>,
 }
 
+/// Collect tokens until a top‑level comma (or end of stream), then parse as an expression.
+/// This avoids syn's streaming parser restrictions and correctly handles `move` closures,
+/// nested delimiters, and complex expressions.
+fn collect_arg_value(input: ParseStream) -> Result<Expr> {
+    let mut tokens = Vec::new();
+    let mut depth = 0;
+
+    while !input.is_empty() {
+        if depth == 0 && input.peek(Token![,]) {
+            break;
+        }
+        let tt: TokenTree = input.parse()?;
+        // Track nesting depth to ignore commas inside parentheses, brackets, or braces.
+        match &tt {
+            TokenTree::Group(g) if g.delimiter() == proc_macro2::Delimiter::Parenthesis => {
+                depth += 1;
+            }
+            TokenTree::Group(g) if g.delimiter() == proc_macro2::Delimiter::Bracket => {
+                depth += 1;
+            }
+            TokenTree::Group(g) if g.delimiter() == proc_macro2::Delimiter::Brace => {
+                depth += 1;
+            }
+            TokenTree::Group(_) => {}
+            TokenTree::Punct(p) if p.as_char() == ',' => {}
+            _ => {}
+        }
+        tokens.push(tt);
+    }
+
+    let token_stream: proc_macro2::TokenStream = tokens.into_iter().collect();
+    syn::parse2(token_stream)
+}
+
 impl Parse for Element {
     fn parse(input: ParseStream) -> Result<Self> {
         let attrs = input.call(Attribute::parse_outer)?;
@@ -64,12 +99,13 @@ impl Parse for Element {
             let key: Ident = args_content.call(Ident::parse_any)?;
             args_content.parse::<Token![:]>()?;
 
+            let value = collect_arg_value(&args_content)?;
+
             if key == "children" {
-                children_expr = Some(args_content.parse()?);
+                children_expr = Some(value);
             } else if key == "trigger" {
-                trigger_expr = Some(args_content.parse()?);
+                trigger_expr = Some(value);
             } else {
-                let value: Expr = args_content.parse()?;
                 args.push(ArgPair { key, value });
             }
 
@@ -191,24 +227,43 @@ impl Parse for ForNode {
 }
 
 const KNOWN_ELEMENTS: &[&str] = &[
-    "div", "h1", "h2", "h3", "p", "text", "span", "button", "input",
-    "label", "img", "a", "ul", "ol", "li", "hr", "br", "textarea",
-    "select", "form", "tabs", "tab", "data_table", "column",
-    "virtual_list", "dropdown_menu", "rich_text", "clipboard_button",
-    "item", "tab_bar",
+    "div",
+    "h1",
+    "h2",
+    "h3",
+    "p",
+    "text",
+    "span",
+    "button",
+    "input",
+    "label",
+    "img",
+    "a",
+    "ul",
+    "ol",
+    "li",
+    "hr",
+    "br",
+    "textarea",
+    "select",
+    "form",
+    "tabs",
+    "tab",
+    "data_table",
+    "column",
+    "virtual_list",
+    "dropdown_menu",
+    "rich_text",
+    "clipboard_button",
+    "item",
+    "tab_bar",
 ];
 
 impl Parse for RenderNode {
     fn parse(input: ParseStream) -> Result<Self> {
-        // Check for outer attributes (e.g. #[cfg(feature = "foo")])
-        // These are handled by Element/IfNode/ForNode parsers themselves,
-        // but we need to peek ahead to decide which parser to call.
-
         if input.peek(Token![#]) {
-            // Could be an attribute on an element, if, or for
             let fork = input.fork();
             if fork.call(Attribute::parse_outer).is_ok() {
-                // Check what follows the attributes
                 if fork.peek(Token![if]) {
                     let fork2 = fork.fork();
                     fork2.parse::<Token![if]>()?;
@@ -223,7 +278,6 @@ impl Parse for RenderNode {
                         return Ok(RenderNode::For(input.parse()?));
                     }
                 }
-                // Must be an element with attributes
                 if fork.peek(Ident) || fork.peek(Ident::peek_any) {
                     return Ok(RenderNode::Element(input.parse()?));
                 }
@@ -261,12 +315,15 @@ impl Parse for RenderNode {
                         let msg = if let Some(sug) = suggestion {
                             format!(
                                 "unknown element `{}`. Did you mean `{}`? Known elements: {}",
-                                ident_str, sug, KNOWN_ELEMENTS.join(", ")
+                                ident_str,
+                                sug,
+                                KNOWN_ELEMENTS.join(", ")
                             )
                         } else {
                             format!(
                                 "unknown element `{}`. Known elements: {}. If this is a function call, wrap it in braces: `{{ expr }}`",
-                                ident_str, KNOWN_ELEMENTS.join(", ")
+                                ident_str,
+                                KNOWN_ELEMENTS.join(", ")
                             )
                         };
                         return Err(syn::Error::new_spanned(ident, msg));
