@@ -70,17 +70,263 @@ fn emit_element_inner(el: &Element) -> TokenStream {
         "tabs" => emit_tabs(el),
         "data_table" => emit_data_table(el),
         "dropdown_menu" => emit_dropdown_menu(el),
+        "styled_text" => emit_styled_text(el),
+        "badge" => emit_badge(el),
+        "scroll_area" => emit_scroll_area(el),
         "virtual_list" => {
+            let estimated_height = el
+                .args
+                .iter()
+                .find(|a| a.key == "estimated_height")
+                .and_then(|a| {
+                    if let syn::Expr::Lit(syn::ExprLit {
+                        lit: syn::Lit::Float(f),
+                        ..
+                    }) = &a.value
+                    {
+                        f.base10_parse::<f32>().ok()
+                    } else if let syn::Expr::Lit(syn::ExprLit {
+                        lit: syn::Lit::Int(i),
+                        ..
+                    }) = &a.value
+                    {
+                        i.base10_parse::<f32>().ok()
+                    } else {
+                        None
+                    }
+                });
             let children_tokens: Vec<TokenStream> =
                 el.children.iter().map(emit_render_inner).collect();
-            quote! { div { style: "overflow-y: auto", #(#children_tokens)* } }
+            match estimated_height {
+                Some(_h) => {
+                    quote! { div { style: "overflow-y: auto; height: 100%", #(#children_tokens)* } }
+                }
+                None => {
+                    quote! { div { style: "overflow-y: auto", #(#children_tokens)* } }
+                }
         }
         "clipboard_button" => emit_html_el(el, "button"),
+        "button" => emit_button(el),
+        "icon" => emit_icon(el),
         _ => emit_html_el(el, &name_str),
     }
 }
 
+// ---------------------------------------------------------------------------
+// Badge
+// ---------------------------------------------------------------------------
+
+fn emit_badge(el: &Element) -> TokenStream {
+    let color_expr = el.args.iter().find(|a| a.key == "color").map(|a| &a.value);
+    let mut children: Vec<TokenStream> = Vec::new();
+    for child in &el.children {
+        children.push(emit_render_inner(child));
+    }
+    match color_expr {
+        Some(_color) => quote! {
+            span {
+                class: "inline-flex items-center px-1.5 rounded text-xs font-medium text-white bg-gray-600",
+                #(#children)*
+            }
+        },
+        None => quote! {
+            span { class: "inline-flex items-center px-1.5 rounded text-xs font-medium bg-gray-600 text-white", #(#children)* }
+        },
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Scroll area
+// ---------------------------------------------------------------------------
+
+fn emit_scroll_area(el: &Element) -> TokenStream {
+    let direction = el
+        .args
+        .iter()
+        .find(|a| a.key == "direction")
+        .and_then(|a| {
+            if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }) = &a.value {
+                Some(s.value())
+            } else {
+                None
+            }
+        })
+        .unwrap_or_else(|| "vertical".to_string());
+
+    let overflow_class = match direction.as_str() {
+        "horizontal" => "overflow-x-auto",
+        "both" => "overflow-auto",
+        _ => "overflow-y-auto",
+    };
+
+    let mut items = Vec::new();
+    for arg in &el.args {
+        let key_str = arg.key.to_string();
+        let value = &arg.value;
+        match key_str.as_str() {
+            "class" => items.push(quote! { class: format!("{} {}", #value, #overflow_class) }),
+            "direction" => {}
+            _ => {}
+        }
+    }
+    if items.is_empty() {
+        items.push(quote! { class: #overflow_class });
+    }
+    let mut children: Vec<TokenStream> = Vec::new();
+    for child in &el.children {
+        children.push(emit_render_inner(child));
+    }
+    quote! { div { #(#items),* #(#children)* } }
+}
+
+// ---------------------------------------------------------------------------
+// Button — with optional tooltip wrapping
+// ---------------------------------------------------------------------------
+
+fn emit_button(el: &Element) -> TokenStream {
+    let tooltip_text = el
+        .args
+        .iter()
+        .find(|a| a.key == "tooltip")
+        .and_then(|a| {
+            if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }) = &a.value {
+                Some(s.value())
+            } else {
+                None
+            }
+        });
+
+    let inner_button = emit_html_el_inner(el, "button");
+
+    match tooltip_text {
+        Some(text) => quote! {
+            {
+                let mut __tip_open = dioxus::prelude::use_signal(|| false);
+                dioxus::prelude::rsx! {
+                    div {
+                        class: "relative inline-flex",
+                        onmouseenter: move |_| __tip_open.set(true),
+                        onmouseleave: move |_| __tip_open.set(false),
+                        #inner_button,
+                        if *__tip_open.read() {
+                            div {
+                                class: "absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs rounded bg-gray-800 text-white whitespace-nowrap shadow-lg z-50",
+                                #text
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        None => inner_button,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Icon — inline SVG from icon_codegen
+// ---------------------------------------------------------------------------
+
+fn emit_icon(el: &Element) -> TokenStream {
+    let name = el
+        .args
+        .iter()
+        .find(|a| a.key == "icon_name")
+        .and_then(|a| {
+            if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }) = &a.value {
+                Some(s.value())
+            } else {
+                None
+            }
+        });
+
+    let size_class = el
+        .args
+        .iter()
+        .find(|a| a.key == "class")
+        .map(|a| &a.value);
+
+    let class_str = match size_class {
+        Some(c) => quote! { format!("{} w-4 h-4 inline-block", #c) },
+        None => quote! { "w-4 h-4 inline-block" },
+    };
+
+    let children: Vec<TokenStream> = el.children.iter().map(emit_render_inner).collect();
+
+    match name {
+        Some(n) => {
+            if let Some(svg) = crate::transpile::icon_codegen::icon_to_svg(n) {
+                quote! { span { class: #class_str, #svg } }
+            } else {
+                quote! { span { class: #class_str, "❓" } }
+            }
+        }
+        None => {
+            if children.is_empty() {
+                quote! { span { class: #class_str, "❓" } }
+            } else {
+                quote! { span { class: #class_str, #(#children)* } }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// StyledText — text with optional search highlighting
+// ---------------------------------------------------------------------------
+
+fn emit_styled_text(el: &Element) -> TokenStream {
+    let text_expr = el.args.iter().find(|a| a.key == "text").map(|a| &a.value);
+    let query_expr = el.args.iter().find(|a| a.key == "query").map(|a| &a.value);
+
+    match (text_expr, query_expr) {
+        (Some(text), None) => {
+            quote! { span { #text } }
+        }
+        (Some(text), Some(query)) => {
+            quote! {{
+                let __text_val: String = (#text).clone();
+                let __query_val: String = (#query).clone();
+                let __parts: Vec<dioxus::prelude::Element> = if __query_val.is_empty() {
+                    vec![dioxus::prelude::rsx! { span { "{__text_val}" } }]
+                } else {
+                    let mut __remaining: &str = &__text_val;
+                    let __query_lower: String = __query_val.to_lowercase();
+                    let mut __result: Vec<dioxus::prelude::Element> = Vec::new();
+                    while let Some(__idx) = __remaining.to_lowercase().find(&__query_lower) {
+                        if __idx > 0 {
+                            let __before: String = __remaining[..__idx].to_string();
+                            __result.push(dioxus::prelude::rsx! { span { "{__before}" } });
+                        }
+                        let __match_str: String = __remaining[__idx..__idx + __query_val.len()].to_string();
+                        __result.push(dioxus::prelude::rsx! {
+                            span { class: "bg-yellow-200 text-black", "{__match_str}" }
+                        });
+                        __remaining = &__remaining[__idx + __query_val.len()..];
+                    }
+                    if !__remaining.is_empty() {
+                        let __rest: String = __remaining.to_string();
+                        __result.push(dioxus::prelude::rsx! { span { "{__rest}" } });
+                    }
+                    __result
+                };
+                dioxus::prelude::rsx! { span { #(#__parts)* } }
+            }}
+        }
+        (None, _) => {
+            quote! { span {} }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// HTML element emitter
+// ---------------------------------------------------------------------------
+
 fn emit_html_el(el: &Element, name_str: &str) -> TokenStream {
+    emit_html_el_inner(el, name_str)
+}
+
+fn emit_html_el_inner(el: &Element, name_str: &str) -> TokenStream {
     let tag = match name_str {
         "div" => "div",
         "h1" => "h1",
@@ -151,7 +397,8 @@ fn emit_html_el(el: &Element, name_str: &str) -> TokenStream {
             "primary" | "ghost" | "destructive" | "active" | "children" | "trigger" | "rows"
             | "striped" | "items" | "estimated_height" | "copy_text" | "sortable" | "width"
             | "resizable" | "selectable" | "on_sort" | "bordered" | "size" | "navigate_to"
-            | "cfg" | "label" | "render" | "key" | "index" => {}
+            | "cfg" | "label" | "render" | "key" | "index" | "text" | "query"
+            | "color" | "direction" | "tooltip" | "icon_name" => {}
             _ => {
                 let key = proc_macro2::Ident::new(&key_str, proc_macro2::Span::call_site());
                 items.push(quote! { #key: {#value} });
@@ -160,7 +407,12 @@ fn emit_html_el(el: &Element, name_str: &str) -> TokenStream {
     }
 
     if auto_bind_input {
-        let value_expr = el.args.iter().find(|a| a.key == "value").map(|a| &a.value).unwrap();
+        let value_expr = el
+            .args
+            .iter()
+            .find(|a| a.key == "value")
+            .map(|a| &a.value)
+            .unwrap();
         items.push(quote! {
             oninput: move |ev: dioxus::prelude::Event<web_sys::InputEvent>| {
                 #value_expr.set(ev.value());
@@ -233,7 +485,8 @@ fn emit_tabs(el: &Element) -> TokenStream {
         .map(|a| &a.value)
         .expect("tabs require 'on_click' callback");
 
-    let param_idents: Vec<proc_macro2::Ident> = if let syn::Expr::Closure(closure) = on_click_expr {
+    let param_idents: Vec<proc_macro2::Ident> = if let syn::Expr::Closure(closure) = on_click_expr
+    {
         closure
             .inputs
             .iter()
@@ -310,7 +563,7 @@ fn emit_tabs(el: &Element) -> TokenStream {
 }
 
 // ---------------------------------------------------------------------------
-// Dropdown menu — use_signal(bool) for open state + conditional rendering
+// Dropdown menu
 // ---------------------------------------------------------------------------
 
 fn emit_dropdown_menu(el: &Element) -> TokenStream {
@@ -319,7 +572,6 @@ fn emit_dropdown_menu(el: &Element) -> TokenStream {
         None => return quote! { div { "dropdown: missing trigger" } },
     };
 
-    // Build item elements from `item(label: ..., on_click: ...)` children
     let item_tokens: Vec<TokenStream> = el
         .children
         .iter()
@@ -353,7 +605,6 @@ fn emit_dropdown_menu(el: &Element) -> TokenStream {
         })
         .collect();
 
-    // Emit the trigger as an inline expression child
     let trigger_inner = emit_render_inner(&RenderNode::Expr(trigger_expr.clone()));
 
     quote! {

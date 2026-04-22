@@ -56,6 +56,12 @@ const KNOWN_ARGS: &[&str] = &[
     "bordered",
     "size",
     // Navigation
+    "text",
+    "query",
+    "color",
+    "direction",
+    "direction",
+    "icon_name",
     "navigate_to",
     // Passthrough
     "cfg",
@@ -167,6 +173,14 @@ pub fn check_element_args(element_name: &str, arg_keys: &[&Ident]) -> Vec<String
             if !arg_keys.iter().any(|k| *k == "key") {
                 warnings.push(
                     "column should have a 'key:' argument for sorting (e.g., key: \"field_name\")"
+                        .to_string(),
+                );
+            }
+        }
+        "icon" => {
+            if !el.args.iter().any(|k| *k == "icon_name") {
+                warnings.push(
+                    "icon requires an x27icon_name:x27 argument (e.g. icon_name: \"calendar\")"
                         .to_string(),
                 );
             }

@@ -268,6 +268,13 @@ const KNOWN_ELEMENTS: &[&str] = &[
     "rich_text",
     "clipboard_button",
     "item",
+    "badge",
+    "badge",
+    "styled_text",
+    "icon",
+    "scroll_area",
+    "icon",
+    "scroll_area",
     "tab_bar",
 ];
 
