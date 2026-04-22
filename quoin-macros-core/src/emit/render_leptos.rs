@@ -572,7 +572,7 @@ fn emit_icon(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) ->
 
     match name {
         Some(n) => {
-            if let Some(svg) = crate::transpile::icon_codegen::icon_to_svg(&n) {
+            if let Some(svg) = crate::transpile::icon_codegen::icon_svg_html(&n) {
                 quote! {
                     <span class=#class_str>
                         #svg
