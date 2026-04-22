@@ -5,10 +5,24 @@ use crate::transpile::{
 use proc_macro2::TokenStream;
 use quote::quote;
 
+// ---------------------------------------------------------------------------
+// Top‑level render entry point — wraps everything in rsx! {}
+// ---------------------------------------------------------------------------
 pub fn emit_render(node: &RenderNode) -> TokenStream {
     let inner = emit_render_inner(node);
-    let token_str = format!("{}", inner);
-    return quote! { compile_error!(#token_str); };
+    let tokens = quote! {
+        dioxus::prelude::rsx! { #inner }
+    };
+    wrap_with_cfg(node_attrs(node), tokens)
+}
+
+fn node_attrs(node: &RenderNode) -> &[syn::Attribute] {
+    match node {
+        RenderNode::Element(el) => &el.attrs,
+        RenderNode::If(if_node) => &if_node.attrs,
+        RenderNode::For(for_node) => &for_node.attrs,
+        RenderNode::Text(_) | RenderNode::Expr(_) | RenderNode::Root(_) => &[],
+    }
 }
 
 fn wrap_with_cfg(attrs: &[syn::Attribute], inner: TokenStream) -> TokenStream {
@@ -28,12 +42,15 @@ fn emit_render_inner(node: &RenderNode) -> TokenStream {
         RenderNode::If(if_node) => emit_if(if_node),
         RenderNode::For(for_node) => emit_for(for_node),
         RenderNode::Root(nodes) => {
-            let tokens: Vec<TokenStream> = nodes.iter().map(emit_render).collect();
+            let tokens: Vec<TokenStream> = nodes.iter().map(emit_render_inner).collect();
             quote! { #(#tokens)* }
         }
     }
 }
 
+// ---------------------------------------------------------------------------
+// Dioxus‑specific handler wrapping (clone captures, force move)
+// ---------------------------------------------------------------------------
 fn wrap_dioxus_handler(handler_expr: &syn::Expr) -> TokenStream {
     let idents = collect_handler_idents_excluding_params(handler_expr);
     let shadows: Vec<TokenStream> = idents
@@ -49,6 +66,9 @@ fn wrap_dioxus_handler(handler_expr: &syn::Expr) -> TokenStream {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Element dispatch — applies cfg attributes at the element level
+// ---------------------------------------------------------------------------
 fn emit_element(el: &Element) -> TokenStream {
     let inner = emit_element_inner(el);
     wrap_with_cfg(&el.attrs, inner)
@@ -68,39 +88,7 @@ fn emit_element_inner(el: &Element) -> TokenStream {
         "styled_text" => emit_styled_text(el),
         "badge" => emit_badge(el),
         "scroll_area" => emit_scroll_area(el),
-        "virtual_list" => {
-            let estimated_height = el
-                .args
-                .iter()
-                .find(|a| a.key == "estimated_height")
-                .and_then(|a| {
-                    if let syn::Expr::Lit(syn::ExprLit {
-                        lit: syn::Lit::Float(f),
-                        ..
-                    }) = &a.value
-                    {
-                        f.base10_parse::<f32>().ok()
-                    } else if let syn::Expr::Lit(syn::ExprLit {
-                        lit: syn::Lit::Int(i),
-                        ..
-                    }) = &a.value
-                    {
-                        i.base10_parse::<f32>().ok()
-                    } else {
-                        None
-                    }
-                });
-            let children_tokens: Vec<TokenStream> =
-                el.children.iter().map(emit_render_inner).collect();
-            match estimated_height {
-                Some(_h) => {
-                    quote! { div { style: "overflow-y: auto; height: 100%" #(#children_tokens)* } }
-                }
-                None => {
-                    quote! { div { style: "overflow-y: auto" #(#children_tokens)* } }
-                }
-            }
-        }
+        "virtual_list" => emit_virtual_list(el),
         "clipboard_button" => emit_clipboard_button(el),
         "button" => emit_button(el),
         "icon" => emit_icon(el),
@@ -110,9 +98,41 @@ fn emit_element_inner(el: &Element) -> TokenStream {
 }
 
 // ---------------------------------------------------------------------------
+// Virtual list
+// ---------------------------------------------------------------------------
+fn emit_virtual_list(el: &Element) -> TokenStream {
+    let estimated_height = el
+        .args
+        .iter()
+        .find(|a| a.key == "estimated_height")
+        .and_then(|a| {
+            if let syn::Expr::Lit(syn::ExprLit {
+                lit: syn::Lit::Float(f),
+                ..
+            }) = &a.value
+            {
+                f.base10_parse::<f32>().ok()
+            } else if let syn::Expr::Lit(syn::ExprLit {
+                lit: syn::Lit::Int(i),
+                ..
+            }) = &a.value
+            {
+                i.base10_parse::<f32>().ok()
+            } else {
+                None
+            }
+        });
+    let children_tokens: Vec<TokenStream> = el.children.iter().map(emit_render_inner).collect();
+    let style = match estimated_height {
+        Some(h) => format!("overflow-y: auto; height: {}px", h),
+        None => "overflow-y: auto".to_string(),
+    };
+    quote! { div { style: #style, #(#children_tokens)* } }
+}
+
+// ---------------------------------------------------------------------------
 // Badge
 // ---------------------------------------------------------------------------
-
 fn emit_badge(el: &Element) -> TokenStream {
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
     {
@@ -133,7 +153,7 @@ fn emit_badge_plain(el: &Element) -> TokenStream {
             match bg_class {
                 Some(cls) => quote! {
                     span {
-                        class=format!("inline-flex items-center px-1.5 rounded text-xs font-medium text-white {}", #cls),
+                        class: format!("inline-flex items-center px-1.5 rounded text-xs font-medium text-white {}", #cls),
                         #(#children)*
                     }
                 },
@@ -146,7 +166,7 @@ fn emit_badge_plain(el: &Element) -> TokenStream {
             }
         }
         None => quote! {
-            span { class: "inline-flex items-center px-1.5 rounded text-xs font-medium bg-gray-600 text-white" #(#children)* }
+            span { class: "inline-flex items-center px-1.5 rounded text-xs font-medium bg-gray-600 text-white", #(#children)* }
         },
     }
 }
@@ -176,14 +196,13 @@ fn emit_badge_shadcn(el: &Element) -> TokenStream {
     if children.is_empty() {
         quote! { shadcn_dioxus::badge::Badge { class: #class_str } }
     } else {
-        quote! { shadcn_dioxus::badge::Badge { class: #class_str #(#children)* } }
+        quote! { shadcn_dioxus::badge::Badge { class: #class_str, #(#children)* } }
     }
 }
 
 // ---------------------------------------------------------------------------
 // Scroll area
 // ---------------------------------------------------------------------------
-
 fn emit_scroll_area(el: &Element) -> TokenStream {
     let direction = el
         .args
@@ -211,7 +230,7 @@ fn emit_scroll_area(el: &Element) -> TokenStream {
     let mut attrs: Vec<TokenStream> = Vec::new();
     for arg in &el.args {
         let key_str = arg.key.to_string();
-        let key_ident = arg.key.clone();
+        let _key_ident = arg.key.clone();
         let value = &arg.value;
         match key_str.as_str() {
             "class" => {
@@ -220,9 +239,9 @@ fn emit_scroll_area(el: &Element) -> TokenStream {
                     ..
                 }) = value
                 {
-                    attrs.push(quote! { class=format!("{} {}", #s, #overflow_class) });
+                    attrs.push(quote! { class: format!("{} {}", #s, #overflow_class), });
                 } else {
-                    attrs.push(quote! { class=format!("{} {}", #value, #overflow_class) });
+                    attrs.push(quote! { class: format!("{} {}", #value, #overflow_class), });
                 }
             }
             "direction" => {}
@@ -230,16 +249,15 @@ fn emit_scroll_area(el: &Element) -> TokenStream {
         }
     }
     if attrs.is_empty() {
-        attrs.push(quote! { class={#overflow_class} });
+        attrs.push(quote! { class: #overflow_class, });
     }
     let children: Vec<TokenStream> = el.children.iter().map(emit_render_inner).collect();
-    quote! { div { #(#attrs),* #(#children)* } }
+    quote! { div { #(#attrs)* #(#children)* } }
 }
 
 // ---------------------------------------------------------------------------
-// Button — with optional tooltip wrapping
+// Button (with optional tooltip)
 // ---------------------------------------------------------------------------
-
 fn emit_button(el: &Element) -> TokenStream {
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
     {
@@ -335,21 +353,17 @@ fn emit_button_shadcn(el: &Element) -> TokenStream {
         None => quote! { format!("{} {}{}", #base_class, #variant_class, #disabled_class) },
     };
 
-    let on_click_attr: Option<TokenStream> = None;
-    if let Some(handler_expr) = el
+    let on_click_attr = el
         .args
         .iter()
         .find(|a| a.key == "on_click")
         .map(|a| &a.value)
-    {
-        let handler = wrap_dioxus_handler(handler_expr);
-        on_click_attr = Some(quote! { onclick={#handler} })
-    }
+        .map(|handler_expr| {
+            let handler = wrap_dioxus_handler(handler_expr);
+            quote! { onclick: {#handler}, }
+        });
 
-    let children = Vec::new();
-    for child in &el.children {
-        children.push(emit_render_inner(child));
-    }
+    let children: Vec<TokenStream> = el.children.iter().map(emit_render_inner).collect();
 
     let inner_button = if children.is_empty() {
         quote! {
@@ -357,9 +371,7 @@ fn emit_button_shadcn(el: &Element) -> TokenStream {
         }
     } else {
         quote! {
-            button { class: #full_class, #on_click_attr
-                #(#children)*
-            }
+            button { class: #full_class, #on_click_attr #(#children)* }
         }
     };
 
@@ -388,9 +400,8 @@ fn emit_button_shadcn(el: &Element) -> TokenStream {
 }
 
 // ---------------------------------------------------------------------------
-// Input — plain HTML vs shadcn
+// Input
 // ---------------------------------------------------------------------------
-
 fn emit_input(el: &Element) -> TokenStream {
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
     {
@@ -444,27 +455,37 @@ fn emit_input_shadcn(el: &Element) -> TokenStream {
     let placeholder_attr = if placeholder.is_empty() {
         quote! {}
     } else {
-        quote! { placeholder={#placeholder} }
+        quote! { placeholder: #placeholder, }
     };
 
     let disabled_attr = if disabled {
-        quote! { disabled: true }
+        quote! { disabled: true, }
     } else {
         quote! {}
     };
 
+    // Proper value binding for Dioxus 0.7
     let value_attr = if let Some(val) = value_expr {
-        quote! { value: "{#val.get()}" }
+        if let syn::Expr::Path(path) = val {
+            let ident = &path.path.segments.last().unwrap().ident;
+            let fmt = format!("{{{}}}", ident);
+            quote! { value: #fmt, }
+        } else {
+            quote! { value: {#val.get()}, }
+        }
     } else {
         quote! {}
     };
 
     let oninput_attr = if let Some(handler) = on_input_expr {
         let wrapped = wrap_dioxus_handler(handler);
-        quote! { oninput: #wrapped }
-    } else if value_expr.is_some() {
-        let sig = value_expr.unwrap();
-        quote! { oninput: move |ev: dioxus::prelude::Event<web_sys::InputEvent>| { #sig.set(ev.value()); } }
+        quote! { oninput: #wrapped, }
+    } else if let Some(val) = value_expr {
+        quote! {
+            oninput: move |ev: dioxus::prelude::Event<dioxus::prelude::FormData>| {
+                #val.set(ev.value());
+            },
+        }
     } else {
         quote! {}
     };
@@ -481,9 +502,8 @@ fn emit_input_shadcn(el: &Element) -> TokenStream {
 }
 
 // ---------------------------------------------------------------------------
-// Icon — inline SVG from icon_codegen
+// Icon
 // ---------------------------------------------------------------------------
-
 fn emit_icon(el: &Element) -> TokenStream {
     let name = el.args.iter().find(|a| a.key == "icon_name").and_then(|a| {
         if let syn::Expr::Lit(syn::ExprLit {
@@ -525,9 +545,8 @@ fn emit_icon(el: &Element) -> TokenStream {
 }
 
 // ---------------------------------------------------------------------------
-// StyledText — text with optional search highlighting
+// StyledText
 // ---------------------------------------------------------------------------
-
 fn emit_styled_text(el: &Element) -> TokenStream {
     let text_expr = el.args.iter().find(|a| a.key == "text").map(|a| &a.value);
     let query_expr = el.args.iter().find(|a| a.key == "query").map(|a| &a.value);
@@ -574,7 +593,6 @@ fn emit_styled_text(el: &Element) -> TokenStream {
 // ---------------------------------------------------------------------------
 // Clipboard button
 // ---------------------------------------------------------------------------
-
 fn emit_clipboard_button(el: &Element) -> TokenStream {
     let copy_text = match el
         .args
@@ -598,26 +616,25 @@ fn emit_clipboard_button(el: &Element) -> TokenStream {
                     ..
                 }) = value
                 {
-                    attrs.push(quote! { class={#s} });
+                    attrs.push(quote! { class: #s, });
                 } else {
-                    attrs.push(quote! { class={#value} });
+                    attrs.push(quote! { class: {#value}, });
                 }
             }
-            "disabled" => attrs.push(quote! { disabled={#value} }),
+            "disabled" => attrs.push(quote! { disabled: #value, }),
             "copy_text" => {}
             _ => {}
         }
     }
 
     let mut children: Vec<TokenStream> = el.children.iter().map(emit_render_inner).collect();
-
     if children.is_empty() {
         children.push(quote! { "Copy" });
     }
 
     quote! {
         button {
-            #(#attrs),*
+            #(#attrs)*
             onclick: move |_| {
                 quoin::clipboard_write_text(&(#copy_text).to_string());
             },
@@ -627,9 +644,8 @@ fn emit_clipboard_button(el: &Element) -> TokenStream {
 }
 
 // ---------------------------------------------------------------------------
-// HTML element emitter - FIXED: separate attrs (comma-sep) from children (space-sep)
+// HTML element emitter — core RSX generation with proper comma handling
 // ---------------------------------------------------------------------------
-
 fn emit_html_el(el: &Element, name_str: &str) -> TokenStream {
     emit_html_el_inner(el, name_str)
 }
@@ -662,65 +678,76 @@ fn emit_html_el_inner(el: &Element, name_str: &str) -> TokenStream {
     let has_on_input = el.args.iter().any(|a| a.key == "on_input");
     let auto_bind_input = tag == "input" && has_value && !has_on_input;
 
-    // Separate attributes and children
     let mut attrs: Vec<TokenStream> = Vec::new();
     let mut children: Vec<TokenStream> = Vec::new();
+    let mut children_attr_expr: Option<&syn::Expr> = None;
 
     for arg in &el.args {
         let key_str = arg.key.to_string();
         let key_ident = arg.key.clone();
         let value = &arg.value;
         match key_str.as_str() {
+            // Special: "children" becomes a child expression, NOT an attribute
+            "children" => {
+                children_attr_expr = Some(value);
+            }
             "on_click" => {
                 let handler = wrap_dioxus_handler(value);
-                attrs.push(quote! { onclick={#handler} })
+                attrs.push(quote! { onclick: {#handler}, })
             }
             "on_mouse_down" => {
                 let handler = wrap_dioxus_handler(value);
-                attrs.push(quote! { onmousedown={#handler} })
+                attrs.push(quote! { onmousedown: {#handler}, })
             }
             "on_mouse_up" => {
                 let handler = wrap_dioxus_handler(value);
-                attrs.push(quote! { onmouseup={#handler} })
+                attrs.push(quote! { onmouseup: {#handler}, })
             }
             "on_mouse_enter" => {
                 let handler = wrap_dioxus_handler(value);
-                attrs.push(quote! { onmouseenter={#handler} })
+                attrs.push(quote! { onmouseenter: {#handler}, })
             }
             "on_mouse_leave" => {
                 let handler = wrap_dioxus_handler(value);
-                attrs.push(quote! { onmouseleave={#handler} })
+                attrs.push(quote! { onmouseleave: {#handler}, })
             }
             "on_input" => {
                 let handler = wrap_dioxus_handler(value);
-                attrs.push(quote! { oninput={#handler} })
+                attrs.push(quote! { oninput: {#handler}, })
             }
             "on_change" => {
                 let handler = wrap_dioxus_handler(value);
-                attrs.push(quote! { onchange={#handler} })
+                attrs.push(quote! { onchange: {#handler}, })
             }
             "value" => {
                 if tag == "input" {
-                    attrs.push(quote! { value="{#value.get()}" });
+                    if let syn::Expr::Path(path) = value {
+                        let ident = &path.path.segments.last().unwrap().ident;
+                        let fmt = format!("{{{}}}", ident);
+                        attrs.push(quote! { value: #fmt, });
+                    } else {
+                        attrs.push(quote! { value: {#value.get()}, });
+                    }
                 } else {
-                    attrs.push(quote! { value={#value} });
+                    attrs.push(quote! { value: {#value}, });
                 }
             }
-            "primary" | "ghost" | "destructive" | "active" | "children" | "trigger" | "rows"
-            | "striped" | "items" | "estimated_height" | "copy_text" | "sortable" | "width"
-            | "resizable" | "selectable" | "on_sort" | "bordered" | "size" | "navigate_to"
-            | "cfg" | "label" | "render" | "key" | "index" | "text" | "query" | "color"
-            | "direction" | "tooltip" | "icon_name" => {}
-            // FIXED: Use proper Dioxus attribute syntax - no colon, string lits without braces
+            // Ignored attributes (handled elsewhere or not needed)
+            "primary" | "ghost" | "destructive" | "active" | "trigger" | "rows" | "striped"
+            | "items" | "estimated_height" | "copy_text" | "sortable" | "width" | "resizable"
+            | "selectable" | "on_sort" | "bordered" | "size" | "navigate_to" | "cfg" | "label"
+            | "render" | "key" | "index" | "text" | "query" | "color" | "direction" | "tooltip"
+            | "icon_name" => {}
+            // Generic attributes
             _ => {
                 if let syn::Expr::Lit(syn::ExprLit {
                     lit: syn::Lit::Str(s),
                     ..
                 }) = value
                 {
-                    attrs.push(quote! { #key_ident={#s} });
+                    attrs.push(quote! { #key_ident: #s, });
                 } else {
-                    attrs.push(quote! { #key_ident={#value} });
+                    attrs.push(quote! { #key_ident: {#value}, });
                 }
             }
         }
@@ -734,44 +761,53 @@ fn emit_html_el_inner(el: &Element, name_str: &str) -> TokenStream {
             .map(|a| &a.value)
             .unwrap();
         attrs.push(quote! {
-            oninput: move |ev: dioxus::prelude::Event<FormData>| {
+            oninput: move |ev: dioxus::prelude::Event<dioxus::prelude::FormData>| {
                 #value_expr.set(ev.value());
-            }
+            },
         });
     }
 
-    // Children
-    if let Some(children_expr) = &el.children_expr {
-        children.push(quote! { {#children_expr.into_iter()} });
+    // Add children from the `children` attribute (converted to iterator)
+    if let Some(expr) = children_attr_expr {
+        children.push(quote! { { #expr.into_iter() } });
     }
+
+    // Add children from element's `children_expr`
+    if let Some(children_expr) = &el.children_expr {
+        children.push(quote! { { #children_expr.into_iter() } });
+    }
+
+    // Add nested child elements
     for child in &el.children {
         children.push(emit_render_inner(child));
     }
 
     let tag_ident = proc_macro2::Ident::new(tag, proc_macro2::Span::call_site());
 
-    // FIXED: Attributes are comma-separated, children are space-separated
+    // Build RSX element with correct comma handling
     if attrs.is_empty() && children.is_empty() {
         quote! { #tag_ident {} }
     } else if attrs.is_empty() {
         quote! { #tag_ident { #(#children)* } }
     } else if children.is_empty() {
-        quote! { #tag_ident { #(#attrs),* } }
+        quote! { #tag_ident { #(#attrs)* } }
     } else {
-        quote! { #tag_ident { #(#attrs),* #(#children)* } }
+        // Attributes already have trailing commas
+        quote! { #tag_ident { #(#attrs)* #(#children)* } }
     }
 }
 
+// ---------------------------------------------------------------------------
+// If node
+// ---------------------------------------------------------------------------
 fn emit_if(if_node: &IfNode) -> TokenStream {
-    let inner = emit_if_inner(if_node);
-    wrap_with_cfg(&if_node.attrs, inner)
+    emit_if_inner(if_node)
 }
 
 fn emit_if_inner(if_node: &IfNode) -> TokenStream {
     let cond = &if_node.condition;
     let then_tokens = emit_nodes_inner(&if_node.then_branch);
     if let Some(else_branch) = &if_node.else_branch {
-        // FIXED: Handle else-if chains properly for Dioxus rsx!
         if else_branch.len() == 1 {
             if let RenderNode::If(nested_if) = &else_branch[0] {
                 let nested = emit_if_inner(nested_if);
@@ -785,9 +821,11 @@ fn emit_if_inner(if_node: &IfNode) -> TokenStream {
     }
 }
 
+// ---------------------------------------------------------------------------
+// For node
+// ---------------------------------------------------------------------------
 fn emit_for(for_node: &ForNode) -> TokenStream {
-    let inner = emit_for_inner(for_node);
-    wrap_with_cfg(&for_node.attrs, inner)
+    emit_for_inner(for_node)
 }
 
 fn emit_for_inner(for_node: &ForNode) -> TokenStream {
@@ -803,9 +841,8 @@ fn emit_nodes_inner(nodes: &[RenderNode]) -> TokenStream {
 }
 
 // ---------------------------------------------------------------------------
-// Tabs - FIXED: Don't generate nested rsx!, return direct elements
+// Tabs
 // ---------------------------------------------------------------------------
-
 fn emit_tabs(el: &Element) -> TokenStream {
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
     {
@@ -857,7 +894,6 @@ fn emit_tabs_plain(el: &Element) -> TokenStream {
 
     let on_click_with_move = force_move_on_closure(on_click_expr);
 
-    // FIXED: Generate tab elements directly, not in a nested rsx! block
     let tab_elements: Vec<TokenStream> = el
         .children
         .iter()
@@ -879,24 +915,28 @@ fn emit_tabs_plain(el: &Element) -> TokenStream {
                 let call_args: Vec<TokenStream> =
                     param_idents.iter().map(|id| quote! { #id }).collect();
 
-                return Some(quote! {
+                Some(quote! {
                     div {
-                        class={if #index == #active_expr { "px-4 py-2 cursor-pointer text-white" } else { "px-4 py-2 cursor-pointer text-gray-400" },
+                        class: if #index == #active_expr {
+                            "px-4 py-2 cursor-pointer text-white"
+                        } else {
+                            "px-4 py-2 cursor-pointer text-gray-400"
+                        },
                         onclick: {
                             #(#param_shadows)*
                             #(#clone_shadows)*
                             let __tab_on_click = #on_click_with_move;
                             move |_| { __tab_on_click(#(#call_args)*) }
                         },
-                        #label
+                        {#label}
                     }
-                }})
+                })
+            } else {
+                None
             }
-            None
         })
         .collect();
 
-    // Return just the flex container with tabs as children
     quote! {
         div { class: "flex", #(#tab_elements)* }
     }
@@ -929,7 +969,7 @@ fn emit_tabs_shadcn(el: &Element) -> TokenStream {
                 let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
                 let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
                 let index_clone = index.clone();
-                return Some(quote! {
+                Some(quote! {
                     shadcn_dioxus::tabs::TabsTrigger {
                         value: "{#index.to_string()}",
                         onclick: {
@@ -938,9 +978,10 @@ fn emit_tabs_shadcn(el: &Element) -> TokenStream {
                         },
                         #label
                     }
-                });
+                })
+            } else {
+                None
             }
-            None
         })
         .collect();
 
@@ -957,7 +998,6 @@ fn emit_tabs_shadcn(el: &Element) -> TokenStream {
 // ---------------------------------------------------------------------------
 // Dropdown menu
 // ---------------------------------------------------------------------------
-
 fn emit_dropdown_menu(el: &Element) -> TokenStream {
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
     {
@@ -995,12 +1035,12 @@ fn emit_dropdown_menu_plain(el: &Element) -> TokenStream {
 
                 let handler = wrap_dioxus_handler(on_click);
                 let check_mark = if checked { "\u{2713} " } else { "" };
-                return Some(quote! {
+                Some(quote! {
                     div {
                         class: "px-3 py-2 cursor-pointer text-white hover:bg-gray-600 flex items-center",
                         onclick: {
                             let __item_handler = #handler;
-                            move |ev: dioxus::prelude::Event<MouseData>| {
+                            move |ev: dioxus::prelude::Event<dioxus::prelude::MouseData>| {
                                 ev.stop_propagation();
                                 __open.set(false);
                                 __item_handler(ev);
@@ -1024,7 +1064,7 @@ fn emit_dropdown_menu_plain(el: &Element) -> TokenStream {
             dioxus::prelude::rsx! {
                 div {
                     class: "relative inline-block",
-                    onclick: move |ev: dioxus::prelude::Event<MouseData>| {
+                    onclick: move |ev: dioxus::prelude::Event<dioxus::prelude::MouseData>| {
                         ev.stop_propagation();
                         __open.toggle();
                     },
@@ -1032,10 +1072,10 @@ fn emit_dropdown_menu_plain(el: &Element) -> TokenStream {
                     if *__open.read() {
                         div {
                             class: "absolute top-full left-0 z-50 min-w-32 rounded-md border border-gray-700 bg-gray-800 py-1 shadow-lg",
-                            onclick: move |ev: dioxus::prelude::Event<MouseData>| {
+                            onclick: move |ev: dioxus::prelude::Event<dioxus::prelude::MouseData>| {
                                 ev.stop_propagation();
                             },
-                            onmousedown: move |ev: dioxus::prelude::Event<MouseData>| {
+                            onmousedown: move |ev: dioxus::prelude::Event<dioxus::prelude::MouseData>| {
                                 ev.prevent_default();
                             },
                             #(#item_tokens)*
@@ -1068,12 +1108,12 @@ fn emit_dropdown_menu_shadcn(el: &Element) -> TokenStream {
                     .find(|a| a.key == "on_click")
                     .map(|a| &a.value)?;
                 let handler = wrap_dioxus_handler(on_click);
-                return Some(quote! {
+                Some(quote! {
                     shadcn_dioxus::dropdown_menu::DropdownMenuItem {
-                        onclick={#handler},
+                        onclick: {#handler},
                         #label
                     }
-                });
+                })
             } else {
                 None
             }
@@ -1083,19 +1123,20 @@ fn emit_dropdown_menu_shadcn(el: &Element) -> TokenStream {
     let trigger_inner = emit_render_inner(&RenderNode::Expr(trigger_expr.clone()));
 
     quote! {
-        dioxus::prelude::rsx! {
-            shadcn_dioxus::dropdown_menu::DropdownMenu {
-                shadcn_dioxus::dropdown_menu::DropdownMenuTrigger {
-                    #trigger_inner
-                }
-                shadcn_dioxus::dropdown_menu::DropdownMenuContent {
-                    #(#item_tokens)*
-                }
+        shadcn_dioxus::dropdown_menu::DropdownMenu {
+            shadcn_dioxus::dropdown_menu::DropdownMenuTrigger {
+                #trigger_inner
+            }
+            shadcn_dioxus::dropdown_menu::DropdownMenuContent {
+                #(#item_tokens)*
             }
         }
     }
 }
 
+// ---------------------------------------------------------------------------
+// Data table
+// ---------------------------------------------------------------------------
 fn emit_data_table(el: &Element) -> TokenStream {
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
     {
@@ -1128,9 +1169,10 @@ fn emit_data_table_plain(el: &Element) -> TokenStream {
                     .find(|a| a.key == "label")
                     .map(|a| &a.value)
                     .unwrap();
-                return Some(quote!(th { #label }));
+                Some(quote! { th { #label } })
+            } else {
+                None
             }
-            None
         })
         .collect();
 
@@ -1147,14 +1189,14 @@ fn emit_data_table_plain(el: &Element) -> TokenStream {
                     .find(|a| a.key == "render")
                     .map(|a| &a.value)
                     .unwrap();
-                return Some(quote!(td { { (#render_closure)(&__row) } }));
+                Some(quote! { td { { (#render_closure)(&__row) } } })
+            } else {
+                None
             }
-            None
         })
         .collect();
 
-    // FIXED: Children (thead/tbody) are space-separated, not comma-separated
-    quote!(
+    quote! {
         table {
             thead { tr { #(#header_cells)* } }
             tbody {
@@ -1163,7 +1205,7 @@ fn emit_data_table_plain(el: &Element) -> TokenStream {
                 }
             }
         }
-    )
+    }
 }
 
 #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
@@ -1188,9 +1230,10 @@ fn emit_data_table_shadcn(el: &Element) -> TokenStream {
                     .find(|a| a.key == "label")
                     .map(|a| &a.value)
                     .unwrap();
-                return Some(quote!(th { class: "px-3 py-2 text-gray-400 font-medium", #label }));
+                Some(quote! { th { class: "px-3 py-2 text-gray-400 font-medium", #label } })
+            } else {
+                None
             }
-            None
         })
         .collect();
 
@@ -1207,11 +1250,10 @@ fn emit_data_table_shadcn(el: &Element) -> TokenStream {
                     .find(|a| a.key == "render")
                     .map(|a| &a.value)
                     .unwrap();
-                return Some(
-                    quote!(td { class: "px-3 py-2 text-white", { (#render_closure)(&__row) } }),
-                );
+                Some(quote! { td { class: "px-3 py-2 text-white", { (#render_closure)(&__row) } } })
+            } else {
+                None
             }
-            None
         })
         .collect();
 
@@ -1227,7 +1269,9 @@ fn emit_data_table_shadcn(el: &Element) -> TokenStream {
     }
 }
 
-#[allow(dead_code)]
+// ---------------------------------------------------------------------------
+// Utilities
+// ---------------------------------------------------------------------------
 fn find_arg_bool(el: &Element, key: &str) -> bool {
     el.args
         .iter()
@@ -1236,9 +1280,10 @@ fn find_arg_bool(el: &Element, key: &str) -> bool {
             if let syn::Expr::Lit(expr_lit) = &a.value
                 && let syn::Lit::Bool(b) = &expr_lit.lit
             {
-                return b.value;
+                b.value
+            } else {
+                false
             }
-            false
         })
         .unwrap_or(false)
 }
