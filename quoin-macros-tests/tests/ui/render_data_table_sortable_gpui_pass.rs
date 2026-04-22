@@ -1,4 +1,3 @@
-use gpui::*;
 use quoin_macros::{component, quoin_render};
 
 #[derive(Clone)]
@@ -20,18 +19,18 @@ component! {
             ],
         }
 
-        fn do_sort(col: &str, dir: &str) {
-            sort_col.set(col.to_string());
-            sort_dir.set(dir.to_string());
-        }
-
         render {
             let entries = entries.get();
+            let sort_col = sort_col.clone();
+            let sort_dir = sort_dir.clone();
             quoin_render! {
                 data_table(
                     rows: entries,
                     striped: true,
-                    on_sort: move |col, dir| do_sort(col, dir),
+                    on_sort: |col: &str, dir: &str| {
+                        sort_col.set(col.to_string());
+                        sort_dir.set(dir.to_string());
+                    },
                 ) {
                     column(key: "key",   label: "Key",   sortable: true, width: 120.0,
                            render: |row: &Entry| row.key.clone())

@@ -1,5 +1,6 @@
-use quoin::prelude::*;
 use counter_lib::use_counter;
+use gpui::*;
+use quoin::prelude::*;
 
 struct CounterView {
     counter: counter_lib::Counter<quoin::GpuiSignal<u32>>,
@@ -44,5 +45,10 @@ impl Render for CounterView {
             )
     }
 }
-
+impl CounterView {
+    fn new(_cx: &mut Context<Self>, ctx: GpuiContext, _config: ()) -> Self {
+        let counter = counter_lib::use_counter(&ctx);
+        Self { counter, _ctx: ctx }
+    }
+}
 run_app!(CounterView);

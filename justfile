@@ -214,3 +214,21 @@ run-all:
     cargo leptos serve -p counter-leptos &
     cargo run --manifest-path examples/ucp-demo-gpui/Cargo.toml &
     cargo run --manifest-path examples/mini-devtools-gpui/Cargo.toml &
+
+# ---------------------------------------------------------------------
+# Development Helpers (Phase 5)
+# ---------------------------------------------------------------------
+
+# Expand macros for inspection
+expand component="ucp-lib" feature="gpui":
+    cargo expand --manifest-path examples/{{component}}/Cargo.toml \
+        --features {{feature}} > examples/{{component}}/expanded.rs
+
+# Run global-state conformance tests
+test-global:
+    cargo nextest run -p quoin-conformance --features leptos -- provide_and_use_global
+    cargo nextest run -p quoin-conformance --features gpui   -- provide_and_use_use_global
+
+# Clear trybuild cache (use when tests show stale errors)
+clean-trybuild:
+    rm -rf target/tests/trybuild

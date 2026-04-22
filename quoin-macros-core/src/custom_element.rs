@@ -6,6 +6,7 @@ use syn::{Ident, LitStr, Token, braced};
 pub struct CustomElementDef {
     pub name: String,
     pub props: Vec<PropDef>,
+    pub render_fn: Option<syn::Expr>,
 }
 
 pub struct PropDef {
@@ -33,7 +34,20 @@ impl Parse for CustomElementDef {
                 props_content.parse::<Token![,]>()?;
             }
         }
-        Ok(CustomElementDef { name, props })
+
+        // Parse optional render closure: , |props| quoin_render! { ... }
+        let render_fn = if input.peek(Token![,]) {
+            input.parse::<Token![,]>()?;
+            if input.peek(syn::token::Paren) || input.peek(Token![|]) {
+                Some(input.parse::<syn::Expr>()?)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        Ok(CustomElementDef { name, props, render_fn })
     }
 }
 
@@ -45,16 +59,46 @@ pub fn expand_custom_element(def: CustomElementDef) -> TokenStream {
         let ty = &p.ty;
         quote! { pub #name: #ty }
     });
+
+    let render_impl = match &def.render_fn {
+        Some(render_expr) => {
+            quote! {
+                impl #element_ident {
+                    pub fn render<F, E>(&self, _ctx: &F) -> E
+                    where
+                        F: Clone,
+                        E: From<::gpui::Div>,
+                    {
+                        let _ = _ctx;
+                        #render_expr
+                    }
+                }
+            }
+        }
+        None => {
+            quote! {
+                impl #element_ident {
+                    pub fn render<F, E>(&self, _ctx: &F) -> E
+                    where
+                        F: Clone,
+                        E: From<::gpui::Div>,
+                    {
+                        let _ = _ctx;
+                        ::gpui::div()
+                    }
+                }
+            }
+        }
+    };
+
     quote! {
         #[derive(Clone)]
         pub struct #element_ident {
             #(#prop_fields),*
         }
-        impl #element_ident {
-            pub fn render<F>(&self, _ctx: &F) -> impl gpui::IntoElement {
-                gpui::div()
-            }
-        }
+
+        #render_impl
+
         #[doc(hidden)]
         pub mod __quoin_elements {
             pub use super::#element_ident as #element_ident;

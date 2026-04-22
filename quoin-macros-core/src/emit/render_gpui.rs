@@ -55,6 +55,42 @@ fn emit_element_inner(el: &Element) -> TokenStream {
     }
 }
 
+/// Check if a closure has parameters other than `|_|` or `|()|`.
+fn closure_has_params(handler_expr: &Expr) -> bool {
+    match handler_expr {
+        Expr::Closure(closure) => !closure.inputs.is_empty(),
+        _ => false,
+    }
+}
+
+/// Emit shadow-clone handler wrap (no Rc, suitable for multi-arg closures and per-use-site).
+fn emit_handler_shadow_wrap(handler_expr: &Expr) -> TokenStream {
+    let idents = collect_handler_idents_excluding_params(handler_expr);
+    let shadows: Vec<TokenStream> = idents.iter().map(|id| quote! { let #id = #id.clone(); }).collect();
+    let handler_no_move = strip_move_from_closure(handler_expr);
+    quote! {
+        {
+            #(#shadows)*
+            let __handler = (#handler_no_move).clone();
+            move |_, _, _| { __handler(()) }
+        }
+    }
+}
+
+/// Emit Rc-handler wrap (for unit-arg closures like on_click where it's called from multiple places).
+fn emit_handler_rc_wrap(handler_expr: &Expr) -> TokenStream {
+    let idents = collect_handler_idents_excluding_params(handler_expr);
+    let shadows: Vec<TokenStream> = idents.iter().map(|id| quote! { let #id = #id.clone(); }).collect();
+    let handler_no_move = strip_move_from_closure(handler_expr);
+    quote! {
+        {
+            #(#shadows)*
+            let __handler = ::std::rc::Rc::new(#handler_no_move);
+            move |_, _, _| { __handler(()) }
+        }
+    }
+}
+
 fn emit_button(el: &Element) -> TokenStream {
     let mut chain = quote! {
         ::gpui::div()
@@ -86,19 +122,14 @@ fn emit_button(el: &Element) -> TokenStream {
         }
     }
 
-    for child in &el.children { chain = quote! { #chain.child(#child) }; }
+    for child in &el.children {
+        let child_tokens = emit_render(child);
+        chain = quote! { #chain.child(#child_tokens) };
+    }
 
     if let Some(handler_expr) = find_arg_expr(el, "on_click") {
-        let idents = collect_handler_idents(handler_expr);
-        let shadows: Vec<TokenStream> = idents.iter().map(|id| quote! { let #id = #id.clone(); }).collect();
-        let handler_no_move = strip_move_from_closure(handler_expr);
-        chain = quote! {
-            #chain.on_mouse_down(::gpui::MouseButton::Left, {
-                #(#shadows)*
-                let __handler = ::std::rc::Rc::new(#handler_no_move);
-                move |_, _, _| { __handler(()); }
-            })
-        };
+        let wrap = emit_handler_rc_wrap(handler_expr);
+        chain = quote! { #chain.on_mouse_down(::gpui::MouseButton::Left, #wrap) };
     }
 
     chain
@@ -139,7 +170,7 @@ fn emit_input(el: &Element) -> TokenStream {
                     .text_color(::gpui::rgb(0xffffff)).child(#value_expr)
             };
             if let Some(class_expr) = find_arg_expr(el, "class") {
-                if let Some(styles) = = try_transpile_class(class_expr) {
+                if let Some(styles) = try_transpile_class(class_expr) {
                     for style in styles.normal { chain = quote! { #chain #style }; }
                 }
             }
@@ -255,16 +286,13 @@ fn emit_data_table(el: &Element) -> TokenStream {
 
                 if sortable {
                     if let Some(on_sort) = on_sort_expr {
-                        let on_sort_no_move = strip_move_from_closure(on_sort);
+                        // Don't use Rc for multi-arg closures — clone the closure per use site instead
+                        let wrap = emit_handler_shadow_wrap(on_sort);
                         header = quote! {
                             #header
                                 .cursor_pointer()
                                 .hover(|s| s.bg(::gpui::rgb(0x374151)))
-                                .on_mouse_down(::gpui::MouseButton::Left, {
-                                    let __handler = ::std::rc::Rc::new(#on_sort_no_move);
-                                    let __key = #key;
-                                    move |_, _, _| { __handler(__key, "asc"); }
-                                })
+                                .on_mouse_down(::gpui::Button::mouse_down, #wrap)
                         };
                     } else {
                         header = quote! { #header.cursor_pointer() };
@@ -387,7 +415,10 @@ fn emit_clipboard_button(el: &Element) -> TokenStream {
         }
     }
 
-    for child in &el.children { chain = quote! { #chain.child(#child) }; }
+    for child in &el.children {
+        let child_tokens = emit_render(child);
+        chain = quote! { #chain.child(#child_tokens) };
+    }
 
     let copy_text_clone = copy_text.clone();
     chain = quote! {
@@ -422,33 +453,28 @@ fn emit_generic_element(el: &Element) -> TokenStream {
     if let Some(children_expr) = &el.children_expr {
         chain = quote! { #chain.children(#children_expr) };
     } else {
-        for child in &el.children { chain = quote! { #chain.child(#child) }; }
+        for child in &el.children {
+            let child_tokens = emit_render(child);
+            chain = quote! { #chain.child(#child_tokens) };
+        }
     }
 
     if let Some(handler_expr) = find_arg_expr(el, "on_click") {
-        let idents = collect_handler_idents(handler_expr);
-        let shadows: Vec<TokenStream> = idents.iter().map(|id| quote! { let #id = #id.clone(); }).collect();
-        let handler_no_move = strip_move_from_closure(handler_expr);
-        chain = quote! {
-            #chain.on_mouse_down(::gpui::MouseButton::Left, {
-                #(#shadows)*
-                let __handler = ::std::rc::Rc::new(#handler_no_move);
-                move |_, _, _| { __handler(()); }
-            })
+        let wrap = if closure_has_params(handler_expr) {
+            emit_handler_shadow_wrap(handler_expr)
+        } else {
+            emit_handler_rc_wrap(handler_expr)
         };
+        chain = quote! { #chain.on_mouse_down(::gpui::MouseButton::Left, #wrap) };
     }
 
     if let Some(handler_expr) = find_arg_expr(el, "on_mouse_down") {
-        let idents = collect_handler_idents(handler_expr);
-        let shadows: Vec<TokenStream> = idents.iter().map(|id| quote! { let #id = #id.clone(); }).collect();
-        let handler_no_move = strip_move_from_closure(handler_expr);
-        chain = quote! {
-            #chain.on_mouse_down(::gpui::MouseButton::Left, {
-                #(#shadows)*
-                let __handler = ::std::rc::Rc::new(#handler_no_move);
-                move |_, _, _| { __handler(()); }
-            })
+        let wrap = if closure_has_params(handler_expr) {
+            emit_handler_shadow_wrap(handler_expr)
+        } else {
+            emit_handler_rc_wrap(handler_expr)
         };
+        chain = quote! { #chain.on_mouse_down(::gpui::MouseButton::Left, #wrap) };
     }
 
     chain

@@ -48,7 +48,7 @@ impl Parse for ComponentAst {
         let mut actions = Vec::new();
         let mut on_mount: Option<Block> = None;
         let mut on_unmount: Option<Block> = None;
-        let render_block: Option<Block> = None;
+        let mut render_block: Option<Block> = None;
 
         while !content.is_empty() {
             let fork = content.fork();
@@ -65,7 +65,7 @@ impl Parse for ComponentAst {
             let key_str = key.to_string();
 
             match key_str.as_str() {
-                props => {
+                "props" => {
                     let inner;
                     braced!(inner in content);
                     while !inner.is_empty() {
@@ -84,7 +84,7 @@ impl Parse for ComponentAst {
                         props.push(PropField { name: fname, ty: fty, default });
                     }
                 }
-                state => {
+                "state" => {
                     let inner;
                     braced!(inner in content);
                     while !inner.is_empty() {
@@ -106,7 +106,7 @@ impl Parse for ComponentAst {
                         state.push(StateField { name: fname, ty: fty, default });
                     }
                 }
-                globals => {
+                "globals" => {
                     let inner;
                     braced!(inner in content);
                     while !inner.is_empty() {
@@ -115,7 +115,7 @@ impl Parse for ComponentAst {
                         let fty: Type = inner.parse()?;
                         let observe = if inner.peek(syn::Ident) {
                             let kw: syn::Ident = inner.parse()?;
-                            kw == observe
+                            kw.to_string() == "observe"
                         } else {
                             false
                         };
@@ -125,13 +125,13 @@ impl Parse for ComponentAst {
                         globals.push(GlobalField { name: fname, ty: fty, observe });
                     }
                 }
-                on_mount => {
+                "on_mount" => {
                     on_mount = Some(content.parse::<Block>()?);
                 }
-                on_unmount => {
+                "on_unmount" => {
                     on_unmount = Some(content.parse::<Block>()?);
                 }
-                render => {
+                "render" => {
                     render_block = Some(content.parse::<Block>()?);
                 }
                 _ => {
@@ -158,3 +158,4 @@ impl Parse for ComponentAst {
             render: render_block.unwrap(),
         })
     }
+}
