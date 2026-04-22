@@ -8,6 +8,17 @@
 /// Implementations are provided by framework adapter crates:
 /// - `quoin-ui-gpui` uses GPUI's `cx.write_to_clipboard()`
 /// - Web adapters (future) use `web_sys::Clipboard`
+/// A cross-platform clipboard interface.
+///
+/// # Example
+///
+/// ```ignore
+/// let clipboard = GpuiClipboard::new(
+///     |text| cx.write_to_clipboard(ClipboardItem::new_string(text)),
+///     || cx.read_from_clipboard().map(|item| item.text())
+/// );
+/// clipboard.write_text("Hello");
+/// ```
 pub trait Clipboard: Send + Sync {
     /// Write text to the system clipboard.
     fn write_text(&self, text: &str);

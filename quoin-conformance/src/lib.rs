@@ -204,6 +204,17 @@ pub async fn provide_and_use_global<C: ReactiveContext>(cx: &C) {
 // -----------------------------------------------------------------------------
 
 #[macro_export]
+/// Generates conformance tests for a framework adapter.
+///
+/// Two forms:
+/// - `sync` for non‑GPUI adapters that use `block_on`.
+/// - `gpui` for GPUI async tests.
+///
+/// # Example
+///
+/// ```ignore
+/// define_conformance_tests!(sync, MyTestHarness);
+/// ```
 macro_rules! define_conformance_tests {
     (sync, $cx_type:ty) => {
         use $crate::TestContextProvider;

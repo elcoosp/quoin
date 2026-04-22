@@ -5,6 +5,9 @@ use std::future::Future;
 use std::pin::Pin;
 
 #[derive(Clone, Default)]
+/// Leptos reactive context.
+///
+/// Create with `LeptosContext::new()` inside a component.
 pub struct LeptosContext;
 
 impl LeptosContext {
@@ -41,6 +44,7 @@ impl ReactiveContext for LeptosContext {
 }
 
 #[derive(Clone)]
+/// Leptos-backed reactive signal.
 pub struct LeptosSignal<T: Clone + 'static> {
     inner: RwSignal<SendWrapper<T>>,
 }

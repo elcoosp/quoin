@@ -86,6 +86,7 @@ impl ReactiveContext for XilemContext {
 
 /// A thread‑safe reactive signal.
 #[derive(Clone)]
+/// Xilem-backed reactive signal.
 pub struct XilemSignal<T: Clone + 'static> {
     inner: Arc<std::sync::RwLock<T>>,
     context: XilemContext,

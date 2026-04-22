@@ -12,6 +12,7 @@ thread_local! {
 }
 
 #[derive(Clone, Default)]
+/// Floem reactive context.
 pub struct FloemContext;
 
 impl FloemContext {
@@ -55,6 +56,7 @@ impl ReactiveContext for FloemContext {
 }
 
 #[derive(Clone)]
+/// Floem-backed reactive signal.
 pub struct FloemSignal<T: Clone + 'static> {
     inner: RwSignal<SendWrapper<T>>,
 }

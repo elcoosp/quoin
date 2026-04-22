@@ -5,6 +5,9 @@ use std::future::Future;
 use std::pin::Pin;
 
 #[derive(Clone)]
+/// Dioxus reactive context.
+///
+/// Use `DioxusContext::new()` inside a Dioxus component.
 pub struct DioxusContext;
 
 impl DioxusContext {
@@ -43,6 +46,7 @@ impl ReactiveContext for DioxusContext {
 }
 
 #[derive(Clone)]
+/// Dioxus-backed reactive signal.
 pub struct DioxusSignal<T: Clone + 'static> {
     inner: RefCell<Signal<T>>,
 }

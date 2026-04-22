@@ -16,6 +16,18 @@ thread_local! {
 /// The GPUI context, which holds an optional notification callback.
 /// The view is responsible for setting this callback to enable automatic UI updates.
 #[derive(Clone)]
+/// The GPUI reactive context.
+///
+/// Holds foreground/background executors and an update notifier.
+/// Created with `GpuiContext::new(cx)` or `cx.into()`.
+///
+/// # Example
+///
+/// ```ignore
+/// let ctx: GpuiContext = cx.into();
+/// ctx.set_view_update_notifier(cx.weak_entity(), window.to_async(cx));
+/// let signal = ctx.create_signal(0);
+/// ```
 pub struct GpuiContext {
     pub foreground: SendWrapper<ForegroundExecutor>,
     pub background: Option<SendWrapper<BackgroundExecutor>>,
@@ -144,6 +156,9 @@ impl ReactiveContext for GpuiContext {
 }
 
 #[derive(Clone)]
+/// A GPUI-backed reactive signal.
+///
+/// Wraps an `Arc<RwLock<T>>` and notifies the context on mutation.
 pub struct GpuiSignal<T: Clone + 'static> {
     inner: Arc<std::sync::RwLock<T>>,
     context: GpuiContext,
@@ -171,6 +186,9 @@ impl<T: Clone + 'static> QuoinSignal<T> for GpuiSignal<T> {
 }
 
 #[derive(Clone)]
+/// GPUI async executor.
+///
+/// Spawns tasks on the foreground or background executor.
 pub struct GpuiExecutor {
     foreground: SendWrapper<ForegroundExecutor>,
     background: Option<SendWrapper<BackgroundExecutor>>,

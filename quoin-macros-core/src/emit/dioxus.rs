@@ -1,4 +1,3 @@
-// quoin-macros/src/emit/dioxus.rs
 use crate::parse::ComponentAst;
 use crate::transpile::collect_block_idents;
 use proc_macro2::TokenStream;
@@ -23,9 +22,7 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
         }
     });
 
-    let state_global_names: std::collections::HashSet<String> = ast
-        .state
-        .iter()
+    let state_global_names: std::collections::HashSet<String> = ast.state.iter()
         .map(|s| s.name.to_string())
         .chain(ast.globals.iter().map(|g| g.name.to_string()))
         .collect();
@@ -35,9 +32,7 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
         let name = &sig.ident;
         let block = &func.block;
 
-        let param_names: std::collections::HashSet<String> = sig
-            .inputs
-            .iter()
+        let param_names: std::collections::HashSet<String> = sig.inputs.iter()
             .filter_map(|arg| {
                 if let syn::FnArg::Typed(pat_type) = arg {
                     if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
@@ -48,22 +43,17 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
             })
             .collect();
 
-        let params: Vec<(proc_macro2::Ident, &syn::Type)> = sig
-            .inputs
-            .iter()
-            .filter_map(|arg| {
-                if let syn::FnArg::Typed(pat_type) = arg {
-                    if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
-                        return Some((pat_ident.ident.clone(), &*pat_type.ty));
-                    }
+        let params: Vec<(proc_macro2::Ident, &syn::Type)> = sig.inputs.iter().filter_map(|arg| {
+            if let syn::FnArg::Typed(pat_type) = arg {
+                if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
+                    return Some((pat_ident.ident.clone(), &*pat_type.ty));
                 }
-                None
-            })
-            .collect();
+            }
+            None
+        }).collect();
 
         let referenced = collect_block_idents(block);
-        let shadows: Vec<_> = referenced
-            .iter()
+        let shadows: Vec<_> = referenced.iter()
             .filter(|id| {
                 let name_str = id.to_string();
                 state_global_names.contains(&name_str) && !param_names.contains(&name_str)
@@ -116,19 +106,17 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
         None => quote! {},
     };
 
-    let global_inits: Vec<_> = ast
-        .globals
-        .iter()
-        .map(|g| {
-            let fname = &g.name;
-            let fty = &g.ty;
-            quote! {
-                let #fname: Option<quoin::DioxusSignal<#fty>> = ctx.use_global::<#fty>();
-            }
-        })
-        .collect::<Vec<_>>();
+    let global_inits: Vec<_> = ast.globals.iter().map(|g| {
+        let fname = &g.name;
+        let fty = &g.ty;
+        quote! {
+            let #fname: Option<quoin::DioxusSignal<#fty>> = ctx.use_global::<#fty>();
+        }
+    }).collect::<Vec<_>>();
 
-    let render_body = &ast.render;
+    // Emit render stmts directly — quoin_render! provides its own rsx! wrapper.
+    // Do NOT wrap in another rsx! here, as let-bindings are invalid inside rsx!.
+    let render_stmts = &ast.render.stmts;
 
     quote! {
         #[derive(Clone)]
@@ -146,9 +134,7 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
             #on_mount_tokens
             #on_unmount_tokens
 
-            dioxus::prelude::rsx! {
-                #render_body
-            }
+            #(#render_stmts)*
         }
     }
 }
