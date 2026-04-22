@@ -861,7 +861,7 @@ fn emit_tabs_plain(el: &Element) -> TokenStream {
             if let RenderNode::Element(e) = c
                 && e.name == "tab"
             {
-                let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
+                let _label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
                 let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
 
                 let param_shadows: Vec<TokenStream> = param_idents
@@ -918,7 +918,7 @@ fn emit_tabs_shadcn(el: &Element) -> TokenStream {
             if let RenderNode::Element(e) = c
                 && e.name == "tab"
             {
-                let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
+                let _label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
                 let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
                 let index_clone = index.clone();
                 return Some(quote! {
@@ -987,7 +987,7 @@ fn emit_dropdown_menu_plain(
             if let RenderNode::Element(e) = c
                 && e.name == "item"
             {
-                let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
+                let _label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
                 let on_click = e
                     .args
                     .iter()
@@ -1070,7 +1070,7 @@ fn emit_dropdown_menu_shadcn(
             if let RenderNode::Element(e) = c
                 && e.name == "item"
             {
-                let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
+                let _label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
                 let on_click = e
                     .args
                     .iter()
