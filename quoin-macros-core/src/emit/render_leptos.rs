@@ -69,8 +69,8 @@ fn emit_if(if_node: &IfNode, bindings: &mut Vec<TokenStream>, inside_for: bool) 
         let id = next_extract_id();
         let name = quote::format_ident!("__quoin_if_{}", id);
         let closure = emit_if_closure_body(if_node, bindings, false);
-        bindings.push(quote! { let #name = ::std::rc::Rc::new(#closure); });
-        quote! { { (*#name)() } }
+        bindings.push(quote! { let #name = ::std::sync::Arc::new(#closure); });
+        quote! { { (&*#name)() } } // Changed from (#name)()
     };
     wrap_with_cfg(&if_node.attrs, inner)
 }
@@ -958,7 +958,6 @@ fn emit_tabs_plain(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bo
             if let RenderNode::Element(e) = c
                 && e.name == "tab"
             {
-                // Use tab_label to avoid collision with leptos::html::label
                 let tab_label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
                 let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
 
@@ -1012,9 +1011,33 @@ fn emit_tabs_shadcn(
         .map(|a| &a.value)
         .expect("tabs require 'on_click' callback");
 
-    let handler_with_move = force_move_on_closure(on_click_expr);
+    // Added clone-shadow logic to match emit_tabs_plain
+    let param_idents: Vec<proc_macro2::Ident> = if let syn::Expr::Closure(closure) = on_click_expr {
+        closure
+            .inputs
+            .iter()
+            .filter_map(|pat| {
+                if let syn::Pat::Ident(pat_ident) = pat {
+                    Some(pat_ident.ident.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
 
-    // Use tab_label to avoid collision with leptos::html::label
+    let param_names: std::collections::HashSet<String> =
+        param_idents.iter().map(|id| id.to_string()).collect();
+
+    let body_idents: Vec<proc_macro2::Ident> = collect_handler_idents(on_click_expr)
+        .into_iter()
+        .filter(|id| !param_names.contains(&id.to_string()))
+        .collect();
+
+    let on_click_with_move = force_move_on_closure(on_click_expr);
+
     let tab_triggers: Vec<TokenStream> = el
         .children
         .iter()
@@ -1024,12 +1047,25 @@ fn emit_tabs_shadcn(
             {
                 let tab_label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
                 let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
-                let index_clone = index.clone();
+
+                let param_shadows: Vec<TokenStream> = param_idents
+                    .iter()
+                    .map(|id| quote! { let #id = #index; })
+                    .collect();
+                let clone_shadows: Vec<TokenStream> = body_idents
+                    .iter()
+                    .map(|id| quote! { let #id = #id.clone(); })
+                    .collect();
+                let call_args: Vec<TokenStream> =
+                    param_idents.iter().map(|id| quote! { #id }).collect();
+
                 Some(quote! {
                     <TabsTrigger value={#index.to_string()}
                         on:click={
-                            let __handler = #handler_with_move;
-                            move |_| { __handler(#index_clone); }
+                            #(#param_shadows)*
+                            #(#clone_shadows)*
+                            let __tab_on_click = #on_click_with_move;
+                            move |_| { __tab_on_click(#(#call_args)*) }
                         }
                     >{#tab_label}</TabsTrigger>
                 })
@@ -1088,7 +1124,6 @@ fn emit_dropdown_menu_plain(
         let #node_ref_name = leptos::prelude::create_node_ref::<html::Div>();
     });
 
-    // Use item_label to avoid collision with leptos::html::label
     let item_tokens: Vec<TokenStream> = el
         .children
         .iter()
@@ -1179,7 +1214,6 @@ fn emit_dropdown_menu_shadcn(
         None => return quote! { <div>dropdown: missing trigger</div> },
     };
 
-    // Use item_label to avoid collision with leptos::html::label
     let item_tokens: Vec<TokenStream> = el
         .children
         .iter()
@@ -1256,7 +1290,6 @@ fn emit_data_table_plain(
         if let RenderNode::Element(e) = c
             && e.name == "column"
         {
-            // Use col_label to avoid collision with leptos::html::label
             let col_label = e
                 .args
                 .iter()
@@ -1274,12 +1307,12 @@ fn emit_data_table_plain(
             let col_id = next_extract_id();
             let render_name = quote::format_ident!("__quoin_col_{}", col_id);
             if let Some(rc) = render_closure {
-                bindings.push(quote! { let #render_name = ::std::rc::Rc::new(#rc); });
+                bindings.push(quote! { let #render_name = ::std::sync::Arc::new(#rc); });
                 let mut td_attrs = vec![quote! { class="px-3 py-2 text-white" }];
                 if let Some(w) = width {
                     td_attrs.push(quote! { style=format!("width: {}px", #w) });
                 }
-                row_cells.push(quote! { <td #(#td_attrs)*>{(#render_name)(&__row)}</td> });
+                row_cells.push(quote! { <td #(#td_attrs)*>{(&*#render_name)(&__row)}</td> });
             } else {
                 row_cells.push(quote! { <td class="px-3 py-2 text-white"></td> });
             }
@@ -1333,9 +1366,9 @@ fn emit_data_table_shadcn(
             let col_id = next_extract_id();
             let render_name = quote::format_ident!("__quoin_col_{}", col_id);
             if let Some(rc) = render_closure {
-                bindings.push(quote! { let #render_name = ::std::rc::Rc::new(#rc); });
+                bindings.push(quote! { let #render_name = ::std::sync::Arc::new(#rc); });
                 row_cells.push(quote! {
-                    <td class="px-3 py-2 text-white">{(#render_name)(&__row)}</td>
+                    <td class="px-3 py-2 text-white">{(&*#render_name)(&__row)}</td>
                 });
             } else {
                 row_cells.push(quote! {
@@ -1375,6 +1408,7 @@ fn emit_data_table_shadcn(
         }
     }}
 }
+
 fn wrap_with_cfg(attrs: &[syn::Attribute], inner: TokenStream) -> TokenStream {
     let cfg_attrs: Vec<_> = attrs.iter().filter(|a| a.path().is_ident("cfg")).collect();
     if cfg_attrs.is_empty() {
