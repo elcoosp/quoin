@@ -147,10 +147,12 @@ component! {
         render {
             let a_display = active_tab.clone();
             let a_set = active_tab.clone();
-            let e_display = event_count.clone();
-            let e_btn = event_count.clone();
-            let f_filter = filter_text.clone();
-            let f_display = filter_text.clone();
+            let e_display_top = event_count.clone();      // for "Events: {…}" text
+            let e_btn = event_count.clone();               // for button handler
+            let e_display_tab = event_count.clone();       // for tab‑content closures
+            let f_filter = filter_text.clone();            // bound to input value
+            let f_display_top = filter_text.clone();       // for "Filter value: {…}" text
+            let f_display_tab = filter_text.clone();       // for tab‑content closures
             let t_events = timeline_events.clone();
             let c_entries = cache_entries.clone();
 
@@ -161,7 +163,7 @@ component! {
                     }
                     div(class: "flex items-center gap-2") {
                         div(class: "text-sm text-gray-400") {
-                            {move || format!("Events: {}", e_display.get())}
+                            {move || format!("Events: {}", e_display_top.get())}
                         }
                     }
                     div(class: "p-2") {
@@ -170,7 +172,7 @@ component! {
                               value: f_filter)
                     }
                     div(class: "text-xs text-green-500") {
-                        {move || format!("Filter value: {:?}", f_display.get())}
+                        {move || format!("Filter value: {:?}", f_display_top.get())}
                     }
 
                     tabs(active: a_display.get(), on_click: move |i| a_set.clone().set(i)) {
@@ -189,12 +191,12 @@ component! {
                     {move || if active_tab.get() == 0 {
                         // Timeline: compute filtered Vec eagerly, then render
                         let events = t_events.get();
-                        let filter = f_display.get();
+                        let filter = f_display_tab.get();
                         let filtered: Vec<TimelineEvent> = events.into_iter()
                             .filter(|e| filter.is_empty() || e.label.to_lowercase().contains(&filter.to_lowercase()))
                             .collect();
                         let filtered_count = filtered.len();
-                        let total_count = e_display.get();
+                        let total_count = e_display_tab.get();
 
                         leptos::view! {
                             <div class="flex flex-col gap-1 size-full">
@@ -223,8 +225,8 @@ component! {
                         }.into_any()
                     } else {
                         // Signals tab – careful with nested move closures
-                        let ec = e_display.clone();
-                        let fc = f_display.clone();
+                        let ec = e_display_tab.clone();
+                        let fc = f_display_tab.clone();
                         leptos::view! {
                             <div class="flex flex-col gap-2 p-4">
                                 <div class="text-sm text-gray-400">"Active signals in current scope:"</div>
