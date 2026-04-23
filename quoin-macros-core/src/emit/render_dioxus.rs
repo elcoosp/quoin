@@ -6,12 +6,16 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 // ---------------------------------------------------------------------------
-// Top‑level render entry point — wraps everything in rsx! {}
+// Top‑level render entry point — wraps everything in rsx! {} and imports prelude
 // ---------------------------------------------------------------------------
 pub fn emit_render(node: &RenderNode) -> TokenStream {
     let inner = emit_render_inner(node);
+    // CRITICAL: Bring dioxus::prelude into scope so rsx! can resolve dioxus_elements
     let tokens = quote! {
-        dioxus::prelude::rsx! { #inner }
+        {
+            use dioxus::prelude::*;
+            dioxus::prelude::rsx! { #inner }
+        }
     };
     wrap_with_cfg(node_attrs(node), tokens)
 }
@@ -464,15 +468,9 @@ fn emit_input_shadcn(el: &Element) -> TokenStream {
         quote! {}
     };
 
-    // Proper value binding for Dioxus 0.7
+    // FIX: Use signal.get() directly, not string interpolation
     let value_attr = if let Some(val) = value_expr {
-        if let syn::Expr::Path(path) = val {
-            let ident = &path.path.segments.last().unwrap().ident;
-            let fmt = format!("{{{}}}", ident);
-            quote! { value: #fmt, }
-        } else {
-            quote! { value: {#val.get()}, }
-        }
+        quote! { value: {#val.get()}, }
     } else {
         quote! {}
     };
@@ -721,13 +719,8 @@ fn emit_html_el_inner(el: &Element, name_str: &str) -> TokenStream {
             }
             "value" => {
                 if tag == "input" {
-                    if let syn::Expr::Path(path) = value {
-                        let ident = &path.path.segments.last().unwrap().ident;
-                        let fmt = format!("{{{}}}", ident);
-                        attrs.push(quote! { value: #fmt, });
-                    } else {
-                        attrs.push(quote! { value: {#value.get()}, });
-                    }
+                    // FIX: Use signal.get() directly, not string interpolation
+                    attrs.push(quote! { value: {#value.get()}, });
                 } else {
                     attrs.push(quote! { value: {#value}, });
                 }
