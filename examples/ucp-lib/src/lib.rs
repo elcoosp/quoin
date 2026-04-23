@@ -1,5 +1,4 @@
 use quoin_macros::{component, quoin_render};
-
 #[derive(Clone)]
 pub struct Person {
     pub id: u32,

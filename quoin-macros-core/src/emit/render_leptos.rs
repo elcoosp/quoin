@@ -1318,7 +1318,6 @@ fn emit_data_table_shadcn(
         if let RenderNode::Element(e) = c
             && e.name == "column"
         {
-            // Use col_label to avoid collision with leptos::html::label
             let col_label = e
                 .args
                 .iter()
@@ -1327,7 +1326,7 @@ fn emit_data_table_shadcn(
                 .unwrap_or(&empty_label);
 
             header_cells.push(quote! {
-                <TableHead class="px-3 py-2 text-gray-400 font-medium">{#col_label}</TableHead>
+                <th class="px-3 py-2 text-gray-400 font-medium">{#col_label}</th>
             });
 
             let render_closure = e.args.iter().find(|a| a.key == "render").map(|a| &a.value);
@@ -1336,11 +1335,11 @@ fn emit_data_table_shadcn(
             if let Some(rc) = render_closure {
                 bindings.push(quote! { let #render_name = ::std::rc::Rc::new(#rc); });
                 row_cells.push(quote! {
-                    <TableCell class="px-3 py-2 text-white">{(#render_name)(&__row)}</TableCell>
+                    <td class="px-3 py-2 text-white">{(#render_name)(&__row)}</td>
                 });
             } else {
                 row_cells.push(quote! {
-                    <TableCell class="px-3 py-2 text-white"></TableCell>
+                    <td class="px-3 py-2 text-white"></td>
                 });
             }
         }
@@ -1355,23 +1354,23 @@ fn emit_data_table_shadcn(
     };
 
     quote! {{
-        use leptos_shadcn_ui::{Table, TableBody, TableCell, TableHead, TableHeader, TableRow};
+        use leptos_shadcn_ui::Table;
         leptos::view! {
             <Table class=#class_value>
-                <TableHeader>
-                    <TableRow>
+                <thead>
+                    <tr>
                         #(#header_cells)*
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
+                    </tr>
+                </thead>
+                <tbody>
                     {#rows.iter().map(|__row| {
                         leptos::view! {
-                            <TableRow>
+                            <tr>
                                 #(#row_cells)*
-                            </TableRow>
+                            </tr>
                         }
                     }).collect::<Vec<_>>()}
-                </TableBody>
+                </tbody>
             </Table>
         }
     }}
