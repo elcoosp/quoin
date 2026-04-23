@@ -135,17 +135,6 @@ impl<T: Clone + 'static> QuoinSignal<T> for LeptosSignal<T> {
     }
 }
 
-// Implement conversion from LeptosSignal to MaybeProp so that LeptosSignal can be passed
-// directly to props expecting MaybeProp<T> (e.g., value in leptos-shadcn-input).
-impl<T: Clone + Send + Sync + 'static> From<LeptosSignal<T>> for MaybeProp<T> {
-    fn from(signal: LeptosSignal<T>) -> Self {
-        // Create a closure that reads the signal’s current value.
-        // This closure will be stored in the MaybeProp and called each time the value is needed.
-        let f = move || signal.get();
-        Self::from(f)
-    }
-}
-
 #[derive(Clone)]
 pub struct LeptosExecutor;
 
