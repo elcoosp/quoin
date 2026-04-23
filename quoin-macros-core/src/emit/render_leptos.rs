@@ -85,8 +85,9 @@ fn emit_if_inline(
             .map(|n| emit_node(n, bindings, inside_for))
             .collect();
         let else_view = quote! { #(#else_tokens)* };
+        // non‑move closure – borrows environment, preserves FnMut
         quote! {
-            {move || if #cond {
+            {|| if #cond {
                 { use leptos::prelude::*; leptos::view! { #then_view } }.into_any()
             } else {
                 { use leptos::prelude::*; leptos::view! { #else_view } }.into_any()
@@ -94,7 +95,7 @@ fn emit_if_inline(
         }
     } else {
         quote! {
-            {move || #cond.then(|| { use leptos::prelude::*; leptos::view! { #then_view } }.into_any())}
+            {|| #cond.then(|| { use leptos::prelude::*; leptos::view! { #then_view } }.into_any())}
         }
     }
 }
@@ -147,9 +148,9 @@ fn emit_for_inner(for_node: &ForNode, bindings: &mut Vec<TokenStream>) -> TokenS
         .collect();
     let body_view = quote! { #(#body_tokens)* };
 
-    // Re‑evaluate the iterable expression inside the closure each time → reactive
+    // non‑move closure – re‑evaluate iterable expression each time, borrows environment
     quote! {
-        {move || {
+        {|| {
             let __items = { #iterable };
             __items.into_iter().map(|#pat| {
                 { use leptos::prelude::*; leptos::view! { #body_view } }
