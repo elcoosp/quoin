@@ -98,32 +98,31 @@ component! {
         }
 
         render {
-            // Clone signals before the first closure to avoid borrow issues
-            let count_display = count.clone();
-            let count_btn = count.clone();
-            let selected_display = selected.clone();
-            let selected_btn_a = selected.clone();
-            let selected_btn_b = selected.clone();
-            let rows_signal = rows.clone();
+            let c_display = count.clone();
+            let c_btn = count.clone();
+            let s_display = selected.clone();
+            let s_btn_a = selected.clone();
+            let s_btn_b = selected.clone();
+            let r_rows = rows.clone();
 
             quoin_render! {
                 div(class: "flex flex-col gap-4 p-4 bg-gray-900 text-white h-full") {
                     div(class: "text-2xl font-bold") { "Quoin Render Demo" }
                     div(class: "flex items-center gap-2") {
-                        div(class: "text-lg") { {move || format!("Count: {}", count_display.get())} }
+                        div(class: "text-lg") { {move || format!("Count: {}", c_display.get())} }
                         button(class: "px-4 py-2 bg-blue-600 text-white rounded-md cursor-pointer",
-                            on_click: move |_| count_btn.clone().update(|c| *c += 1)) { "Increment" }
+                            on_click: move |_| c_btn.clone().update(|c| *c += 1)) { "Increment" }
                     }
                     div(class: "flex items-center gap-2") {
-                        div(class: "text-lg") { {move || format!("Selected: {}", selected_display.get())} }
+                        div(class: "text-lg") { {move || format!("Selected: {}", s_display.get())} }
                         button(class: "px-4 py-2 bg-green-600 text-white rounded-md cursor-pointer",
-                            on_click: move |_| selected_btn_a.clone().set("Option A".to_string())) { "Option A" }
+                            on_click: move |_| s_btn_a.clone().set("Option A".to_string())) { "Option A" }
                         button(class: "px-4 py-2 bg-purple-600 text-white rounded-md cursor-pointer",
-                            on_click: move |_| selected_btn_b.clone().set("Option B".to_string())) { "Option B" }
+                            on_click: move |_| s_btn_b.clone().set("Option B".to_string())) { "Option B" }
                     }
                     div(class: "text-lg font-semibold") { "People:" }
                     div(class: "flex flex-col gap-1") {
-                        {move || rows_signal.get().iter().map(|person| {
+                        {move || r_rows.get().iter().map(|person| {
                             quoin_render! {
                                 div(class: "p-2 bg-gray-800 rounded-md") { {format!("{} ({} years old)", person.name, person.age)} }
                             }
@@ -146,15 +145,14 @@ component! {
         }
 
         render {
-            // Clone signals for various closures
-            let active_display = active_tab.clone();
-            let active_set = active_tab.clone();
-            let event_count_display = event_count.clone();
-            let event_count_btn = event_count.clone();
-            let filter_signal = filter_text.clone();
-            let filter_signal_display = filter_text.clone();
-            let timeline_signal = timeline_events.clone();
-            let cache_signal = cache_entries.clone();
+            let a_display = active_tab.clone();
+            let a_set = active_tab.clone();
+            let e_display = event_count.clone();
+            let e_btn = event_count.clone();
+            let f_filter = filter_text.clone();
+            let f_display = filter_text.clone();
+            let t_events = timeline_events.clone();
+            let c_entries = cache_entries.clone();
 
             quoin_render! {
                 div(class: "flex flex-col gap-4 p-4 bg-gray-900 size-full overflow-hidden") {
@@ -163,19 +161,19 @@ component! {
                     }
                     div(class: "flex items-center gap-2") {
                         div(class: "text-sm text-gray-400") {
-                            {move || format!("Events: {}", event_count_display.get())}
+                            {move || format!("Events: {}", e_display.get())}
                         }
                     }
                     div(class: "p-2") {
                         input(class: "px-4 py-2 bg-gray-800 text-white rounded-md",
                               placeholder: "Filter events...",
-                              value: filter_signal)
+                              value: f_filter)
                     }
                     div(class: "text-xs text-green-500") {
-                        {move || format!("Filter value: {:?}", filter_signal_display.get())}
+                        {move || format!("Filter value: {:?}", f_display.get())}
                     }
 
-                    tabs(active: active_display.get(), on_click: move |i| active_set.clone().set(i)) {
+                    tabs(active: a_display.get(), on_click: move |i| a_set.clone().set(i)) {
                         tab(index: 0, label: "Timeline")
                         tab(index: 1, label: "Cache")
                         tab(index: 2, label: "Signals")
@@ -183,20 +181,20 @@ component! {
 
                     button(class: "px-4 py-2 bg-blue-600 text-white rounded-md cursor-pointer",
                            primary: true,
-                           on_click: move |_| event_count_btn.clone().update(|c| *c += 1)) {
+                           on_click: move |_| e_btn.clone().update(|c| *c += 1)) {
                         "+ Add Event"
                     }
 
-                    /* ---------- reactive tab content ---------- */
+                    /* ----- Reactive tab content ----- */
                     {move || if active_tab.get() == 0 {
-                        /* Timeline tab */
-                        let events = timeline_signal.get();
-                        let filter = filter_signal_display.get();
+                        // Timeline: compute filtered Vec eagerly, then render
+                        let events = t_events.get();
+                        let filter = f_display.get();
                         let filtered: Vec<TimelineEvent> = events.into_iter()
                             .filter(|e| filter.is_empty() || e.label.to_lowercase().contains(&filter.to_lowercase()))
                             .collect();
                         let filtered_count = filtered.len();
-                        let total_count = event_count_display.get();
+                        let total_count = e_display.get();
 
                         leptos::view! {
                             <div class="flex flex-col gap-1 size-full">
@@ -214,42 +212,26 @@ component! {
                             </div>
                         }.into_any()
                     } else if active_tab.get() == 1 {
-                        /* Cache tab */
-                        let entries = cache_signal.get();
-                        let is_striped = true;
-                        leptos::view! {
-                            <Table class="w-full table-striped">
-                                <thead>
-                                    <tr>
-                                        <th class="px-3 py-2 text-gray-400 font-medium">"Key"</th>
-                                        <th class="px-3 py-2 text-gray-400 font-medium">"Value"</th>
-                                        <th class="px-3 py-2 text-gray-400 font-medium">"Hits"</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {entries.iter().map(|row| {
-                                        leptos::view! {
-                                            <tr>
-                                                <td class="px-3 py-2 text-white">{row.key.clone()}</td>
-                                                <td class="px-3 py-2 text-white">{row.value.clone()}</td>
-                                                <td class="px-3 py-2 text-white">{row.hits.to_string()}</td>
-                                            </tr>
-                                        }
-                                    }).collect::<Vec<_>>()}
-                                </tbody>
-                            </Table>
+                        // Cache: use data_table (quoin element) for consistency
+                        let entries = c_entries.get();
+                        quoin_render! {
+                            data_table(rows: entries, striped: true) {
+                                column(key: "key", label: "Key", render: |row: &CacheEntry| row.key.clone())
+                                column(key: "value", label: "Value", render: |row: &CacheEntry| row.value.clone())
+                                column(key: "hits", label: "Hits", render: |row: &CacheEntry| row.hits.to_string())
+                            }
                         }.into_any()
                     } else {
-                        /* Signals tab */
+                        // Signals tab
                         leptos::view! {
                             <div class="flex flex-col gap-2 p-4">
                                 <div class="text-sm text-gray-400">"Active signals in current scope:"</div>
                                 <div class="p-2 bg-gray-800 rounded-md text-sm text-green-500">"active_tab: usize = 0"</div>
                                 <div class="p-2 bg-gray-800 rounded-md text-sm text-green-500">
-                                    {move || format!("event_count: u32 = {}", event_count_display.get())}
+                                    {move || format!("event_count: u32 = {}", e_display.get())}
                                 </div>
                                 <div class="p-2 bg-gray-800 rounded-md text-sm text-green-500">
-                                    {move || format!("filter_text: String = {:?}", filter_signal_display.get())}
+                                    {move || format!("filter_text: String = {:?}", f_display.get())}
                                 </div>
                             </div>
                         }.into_any()
