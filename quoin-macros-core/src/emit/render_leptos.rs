@@ -63,15 +63,7 @@ fn wrap_event_handler(handler_expr: &syn::Expr) -> TokenStream {
 }
 
 fn emit_if(if_node: &IfNode, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
-    let inner = if inside_for {
-        emit_if_inline(if_node, bindings, true)
-    } else {
-        let id = next_extract_id();
-        let name = quote::format_ident!("__quoin_if_{}", id);
-        let closure = emit_if_closure_body(if_node, bindings, false);
-        bindings.push(quote! { let #name = ::std::sync::Arc::new(#closure); });
-        quote! { { (&*#name)() } } // Changed from (#name)()
-    };
+    let inner = emit_if_inline(if_node, bindings, inside_for);
     wrap_with_cfg(&if_node.attrs, inner)
 }
 
@@ -1304,15 +1296,15 @@ fn emit_data_table_plain(
             header_cells.push(quote! { <th #(#th_attrs)*>{#col_label}</th> });
 
             let render_closure = e.args.iter().find(|a| a.key == "render").map(|a| &a.value);
-            let col_id = next_extract_id();
-            let render_name = quote::format_ident!("__quoin_col_{}", col_id);
             if let Some(rc) = render_closure {
-                bindings.push(quote! { let #render_name = ::std::sync::Arc::new(#rc); });
+                let col_id = next_extract_id();
+                let render_name = quote::format_ident!("__quoin_col_{}", col_id);
+                bindings.push(quote! { let #render_name = std::sync::Arc::new(#rc); });
                 let mut td_attrs = vec![quote! { class="px-3 py-2 text-white" }];
                 if let Some(w) = width {
                     td_attrs.push(quote! { style=format!("width: {}px", #w) });
                 }
-                row_cells.push(quote! { <td #(#td_attrs)*>{(&*#render_name)(&__row)}</td> });
+                row_cells.push(quote! { <td #(#td_attrs)*>{ (&*#render_name)(&__row) }</td> });
             } else {
                 row_cells.push(quote! { <td class="px-3 py-2 text-white"></td> });
             }
@@ -1363,12 +1355,12 @@ fn emit_data_table_shadcn(
             });
 
             let render_closure = e.args.iter().find(|a| a.key == "render").map(|a| &a.value);
-            let col_id = next_extract_id();
-            let render_name = quote::format_ident!("__quoin_col_{}", col_id);
             if let Some(rc) = render_closure {
-                bindings.push(quote! { let #render_name = ::std::sync::Arc::new(#rc); });
+                let col_id = next_extract_id();
+                let render_name = quote::format_ident!("__quoin_col_{}", col_id);
+                bindings.push(quote! { let #render_name = std::sync::Arc::new(#rc); });
                 row_cells.push(quote! {
-                    <td class="px-3 py-2 text-white">{(&*#render_name)(&__row)}</td>
+                    <td class="px-3 py-2 text-white">{ (&*#render_name)(&__row) }</td>
                 });
             } else {
                 row_cells.push(quote! {
@@ -1408,7 +1400,6 @@ fn emit_data_table_shadcn(
         }
     }}
 }
-
 fn wrap_with_cfg(attrs: &[syn::Attribute], inner: TokenStream) -> TokenStream {
     let cfg_attrs: Vec<_> = attrs.iter().filter(|a| a.path().is_ident("cfg")).collect();
     if cfg_attrs.is_empty() {
