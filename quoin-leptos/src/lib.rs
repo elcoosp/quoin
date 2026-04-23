@@ -195,7 +195,10 @@ impl<T: Clone + std::fmt::Debug + 'static> std::fmt::Debug for LeptosSignal<T> {
 pub fn clipboard_write_text(text: &str) {
     #[cfg(target_arch = "wasm32")]
     {
-        let _ = web_sys::window().and_then(|w| w.navigator().clipboard().write_text(text).ok());
+        if let Some(window) = web_sys::window() {
+            // write_text returns a Promise; we can safely ignore it (fire-and-forget)
+            let _ = window.navigator().clipboard().write_text(text);
+        }
     }
     #[cfg(not(target_arch = "wasm32"))]
     {

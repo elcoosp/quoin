@@ -1357,7 +1357,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-accordion"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -1371,7 +1371,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-alert"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -1385,7 +1385,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-alert-dialog"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -1400,7 +1400,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-analytics"
 version = "0.1.0"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "gloo-storage",
  "js-sys",
@@ -1414,7 +1414,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-aspect-ratio"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -1427,7 +1427,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-avatar"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-shadcn-signal-management",
@@ -1440,7 +1440,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-badge"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -1454,7 +1454,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-breadcrumb"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-shadcn-signal-management",
@@ -1494,7 +1494,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-button"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -1523,7 +1523,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-calendar"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "js-sys",
  "leptos",
@@ -1538,7 +1538,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-card"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -1552,7 +1552,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-carousel"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -1566,7 +1566,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-checkbox"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -1580,7 +1580,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-collapsible"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -1594,7 +1594,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-combobox"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "gloo-timers",
  "leptos",
@@ -1609,7 +1609,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-command"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-shadcn-signal-management",
@@ -1622,7 +1622,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-context-menu"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -1637,7 +1637,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-date-picker"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "js-sys",
  "leptos",
@@ -1655,7 +1655,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-dialog"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -1669,7 +1669,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-drawer"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -1684,7 +1684,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-dropdown-menu"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -1698,7 +1698,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-error-boundary"
 version = "0.9.0"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "chrono",
  "leptos",
@@ -1709,7 +1709,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-form"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "chrono",
  "gloo-timers",
@@ -1727,7 +1727,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-hover-card"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -1755,7 +1755,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-input"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -1770,7 +1770,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-input-otp"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-shadcn-signal-management",
@@ -1784,7 +1784,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-label"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -1798,7 +1798,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-lazy-loading"
 version = "0.9.0"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-shadcn-error-boundary",
@@ -1807,7 +1807,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-menubar"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -1821,7 +1821,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-navigation-menu"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -1835,7 +1835,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-pagination"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -1850,7 +1850,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-performance-audit"
 version = "0.1.0"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1887,7 +1887,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-popover"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -1901,7 +1901,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-progress"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -1915,7 +1915,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-radio-group"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -1928,7 +1928,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-resizable"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -1942,7 +1942,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-scroll-area"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -1956,7 +1956,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-select"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -1970,7 +1970,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-separator"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -1984,7 +1984,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-sheet"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -2012,7 +2012,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-skeleton"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -2026,7 +2026,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-slider"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -2040,7 +2040,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-switch"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -2054,7 +2054,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-table"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -2068,7 +2068,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-tabs"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -2082,7 +2082,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-textarea"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -2096,7 +2096,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-toast"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "gloo-timers",
  "leptos",
@@ -2112,7 +2112,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-toggle"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -2126,7 +2126,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-tooltip"
 version = "0.9.1"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "leptos",
  "leptos-node-ref",
@@ -2140,7 +2140,7 @@ dependencies = [
 [[package]]
 name = "leptos-shadcn-ui"
 version = "0.9.0"
-source = "git+https://github.com/elcoosp/leptos-shadcn-ui#3604e9d79755a22c69d2594c8f0327a4641dedb3"
+source = "git+https://github.com/elcoosp/leptos-shadcn-ui#b76424ce94329806a4a4e26c00159176fdb27040"
 dependencies = [
  "getrandom 0.2.17",
  "gloo-timers",
