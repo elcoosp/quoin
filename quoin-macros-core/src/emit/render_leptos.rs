@@ -147,14 +147,14 @@ fn emit_for_inner(for_node: &ForNode, bindings: &mut Vec<TokenStream>) -> TokenS
         .collect();
     let body_view = quote! { #(#body_tokens)* };
 
-    let iter_id = next_extract_id();
-    let iter_name = quote::format_ident!("__quoin_for_{}", iter_id);
-    bindings.push(quote! { let #iter_name = #iterable.clone(); });
-
+    // Re‑evaluate the iterable expression inside the closure each time → reactive
     quote! {
-        {move || #iter_name.iter().map(|#pat| {
-            { use leptos::prelude::*; leptos::view! { #body_view } }
-        }).collect::<Vec<_>>()}
+        {move || {
+            let __items = { #iterable };
+            __items.into_iter().map(|#pat| {
+                { use leptos::prelude::*; leptos::view! { #body_view } }
+            }).collect::<Vec<_>>()
+        }}
     }
 }
 

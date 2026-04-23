@@ -98,31 +98,24 @@ component! {
         }
 
         render {
-            let c_display = count.clone();
-            let c_btn = count.clone();
-            let s_display = selected.clone();
-            let s_btn_a = selected.clone();
-            let s_btn_b = selected.clone();
-            let r_rows = rows.clone();
-
             quoin_render! {
                 div(class: "flex flex-col gap-4 p-4 bg-gray-900 text-white h-full") {
                     div(class: "text-2xl font-bold") { "Quoin Render Demo" }
                     div(class: "flex items-center gap-2") {
-                        div(class: "text-lg") { {move || format!("Count: {}", c_display.get())} }
+                        div(class: "text-lg") { {move || format!("Count: {}", count.get())} }
                         button(class: "px-4 py-2 bg-blue-600 text-white rounded-md cursor-pointer",
-                            on_click: move |_| c_btn.clone().update(|c| *c += 1)) { "Increment" }
+                            on_click: |_| count.clone().update(|c| *c += 1)) { "Increment" }
                     }
                     div(class: "flex items-center gap-2") {
-                        div(class: "text-lg") { {move || format!("Selected: {}", s_display.get())} }
+                        div(class: "text-lg") { {move || format!("Selected: {}", selected.get())} }
                         button(class: "px-4 py-2 bg-green-600 text-white rounded-md cursor-pointer",
-                            on_click: move |_| s_btn_a.clone().set("Option A".to_string())) { "Option A" }
+                            on_click: |_| selected.clone().set("Option A".to_string())) { "Option A" }
                         button(class: "px-4 py-2 bg-purple-600 text-white rounded-md cursor-pointer",
-                            on_click: move |_| s_btn_b.clone().set("Option B".to_string())) { "Option B" }
+                            on_click: |_| selected.clone().set("Option B".to_string())) { "Option B" }
                     }
                     div(class: "text-lg font-semibold") { "People:" }
                     div(class: "flex flex-col gap-1") {
-                        {move || r_rows.get().iter().map(|person| {
+                        {move || rows.get().iter().map(|person| {
                             quoin_render! {
                                 div(class: "p-2 bg-gray-800 rounded-md") { {format!("{} ({} years old)", person.name, person.age)} }
                             }
@@ -145,16 +138,15 @@ component! {
         }
 
         render {
-            let a_display = active_tab.clone();
-            let a_set = active_tab.clone();
-            let e_display_top = event_count.clone();      // for "Events: {…}" text
-            let e_btn = event_count.clone();               // for button handler
-            let e_display_tab = event_count.clone();       // for tab‑content closures
-            let f_filter = filter_text.clone();            // bound to input value
-            let f_display_top = filter_text.clone();       // for "Filter value: {…}" text
-            let f_display_tab = filter_text.clone();       // for tab‑content closures
-            let t_events = timeline_events.clone();
-            let c_entries = cache_entries.clone();
+            // Clone signals for multiple uses
+            let active_display = active_tab.clone();
+            let active_set = active_tab.clone();
+            let event_count_display = event_count.clone();
+            let event_count_btn = event_count.clone();
+            let filter_signal = filter_text.clone();
+            let filter_signal_display = filter_text.clone();
+            let timeline_signal = timeline_events.clone();
+            let cache_signal = cache_entries.clone();
 
             quoin_render! {
                 div(class: "flex flex-col gap-4 p-4 bg-gray-900 size-full overflow-hidden") {
@@ -163,19 +155,19 @@ component! {
                     }
                     div(class: "flex items-center gap-2") {
                         div(class: "text-sm text-gray-400") {
-                            {move || format!("Events: {}", e_display_top.get())}
+                            {move || format!("Events: {}", event_count_display.get())}
                         }
                     }
                     div(class: "p-2") {
                         input(class: "px-4 py-2 bg-gray-800 text-white rounded-md",
                               placeholder: "Filter events...",
-                              value: f_filter)
+                              value: filter_signal)
                     }
                     div(class: "text-xs text-green-500") {
-                        {move || format!("Filter value: {:?}", f_display_top.get())}
+                        {move || format!("Filter value: {:?}", filter_signal_display.get())}
                     }
 
-                    tabs(active: a_display.get(), on_click: move |i| a_set.clone().set(i)) {
+                    tabs(active: active_display.get(), on_click: move |i| active_set.clone().set(i)) {
                         tab(index: 0, label: "Timeline")
                         tab(index: 1, label: "Cache")
                         tab(index: 2, label: "Signals")
@@ -183,69 +175,56 @@ component! {
 
                     button(class: "px-4 py-2 bg-blue-600 text-white rounded-md cursor-pointer",
                            primary: true,
-                           on_click: move |_| e_btn.clone().update(|c| *c += 1)) {
+                           on_click: move |_| event_count_btn.clone().update(|c| *c += 1)) {
                         "+ Add Event"
                     }
 
-                    /* ----- Reactive tab content ----- */
-                    {move || if active_tab.get() == 0 {
-                        // Timeline: compute filtered Vec eagerly, then render
-                        let events = t_events.get();
-                        let filter = f_display_tab.get();
-                        let filtered: Vec<TimelineEvent> = events.into_iter()
-                            .filter(|e| filter.is_empty() || e.label.to_lowercase().contains(&filter.to_lowercase()))
-                            .collect();
-                        let filtered_count = filtered.len();
-                        let total_count = e_display_tab.get();
-
-                        leptos::view! {
-                            <div class="flex flex-col gap-1 size-full">
-                                <div class="text-sm text-gray-400">
-                                    {format!("{} events ({} filtered)", total_count, filtered_count)}
-                                </div>
-                                {filtered.into_iter().map(|event| {
-                                    leptos::view! {
-                                        <div class="flex gap-4 p-2">
-                                            <div class="text-xs text-gray-500">{event.timestamp.clone()}</div>
-                                            <div class="text-sm text-white">{event.label.clone()}</div>
-                                        </div>
-                                    }
-                                }).collect::<Vec<_>>()}
-                            </div>
-                        }.into_any()
-                    } else if active_tab.get() == 1 {
-                        // Cache: use data_table (quoin element)
-                        let entries = c_entries.get();
-                        quoin_render! {
-                            data_table(rows: entries, striped: true) {
-                                column(key: "key", label: "Key", render: |row: &CacheEntry| row.key.clone())
-                                column(key: "value", label: "Value", render: |row: &CacheEntry| row.value.clone())
-                                column(key: "hits", label: "Hits", render: |row: &CacheEntry| row.hits.to_string())
+                    if[active_tab.get() == 0] {
+                        // Timeline: compute the filtered list reactively inside the for loop
+                        div(class: "flex flex-col gap-1 size-full") {
+                            div(class: "text-sm text-gray-400") {
+                                {move || {
+                                    let events = timeline_signal.get();
+                                    let ft = filter_signal_display.get();
+                                    let filtered_count = events.iter()
+                                        .filter(|e| ft.is_empty() || e.label.to_lowercase().contains(&ft.to_lowercase()))
+                                        .count();
+                                    format!("{} events ({} filtered)", event_count_display.get(), filtered_count)
+                                }}
                             }
-                        }.into_any()
+                            for[event in {
+                                let events = timeline_signal.get();
+                                let ft = filter_signal_display.get();
+                                events.into_iter()
+                                    .filter(|e| ft.is_empty() || e.label.to_lowercase().contains(&ft.to_lowercase()))
+                                    .collect::<Vec<TimelineEvent>>()
+                            }] {
+                                div(class: "flex gap-4 p-2") {
+                                    div(class: "text-xs text-gray-500") { {event.timestamp.clone()} }
+                                    div(class: "text-sm text-white") { {event.label.clone()} }
+                                }
+                            }
+                        }
+                    } else if[active_tab.get() == 1] {
+                        // Cache tab
+                        data_table(rows: cache_signal.get(), striped: true) {
+                            column(key: "key", label: "Key", render: |row: &CacheEntry| row.key.clone())
+                            column(key: "value", label: "Value", render: |row: &CacheEntry| row.value.clone())
+                            column(key: "hits", label: "Hits", render: |row: &CacheEntry| row.hits.to_string())
+                        }
                     } else {
-                        // Signals tab – careful with nested move closures
-                        let ec = e_display_tab.clone();
-                        let fc = f_display_tab.clone();
-                        leptos::view! {
-                            <div class="flex flex-col gap-2 p-4">
-                                <div class="text-sm text-gray-400">"Active signals in current scope:"</div>
-                                <div class="p-2 bg-gray-800 rounded-md text-sm text-green-500">"active_tab: usize = 0"</div>
-                                <div class="p-2 bg-gray-800 rounded-md text-sm text-green-500">
-                                    {{
-                                        let ec2 = ec.clone();
-                                        move || format!("event_count: u32 = {}", ec2.get())
-                                    }}
-                                </div>
-                                <div class="p-2 bg-gray-800 rounded-md text-sm text-green-500">
-                                    {{
-                                        let fc2 = fc.clone();
-                                        move || format!("filter_text: String = {:?}", fc2.get())
-                                    }}
-                                </div>
-                            </div>
-                        }.into_any()
-                    }}
+                        // Signals tab
+                        div(class: "flex flex-col gap-2 p-4") {
+                            div(class: "text-sm text-gray-400") { "Active signals in current scope:" }
+                            div(class: "p-2 bg-gray-800 rounded-md text-sm text-green-500") { "active_tab: usize = 0" }
+                            div(class: "p-2 bg-gray-800 rounded-md text-sm text-green-500") {
+                                {move || format!("event_count: u32 = {}", event_count_display.get())}
+                            }
+                            div(class: "p-2 bg-gray-800 rounded-md text-sm text-green-500") {
+                                {move || format!("filter_text: String = {:?}", filter_signal_display.get())}
+                            }
+                        }
+                    }
                 }
             }
         }
