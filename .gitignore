@@ -1,3 +1,4 @@
 target
 wr.sh
-examples/ucp-demo-leptos/node_modules/
+node_modules
+dist

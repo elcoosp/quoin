@@ -14,4 +14,4 @@ log = "0.4"
 wasm-bindgen = "0.2"
 quoin = { path = "../../quoin", features = ["leptos", "leptos-shadcn"] }
 ucp-lib = { path = "../ucp-lib", features = ["leptos-shadcn"] }
-leptos-shadcn-ui = { version = "0.9.0", default-features = false, features = ["button", "input", "tabs", "badge", "table", "tooltip", "scroll-area", "dropdown-menu"] }
+leptos-shadcn-ui = { git = "https://github.com/elcoosp/leptos-shadcn-ui", default-features = false, features = ["button", "input", "tabs", "badge", "table", "tooltip", "scroll-area", "dropdown-menu"] }

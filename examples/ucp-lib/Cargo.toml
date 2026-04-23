@@ -16,7 +16,7 @@ dioxus-core = { version = "0.7", optional = true }
 dioxus-signals = { version = "0.7", optional = true }
 
 # Add shadcn dependency – only needed when leptos is enabled
-leptos-shadcn-ui = { version = "0.9.0", optional = true, default-features = false, features = ["button", "input", "tabs", "badge", "table", "tooltip", "scroll-area", "dropdown-menu"] }
+leptos-shadcn-ui = { git = "https://github.com/elcoosp/leptos-shadcn-ui", optional = true, default-features = false, features = ["button", "input", "tabs", "badge", "table", "tooltip", "scroll-area", "dropdown-menu"] }
 
 [features]
 gpui   = ["dep:gpui", "quoin/gpui", "quoin-macros/gpui"]
