@@ -15,7 +15,10 @@ dioxus = { version = "0.7", optional = true }
 dioxus-core = { version = "0.7", optional = true }
 dioxus-signals = { version = "0.7", optional = true }
 
+# Add shadcn dependency – only needed when leptos is enabled
+leptos-shadcn-ui = { version = "0.7", optional = true, default-features = false, features = ["button", "input", "tabs", "badge", "table", "tooltip", "scroll-area", "dropdown-menu"] }
+
 [features]
 gpui = ["dep:gpui", "quoin/gpui", "quoin-macros/gpui"]
-leptos = ["dep:leptos", "quoin/leptos", "quoin-macros/leptos"]
+leptos = ["dep:leptos", "quoin/leptos", "quoin-macros/leptos", "dep:leptos-shadcn-ui"]
 dioxus = ["dep:dioxus", "dep:dioxus-core", "dep:dioxus-signals", "quoin/dioxus", "quoin-macros/dioxus"]

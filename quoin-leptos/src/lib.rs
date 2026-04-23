@@ -67,7 +67,7 @@
 //! copy text, used internally by the `clipboard_button` element in `quoin_render!`.
 
 use leptos::prelude::*;
-use quoin_core::{Executor, JoinHandle, ReactiveContext, Signal};
+use quoin_core::{Executor, JoinHandle, ReactiveContext, Signal as QuoinSignal};
 use send_wrapper::SendWrapper;
 use std::future::Future;
 use std::pin::Pin;
@@ -117,7 +117,7 @@ pub struct LeptosSignal<T: Clone + 'static> {
     inner: RwSignal<SendWrapper<T>>,
 }
 
-impl<T: Clone + 'static> Signal<T> for LeptosSignal<T> {
+impl<T: Clone + 'static> QuoinSignal<T> for LeptosSignal<T> {
     fn get(&self) -> T {
         self.inner.get().take()
     }
@@ -132,6 +132,17 @@ impl<T: Clone + 'static> Signal<T> for LeptosSignal<T> {
 
     fn update(&self, f: impl FnOnce(&mut T)) {
         self.inner.update(|wrapper| f(&mut **wrapper));
+    }
+}
+
+// Implement conversion from LeptosSignal to MaybeProp so that LeptosSignal can be passed
+// directly to props expecting MaybeProp<T> (e.g., value in leptos-shadcn-input).
+impl<T: Clone + Send + Sync + 'static> From<LeptosSignal<T>> for MaybeProp<T> {
+    fn from(signal: LeptosSignal<T>) -> Self {
+        // Create a closure that reads the signal’s current value.
+        // This closure will be stored in the MaybeProp and called each time the value is needed.
+        let f = move || signal.get();
+        Self::from(f)
     }
 }
 
