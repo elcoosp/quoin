@@ -13,15 +13,12 @@ futures = { version = "0.3", features = ["executor"] }
 leptos = { version = "0.8" }
 send_wrapper = "0.6"
 web-sys = { version = "0.3", features = ["Window", "Navigator", "Clipboard"] }
-leptos-shadcn-ui = { git = "https://github.com/elcoosp/leptos-shadcn-ui", features = ["button", "input", "tabs", "badge", "table", "tooltip", "scroll-area", "dropdown-menu"], optional = true }
-
+leptos-shadcn-ui = { git = "https://github.com/elcoosp/leptos-shadcn-ui", default-features = false, features = ["button", "input", "tabs", "badge", "table", "tooltip", "scroll-area", "dropdown-menu"], optional = true }
 
 [dev-dependencies]
 quoin-conformance = { path = "../quoin-conformance", features = ["leptos"] }
 futures-timer = "3.0"
 [features]
-# Pull in all shadcn component deps. The quoin_render! emitter will target
-# these components when this feature is active (future phase work).
 shadcn = [
     "dep:leptos-shadcn-ui",
 ]
