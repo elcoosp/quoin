@@ -86,7 +86,7 @@ fn emit_if_inline(
             .collect();
         let else_view = quote! { #(#else_tokens)* };
         quote! {
-            {if #cond {
+            {move || if #cond {
                 { use leptos::prelude::*; leptos::view! { #then_view } }.into_any()
             } else {
                 { use leptos::prelude::*; leptos::view! { #else_view } }.into_any()
@@ -94,7 +94,7 @@ fn emit_if_inline(
         }
     } else {
         quote! {
-            {#cond.then(|| { use leptos::prelude::*; leptos::view! { #then_view } }.into_any())}
+            {move || #cond.then(|| { use leptos::prelude::*; leptos::view! { #then_view } }.into_any())}
         }
     }
 }
@@ -152,11 +152,9 @@ fn emit_for_inner(for_node: &ForNode, bindings: &mut Vec<TokenStream>) -> TokenS
     bindings.push(quote! { let #iter_name = #iterable.clone(); });
 
     quote! {
-        {
-            #iter_name.iter().map(|#pat| {
-                { use leptos::prelude::*; leptos::view! { #body_view } }
-            }).collect::<Vec<_>>()
-        }
+        {move || #iter_name.iter().map(|#pat| {
+            { use leptos::prelude::*; leptos::view! { #body_view } }
+        }).collect::<Vec<_>>()}
     }
 }
 
@@ -983,7 +981,6 @@ fn emit_tabs_plain(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bo
     quote! { <ul class="tabs"> #(#tab_labels)* </ul> }
 }
 
-// *** CHANGED: emit_tabs_shadcn – uncontrolled with default_value and on_value_change ***
 #[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
 fn emit_tabs_shadcn(
     el: &Element,

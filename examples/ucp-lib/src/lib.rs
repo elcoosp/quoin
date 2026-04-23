@@ -98,36 +98,29 @@ component! {
         }
 
         render {
-            let count_text = format!("Count: {}", count.get());
-            let selected_text = format!("Selected: {}", selected.get());
-
-            let people_items = {
-                let rows = rows.get();
-                rows.iter().map(|person| {
-                    let text = format!("{} ({} years old)", person.name, person.age);
-                    quoin_render! {
-                        div(class: "p-2 bg-gray-800 rounded-md") { text  }
-                    }
-                }).collect::<Vec<_>>()
-            };
-
             quoin_render! {
                 div(class: "flex flex-col gap-4 p-4 bg-gray-900 text-white h-full") {
                     div(class: "text-2xl font-bold") { "Quoin Render Demo" }
                     div(class: "flex items-center gap-2") {
-                        div(class: "text-lg") { count_text }
+                        div(class: "text-lg") { {move || format!("Count: {}", count.get())} }
                         button(class: "px-4 py-2 bg-blue-600 text-white rounded-md cursor-pointer",
                             on_click: |_| count.clone().update(|c| *c += 1)) { "Increment" }
                     }
                     div(class: "flex items-center gap-2") {
-                        div(class: "text-lg") { selected_text }
+                        div(class: "text-lg") { {move || format!("Selected: {}", selected.get())} }
                         button(class: "px-4 py-2 bg-green-600 text-white rounded-md cursor-pointer",
                             on_click: |_| selected.clone().set("Option A".to_string())) { "Option A" }
                         button(class: "px-4 py-2 bg-purple-600 text-white rounded-md cursor-pointer",
                             on_click: |_| selected.clone().set("Option B".to_string())) { "Option B" }
                     }
                     div(class: "text-lg font-semibold") { "People:" }
-                    div(class: "flex flex-col gap-1", children: people_items)
+                    div(class: "flex flex-col gap-1") {
+                        {move || rows.get().iter().map(|person| {
+                            quoin_render! {
+                                div(class: "p-2 bg-gray-800 rounded-md") { {format!("{} ({} years old)", person.name, person.age)} }
+                            }
+                        }).collect::<Vec<_>>()}
+                    }
                 }
             }
         }
@@ -145,16 +138,6 @@ component! {
         }
 
         render {
-            let active_tab_val = active_tab.get();
-            let event_count_val = event_count.get();
-            let filter_text_val = filter_text.get();
-            let cache_entries_val = cache_entries.get();
-
-            let filtered_events: Vec<TimelineEvent> = timeline_events.get()
-                .into_iter()
-                .filter(|e| filter_text_val.is_empty() || e.label.to_lowercase().contains(&filter_text_val.to_lowercase()))
-                .collect();
-
             quoin_render! {
                 div(class: "flex flex-col gap-4 p-4 bg-gray-900 size-full overflow-hidden") {
                     div(class: "text-xl font-bold text-white") {
@@ -162,17 +145,17 @@ component! {
                     }
                     div(class: "flex items-center gap-2") {
                         div(class: "text-sm text-gray-400") {
-                            format!("Events: {}", event_count_val)
+                            {move || format!("Events: {}", event_count.get())}
                         }
                     }
                     div(class: "p-2") {
                         input(class: "px-4 py-2 bg-gray-800 text-white rounded-md", placeholder: "Filter events...", value: filter_text)
                     }
                     div(class: "text-xs text-green-500") {
-                        format!("Filter value: {:?}", filter_text_val)
+                        {move || format!("Filter value: {:?}", filter_text.get())}
                     }
 
-                    tabs(active: active_tab_val, on_click: |i| active_tab.clone().set(i)) {
+                    tabs(active: active_tab.get(), on_click: |i| active_tab.clone().set(i)) {
                         tab(index: 0, label: "Timeline")
                         tab(index: 1, label: "Cache")
                         tab(index: 2, label: "Signals")
@@ -182,33 +165,40 @@ component! {
                         "+ Add Event"
                     }
 
-                    if[active_tab_val == 0] {
-                        div(class: "flex flex-col gap-1 size-full") {
-                            div(class: "text-sm text-gray-400") {
-                                format!("{} timeline events (showing {} filtered)", event_count_val, filtered_events.len())
-                            }
-                            for[event in filtered_events] {
-                                div(class: "flex gap-4 p-2") {
-                                    // 2. FIX: Wrap variables in braces
-                                    div(class: "text-xs text-gray-500") { event.timestamp.clone() }
-                                    div(class: "text-sm text-white") { event.label.clone() }
+                    {move || if active_tab.get() == 0 {
+                        quoin_render! {
+                            div(class: "flex flex-col gap-1 size-full") {
+                                div(class: "text-sm text-gray-400") {
+                                    {let filtered = timeline_events.get().into_iter().filter(|e| filter_text.get().is_empty() || e.label.to_lowercase().contains(&filter_text.get().to_lowercase())).count();
+                                    move || format!("{} events ({} filtered)", event_count.get(), filtered)}
+                                }
+                                for[event in timeline_events.get().into_iter().filter(|e| filter_text.get().is_empty() || e.label.to_lowercase().contains(&filter_text.get().to_lowercase()))]
+                                {
+                                    div(class: "flex gap-4 p-2") {
+                                        div(class: "text-xs text-gray-500") { {event.timestamp.clone()} }
+                                        div(class: "text-sm text-white") { {event.label.clone()} }
+                                    }
                                 }
                             }
-                        }
-                    } else if[active_tab_val == 1] {
-                        data_table(rows: cache_entries_val, striped: true) {
-                            column(key: "key", label: "Key", render: |row: &CacheEntry| row.key.clone())
-                            column(key: "value", label: "Value", render: |row: &CacheEntry| row.value.clone())
-                            column(key: "hits", label: "Hits", render: |row: &CacheEntry| row.hits.to_string())
-                        }
+                        }.into_any()
+                    } else if active_tab.get() == 1 {
+                        quoin_render! {
+                            data_table(rows: cache_entries.get(), striped: true) {
+                                column(key: "key", label: "Key", render: |row: &CacheEntry| row.key.clone())
+                                column(key: "value", label: "Value", render: |row: &CacheEntry| row.value.clone())
+                                column(key: "hits", label: "Hits", render: |row: &CacheEntry| row.hits.to_string())
+                            }
+                        }.into_any()
                     } else {
-                        div(class: "flex flex-col gap-2 p-4") {
-                            div(class: "text-sm text-gray-400") { "Active signals in current scope:" }
-                            div(class: "p-2 bg-gray-800 rounded-md text-sm text-green-500") { "active_tab: usize = 0" }
-                            div(class: "p-2 bg-gray-800 rounded-md text-sm text-green-500") { "event_count: u32 = 5" }
-                            div(class: "p-2 bg-gray-800 rounded-md text-sm text-green-500") { format!("filter_text: String = {:?}", filter_text_val) }
-                        }
-                    }
+                        quoin_render! {
+                            div(class: "flex flex-col gap-2 p-4") {
+                                div(class: "text-sm text-gray-400") { "Active signals in current scope:" }
+                                div(class: "p-2 bg-gray-800 rounded-md text-sm text-green-500") { "active_tab: usize = 0" }
+                                div(class: "p-2 bg-gray-800 rounded-md text-sm text-green-500") { {move || format!("event_count: u32 = {}", event_count.get())} }
+                                div(class: "p-2 bg-gray-800 rounded-md text-sm text-green-500") { {move || format!("filter_text: String = {:?}", filter_text.get())} }
+                            }
+                        }.into_any()
+                    }}
                 }
             }
         }
