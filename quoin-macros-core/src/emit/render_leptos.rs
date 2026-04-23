@@ -1,4 +1,3 @@
-// FILE: quoin-macros-core/src/emit/render_leptos.rs
 use crate::render_ast::{Element, ForNode, IfNode, RenderNode};
 use crate::transpile::{
     collect_handler_idents, collect_handler_idents_excluding_params, force_move_on_closure,
@@ -984,6 +983,7 @@ fn emit_tabs_plain(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bo
     quote! { <ul class="tabs"> #(#tab_labels)* </ul> }
 }
 
+// *** CHANGED: emit_tabs_shadcn – uncontrolled with default_value and on_value_change ***
 #[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
 fn emit_tabs_shadcn(
     el: &Element,
@@ -1003,31 +1003,6 @@ fn emit_tabs_shadcn(
         .map(|a| &a.value)
         .expect("tabs require 'on_click' callback");
 
-    // Added clone-shadow logic to match emit_tabs_plain
-    let param_idents: Vec<proc_macro2::Ident> = if let syn::Expr::Closure(closure) = on_click_expr {
-        closure
-            .inputs
-            .iter()
-            .filter_map(|pat| {
-                if let syn::Pat::Ident(pat_ident) = pat {
-                    Some(pat_ident.ident.clone())
-                } else {
-                    None
-                }
-            })
-            .collect()
-    } else {
-        Vec::new()
-    };
-
-    let param_names: std::collections::HashSet<String> =
-        param_idents.iter().map(|id| id.to_string()).collect();
-
-    let body_idents: Vec<proc_macro2::Ident> = collect_handler_idents(on_click_expr)
-        .into_iter()
-        .filter(|id| !param_names.contains(&id.to_string()))
-        .collect();
-
     let on_click_with_move = force_move_on_closure(on_click_expr);
 
     let tab_triggers: Vec<TokenStream> = el
@@ -1039,27 +1014,8 @@ fn emit_tabs_shadcn(
             {
                 let tab_label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
                 let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
-
-                let param_shadows: Vec<TokenStream> = param_idents
-                    .iter()
-                    .map(|id| quote! { let #id = #index; })
-                    .collect();
-                let clone_shadows: Vec<TokenStream> = body_idents
-                    .iter()
-                    .map(|id| quote! { let #id = #id.clone(); })
-                    .collect();
-                let call_args: Vec<TokenStream> =
-                    param_idents.iter().map(|id| quote! { #id }).collect();
-
                 Some(quote! {
-                    <TabsTrigger value={#index.to_string()}
-                        on:click={
-                            #(#param_shadows)*
-                            #(#clone_shadows)*
-                            let __tab_on_click = #on_click_with_move;
-                            move |_| { __tab_on_click(#(#call_args)*) }
-                        }
-                    >{#tab_label}</TabsTrigger>
+                    <TabsTrigger value={#index.to_string()}>{#tab_label}</TabsTrigger>
                 })
             } else {
                 None
@@ -1070,7 +1026,17 @@ fn emit_tabs_shadcn(
     quote! {{
         use leptos_shadcn_ui::{Tabs, TabsList, TabsTrigger};
         leptos::view! {
-            <Tabs value=leptos::prelude::Signal::derive(move || #active_expr.to_string())>
+            <Tabs
+                default_value={#active_expr.to_string()}
+                on_value_change={
+                    let __on_click = #on_click_with_move;
+                    move |val: String| {
+                        if let Ok(idx) = val.parse::<usize>() {
+                            __on_click(idx);
+                        }
+                    }
+                }
+            >
                 <TabsList>
                     #(#tab_triggers)*
                 </TabsList>
