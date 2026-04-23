@@ -1,3 +1,4 @@
+// FILE: quoin-macros-core/src/emit/render_leptos.rs
 use crate::render_ast::{Element, ForNode, IfNode, RenderNode};
 use crate::transpile::{
     collect_handler_idents, collect_handler_idents_excluding_params, force_move_on_closure,
@@ -237,6 +238,7 @@ fn emit_badge(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -
     }
 }
 
+#[allow(dead_code)]
 fn emit_badge_plain(
     el: &Element,
     bindings: &mut Vec<TokenStream>,
@@ -286,14 +288,14 @@ fn emit_badge_shadcn(
         children.push(emit_node(child, bindings, inside_for));
     }
 
-    let variant = if let Some(color) = color_expr {
+    let class_prop = if let Some(color) = color_expr {
         let bg_class = crate::transpile::theme_tokens::try_resolve_bg_class(color);
         match bg_class {
             Some(cls) => {
                 quote! { class=format!("inline-flex items-center px-1.5 rounded text-xs font-medium text-white {}", #cls) }
             }
             None => {
-                quote! { class=format!("inline-flex items-center px-1.5 rounded text-xs font-medium text-white") style=format!("background-color: {}", #color) }
+                quote! { class="inline-flex items-center px-1.5 rounded text-xs font-medium text-white" style=format!("background-color: {}", #color) }
             }
         }
     } else {
@@ -301,9 +303,9 @@ fn emit_badge_shadcn(
     };
 
     let badge = if children.is_empty() {
-        quote! { <Badge #variant /> }
+        quote! { <Badge #class_prop /> }
     } else {
-        quote! { <Badge #variant> #(#children)* </Badge> }
+        quote! { <Badge #class_prop> #(#children)* </Badge> }
     };
     quote! {{
         use leptos_shadcn_ui::Badge;
@@ -329,6 +331,7 @@ fn emit_scroll_area(
     }
 }
 
+#[allow(dead_code)]
 fn emit_scroll_area_plain(
     el: &Element,
     bindings: &mut Vec<TokenStream>,
@@ -390,11 +393,13 @@ fn emit_scroll_area_shadcn(
         children.push(emit_node(child, bindings, inside_for));
     }
 
-    let scroll = if let Some(cls) = class_expr {
-        quote! { <ScrollArea class=#cls> #(#children)* </ScrollArea> }
+    let class_prop = if let Some(cls) = class_expr {
+        quote! { class=#cls }
     } else {
-        quote! { <ScrollArea> #(#children)* </ScrollArea> }
+        quote! {}
     };
+
+    let scroll = quote! { <ScrollArea #class_prop> #(#children)* </ScrollArea> };
     quote! {{
         use leptos_shadcn_ui::ScrollArea;
         leptos::view! { #scroll }
@@ -415,6 +420,7 @@ fn emit_button(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) 
     }
 }
 
+#[allow(dead_code)]
 fn emit_button_plain(
     el: &Element,
     bindings: &mut Vec<TokenStream>,
@@ -480,16 +486,19 @@ fn emit_button_shadcn(
         quote! { ButtonVariant::Outline }
     };
 
-    let mut on_click_tokens: Option<TokenStream> = None;
-    if let Some(handler_expr) = el
+    let on_click_prop: Option<TokenStream> = if let Some(handler_expr) = el
         .args
         .iter()
         .find(|a| a.key == "on_click")
         .map(|a| &a.value)
     {
         let handler = wrap_event_handler(handler_expr);
-        on_click_tokens = Some(quote! { on_click=#handler });
-    }
+        Some(quote! { on_click=#handler })
+    } else {
+        None
+    };
+
+    let disabled_prop = quote! { disabled=#disabled };
 
     let mut children = Vec::new();
     for child in &el.children {
@@ -497,23 +506,31 @@ fn emit_button_shadcn(
     }
 
     let button = if children.is_empty() {
-        quote! { <Button variant=#variant #on_click_tokens disabled=#disabled /> }
+        let props = match on_click_prop {
+            Some(oc) => quote! { variant=#variant #oc #disabled_prop },
+            None => quote! { variant=#variant #disabled_prop },
+        };
+        quote! { <Button #props /> }
     } else {
-        quote! { <Button variant=#variant #on_click_tokens disabled=#disabled> #(#children)* </Button> }
+        let props = match on_click_prop {
+            Some(oc) => quote! { variant=#variant #oc #disabled_prop },
+            None => quote! { variant=#variant #disabled_prop },
+        };
+        quote! { <Button #props> #(#children)* </Button> }
     };
 
     let wrapped = if let Some(text) = tooltip_text {
         quote! {
-            <TooltipProvider>
-                <Tooltip>
-                    <TooltipTrigger>
+            <leptos_shadcn_ui::TooltipProvider>
+                <leptos_shadcn_ui::Tooltip>
+                    <leptos_shadcn_ui::TooltipTrigger>
                         { leptos::view! { #button } }
-                    </TooltipTrigger>
-                    <TooltipContent>
+                    </leptos_shadcn_ui::TooltipTrigger>
+                    <leptos_shadcn_ui::TooltipContent>
                         {#text}
-                    </TooltipContent>
-                </Tooltip>
-            </TooltipProvider>
+                    </leptos_shadcn_ui::TooltipContent>
+                </leptos_shadcn_ui::Tooltip>
+            </leptos_shadcn_ui::TooltipProvider>
         }
     } else {
         button
@@ -539,6 +556,7 @@ fn emit_input(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -
     }
 }
 
+#[allow(dead_code)]
 fn emit_input_plain(
     el: &Element,
     bindings: &mut Vec<TokenStream>,
@@ -550,7 +568,7 @@ fn emit_input_plain(
 #[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
 fn emit_input_shadcn(
     el: &Element,
-    bindings: &mut Vec<TokenStream>,
+    _bindings: &mut Vec<TokenStream>,
     _inside_for: bool,
 ) -> TokenStream {
     let placeholder = el
@@ -577,36 +595,43 @@ fn emit_input_shadcn(
         .iter()
         .find(|a| a.key == "on_change")
         .map(|a| &a.value);
+    let on_input_expr = el
+        .args
+        .iter()
+        .find(|a| a.key == "on_input")
+        .map(|a| &a.value);
     let disabled = find_arg_bool(el, "disabled");
 
-    // Convert LeptosSignal<T> to MaybeProp<String> via Signal<Option<T>>
-    let value_prop = if let Some(val) = value_expr {
-        quote! { value=leptos::prelude::MaybeProp::from(leptos::prelude::Signal::new(move || (#val).get().into())) }
+    let value_prop: TokenStream = if let Some(val) = value_expr {
+        quote! { value=leptos::prelude::Signal::derive(move || (#val).get()) }
     } else {
         quote! {}
     };
 
-    let on_change_prop = if let Some(handler) = on_change_expr {
+    let on_change_prop: TokenStream = if let Some(handler) = on_change_expr {
+        let wrapped = wrap_event_handler(handler);
+        quote! { on_change=#wrapped }
+    } else if let Some(handler) = on_input_expr {
         let wrapped = wrap_event_handler(handler);
         quote! { on_change=#wrapped }
     } else {
         quote! {}
     };
 
-    let placeholder_prop = if placeholder.is_empty() {
+    let placeholder_prop: TokenStream = if placeholder.is_empty() {
         quote! {}
     } else {
         quote! { placeholder=#placeholder }
     };
 
-    let class_prop = if let Some(cls) = class_expr {
+    let class_prop: TokenStream = if let Some(cls) = class_expr {
         quote! { class=#cls }
     } else {
         quote! {}
     };
 
-    let disabled_prop = if disabled {
-        quote! { disabled }
+    let disabled_prop: TokenStream = if disabled {
+        quote! { disabled=true }
     } else {
         quote! {}
     };
@@ -616,6 +641,7 @@ fn emit_input_shadcn(
         leptos::view! { <Input #value_prop #on_change_prop #placeholder_prop #class_prop #disabled_prop /> }
     }}
 }
+
 // ---------------------------------------------------------------------------
 // Icon
 // ---------------------------------------------------------------------------
@@ -884,6 +910,7 @@ fn emit_tabs(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) ->
     }
 }
 
+#[allow(dead_code)]
 fn emit_tabs_plain(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
     let active_expr = el
         .args
@@ -931,7 +958,8 @@ fn emit_tabs_plain(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bo
             if let RenderNode::Element(e) = c
                 && e.name == "tab"
             {
-                let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
+                // Use tab_label to avoid collision with leptos::html::label
+                let tab_label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
                 let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
 
                 let param_shadows: Vec<TokenStream> = param_idents
@@ -954,7 +982,7 @@ fn emit_tabs_plain(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bo
                             let __tab_on_click = #on_click_with_move;
                             move |_| { __tab_on_click(#(#call_args)*) }
                         }
-                    >#label</li>
+                    >{#tab_label}</li>
                 })
             } else {
                 None
@@ -968,7 +996,7 @@ fn emit_tabs_plain(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bo
 #[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
 fn emit_tabs_shadcn(
     el: &Element,
-    bindings: &mut Vec<TokenStream>,
+    _bindings: &mut Vec<TokenStream>,
     _inside_for: bool,
 ) -> TokenStream {
     let active_expr = el
@@ -984,13 +1012,9 @@ fn emit_tabs_shadcn(
         .map(|a| &a.value)
         .expect("tabs require 'on_click' callback");
 
-    let handler_id = next_extract_id();
-    let handler_name = quote::format_ident!("__quoin_tab_handler_{}", handler_id);
     let handler_with_move = force_move_on_closure(on_click_expr);
-    bindings.push(quote! {
-        let #handler_name = #handler_with_move;
-    });
 
+    // Use tab_label to avoid collision with leptos::html::label
     let tab_triggers: Vec<TokenStream> = el
         .children
         .iter()
@@ -998,16 +1022,16 @@ fn emit_tabs_shadcn(
             if let RenderNode::Element(e) = c
                 && e.name == "tab"
             {
-                let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
+                let tab_label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
                 let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
                 let index_clone = index.clone();
                 Some(quote! {
                     <TabsTrigger value={#index.to_string()}
-                        on_click={
-                            let __handler = #handler_name.clone();
+                        on:click={
+                            let __handler = #handler_with_move;
                             move |_| { __handler(#index_clone); }
                         }
-                    >{#label}</TabsTrigger>
+                    >{#tab_label}</TabsTrigger>
                 })
             } else {
                 None
@@ -1018,7 +1042,7 @@ fn emit_tabs_shadcn(
     quote! {{
         use leptos_shadcn_ui::{Tabs, TabsList, TabsTrigger};
         leptos::view! {
-            <Tabs value={#active_expr.to_string()}>
+            <Tabs value=leptos::prelude::Signal::derive(move || #active_expr.to_string())>
                 <TabsList>
                     #(#tab_triggers)*
                 </TabsList>
@@ -1045,6 +1069,7 @@ fn emit_dropdown_menu(
     }
 }
 
+#[allow(dead_code)]
 fn emit_dropdown_menu_plain(
     el: &Element,
     bindings: &mut Vec<TokenStream>,
@@ -1063,6 +1088,7 @@ fn emit_dropdown_menu_plain(
         let #node_ref_name = leptos::prelude::create_node_ref::<html::Div>();
     });
 
+    // Use item_label to avoid collision with leptos::html::label
     let item_tokens: Vec<TokenStream> = el
         .children
         .iter()
@@ -1070,7 +1096,7 @@ fn emit_dropdown_menu_plain(
             if let RenderNode::Element(e) = c
                 && e.name == "item"
             {
-                let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
+                let item_label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
                 let on_click = e
                     .args
                     .iter()
@@ -1097,7 +1123,7 @@ fn emit_dropdown_menu_plain(
                                 __item_handler(ev);
                             }
                         }
-                    >{#checked_icon}{label}</div>
+                    >{#checked_icon}{#item_label}</div>
                 })
             } else {
                 None
@@ -1153,6 +1179,7 @@ fn emit_dropdown_menu_shadcn(
         None => return quote! { <div>dropdown: missing trigger</div> },
     };
 
+    // Use item_label to avoid collision with leptos::html::label
     let item_tokens: Vec<TokenStream> = el
         .children
         .iter()
@@ -1160,7 +1187,7 @@ fn emit_dropdown_menu_shadcn(
             if let RenderNode::Element(e) = c
                 && e.name == "item"
             {
-                let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
+                let item_label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
                 let on_click = e
                     .args
                     .iter()
@@ -1169,7 +1196,7 @@ fn emit_dropdown_menu_shadcn(
                 let handler = wrap_event_handler(on_click);
                 Some(quote! {
                     <DropdownMenuItem on_click=#handler>
-                        {label}
+                        {#item_label}
                     </DropdownMenuItem>
                 })
             } else {
@@ -1213,6 +1240,7 @@ fn emit_data_table(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bo
     }
 }
 
+#[allow(dead_code)]
 fn emit_data_table_plain(
     el: &Element,
     bindings: &mut Vec<TokenStream>,
@@ -1228,7 +1256,8 @@ fn emit_data_table_plain(
         if let RenderNode::Element(e) = c
             && e.name == "column"
         {
-            let label = e
+            // Use col_label to avoid collision with leptos::html::label
+            let col_label = e
                 .args
                 .iter()
                 .find(|a| a.key == "label")
@@ -1239,7 +1268,7 @@ fn emit_data_table_plain(
             if let Some(w) = width {
                 th_attrs.push(quote! { style=format!("width: {}px", #w) });
             }
-            header_cells.push(quote! { <th #(#th_attrs)*>#label</th> });
+            header_cells.push(quote! { <th #(#th_attrs)*>{#col_label}</th> });
 
             let render_closure = e.args.iter().find(|a| a.key == "render").map(|a| &a.value);
             let col_id = next_extract_id();
@@ -1289,23 +1318,16 @@ fn emit_data_table_shadcn(
         if let RenderNode::Element(e) = c
             && e.name == "column"
         {
-            let label = e
+            // Use col_label to avoid collision with leptos::html::label
+            let col_label = e
                 .args
                 .iter()
                 .find(|a| a.key == "label")
                 .map(|a| &a.value)
                 .unwrap_or(&empty_label);
-            let width = e.args.iter().find(|a| a.key == "width").map(|a| &a.value);
-            let mut th_attrs = vec![quote! { class="px-3 py-2 text-gray-400 font-medium" }];
-            if let Some(w) = width {
-                th_attrs.push(quote! { style=format!("width: {}px", #w) });
-            }
+
             header_cells.push(quote! {
-                <TableHeader>
-                    <TableRow>
-                        <TableHead #(#th_attrs)*>#label</TableHead>
-                    </TableRow>
-                </TableHeader>
+                <TableHead class="px-3 py-2 text-gray-400 font-medium">{#col_label}</TableHead>
             });
 
             let render_closure = e.args.iter().find(|a| a.key == "render").map(|a| &a.value);
@@ -1313,12 +1335,8 @@ fn emit_data_table_shadcn(
             let render_name = quote::format_ident!("__quoin_col_{}", col_id);
             if let Some(rc) = render_closure {
                 bindings.push(quote! { let #render_name = ::std::rc::Rc::new(#rc); });
-                let mut td_attrs = vec![quote! { class="px-3 py-2 text-white" }];
-                if let Some(w) = width {
-                    td_attrs.push(quote! { style=format!("width: {}px", #w) });
-                }
                 row_cells.push(quote! {
-                    <TableCell #(#td_attrs)*>{(#render_name)(&__row)}</TableCell>
+                    <TableCell class="px-3 py-2 text-white">{(#render_name)(&__row)}</TableCell>
                 });
             } else {
                 row_cells.push(quote! {
@@ -1330,13 +1348,21 @@ fn emit_data_table_shadcn(
 
     let empty_rows: syn::Expr = syn::parse_quote! { Vec::<()>::new() };
     let rows = rows_expr.unwrap_or(&empty_rows);
-    let striped_class = if striped { " table-striped" } else { "" };
+    let class_value = if striped {
+        "w-full table-striped"
+    } else {
+        "w-full"
+    };
 
     quote! {{
         use leptos_shadcn_ui::{Table, TableBody, TableCell, TableHead, TableHeader, TableRow};
         leptos::view! {
-            <Table class={concat!("w-full", #striped_class)}>
-                #(#header_cells)*
+            <Table class=#class_value>
+                <TableHeader>
+                    <TableRow>
+                        #(#header_cells)*
+                    </TableRow>
+                </TableHeader>
                 <TableBody>
                     {#rows.iter().map(|__row| {
                         leptos::view! {
@@ -1350,7 +1376,6 @@ fn emit_data_table_shadcn(
         }
     }}
 }
-
 fn wrap_with_cfg(attrs: &[syn::Attribute], inner: TokenStream) -> TokenStream {
     let cfg_attrs: Vec<_> = attrs.iter().filter(|a| a.path().is_ident("cfg")).collect();
     if cfg_attrs.is_empty() {

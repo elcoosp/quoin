@@ -13,4 +13,4 @@ console_log = "1.0"
 log = "0.4"
 wasm-bindgen = "0.2"
 quoin = { path = "../../quoin", features = ["leptos"] }
-ucp-lib = { path = "../ucp-lib", features = ["leptos"] }
+ucp-lib = { path = "../ucp-lib", features = ["leptos-shadcn"] }

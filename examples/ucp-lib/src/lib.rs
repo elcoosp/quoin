@@ -90,7 +90,6 @@ pub fn create_cache_entries() -> Vec<CacheEntry> {
     ]
 }
 
-#[cfg(any(feature = "gpui", feature = "leptos", feature = "dioxus"))]
 component! {
     pub DemoApp {
         state {
@@ -136,7 +135,6 @@ component! {
     }
 }
 
-#[cfg(any(feature = "gpui", feature = "leptos", feature = "dioxus"))]
 component! {
     pub MiniDevtools {
         state {
