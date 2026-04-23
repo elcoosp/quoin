@@ -212,7 +212,7 @@ component! {
                             </div>
                         }.into_any()
                     } else if active_tab.get() == 1 {
-                        // Cache: use data_table (quoin element) for consistency
+                        // Cache: use data_table (quoin element)
                         let entries = c_entries.get();
                         quoin_render! {
                             data_table(rows: entries, striped: true) {
@@ -222,16 +222,24 @@ component! {
                             }
                         }.into_any()
                     } else {
-                        // Signals tab
+                        // Signals tab – careful with nested move closures
+                        let ec = e_display.clone();
+                        let fc = f_display.clone();
                         leptos::view! {
                             <div class="flex flex-col gap-2 p-4">
                                 <div class="text-sm text-gray-400">"Active signals in current scope:"</div>
                                 <div class="p-2 bg-gray-800 rounded-md text-sm text-green-500">"active_tab: usize = 0"</div>
                                 <div class="p-2 bg-gray-800 rounded-md text-sm text-green-500">
-                                    {move || format!("event_count: u32 = {}", e_display.get())}
+                                    {{
+                                        let ec2 = ec.clone();
+                                        move || format!("event_count: u32 = {}", ec2.get())
+                                    }}
                                 </div>
                                 <div class="p-2 bg-gray-800 rounded-md text-sm text-green-500">
-                                    {move || format!("filter_text: String = {:?}", f_display.get())}
+                                    {{
+                                        let fc2 = fc.clone();
+                                        move || format!("filter_text: String = {:?}", fc2.get())
+                                    }}
                                 </div>
                             </div>
                         }.into_any()
