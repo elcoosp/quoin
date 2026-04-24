@@ -524,6 +524,14 @@ fn emit_button_shadcn(
 
     let disabled_prop = quote! { disabled=#disabled };
 
+    // FIX: Pass through the class prop
+    let class_prop: TokenStream =
+        if let Some(cls) = el.args.iter().find(|a| a.key == "class").map(|a| &a.value) {
+            quote! { class=#cls }
+        } else {
+            quote! {}
+        };
+
     let mut children = Vec::new();
     for child in &el.children {
         children.push(emit_node(child, bindings, inside_for));
@@ -531,14 +539,14 @@ fn emit_button_shadcn(
 
     let button = if children.is_empty() {
         let props = match on_click_prop {
-            Some(oc) => quote! { variant=#variant #oc #disabled_prop },
-            None => quote! { variant=#variant #disabled_prop },
+            Some(oc) => quote! { variant=#variant #class_prop #oc #disabled_prop },
+            None => quote! { variant=#variant #class_prop #disabled_prop },
         };
         quote! { <Button #props /> }
     } else {
         let props = match on_click_prop {
-            Some(oc) => quote! { variant=#variant #oc #disabled_prop },
-            None => quote! { variant=#variant #disabled_prop },
+            Some(oc) => quote! { variant=#variant #class_prop #oc #disabled_prop },
+            None => quote! { variant=#variant #class_prop #disabled_prop },
         };
         quote! { <Button #props> #(#children)* </Button> }
     };
@@ -592,7 +600,7 @@ fn emit_input_plain(
 #[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
 fn emit_input_shadcn(
     el: &Element,
-    _bindings: &mut Vec<TokenStream>,
+    bindings: &mut Vec<TokenStream>,
     _inside_for: bool,
 ) -> TokenStream {
     let placeholder = el
@@ -626,6 +634,10 @@ fn emit_input_shadcn(
         .map(|a| &a.value);
     let disabled = find_arg_bool(el, "disabled");
 
+    // FIX: Check if we need auto-bind (value provided but no explicit handler)
+    let has_explicit_handler = on_change_expr.is_some() || on_input_expr.is_some();
+    let needs_auto_bind = value_expr.is_some() && !has_explicit_handler;
+
     let value_prop: TokenStream = if let Some(val) = value_expr {
         quote! {
             value={
@@ -643,6 +655,20 @@ fn emit_input_shadcn(
     } else if let Some(handler) = on_input_expr {
         let wrapped = wrap_event_handler(handler);
         quote! { on_change=#wrapped }
+    } else if needs_auto_bind {
+        // FIX: Auto-bind input to signal when value is provided without handler
+        let val = value_expr.unwrap();
+        let bind_id = next_extract_id();
+        let bind_name = quote::format_ident!("__quoin_input_bind_{}", bind_id);
+        bindings.push(quote! {
+            let #bind_name = {
+                let __signal = (#val).clone();
+                move |val: String| {
+                    __signal.set(val);
+                }
+            };
+        });
+        quote! { on_change=#bind_name }
     } else {
         quote! {}
     };
@@ -1035,6 +1061,7 @@ fn emit_tabs_shadcn(
 
     let on_click_wrapped = wrap_event_handler(on_click_expr);
 
+    // FIX: Add text-white class for dark theme compatibility
     let tab_triggers: Vec<TokenStream> = el
         .children
         .iter()
@@ -1045,7 +1072,7 @@ fn emit_tabs_shadcn(
                 let tab_label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
                 let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
                 Some(quote! {
-                    <TabsTrigger value={#index.to_string()}>{#tab_label}</TabsTrigger>
+                    <TabsTrigger value={#index.to_string()} class="text-white">{#tab_label}</TabsTrigger>
                 })
             } else {
                 None
