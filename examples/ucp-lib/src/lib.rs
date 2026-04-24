@@ -102,15 +102,15 @@ component! {
         }
 
         render {
-            let at1 = active_tab.clone();  // for tab display + condition
-            let at2 = active_tab.clone();  // for setter
+            let at1 = active_tab.clone();  // display + condition
+            let at2 = active_tab.clone();  // setter
             let ec1 = event_count.clone();
             let ec2 = event_count.clone();
             let ft1 = filter_text.clone();  // input value
-            let ft2 = filter_text.clone();  // filter text display
-            let ft3 = filter_text.clone();  // used in for loop expression
+            let ft2 = filter_text.clone();  // filter display
+            let ft3 = filter_text.clone();  // for loop expression
             let te1 = timeline_events.clone();
-            let ce1 = cache_entries.clone();
+            let ce1 = cache_entries.clone(); // used in for loop expression
 
             quoin_render! {
                 div(class: "flex flex-col gap-4 p-4 bg-gray-900 size-full overflow-hidden") {
@@ -169,10 +169,16 @@ component! {
                             }
                         }
                     } else if[at1.get() == 1] {
-                        data_table(rows: ce1.get(), striped: true) {
-                            column(key: "key", label: "Key", render: |row: &CacheEntry| row.key.clone())
-                            column(key: "value", label: "Value", render: |row: &CacheEntry| row.value.clone())
-                            column(key: "hits", label: "Hits", render: |row: &CacheEntry| row.hits.to_string())
+                        div(class: "flex flex-col gap-1 size-full") {
+                            for[row in {
+                                ce1.get()
+                            }] {
+                                div(class: "flex gap-4 p-2") {
+                                    div(class: "text-sm text-white") { {row.key.clone()} }
+                                    div(class: "text-sm text-white") { {row.value.clone()} }
+                                    div(class: "text-sm text-white") { {row.hits.to_string()} }
+                                }
+                            }
                         }
                     } else {
                         div(class: "flex flex-col gap-2 p-4") {
