@@ -85,21 +85,17 @@ fn emit_if_inline(
             .map(|n| emit_node(n, bindings, inside_for))
             .collect();
         let else_view = quote! { #(#else_tokens)* };
-
-        // Use Leptos <Show> component – reacts to condition changes
+        // reactive move closure – user must provide signal clones
         quote! {
-            <Show
-                when=move || { #cond }
-                fallback=move || { view! { #else_view } }
-            >
-                { view! { #then_view } }
-            </Show>
+            {move || if #cond {
+                { use leptos::prelude::*; leptos::view! { #then_view } }.into_any()
+            } else {
+                { use leptos::prelude::*; leptos::view! { #else_view } }.into_any()
+            }}
         }
     } else {
         quote! {
-            <Show when=move || { #cond }>
-                { view! { #then_view } }
-            </Show>
+            {move || #cond.then(|| { use leptos::prelude::*; leptos::view! { #then_view } }.into_any())}
         }
     }
 }
@@ -152,19 +148,14 @@ fn emit_for_inner(for_node: &ForNode, bindings: &mut Vec<TokenStream>) -> TokenS
         .collect();
     let body_view = quote! { #(#body_tokens)* };
 
-    // Use Leptos <For> component with a reactive `each` closure.
-    // We bind `let:item` and immediately rebind to the user's pattern name.
+    // reactive move closure – re‑evaluates iterable each time
     quote! {
-        <For
-            each=move || { #iterable }
-            key=|item| item.clone()
-            let:item
-        >
-            {
-                let #pat = item;
-                { view! { #body_view } }
-            }
-        </For>
+        {move || {
+            let __items = { #iterable };
+            __items.into_iter().map(|#pat| {
+                { use leptos::prelude::*; leptos::view! { #body_view } }
+            }).collect::<Vec<_>>()
+        }}
     }
 }
 
