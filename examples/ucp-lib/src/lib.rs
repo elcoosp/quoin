@@ -55,31 +55,31 @@ component! {
         }
 
         render {
-            let c_display = count.clone();
-            let c_btn     = count.clone();
-            let s_display = selected.clone();
-            let s_btn_a   = selected.clone();
-            let s_btn_b   = selected.clone();
-            let r_rows    = rows.clone();
+            let count_display = count.clone();
+            let count_btn = count.clone();
+            let selected_display = selected.clone();
+            let selected_btn_a = selected.clone();
+            let selected_btn_b = selected.clone();
+            let rows_signal = rows.clone();
 
             quoin_render! {
                 div(class: "flex flex-col gap-4 p-4 bg-gray-900 text-white h-full") {
                     div(class: "text-2xl font-bold") { "Quoin Render Demo" }
                     div(class: "flex items-center gap-2") {
-                        div(class: "text-lg") { {move || format!("Count: {}", c_display.get())} }
+                        div(class: "text-lg") { {move || format!("Count: {}", count_display.get())} }
                         button(class: "px-4 py-2 bg-blue-600 text-white rounded-md cursor-pointer",
-                            on_click: move |_| c_btn.clone().update(|c| *c += 1)) { "Increment" }
+                            on_click: move |_| count_btn.clone().update(|c| *c += 1)) { "Increment" }
                     }
                     div(class: "flex items-center gap-2") {
-                        div(class: "text-lg") { {move || format!("Selected: {}", s_display.get())} }
+                        div(class: "text-lg") { {move || format!("Selected: {}", selected_display.get())} }
                         button(class: "px-4 py-2 bg-green-600 text-white rounded-md cursor-pointer",
-                            on_click: move |_| s_btn_a.clone().set("Option A".to_string())) { "Option A" }
+                            on_click: move |_| selected_btn_a.clone().set("Option A".to_string())) { "Option A" }
                         button(class: "px-4 py-2 bg-purple-600 text-white rounded-md cursor-pointer",
-                            on_click: move |_| s_btn_b.clone().set("Option B".to_string())) { "Option B" }
+                            on_click: move |_| selected_btn_b.clone().set("Option B".to_string())) { "Option B" }
                     }
                     div(class: "text-lg font-semibold") { "People:" }
                     div(class: "flex flex-col gap-1") {
-                        {move || r_rows.get().iter().map(|person| {
+                        {move || rows_signal.get().iter().map(|person| {
                             quoin_render! {
                                 div(class: "p-2 bg-gray-800 rounded-md") { {format!("{} ({} years old)", person.name, person.age)} }
                             }
@@ -102,16 +102,25 @@ component! {
         }
 
         render {
-            // One clone for each reactive location
-            let at_display  = active_tab.clone();
-            let at_setter   = active_tab.clone();
-            let ec_display  = event_count.clone();
-            let ec_btn      = event_count.clone();
-            let ft_input    = filter_text.clone();
-            let ft_display  = filter_text.clone();
-            let ft_timeline = filter_text.clone();  // used inside the for expression
-            let te_timeline = timeline_events.clone();
-            let ce_cache    = cache_entries.clone();
+            // Dedicated clones for every reactive usage
+            let at_tab_cond       = active_tab.clone();
+            let at_tab_setter     = active_tab.clone();
+
+            let ec_events_text    = event_count.clone();
+            let ec_btn            = event_count.clone();
+            let ec_timeline_total = event_count.clone();
+            let ec_signals_tab    = event_count.clone();
+
+            let ft_input          = filter_text.clone();
+            let ft_filter_text    = filter_text.clone();
+            let ft_timeline_filter1 = filter_text.clone();  // used in timeline filter count
+            let ft_timeline_filter2 = filter_text.clone();  // used in for loop expression
+            let ft_signals_tab    = filter_text.clone();
+
+            let te_timeline1     = timeline_events.clone();
+            let te_timeline2     = timeline_events.clone();  // for the count and for the list
+
+            let ce_cache         = cache_entries.clone();
 
             quoin_render! {
                 div(class: "flex flex-col gap-4 p-4 bg-gray-900 size-full overflow-hidden") {
@@ -120,7 +129,7 @@ component! {
                     }
                     div(class: "flex items-center gap-2") {
                         div(class: "text-sm text-gray-400") {
-                            {move || format!("Events: {}", ec_display.get())}
+                            {move || format!("Events: {}", ec_events_text.get())}
                         }
                     }
                     div(class: "p-2") {
@@ -129,10 +138,10 @@ component! {
                               value: ft_input)
                     }
                     div(class: "text-xs text-green-500") {
-                        {move || format!("Filter value: {:?}", ft_display.get())}
+                        {move || format!("Filter value: {:?}", ft_filter_text.get())}
                     }
 
-                    tabs(active: at_display.get(), on_click: move |i| at_setter.clone().set(i)) {
+                    tabs(active: at_tab_cond.get(), on_click: move |i| at_tab_setter.clone().set(i)) {
                         tab(index: 0, label: "Timeline")
                         tab(index: 1, label: "Cache")
                         tab(index: 2, label: "Signals")
@@ -144,21 +153,21 @@ component! {
                         "+ Add Event"
                     }
 
-                    if[at_display.get() == 0] {
+                    if[at_tab_cond.get() == 0] {
                         div(class: "flex flex-col gap-1 size-full") {
                             div(class: "text-sm text-gray-400") {
                                 {move || {
-                                    let events = te_timeline.get();
-                                    let ft = ft_display.get();
+                                    let events = te_timeline1.get();
+                                    let ft = ft_timeline_filter1.get();
                                     let filtered_count = events.iter()
                                         .filter(|e| ft.is_empty() || e.label.to_lowercase().contains(&ft.to_lowercase()))
                                         .count();
-                                    format!("{} events ({} filtered)", ec_display.get(), filtered_count)
+                                    format!("{} events ({} filtered)", ec_timeline_total.get(), filtered_count)
                                 }}
                             }
                             for[event in {
-                                let events = te_timeline.get();
-                                let ft = ft_timeline.get();
+                                let events = te_timeline2.get();
+                                let ft = ft_timeline_filter2.get();
                                 events.into_iter()
                                     .filter(|e| ft.is_empty() || e.label.to_lowercase().contains(&ft.to_lowercase()))
                                     .collect::<Vec<TimelineEvent>>()
@@ -169,7 +178,7 @@ component! {
                                 }
                             }
                         }
-                    } else if[at_display.get() == 1] {
+                    } else if[at_tab_cond.get() == 1] {
                         div(class: "flex flex-col gap-1 size-full") {
                             for[row in { ce_cache.get() }] {
                                 div(class: "flex gap-4 p-2") {
@@ -184,10 +193,10 @@ component! {
                             div(class: "text-sm text-gray-400") { "Active signals in current scope:" }
                             div(class: "p-2 bg-gray-800 rounded-md text-sm text-green-500") { "active_tab: usize = 0" }
                             div(class: "p-2 bg-gray-800 rounded-md text-sm text-green-500") {
-                                {move || format!("event_count: u32 = {}", ec_display.get())}
+                                {move || format!("event_count: u32 = {}", ec_signals_tab.get())}
                             }
                             div(class: "p-2 bg-gray-800 rounded-md text-sm text-green-500") {
-                                {move || format!("filter_text: String = {:?}", ft_display.get())}
+                                {move || format!("filter_text: String = {:?}", ft_signals_tab.get())}
                             }
                         }
                     }
