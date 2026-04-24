@@ -1,7 +1,5 @@
 use crate::render_ast::{Element, ForNode, IfNode, RenderNode};
-use crate::transpile::{
-    collect_handler_idents, collect_handler_idents_excluding_params, force_move_on_closure,
-};
+use crate::transpile::{collect_handler_idents_excluding_params, force_move_on_closure};
 use proc_macro2::TokenStream;
 use quote::quote;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -29,13 +27,6 @@ fn emit_node(node: &RenderNode, bindings: &mut Vec<TokenStream>, inside_for: boo
     match node {
         RenderNode::Element(el) => emit_element(el, bindings, inside_for),
         RenderNode::Text(t) => quote! { #t },
-        // FIXED: Pre-clone the expression result into a named binding
-        // OUTSIDE any closure, then emit just the clone inside view!.
-        // Do NOT wrap in `move ||` — view!'s own internal closure
-        // would conflict with it, moving the pre-extracted variable and
-        // making the outer closure FnOnce. Just emitting the cloned
-        // value directly lets view! capture it by reference for the
-        // clone call, keeping the outer closure FnMut.
         RenderNode::Expr(e) => {
             if inside_for {
                 quote! { {#e} }
@@ -208,7 +199,7 @@ fn emit_element_inner(
         "tabs" => emit_tabs(el, bindings, inside_for),
         "data_table" => emit_data_table(el, bindings, inside_for),
         "dropdown_menu" => emit_dropdown_menu(el, bindings, inside_for),
-        "styled_text" => emit_styled_text(el, bindings),
+        "styled_text" => emit_styled_text(el, bindings, inside_for),
         "badge" => emit_badge(el, bindings, inside_for),
         "scroll_area" => emit_scroll_area(el, bindings, inside_for),
         "virtual_list" => {
@@ -312,29 +303,30 @@ fn emit_badge_shadcn(
         children.push(emit_node(child, bindings, inside_for));
     }
 
+    let badge_alias = quote::format_ident!("Badge_{}", next_extract_id());
+    bindings.push(quote! {
+        let #badge_alias = leptos_shadcn_ui::Badge;
+    });
+
     let class_prop = if let Some(color) = color_expr {
         let bg_class = crate::transpile::theme_tokens::try_resolve_bg_class(color);
         match bg_class {
             Some(cls) => {
-                quote! { class=format!("inline-flex items-center px-1.5 rounded text-xs font-medium text-white {}", #cls) }
+                quote! { class={format!("inline-flex items-center px-1.5 rounded text-xs font-medium text-white {}", #cls)} }
             }
             None => {
-                quote! { class="inline-flex items-center px-1.5 rounded text-xs font-medium text-white" style=format!("background-color: {}", #color) }
+                quote! { class="inline-flex items-center px-1.5 rounded text-xs font-medium text-white" }
             }
         }
     } else {
         quote! { class="inline-flex items-center px-1.5 rounded text-xs font-medium bg-gray-600 text-white" }
     };
 
-    let badge = if children.is_empty() {
-        quote! { <Badge #class_prop /> }
+    if children.is_empty() {
+        quote! { <#badge_alias #class_prop /> }
     } else {
-        quote! { <Badge #class_prop> #(#children)* </Badge> }
-    };
-    quote! {{
-        use leptos_shadcn_ui::Badge;
-        leptos::view! { #badge }
-    }}
+        quote! { <#badge_alias #class_prop> #(#children)* </#badge_alias> }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -418,16 +410,17 @@ fn emit_scroll_area_shadcn(
     }
 
     let class_prop = if let Some(cls) = class_expr {
-        quote! { class=#cls }
+        quote! { class={#cls} }
     } else {
         quote! {}
     };
 
-    let scroll = quote! { <ScrollArea #class_prop> #(#children)* </ScrollArea> };
-    quote! {{
-        use leptos_shadcn_ui::ScrollArea;
-        leptos::view! { #scroll }
-    }}
+    let sa_alias = quote::format_ident!("ScrollArea_{}", next_extract_id());
+    bindings.push(quote! {
+        let #sa_alias = leptos_shadcn_ui::ScrollArea;
+    });
+
+    quote! { <#sa_alias #class_prop> #(#children)* </#sa_alias> }
 }
 
 // ---------------------------------------------------------------------------
@@ -500,14 +493,19 @@ fn emit_button_shadcn(
     let ghost = find_arg_bool(el, "ghost");
     let disabled = find_arg_bool(el, "disabled");
 
+    let btn_alias = quote::format_ident!("Button_{}", next_extract_id());
+    bindings.push(quote! {
+        let #btn_alias = leptos_shadcn_ui::Button;
+    });
+
     let variant = if destructive {
-        quote! { ButtonVariant::Destructive }
+        quote! { { leptos_shadcn_ui::ButtonVariant::Destructive } }
     } else if ghost {
-        quote! { ButtonVariant::Ghost }
+        quote! { { leptos_shadcn_ui::ButtonVariant::Ghost } }
     } else if primary {
-        quote! { ButtonVariant::Default }
+        quote! { { leptos_shadcn_ui::ButtonVariant::Default } }
     } else {
-        quote! { ButtonVariant::Outline }
+        quote! { { leptos_shadcn_ui::ButtonVariant::Outline } }
     };
 
     let on_click_prop: Option<TokenStream> = if let Some(handler_expr) = el
@@ -517,17 +515,14 @@ fn emit_button_shadcn(
         .map(|a| &a.value)
     {
         let handler = wrap_event_handler(handler_expr);
-        Some(quote! { on_click=#handler })
+        Some(quote! { on_click={#handler} })
     } else {
         None
     };
 
-    let disabled_prop = quote! { disabled=#disabled };
-
-    // FIX: Pass through the class prop
     let class_prop: TokenStream =
         if let Some(cls) = el.args.iter().find(|a| a.key == "class").map(|a| &a.value) {
-            quote! { class=#cls }
+            quote! { class={#cls} }
         } else {
             quote! {}
         };
@@ -539,39 +534,48 @@ fn emit_button_shadcn(
 
     let button = if children.is_empty() {
         let props = match on_click_prop {
-            Some(oc) => quote! { variant=#variant #class_prop #oc #disabled_prop },
-            None => quote! { variant=#variant #class_prop #disabled_prop },
+            Some(oc) => quote! { variant=#variant #class_prop #oc disabled={#disabled} },
+            None => quote! { variant=#variant #class_prop disabled={#disabled} },
         };
-        quote! { <Button #props /> }
+        quote! { <#btn_alias #props /> }
     } else {
         let props = match on_click_prop {
-            Some(oc) => quote! { variant=#variant #class_prop #oc #disabled_prop },
-            None => quote! { variant=#variant #class_prop #disabled_prop },
+            Some(oc) => quote! { variant=#variant #class_prop #oc disabled={#disabled} },
+            None => quote! { variant=#variant #class_prop disabled={#disabled} },
         };
-        quote! { <Button #props> #(#children)* </Button> }
+        quote! { <#btn_alias #props> #(#children)* </#btn_alias> }
     };
 
     let wrapped = if let Some(text) = tooltip_text {
+        let tp_alias = quote::format_ident!("TooltipProvider_{}", next_extract_id());
+        let tt_alias = quote::format_ident!("Tooltip_{}", next_extract_id());
+        let ttr_alias = quote::format_ident!("TooltipTrigger_{}", next_extract_id());
+        let ttc_alias = quote::format_ident!("TooltipContent_{}", next_extract_id());
+
+        bindings.push(quote! {
+            let #tp_alias = leptos_shadcn_ui::TooltipProvider;
+            let #tt_alias = leptos_shadcn_ui::Tooltip;
+            let #ttr_alias = leptos_shadcn_ui::TooltipTrigger;
+            let #ttc_alias = leptos_shadcn_ui::TooltipContent;
+        });
+
         quote! {
-            <leptos_shadcn_ui::TooltipProvider>
-                <leptos_shadcn_ui::Tooltip>
-                    <leptos_shadcn_ui::TooltipTrigger>
-                        { leptos::view! { #button } }
-                    </leptos_shadcn_ui::TooltipTrigger>
-                    <leptos_shadcn_ui::TooltipContent>
+            <#tp_alias>
+                <#tt_alias>
+                    <#ttr_alias>
+                        #button
+                    </#ttr_alias>
+                    <#ttc_alias>
                         {#text}
-                    </leptos_shadcn_ui::TooltipContent>
-                </leptos_shadcn_ui::Tooltip>
-            </leptos_shadcn_ui::TooltipProvider>
+                    </#ttc_alias>
+                </#tt_alias>
+            </#tp_alias>
         }
     } else {
         button
     };
 
-    quote! {{
-        use leptos_shadcn_ui::{Button, ButtonVariant};
-        leptos::view! { #wrapped }
-    }}
+    wrapped
 }
 
 // ---------------------------------------------------------------------------
@@ -634,7 +638,6 @@ fn emit_input_shadcn(
         .map(|a| &a.value);
     let disabled = find_arg_bool(el, "disabled");
 
-    // FIX: Check if we need auto-bind (value provided but no explicit handler)
     let has_explicit_handler = on_change_expr.is_some() || on_input_expr.is_some();
     let needs_auto_bind = value_expr.is_some() && !has_explicit_handler;
 
@@ -651,12 +654,11 @@ fn emit_input_shadcn(
 
     let on_change_prop: TokenStream = if let Some(handler) = on_change_expr {
         let wrapped = wrap_event_handler(handler);
-        quote! { on_change=#wrapped }
+        quote! { on_change={#wrapped} }
     } else if let Some(handler) = on_input_expr {
         let wrapped = wrap_event_handler(handler);
-        quote! { on_change=#wrapped }
+        quote! { on_change={#wrapped} }
     } else if needs_auto_bind {
-        // FIX: Auto-bind input to signal when value is provided without handler
         let val = value_expr.unwrap();
         let bind_id = next_extract_id();
         let bind_name = quote::format_ident!("__quoin_input_bind_{}", bind_id);
@@ -676,11 +678,11 @@ fn emit_input_shadcn(
     let placeholder_prop: TokenStream = if placeholder.is_empty() {
         quote! {}
     } else {
-        quote! { placeholder=#placeholder }
+        quote! { placeholder={#placeholder} }
     };
 
     let class_prop: TokenStream = if let Some(cls) = class_expr {
-        quote! { class=#cls }
+        quote! { class={#cls} }
     } else {
         quote! {}
     };
@@ -691,10 +693,12 @@ fn emit_input_shadcn(
         quote! {}
     };
 
-    quote! {{
-        use leptos_shadcn_ui::Input;
-        leptos::view! { <Input #value_prop #on_change_prop #placeholder_prop #class_prop #disabled_prop /> }
-    }}
+    let input_alias = quote::format_ident!("Input_{}", next_extract_id());
+    bindings.push(quote! {
+        let #input_alias = leptos_shadcn_ui::Input;
+    });
+
+    quote! { <#input_alias #value_prop #on_change_prop #placeholder_prop #class_prop #disabled_prop /> }
 }
 
 // ---------------------------------------------------------------------------
@@ -757,7 +761,11 @@ fn emit_icon(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) ->
 // ---------------------------------------------------------------------------
 // StyledText
 // ---------------------------------------------------------------------------
-fn emit_styled_text(el: &Element, bindings: &mut Vec<TokenStream>) -> TokenStream {
+fn emit_styled_text(
+    el: &Element,
+    _bindings: &mut Vec<TokenStream>,
+    _inside_for: bool,
+) -> TokenStream {
     let text_expr = el.args.iter().find(|a| a.key == "text").map(|a| &a.value);
     let query_expr = el.args.iter().find(|a| a.key == "query").map(|a| &a.value);
 
@@ -766,7 +774,7 @@ fn emit_styled_text(el: &Element, bindings: &mut Vec<TokenStream>) -> TokenStrea
         (Some(text), Some(query)) => {
             let hl_id = next_extract_id();
             let hl_name = quote::format_ident!("__quoin_highlight_{}", hl_id);
-            bindings.push(quote! {
+            _bindings.push(quote! {
                 let #hl_name = {
                     let __text_val = (#text).clone();
                     let __query_val = (#query).clone();
@@ -1043,7 +1051,7 @@ fn emit_tabs_plain(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bo
 #[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
 fn emit_tabs_shadcn(
     el: &Element,
-    _bindings: &mut Vec<TokenStream>,
+    bindings: &mut Vec<TokenStream>,
     _inside_for: bool,
 ) -> TokenStream {
     let active_expr = el
@@ -1061,7 +1069,16 @@ fn emit_tabs_shadcn(
 
     let on_click_wrapped = wrap_event_handler(on_click_expr);
 
-    // FIX: Add text-white class for dark theme compatibility
+    let tabs_alias = quote::format_ident!("Tabs_{}", next_extract_id());
+    let tabs_list_alias = quote::format_ident!("TabsList_{}", next_extract_id());
+    let tabs_trigger_alias = quote::format_ident!("TabsTrigger_{}", next_extract_id());
+
+    bindings.push(quote! {
+        let #tabs_alias = leptos_shadcn_ui::Tabs;
+        let #tabs_list_alias = leptos_shadcn_ui::TabsList;
+        let #tabs_trigger_alias = leptos_shadcn_ui::TabsTrigger;
+    });
+
     let tab_triggers: Vec<TokenStream> = el
         .children
         .iter()
@@ -1072,7 +1089,7 @@ fn emit_tabs_shadcn(
                 let tab_label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
                 let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
                 Some(quote! {
-                    <TabsTrigger value={#index.to_string()} class="text-white">{#tab_label}</TabsTrigger>
+                    <#tabs_trigger_alias value={#index.to_string()} class="text-white">{#tab_label}</#tabs_trigger_alias>
                 })
             } else {
                 None
@@ -1080,26 +1097,23 @@ fn emit_tabs_shadcn(
         })
         .collect();
 
-    quote! {{
-        use leptos_shadcn_ui::{Tabs, TabsList, TabsTrigger};
-        leptos::view! {
-            <Tabs
-                value={leptos::prelude::Signal::derive(move || (#active_expr).to_string())}
-                on_value_change={
-                    let __on_click = #on_click_wrapped;
-                    move |val: String| {
-                        if let Ok(idx) = val.parse::<usize>() {
-                            __on_click(idx);
-                        }
+    quote! {
+        <#tabs_alias
+            value={leptos::prelude::Signal::derive(move || (#active_expr).to_string())}
+            on_value_change={
+                let __on_click = #on_click_wrapped;
+                move |val: String| {
+                    if let Ok(idx) = val.parse::<usize>() {
+                        __on_click(idx);
                     }
                 }
-            >
-                <TabsList>
-                    #(#tab_triggers)*
-                </TabsList>
-            </Tabs>
-        }
-    }}
+            }
+        >
+            <#tabs_list_alias>
+                #(#tab_triggers)*
+            </#tabs_list_alias>
+        </#tabs_alias>
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1229,6 +1243,18 @@ fn emit_dropdown_menu_shadcn(
         None => return quote! { <div>dropdown: missing trigger</div> },
     };
 
+    let dm_alias = quote::format_ident!("DropdownMenu_{}", next_extract_id());
+    let dmt_alias = quote::format_ident!("DropdownMenuTrigger_{}", next_extract_id());
+    let dmc_alias = quote::format_ident!("DropdownMenuContent_{}", next_extract_id());
+    let dmi_alias = quote::format_ident!("DropdownMenuItem_{}", next_extract_id());
+
+    bindings.push(quote! {
+        let #dm_alias = leptos_shadcn_ui::DropdownMenu;
+        let #dmt_alias = leptos_shadcn_ui::DropdownMenuTrigger;
+        let #dmc_alias = leptos_shadcn_ui::DropdownMenuContent;
+        let #dmi_alias = leptos_shadcn_ui::DropdownMenuItem;
+    });
+
     let item_tokens: Vec<TokenStream> = el
         .children
         .iter()
@@ -1244,9 +1270,9 @@ fn emit_dropdown_menu_shadcn(
                     .map(|a| &a.value)?;
                 let handler = wrap_event_handler(on_click);
                 Some(quote! {
-                    <DropdownMenuItem on_click=#handler>
+                    <#dmi_alias on_click={#handler}>
                         {#item_label}
-                    </DropdownMenuItem>
+                    </#dmi_alias>
                 })
             } else {
                 None
@@ -1260,19 +1286,16 @@ fn emit_dropdown_menu_shadcn(
         inside_for,
     );
 
-    quote! {{
-        use leptos_shadcn_ui::{DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem};
-        leptos::view! {
-            <DropdownMenu>
-                <DropdownMenuTrigger>
-                    {#trigger_inner}
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                    #(#item_tokens)*
-                </DropdownMenuContent>
-            </DropdownMenu>
-        }
-    }}
+    quote! {
+        <#dm_alias>
+            <#dmt_alias>
+                {#trigger_inner}
+            </#dmt_alias>
+            <#dmc_alias>
+                #(#item_tokens)*
+            </#dmc_alias>
+        </#dm_alias>
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1338,21 +1361,22 @@ fn emit_data_table_plain(
     let rows = rows_expr.unwrap_or(&empty_rows);
     let striped_class = if striped { " table-striped" } else { "" };
 
-    let rows_id = next_extract_id();
-    let rows_name = quote::format_ident!("__quoin_rows_{}", rows_id);
-    bindings.push(quote! { let #rows_name = (#rows).clone(); });
-
-    quote! {{
-        let __tbody_rows = #rows_name.iter().map(|__row| {
-            leptos::view! { <tr> #(#row_cells)* </tr> }
-        }).collect::<Vec<_>>();
+    // Direct block evaluation avoids FnOnce/FnMut and PartialEq bounds entirely.
+    // It perfectly mirrors how `emit_for_inner` operates, rebuilding the rows
+    // on every render cycle naturally via Leptos's reactive graph.
+    quote! {
         <table class={concat!("w-full", #striped_class)}>
             <thead><tr> #(#header_cells)* </tr></thead>
             <tbody>
-                {__tbody_rows}
+                {
+                    let __rows = (#rows).clone();
+                    __rows.into_iter().map(|__row| {
+                        leptos::view! { <tr> #(#row_cells)* </tr> }
+                    }).collect::<Vec<_>>()
+                }
             </tbody>
         </table>
-    }}
+    }
 }
 
 #[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
@@ -1406,22 +1430,27 @@ fn emit_data_table_shadcn(
         "w-full"
     };
 
-    let rows_id = next_extract_id();
-    let rows_name = quote::format_ident!("__quoin_rows_{}", rows_id);
-    bindings.push(quote! { let #rows_name = (#rows).clone(); });
+    let table_alias = quote::format_ident!("Table_{}", next_extract_id());
+    bindings.push(quote! {
+        let #table_alias = leptos_shadcn_ui::Table;
+    });
 
-    quote! {{
-        use leptos_shadcn_ui::Table;
-        let __rows_rendered = #rows_name.iter().map(|__row| {
-            leptos::view! { <tr> #(#row_cells)* </tr> }
-        }).collect::<Vec<_>>();
-        leptos::view! {
-            <Table class=#class_value>
-                <thead><tr>#(#header_cells)*</tr></thead>
-                <tbody>{__rows_rendered}</tbody>
-            </Table>
-        }
-    }}
+    // Direct block evaluation avoids FnOnce/FnMut and PartialEq bounds entirely.
+    // It perfectly mirrors how `emit_for_inner` operates, rebuilding the rows
+    // on every render cycle naturally via Leptos's reactive graph.
+    quote! {
+        <#table_alias class=#class_value>
+            <thead><tr>#(#header_cells)*</tr></thead>
+            <tbody>
+                {
+                    let __rows = (#rows).clone();
+                    __rows.into_iter().map(|__row| {
+                        leptos::view! { <tr> #(#row_cells)* </tr> }
+                    }).collect::<Vec<_>>()
+                }
+            </tbody>
+        </#table_alias>
+    }
 }
 
 fn wrap_with_cfg(attrs: &[syn::Attribute], inner: TokenStream) -> TokenStream {
