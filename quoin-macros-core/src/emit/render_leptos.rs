@@ -1345,12 +1345,16 @@ fn emit_data_table_plain(
             if let Some(rc) = render_closure {
                 let col_id = next_extract_id();
                 let render_name = quote::format_ident!("__quoin_col_{}", col_id);
-                bindings.push(quote! { let #render_name = std::sync::Arc::new(#rc); });
+                // Coerce to fn pointer — fn pointers are Copy, so they can be
+                // freely captured by any move || closures that view! generates
+                // without making them FnOnce. Non-capturing closures support this
+                // coercion; capturing closures will fail with a clear error.
+                bindings.push(quote! { let #render_name: fn(&_) -> _ = #rc; });
                 let mut td_attrs = vec![quote! { class="px-3 py-2 text-white" }];
                 if let Some(w) = width {
                     td_attrs.push(quote! { style=format!("width: {}px", #w) });
                 }
-                row_cells.push(quote! { <td #(#td_attrs)*>{ (&*#render_name)(&__row) }</td> });
+                row_cells.push(quote! { <td #(#td_attrs)*>{ #render_name(&__row) }</td> });
             } else {
                 row_cells.push(quote! { <td class="px-3 py-2 text-white"></td> });
             }
@@ -1361,16 +1365,17 @@ fn emit_data_table_plain(
     let rows = rows_expr.unwrap_or(&empty_rows);
     let striped_class = if striped { " table-striped" } else { "" };
 
-    // Direct block evaluation avoids FnOnce/FnMut and PartialEq bounds entirely.
-    // It perfectly mirrors how `emit_for_inner` operates, rebuilding the rows
-    // on every render cycle naturally via Leptos's reactive graph.
+    // Signal is Copy, so it's safe inside move || closures from view!
+    let rows_id = next_extract_id();
+    let rows_name = quote::format_ident!("__quoin_rows_{}", rows_id);
+    bindings.push(quote! { let #rows_name = leptos::prelude::Signal::stored((#rows).clone()); });
+
     quote! {
         <table class={concat!("w-full", #striped_class)}>
             <thead><tr> #(#header_cells)* </tr></thead>
             <tbody>
                 {
-                    let __rows = (#rows).clone();
-                    __rows.into_iter().map(|__row| {
+                    #rows_name.get().into_iter().map(|__row| {
                         leptos::view! { <tr> #(#row_cells)* </tr> }
                     }).collect::<Vec<_>>()
                 }
@@ -1410,9 +1415,13 @@ fn emit_data_table_shadcn(
             if let Some(rc) = render_closure {
                 let col_id = next_extract_id();
                 let render_name = quote::format_ident!("__quoin_col_{}", col_id);
-                bindings.push(quote! { let #render_name = std::sync::Arc::new(#rc); });
+                // Coerce to fn pointer — fn pointers are Copy, so they can be
+                // freely captured by any move || closures that view! generates
+                // without making them FnOnce. Non-capturing closures support this
+                // coercion; capturing closures will fail with a clear error.
+                bindings.push(quote! { let #render_name: fn(&_) -> _ = #rc; });
                 row_cells.push(quote! {
-                    <td class="px-3 py-2 text-white">{ (&*#render_name)(&__row) }</td>
+                    <td class="px-3 py-2 text-white">{ #render_name(&__row) }</td>
                 });
             } else {
                 row_cells.push(quote! {
@@ -1435,16 +1444,17 @@ fn emit_data_table_shadcn(
         let #table_alias = leptos_shadcn_ui::Table;
     });
 
-    // Direct block evaluation avoids FnOnce/FnMut and PartialEq bounds entirely.
-    // It perfectly mirrors how `emit_for_inner` operates, rebuilding the rows
-    // on every render cycle naturally via Leptos's reactive graph.
+    // Signal is Copy, so it's safe inside move || closures from view!
+    let rows_id = next_extract_id();
+    let rows_name = quote::format_ident!("__quoin_rows_{}", rows_id);
+    bindings.push(quote! { let #rows_name = leptos::prelude::Signal::stored((#rows).clone()); });
+
     quote! {
         <#table_alias class=#class_value>
             <thead><tr>#(#header_cells)*</tr></thead>
             <tbody>
                 {
-                    let __rows = (#rows).clone();
-                    __rows.into_iter().map(|__row| {
+                    #rows_name.get().into_iter().map(|__row| {
                         leptos::view! { <tr> #(#row_cells)* </tr> }
                     }).collect::<Vec<_>>()
                 }
