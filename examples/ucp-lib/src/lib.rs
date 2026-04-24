@@ -66,20 +66,20 @@ component! {
                 div(class: "flex flex-col gap-4 p-4 bg-gray-900 text-white h-full") {
                     div(class: "text-2xl font-bold") { "Quoin Render Demo" }
                     div(class: "flex items-center gap-2") {
-                        div(class: "text-lg") { {move || format!("Count: {}", c1.get())} }
+                        div(class: "text-lg") { {|| format!("Count: {}", c1.get())} }
                         button(class: "px-4 py-2 bg-blue-600 text-white rounded-md cursor-pointer",
-                            on_click: move |_| c2.clone().update(|c| *c += 1)) { "Increment" }
+                            on_click: |_| c2.clone().update(|c| *c += 1)) { "Increment" }
                     }
                     div(class: "flex items-center gap-2") {
-                        div(class: "text-lg") { {move || format!("Selected: {}", s1.get())} }
+                        div(class: "text-lg") { {|| format!("Selected: {}", s1.get())} }
                         button(class: "px-4 py-2 bg-green-600 text-white rounded-md cursor-pointer",
-                            on_click: move |_| s2.clone().set("Option A".to_string())) { "Option A" }
+                            on_click: |_| s2.clone().set("Option A".to_string())) { "Option A" }
                         button(class: "px-4 py-2 bg-purple-600 text-white rounded-md cursor-pointer",
-                            on_click: move |_| s3.clone().set("Option B".to_string())) { "Option B" }
+                            on_click: |_| s3.clone().set("Option B".to_string())) { "Option B" }
                     }
                     div(class: "text-lg font-semibold") { "People:" }
                     div(class: "flex flex-col gap-1") {
-                        {move || r1.get().iter().map(|person| {
+                        {|| r1.get().iter().map(|person| {
                             quoin_render! {
                                 div(class: "p-2 bg-gray-800 rounded-md") { {format!("{} ({} years old)", person.name, person.age)} }
                             }
@@ -102,15 +102,15 @@ component! {
         }
 
         render {
-            let at1 = active_tab.clone();  // display + condition
-            let at2 = active_tab.clone();  // setter
+            let at1 = active_tab.clone();
+            let at2 = active_tab.clone();
             let ec1 = event_count.clone();
             let ec2 = event_count.clone();
-            let ft1 = filter_text.clone();  // input value
-            let ft2 = filter_text.clone();  // filter display
-            let ft3 = filter_text.clone();  // for loop expression
+            let ft1 = filter_text.clone();
+            let ft2 = filter_text.clone();
+            let ft3 = filter_text.clone();
             let te1 = timeline_events.clone();
-            let ce1 = cache_entries.clone(); // used in for loop expression
+            let ce1 = cache_entries.clone();
 
             quoin_render! {
                 div(class: "flex flex-col gap-4 p-4 bg-gray-900 size-full overflow-hidden") {
@@ -119,7 +119,7 @@ component! {
                     }
                     div(class: "flex items-center gap-2") {
                         div(class: "text-sm text-gray-400") {
-                            {move || format!("Events: {}", ec1.get())}
+                            {|| format!("Events: {}", ec1.get())}
                         }
                     }
                     div(class: "p-2") {
@@ -128,10 +128,10 @@ component! {
                               value: ft1)
                     }
                     div(class: "text-xs text-green-500") {
-                        {move || format!("Filter value: {:?}", ft2.get())}
+                        {|| format!("Filter value: {:?}", ft2.get())}
                     }
 
-                    tabs(active: at1.get(), on_click: move |i| at2.clone().set(i)) {
+                    tabs(active: at1.get(), on_click: |i| at2.clone().set(i)) {
                         tab(index: 0, label: "Timeline")
                         tab(index: 1, label: "Cache")
                         tab(index: 2, label: "Signals")
@@ -139,14 +139,14 @@ component! {
 
                     button(class: "px-4 py-2 bg-blue-600 text-white rounded-md cursor-pointer",
                            primary: true,
-                           on_click: move |_| ec2.clone().update(|c| *c += 1)) {
+                           on_click: |_| ec2.clone().update(|c| *c += 1)) {
                         "+ Add Event"
                     }
 
                     if[at1.get() == 0] {
                         div(class: "flex flex-col gap-1 size-full") {
                             div(class: "text-sm text-gray-400") {
-                                {move || {
+                                {|| {
                                     let events = te1.get();
                                     let ft = ft2.get();
                                     let filtered_count = events.iter()
@@ -170,9 +170,7 @@ component! {
                         }
                     } else if[at1.get() == 1] {
                         div(class: "flex flex-col gap-1 size-full") {
-                            for[row in {
-                                ce1.get()
-                            }] {
+                            for[row in { ce1.get() }] {
                                 div(class: "flex gap-4 p-2") {
                                     div(class: "text-sm text-white") { {row.key.clone()} }
                                     div(class: "text-sm text-white") { {row.value.clone()} }
@@ -183,12 +181,11 @@ component! {
                     } else {
                         div(class: "flex flex-col gap-2 p-4") {
                             div(class: "text-sm text-gray-400") { "Active signals in current scope:" }
-                            div(class: "p-2 bg-gray-800 rounded-md text-sm text-green-500") { "active_tab: usize = 0" }
                             div(class: "p-2 bg-gray-800 rounded-md text-sm text-green-500") {
-                                {move || format!("event_count: u32 = {}", ec1.get())}
+                                {|| format!("event_count: u32 = {}", ec1.get())}
                             }
                             div(class: "p-2 bg-gray-800 rounded-md text-sm text-green-500") {
-                                {move || format!("filter_text: String = {:?}", ft2.get())}
+                                {|| format!("filter_text: String = {:?}", ft2.get())}
                             }
                         }
                     }
