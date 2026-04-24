@@ -29,7 +29,23 @@ fn emit_node(node: &RenderNode, bindings: &mut Vec<TokenStream>, inside_for: boo
     match node {
         RenderNode::Element(el) => emit_element(el, bindings, inside_for),
         RenderNode::Text(t) => quote! { #t },
-        RenderNode::Expr(e) => quote! { {#e} },
+        // FIXED: Pre-clone the expression result into a named binding
+        // OUTSIDE any closure, then emit just the clone inside view!.
+        // Do NOT wrap in `move ||` — view!'s own internal closure
+        // would conflict with it, moving the pre-extracted variable and
+        // making the outer closure FnOnce. Just emitting the cloned
+        // value directly lets view! capture it by reference for the
+        // clone call, keeping the outer closure FnMut.
+        RenderNode::Expr(e) => {
+            if inside_for {
+                quote! { {#e} }
+            } else {
+                let expr_id = next_extract_id();
+                let expr_name = quote::format_ident!("__quoin_expr_{}", expr_id);
+                bindings.push(quote! { let #expr_name = (#e).clone(); });
+                quote! { {#expr_name.clone()} }
+            }
+        }
         RenderNode::If(if_node) => emit_if(if_node, bindings, inside_for),
         RenderNode::For(for_node) => emit_for(for_node, bindings),
         RenderNode::Root(nodes) => {
@@ -61,51 +77,43 @@ fn wrap_event_handler(handler_expr: &syn::Expr) -> TokenStream {
     }
 }
 
+// ---------------------------------------------------------------------------
+// If nodes
+// ---------------------------------------------------------------------------
+
 fn emit_if(if_node: &IfNode, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
-    let inner = emit_if_inline(if_node, bindings, inside_for);
+    let inner = emit_if_reactive(if_node, bindings, inside_for);
     wrap_with_cfg(&if_node.attrs, inner)
 }
 
-fn emit_if_inline(
+fn emit_if_reactive(
     if_node: &IfNode,
     bindings: &mut Vec<TokenStream>,
     inside_for: bool,
 ) -> TokenStream {
-    let cond = &if_node.condition;
-    let then_tokens: Vec<TokenStream> = if_node
-        .then_branch
-        .iter()
-        .map(|n| emit_node(n, bindings, inside_for))
-        .collect();
-    let then_view = quote! { #(#then_tokens)* };
+    let mut cond_bindings = Vec::new();
+    let body = build_if_expr_extracting_conds(if_node, bindings, inside_for, &mut cond_bindings);
 
-    if let Some(else_branch) = &if_node.else_branch {
-        let else_tokens: Vec<TokenStream> = else_branch
-            .iter()
-            .map(|n| emit_node(n, bindings, inside_for))
-            .collect();
-        let else_view = quote! { #(#else_tokens)* };
-        // reactive move closure – user must provide signal clones
-        quote! {
-            {move || if #cond {
-                { use leptos::prelude::*; leptos::view! { #then_view } }.into_any()
-            } else {
-                { use leptos::prelude::*; leptos::view! { #else_view } }.into_any()
-            }}
-        }
-    } else {
-        quote! {
-            {move || #cond.then(|| { use leptos::prelude::*; leptos::view! { #then_view } }.into_any())}
+    quote! {
+        {
+            #(#cond_bindings)*
+            move || { use leptos::prelude::*; #body }
         }
     }
 }
 
-fn emit_if_closure_body(
+fn build_if_expr_extracting_conds(
     if_node: &IfNode,
     bindings: &mut Vec<TokenStream>,
     inside_for: bool,
+    cond_bindings: &mut Vec<TokenStream>,
 ) -> TokenStream {
-    let cond = &if_node.condition;
+    let cond_id = next_extract_id();
+    let cond_name = quote::format_ident!("__quoin_if_cond_{}", cond_id);
+    let cond_expr = &if_node.condition;
+
+    cond_bindings.push(quote! { let #cond_name = #cond_expr; });
+
     let then_tokens: Vec<TokenStream> = if_node
         .then_branch
         .iter()
@@ -113,25 +121,49 @@ fn emit_if_closure_body(
         .collect();
     let then_view = quote! { #(#then_tokens)* };
 
-    if let Some(else_branch) = &if_node.else_branch {
-        let else_tokens: Vec<TokenStream> = else_branch
-            .iter()
-            .map(|n| emit_node(n, bindings, inside_for))
-            .collect();
-        let else_view = quote! { #(#else_tokens)* };
-        quote! {
-            || if #cond {
-                { use leptos::prelude::*; leptos::view! { #then_view } }.into_any()
-            } else {
-                { use leptos::prelude::*; leptos::view! { #else_view } }.into_any()
+    match &if_node.else_branch {
+        Some(else_branch) => {
+            if else_branch.len() == 1 {
+                if let RenderNode::If(nested_if) = &else_branch[0] {
+                    let nested_body = build_if_expr_extracting_conds(
+                        nested_if,
+                        bindings,
+                        inside_for,
+                        cond_bindings,
+                    );
+                    return quote! {
+                        if #cond_name {
+                            { leptos::view! { #then_view } }.into_any()
+                        } else {
+                            #nested_body
+                        }
+                    };
+                }
+            }
+            let else_tokens: Vec<TokenStream> = else_branch
+                .iter()
+                .map(|n| emit_node(n, bindings, inside_for))
+                .collect();
+            let else_view = quote! { #(#else_tokens)* };
+            quote! {
+                if #cond_name {
+                    { leptos::view! { #then_view } }.into_any()
+                } else {
+                    { leptos::view! { #else_view } }.into_any()
+                }
             }
         }
-    } else {
-        quote! {
-            || #cond.then(|| { use leptos::prelude::*; leptos::view! { #then_view } }.into_any())
+        None => {
+            quote! {
+                (#cond_name).then(|| { leptos::view! { #then_view } }.into_any())
+            }
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// For nodes
+// ---------------------------------------------------------------------------
 
 fn emit_for(for_node: &ForNode, bindings: &mut Vec<TokenStream>) -> TokenStream {
     let inner = emit_for_inner(for_node, bindings);
@@ -148,14 +180,16 @@ fn emit_for_inner(for_node: &ForNode, bindings: &mut Vec<TokenStream>) -> TokenS
         .collect();
     let body_view = quote! { #(#body_tokens)* };
 
-    // reactive move closure – re‑evaluates iterable each time
+    let iter_id = next_extract_id();
+    let iter_name = quote::format_ident!("__quoin_for_iter_{}", iter_id);
+    bindings.push(quote! { let #iter_name = (#iterable).clone(); });
+
     quote! {
-        {move || {
-            let __items = { #iterable };
-            __items.into_iter().map(|#pat| {
-                { use leptos::prelude::*; leptos::view! { #body_view } }
+        {
+            #iter_name.clone().into_iter().map(|#pat| {
+                leptos::view! { #body_view }
             }).collect::<Vec<_>>()
-        }}
+        }
     }
 }
 
@@ -593,7 +627,12 @@ fn emit_input_shadcn(
     let disabled = find_arg_bool(el, "disabled");
 
     let value_prop: TokenStream = if let Some(val) = value_expr {
-        quote! { value=leptos::prelude::Signal::derive(move || (#val).get()) }
+        quote! {
+            value={
+                let __val = (#val).clone();
+                leptos::prelude::Signal::derive(move || __val.get())
+            }
+        }
     } else {
         quote! {}
     };
@@ -837,7 +876,10 @@ fn emit_html_tag_inner(
             }
             "value" => {
                 if tag == "input" {
-                    attrs.push(quote! { prop:value={move || #value.get()} });
+                    attrs.push(quote! { prop:value={
+                        let __val = (#value).clone();
+                        move || __val.get()
+                    }});
                 } else {
                     attrs.push(quote! { value={#value} });
                 }
@@ -868,7 +910,9 @@ fn emit_html_tag_inner(
 
     let mut children = Vec::new();
     if let Some(children_expr) = &el.children_expr {
-        children.push(quote! { {#children_expr} });
+        children.push(quote! {
+            {#children_expr.into_iter().map(|v| v.into_any()).collect::<Vec<_>>()}
+        });
     } else {
         for child in &el.children {
             children.push(emit_node(child, bindings, inside_for));
@@ -889,6 +933,7 @@ fn emit_html_tag_inner(
 // ---------------------------------------------------------------------------
 // Tabs
 // ---------------------------------------------------------------------------
+
 fn emit_tabs(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
     #[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
     {
@@ -931,15 +976,7 @@ fn emit_tabs_plain(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bo
         Vec::new()
     };
 
-    let param_names: std::collections::HashSet<String> =
-        param_idents.iter().map(|id| id.to_string()).collect();
-
-    let body_idents: Vec<proc_macro2::Ident> = collect_handler_idents(on_click_expr)
-        .into_iter()
-        .filter(|id| !param_names.contains(&id.to_string()))
-        .collect();
-
-    let on_click_with_move = force_move_on_closure(on_click_expr);
+    let on_click_wrapped = wrap_event_handler(on_click_expr);
 
     let tab_labels: Vec<TokenStream> = el
         .children
@@ -955,10 +992,6 @@ fn emit_tabs_plain(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bo
                     .iter()
                     .map(|id| quote! { let #id = #index; })
                     .collect();
-                let clone_shadows: Vec<TokenStream> = body_idents
-                    .iter()
-                    .map(|id| quote! { let #id = #id.clone(); })
-                    .collect();
                 let call_args: Vec<TokenStream> =
                     param_idents.iter().map(|id| quote! { #id }).collect();
 
@@ -967,8 +1000,7 @@ fn emit_tabs_plain(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bo
                         class={move || if #index == #active_expr { "active" } else { "" }}
                         on:click={
                             #(#param_shadows)*
-                            #(#clone_shadows)*
-                            let __tab_on_click = #on_click_with_move;
+                            let __tab_on_click = #on_click_wrapped;
                             move |_| { __tab_on_click(#(#call_args)*) }
                         }
                     >{#tab_label}</li>
@@ -1001,7 +1033,7 @@ fn emit_tabs_shadcn(
         .map(|a| &a.value)
         .expect("tabs require 'on_click' callback");
 
-    let on_click_with_move = force_move_on_closure(on_click_expr);
+    let on_click_wrapped = wrap_event_handler(on_click_expr);
 
     let tab_triggers: Vec<TokenStream> = el
         .children
@@ -1025,9 +1057,9 @@ fn emit_tabs_shadcn(
         use leptos_shadcn_ui::{Tabs, TabsList, TabsTrigger};
         leptos::view! {
             <Tabs
-                default_value={#active_expr.to_string()}
+                value={leptos::prelude::Signal::derive(move || (#active_expr).to_string())}
                 on_value_change={
-                    let __on_click = #on_click_with_move;
+                    let __on_click = #on_click_wrapped;
                     move |val: String| {
                         if let Ok(idx) = val.parse::<usize>() {
                             __on_click(idx);
@@ -1279,16 +1311,21 @@ fn emit_data_table_plain(
     let rows = rows_expr.unwrap_or(&empty_rows);
     let striped_class = if striped { " table-striped" } else { "" };
 
-    quote! {
+    let rows_id = next_extract_id();
+    let rows_name = quote::format_ident!("__quoin_rows_{}", rows_id);
+    bindings.push(quote! { let #rows_name = (#rows).clone(); });
+
+    quote! {{
+        let __tbody_rows = #rows_name.iter().map(|__row| {
+            leptos::view! { <tr> #(#row_cells)* </tr> }
+        }).collect::<Vec<_>>();
         <table class={concat!("w-full", #striped_class)}>
             <thead><tr> #(#header_cells)* </tr></thead>
             <tbody>
-                {#rows.iter().map(|__row| {
-                    leptos::view! { <tr> #(#row_cells)* </tr> }
-                }).collect::<Vec<_>>()}
+                {__tbody_rows}
             </tbody>
         </table>
-    }
+    }}
 }
 
 #[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
@@ -1342,28 +1379,24 @@ fn emit_data_table_shadcn(
         "w-full"
     };
 
+    let rows_id = next_extract_id();
+    let rows_name = quote::format_ident!("__quoin_rows_{}", rows_id);
+    bindings.push(quote! { let #rows_name = (#rows).clone(); });
+
     quote! {{
         use leptos_shadcn_ui::Table;
+        let __rows_rendered = #rows_name.iter().map(|__row| {
+            leptos::view! { <tr> #(#row_cells)* </tr> }
+        }).collect::<Vec<_>>();
         leptos::view! {
             <Table class=#class_value>
-                <thead>
-                    <tr>
-                        #(#header_cells)*
-                    </tr>
-                </thead>
-                <tbody>
-                    {#rows.iter().map(|__row| {
-                        leptos::view! {
-                            <tr>
-                                #(#row_cells)*
-                            </tr>
-                        }
-                    }).collect::<Vec<_>>()}
-                </tbody>
+                <thead><tr>#(#header_cells)*</tr></thead>
+                <tbody>{__rows_rendered}</tbody>
             </Table>
         }
     }}
 }
+
 fn wrap_with_cfg(attrs: &[syn::Attribute], inner: TokenStream) -> TokenStream {
     let cfg_attrs: Vec<_> = attrs.iter().filter(|a| a.path().is_ident("cfg")).collect();
     if cfg_attrs.is_empty() {

@@ -113,6 +113,20 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
         })
         .collect::<Vec<_>>();
 
+    // FIXED: Shadow-clone all state signals and globals BEFORE the outer
+    // move || closure. Any inner move || inside render_stmts (e.g.
+    // `prop:value={move || filter_text.get()}`) then moves its own clone,
+    // leaving the outer closure's copy intact — making the outer closure
+    // FnMut instead of FnOnce.
+    let state_clones = ast.state.iter().map(|s| {
+        let fname = &s.name;
+        quote! { let #fname = #fname.clone(); }
+    });
+    let global_clones = ast.globals.iter().map(|g| {
+        let fname = &g.name;
+        quote! { let #fname = #fname.clone(); }
+    });
+
     let render_stmts = &ast.render.stmts;
 
     quote! {
@@ -127,8 +141,9 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
             #(#action_closures)*
             #(#on_mount_tokens)*
             #on_unmount_tokens
-
-            #(#render_stmts)*
+            #(#state_clones)*
+            #(#global_clones)*
+            move || { #(#render_stmts)* }
         }
     }
 }
