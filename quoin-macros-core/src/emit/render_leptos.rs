@@ -85,16 +85,21 @@ fn emit_if_inline(
             .map(|n| emit_node(n, bindings, inside_for))
             .collect();
         let else_view = quote! { #(#else_tokens)* };
+
+        // Use Leptos <Show> component – reacts to condition changes
         quote! {
-            {if #cond {
-                { use leptos::prelude::*; leptos::view! { #then_view } }.into_any()
-            } else {
-                { use leptos::prelude::*; leptos::view! { #else_view } }.into_any()
-            }}
+            <Show
+                when=move || { #cond }
+                fallback=move || { view! { #else_view } }
+            >
+                { view! { #then_view } }
+            </Show>
         }
     } else {
         quote! {
-            {#cond.then(|| { use leptos::prelude::*; leptos::view! { #then_view } }.into_any())}
+            <Show when=move || { #cond }>
+                { view! { #then_view } }
+            </Show>
         }
     }
 }
@@ -147,16 +152,19 @@ fn emit_for_inner(for_node: &ForNode, bindings: &mut Vec<TokenStream>) -> TokenS
         .collect();
     let body_view = quote! { #(#body_tokens)* };
 
-    let iter_id = next_extract_id();
-    let iter_name = quote::format_ident!("__quoin_for_{}", iter_id);
-    bindings.push(quote! { let #iter_name = #iterable.clone(); });
-
+    // Use Leptos <For> component with a reactive `each` closure.
+    // We bind `let:item` and immediately rebind to the user's pattern name.
     quote! {
-        {
-            #iter_name.iter().map(|#pat| {
-                { use leptos::prelude::*; leptos::view! { #body_view } }
-            }).collect::<Vec<_>>()
-        }
+        <For
+            each=move || { #iterable }
+            key=|item| item.clone()
+            let:item
+        >
+            {
+                let #pat = item;
+                { view! { #body_view } }
+            }
+        </For>
     }
 }
 
