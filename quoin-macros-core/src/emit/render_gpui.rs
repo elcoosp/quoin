@@ -55,6 +55,10 @@ fn emit_element_inner(el: &Element) -> TokenStream {
         "data_table" => emit_data_table(el),
         "virtual_list" => emit_virtual_list(el),
         "dropdown_menu" => emit_dropdown_menu(el),
+        "separator" => emit_separator(el),
+        "skeleton" => emit_skeleton(el),
+        "skeleton_text" => emit_skeleton(el),
+        "skeleton_avatar" => emit_skeleton(el),
         "clipboard_button" => emit_clipboard_button(el),
         _ => emit_generic_element(el),
     }
@@ -491,6 +495,43 @@ fn emit_clipboard_button(el: &Element) -> TokenStream {
         )
     };
 
+    chain
+}
+
+
+fn emit_separator(el: &Element) -> TokenStream {
+    let orientation = find_arg_string(el, "orientation").unwrap_or("horizontal");
+    let mut chain = if orientation == "horizontal" {
+        quote! { ::gpui::div().h(::gpui::px(1.0)).bg(::gpui::rgb(0x374151)).w_full() }
+    } else {
+        quote! { ::gpui::div().w(::gpui::px(1.0)).bg(::gpui::rgb(0x374151)).h_full() }
+    };
+    if let Some(class_expr) = find_arg_expr(el, "class")
+        && let Some(styles) = try_transpile_class(class_expr)
+    {
+        for style in styles.normal {
+            chain = quote! { #chain #style };
+        }
+    }
+    chain
+}
+
+fn emit_skeleton(el: &Element) -> TokenStream {
+    let mut chain = quote! { ::gpui::div().rounded(::gpui::px(6.0)).bg(::gpui::rgb(0x4b5563)) };
+    // Determine sizing based on element name
+    let name_str = el.name.to_string();
+    if name_str == "skeleton_text" {
+        chain = quote! { ::gpui::div().h(::gpui::px(16.0)).w_full().rounded(::gpui::px(6.0)).bg(::gpui::rgb(0x4b5563)) };
+    } else if name_str == "skeleton_avatar" {
+        chain = quote! { ::gpui::div().size(::gpui::px(40.0)).rounded_full().bg(::gpui::rgb(0x4b5563)) };
+    }
+    if let Some(class_expr) = find_arg_expr(el, "class")
+        && let Some(styles) = try_transpile_class(class_expr)
+    {
+        for style in styles.normal {
+            chain = quote! { #chain #style };
+        }
+    }
     chain
 }
 

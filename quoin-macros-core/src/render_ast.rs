@@ -274,6 +274,10 @@ const KNOWN_ELEMENTS: &[&str] = &[
     "icon",
     "scroll_area",
     "tab_bar",
+    "separator",
+    "skeleton",
+    "skeleton_text",
+    "skeleton_avatar",
 ];
 
 impl Parse for RenderNode {

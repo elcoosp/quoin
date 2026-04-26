@@ -94,6 +94,9 @@ const KNOWN_ELEMENTS: &[&str] = &[
     "styled_text",
     "icon",
     "scroll_area",
+    "skeleton",
+    "skeleton_text",
+    "skeleton_avatar",
     "item",
 ];
 

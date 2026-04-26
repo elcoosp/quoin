@@ -73,6 +73,87 @@ fn wrap_dioxus_handler(handler_expr: &syn::Expr) -> TokenStream {
 // ---------------------------------------------------------------------------
 // Element dispatch — applies cfg attributes at the element level
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Separator (Tier 1 — no variant, just tag swap)
+// ---------------------------------------------------------------------------
+
+fn resolve_separator_tag(el: &Element) -> TokenStream {
+    let orientation = find_arg_string(el, "orientation").unwrap_or("horizontal");
+    #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
+    {
+        quote! { shadcn_dioxus::separator::Separator }
+    }
+    #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
+    {
+        let tag = if orientation == "horizontal" { "hr" } else { "div" };
+        let ident = proc_macro2::Ident::new(tag, proc_macro2::Span::call_site());
+        quote! { #ident }
+    }
+}
+
+fn emit_separator(el: &Element) -> TokenStream {
+    let tag = resolve_separator_tag(el);
+    let mut attrs: Vec<TokenStream> = Vec::new();
+    for arg in &el.args {
+        let key_str = arg.key.to_string();
+        let value = &arg.value;
+        match key_str.as_str() {
+            "class" => {
+                if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }) = value {
+                    attrs.push(quote! { class: #s, });
+                } else {
+                    attrs.push(quote! { class: {#value}, });
+                }
+            }
+            "orientation" => {}
+            _ => {}
+        }
+    }
+    if attrs.is_empty() {
+        quote! { #tag { } }
+    } else {
+        quote! { #tag { #(#attrs)* } }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Skeleton / SkeletonText / SkeletonAvatar (Tier 1 — no variant, just tag swap)
+// ---------------------------------------------------------------------------
+
+fn emit_skeleton(el: &Element) -> TokenStream {
+    #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
+    { quote! { shadcn_dioxus::skeleton::Skeleton { class: "animate-pulse rounded-md bg-muted" } } }
+    #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
+    {
+        let user_class = find_arg_string(el, "class").unwrap_or_default();
+        let cls = if user_class.is_empty() { "animate-pulse rounded-md bg-muted" } else { &user_class };
+        quote! { div { class: #cls } }
+    }
+}
+
+fn emit_skeleton_text(el: &Element) -> TokenStream {
+    #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
+    { quote! { shadcn_dioxus::skeleton::Skeleton { class: "animate-pulse h-4 w-full rounded-md bg-muted" } } }
+    #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
+    {
+        let user_class = find_arg_string(el, "class").unwrap_or_default();
+        let cls = if user_class.is_empty() { "animate-pulse h-4 w-full rounded-md bg-muted" } else { &user_class };
+        quote! { div { class: #cls } }
+    }
+}
+
+fn emit_skeleton_avatar(el: &Element) -> TokenStream {
+    #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
+    { quote! { shadcn_dioxus::skeleton::Skeleton { class: "animate-pulse h-10 w-10 rounded-full bg-muted" } } }
+    #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
+    {
+        let user_class = find_arg_string(el, "class").unwrap_or_default();
+        let cls = if user_class.is_empty() { "animate-pulse h-10 w-10 rounded-full bg-muted" } else { &user_class };
+        quote! { div { class: #cls } }
+    }
+}
+
 fn emit_element(el: &Element) -> TokenStream {
     let inner = emit_element_inner(el);
     wrap_with_cfg(&el.attrs, inner)
@@ -86,6 +167,10 @@ fn emit_element_inner(el: &Element) -> TokenStream {
     };
 
     match effective_name {
+        "separator" => emit_separator(el),
+        "skeleton" => emit_skeleton(el),
+        "skeleton_text" => emit_skeleton_text(el),
+        "skeleton_avatar" => emit_skeleton_avatar(el),
         "tabs" => emit_tabs(el),
         "data_table" => emit_data_table(el),
         "dropdown_menu" => emit_dropdown_menu(el),
@@ -1279,4 +1364,18 @@ fn find_arg_bool(el: &Element, key: &str) -> bool {
             }
         })
         .unwrap_or(false)
+}
+
+fn find_arg_string(el: &Element, key: &str) -> Option<String> {
+    el.args.iter().find(|a| a.key == key).and_then(|a| {
+        if let syn::Expr::Lit(syn::ExprLit {
+            lit: syn::Lit::Str(s),
+            ..
+        }) = &a.value
+        {
+            Some(s.value())
+        } else {
+            None
+        }
+    })
 }

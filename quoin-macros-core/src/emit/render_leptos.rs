@@ -10,6 +10,31 @@ fn next_extract_id() -> usize {
     EXTRACT_COUNTER.fetch_add(1, Ordering::Relaxed)
 }
 
+
+/// Returns the element identifier to use in view!.
+/// - shadcn ON:  imports the shadcn component as a local alias, returns the alias ident
+/// - shadcn OFF: returns the plain HTML tag ident
+#[cfg(feature = "leptos-shadcn")]
+fn import_shadcn_or_html_tag(
+    bindings: &mut Vec<TokenStream>,
+    shadcn_comp: &str,
+    _html_tag: &str,
+) -> proc_macro2::Ident {
+    let alias = quote::format_ident!("{}_{}", shadcn_comp, next_extract_id());
+    let comp_ident = quote::format_ident!("{}", shadcn_comp);
+    bindings.push(quote! { let #alias = leptos_shadcn_ui::#comp_ident; });
+    alias
+}
+
+#[cfg(not(feature = "leptos-shadcn"))]
+fn import_shadcn_or_html_tag(
+    _bindings: &mut Vec<TokenStream>,
+    _shadcn_comp: &str,
+    html_tag: &str,
+) -> proc_macro2::Ident {
+    quote::format_ident!("{}", html_tag)
+}
+
 pub fn emit_render(node: &RenderNode) -> TokenStream {
     let mut bindings = Vec::new();
     let inner = emit_node(node, &mut bindings, false);
@@ -184,6 +209,95 @@ fn emit_for_inner(for_node: &ForNode, bindings: &mut Vec<TokenStream>) -> TokenS
     }
 }
 
+
+// ---------------------------------------------------------------------------
+// Separator (Tier 1 — no variant, just tag swap)
+// ---------------------------------------------------------------------------
+
+fn resolve_separator_element(
+    bindings: &mut Vec<TokenStream>,
+    el: &Element,
+) -> proc_macro2::Ident {
+    let orientation = find_arg_string(el, "orientation").unwrap_or_else(|| "horizontal".to_string());
+    let html_tag = if orientation == "horizontal" { "hr" } else { "div" };
+    import_shadcn_or_html_tag(bindings, "Separator", html_tag)
+}
+
+fn emit_separator(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    _inside_for: bool,
+) -> TokenStream {
+    let tag = resolve_separator_element(bindings, el);
+    let mut attrs: Vec<TokenStream> = Vec::new();
+    for arg in &el.args {
+        let key_str = arg.key.to_string();
+        let value = &arg.value;
+        match key_str.as_str() {
+            "class" => attrs.push(quote! { class=#value }),
+            "orientation" => {}
+            _ => {}
+        }
+    }
+    if attrs.is_empty() {
+        quote! { <#tag /> }
+    } else {
+        quote! { <#tag #(#attrs)* /> }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Skeleton / SkeletonText / SkeletonAvatar (Tier 1 — no variant, just tag swap)
+// ---------------------------------------------------------------------------
+
+fn emit_skeleton(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    _inside_for: bool,
+) -> TokenStream {
+    let tag = import_shadcn_or_html_tag(bindings, "Skeleton", "div");
+    let base = "animate-pulse rounded-md bg-muted";
+    let user_class = find_arg_string(el, "class").unwrap_or_default();
+    let full_class = if user_class.is_empty() {
+        base.to_string()
+    } else {
+        format!("{} {}", base, user_class)
+    };
+    quote! { <#tag class=#full_class /> }
+}
+
+fn emit_skeleton_text(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    _inside_for: bool,
+) -> TokenStream {
+    let tag = import_shadcn_or_html_tag(bindings, "Skeleton", "div");
+    let base = "animate-pulse h-4 w-full rounded-md bg-muted";
+    let user_class = find_arg_string(el, "class").unwrap_or_default();
+    let full_class = if user_class.is_empty() {
+        base.to_string()
+    } else {
+        format!("{} {}", base, user_class)
+    };
+    quote! { <#tag class=#full_class /> }
+}
+
+fn emit_skeleton_avatar(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    _inside_for: bool,
+) -> TokenStream {
+    let tag = import_shadcn_or_html_tag(bindings, "Skeleton", "div");
+    let base = "animate-pulse h-10 w-10 rounded-full bg-muted";
+    let user_class = find_arg_string(el, "class").unwrap_or_default();
+    let full_class = if user_class.is_empty() {
+        base.to_string()
+    } else {
+        format!("{} {}", base, user_class)
+    };
+    quote! { <#tag class=#full_class /> }
+}
+
 fn emit_element(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
     let inner = emit_element_inner(el, bindings, inside_for);
     wrap_with_cfg(&el.attrs, inner)
@@ -196,6 +310,10 @@ fn emit_element_inner(
 ) -> TokenStream {
     let name_str = el.name.to_string();
     match name_str.as_str() {
+        "separator" => emit_separator(el, bindings, inside_for),
+        "skeleton" => emit_skeleton(el, bindings, inside_for),
+        "skeleton_text" => emit_skeleton_text(el, bindings, inside_for),
+        "skeleton_avatar" => emit_skeleton_avatar(el, bindings, inside_for),
         "tabs" => emit_tabs(el, bindings, inside_for),
         "data_table" => emit_data_table(el, bindings, inside_for),
         "dropdown_menu" => emit_dropdown_menu(el, bindings, inside_for),
@@ -1345,16 +1463,12 @@ fn emit_data_table_plain(
             if let Some(rc) = render_closure {
                 let col_id = next_extract_id();
                 let render_name = quote::format_ident!("__quoin_col_{}", col_id);
-                // Coerce to fn pointer — fn pointers are Copy, so they can be
-                // freely captured by any move || closures that view! generates
-                // without making them FnOnce. Non-capturing closures support this
-                // coercion; capturing closures will fail with a clear error.
-                bindings.push(quote! { let #render_name: fn(&_) -> _ = #rc; });
+                bindings.push(quote! { let #render_name = std::sync::Arc::new(#rc); });
                 let mut td_attrs = vec![quote! { class="px-3 py-2 text-white" }];
                 if let Some(w) = width {
                     td_attrs.push(quote! { style=format!("width: {}px", #w) });
                 }
-                row_cells.push(quote! { <td #(#td_attrs)*>{ #render_name(&__row) }</td> });
+                row_cells.push(quote! { <td #(#td_attrs)*>{ (&*#render_name)(&__row) }</td> });
             } else {
                 row_cells.push(quote! { <td class="px-3 py-2 text-white"></td> });
             }
@@ -1365,17 +1479,16 @@ fn emit_data_table_plain(
     let rows = rows_expr.unwrap_or(&empty_rows);
     let striped_class = if striped { " table-striped" } else { "" };
 
-    // Signal is Copy, so it's safe inside move || closures from view!
-    let rows_id = next_extract_id();
-    let rows_name = quote::format_ident!("__quoin_rows_{}", rows_id);
-    bindings.push(quote! { let #rows_name = leptos::prelude::Signal::stored((#rows).clone()); });
-
+    // Direct block evaluation avoids FnOnce/FnMut and PartialEq bounds entirely.
+    // It perfectly mirrors how `emit_for_inner` operates, rebuilding the rows
+    // on every render cycle naturally via Leptos's reactive graph.
     quote! {
         <table class={concat!("w-full", #striped_class)}>
             <thead><tr> #(#header_cells)* </tr></thead>
             <tbody>
                 {
-                    #rows_name.get().into_iter().map(|__row| {
+                    let __rows = (#rows).clone();
+                    __rows.into_iter().map(|__row| {
                         leptos::view! { <tr> #(#row_cells)* </tr> }
                     }).collect::<Vec<_>>()
                 }
@@ -1415,13 +1528,9 @@ fn emit_data_table_shadcn(
             if let Some(rc) = render_closure {
                 let col_id = next_extract_id();
                 let render_name = quote::format_ident!("__quoin_col_{}", col_id);
-                // Coerce to fn pointer — fn pointers are Copy, so they can be
-                // freely captured by any move || closures that view! generates
-                // without making them FnOnce. Non-capturing closures support this
-                // coercion; capturing closures will fail with a clear error.
-                bindings.push(quote! { let #render_name: fn(&_) -> _ = #rc; });
+                bindings.push(quote! { let #render_name = std::sync::Arc::new(#rc); });
                 row_cells.push(quote! {
-                    <td class="px-3 py-2 text-white">{ #render_name(&__row) }</td>
+                    <td class="px-3 py-2 text-white">{ (&*#render_name)(&__row) }</td>
                 });
             } else {
                 row_cells.push(quote! {
@@ -1444,17 +1553,16 @@ fn emit_data_table_shadcn(
         let #table_alias = leptos_shadcn_ui::Table;
     });
 
-    // Signal is Copy, so it's safe inside move || closures from view!
-    let rows_id = next_extract_id();
-    let rows_name = quote::format_ident!("__quoin_rows_{}", rows_id);
-    bindings.push(quote! { let #rows_name = leptos::prelude::Signal::stored((#rows).clone()); });
-
+    // Direct block evaluation avoids FnOnce/FnMut and PartialEq bounds entirely.
+    // It perfectly mirrors how `emit_for_inner` operates, rebuilding the rows
+    // on every render cycle naturally via Leptos's reactive graph.
     quote! {
         <#table_alias class=#class_value>
             <thead><tr>#(#header_cells)*</tr></thead>
             <tbody>
                 {
-                    #rows_name.get().into_iter().map(|__row| {
+                    let __rows = (#rows).clone();
+                    __rows.into_iter().map(|__row| {
                         leptos::view! { <tr> #(#row_cells)* </tr> }
                     }).collect::<Vec<_>>()
                 }
@@ -1487,4 +1595,18 @@ fn find_arg_bool(el: &Element, key: &str) -> bool {
             false
         })
         .unwrap_or(false)
+}
+
+fn find_arg_string(el: &Element, key: &str) -> Option<String> {
+    el.args.iter().find(|a| a.key == key).and_then(|a| {
+        if let syn::Expr::Lit(syn::ExprLit {
+            lit: syn::Lit::Str(s),
+            ..
+        }) = &a.value
+        {
+            Some(s.value())
+        } else {
+            None
+        }
+    })
 }
