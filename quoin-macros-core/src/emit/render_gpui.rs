@@ -62,6 +62,8 @@ fn emit_element_inner(el: &Element) -> TokenStream {
         "progress" => emit_progress(el),
         "checkbox" => emit_checkbox(el),
         "switch" => emit_switch(el),
+        "radio_group" => emit_radio_group(el),
+        "radio" => emit_radio(el),
         "clipboard_button" => emit_clipboard_button(el),
         _ => emit_generic_element(el),
     }
@@ -651,6 +653,39 @@ fn emit_switch(el: &Element) -> TokenStream {
     }
 
     if let Some(handler_expr) = find_arg_expr(el, "on_checked_change").or_else(|| find_arg_expr(el, "on_change")) {
+        let wrap = emit_handler_rc_wrap(handler_expr);
+        chain = chain.on_mouse_down(::gpui::MouseButton::Left, #wrap);
+    }
+
+    chain
+}
+
+
+fn emit_radio_group(el: &Element) -> TokenStream {
+    let children: Vec<::gpui::AnyElement> = el.children.iter().map(|c| emit_render(c)).collect();
+    ::gpui::div().flex_col().gap_2().children(children)
+}
+
+fn emit_radio(el: &Element) -> TokenStream {
+    let checked = find_arg_bool(el, "checked");
+    let disabled = find_arg_bool(el, "disabled");
+    let size = ::gpui::px(16.0);
+
+    let mut chain = ::gpui::div()
+        .size(size)
+        .rounded_full()
+        .border_1()
+        .border_color(if checked { ::gpui::rgb(0x6366f1) } else { ::gpui::rgb(0x374151) })
+        .bg(if checked { ::gpui::rgb(0x6366f1) } else { ::gpui::rgb(0x1e293b) });
+
+    if !disabled {
+        chain = chain.cursor_pointer();
+    }
+    if disabled {
+        chain = chain.opacity(0.5);
+    }
+
+    if let Some(handler_expr) = find_arg_expr(el, "on_change").or_else(|| find_arg_expr(el, "on_checked_change")) {
         let wrap = emit_handler_rc_wrap(handler_expr);
         chain = chain.on_mouse_down(::gpui::MouseButton::Left, #wrap);
     }

@@ -299,6 +299,53 @@ fn emit_switch(el: &Element) -> TokenStream {
     }
 }
 
+
+// ---------------------------------------------------------------------------
+// RadioGroup / Radio (Tier 2 - grouped radio inputs)
+// ---------------------------------------------------------------------------
+
+fn emit_radio_group(el: &Element) -> TokenStream {
+    let children: Vec<TokenStream> = el.children.iter().map(|c| emit_render_inner(c)).collect();
+    let user_class = find_arg_string(el, "class").unwrap_or_default();
+
+    #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
+    {
+        quote! { shadcn_dioxus::radio_group::RadioGroup { class: #user_class, #(#children)* } }
+    }
+    #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
+    {
+        let cls = if user_class.is_empty() { "flex flex-col gap-2" } else { &user_class };
+        quote! { div { class: #cls, #(#children)* } }
+    }
+}
+
+fn emit_radio(el: &Element) -> TokenStream {
+    let value_expr = el.args.iter().find(|a| a.key == "value").map(|a| &a.value);
+    let name_expr = el.args.iter().find(|a| a.key == "name").map(|a| &a.value);
+    let checked_expr = el.args.iter().find(|a| a.key == "checked").map(|a| &a.value);
+    let on_change_expr = el.args.iter().find(|a| a.key == "on_change").map(|a| &a.value);
+    let disabled = find_arg_bool(el, "disabled");
+
+    let base = "h-4 w-4 rounded-full border border-input accent-primary-500 cursor-pointer";
+    let checked_attr = match checked_expr { Some(v) => quote! { checked: #v, }, None => quote! {} };
+    let name_attr = match name_expr { Some(n) => quote! { name: #n, }, None => quote! {} };
+    let value_attr = match value_expr { Some(v) => quote! { value: #v }, None => quote! {} };
+    let on_change_attr = match on_change_expr {
+        Some(handler) => { let w = wrap_dioxus_handler(handler); quote! { onchange: #w, } }
+        None => quote! {},
+    };
+    let disabled_attr = if disabled { quote! { disabled: true, } } else { quote! {} };
+
+    #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
+    {
+        quote! { shadcn_dioxus::radio_group::RadioGroupItem { #value_attr #checked_attr #on_change_attr #disabled_attr } }
+    }
+    #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
+    {
+        quote! { input { r#type: "radio", class: #base, #checked_attr #name_attr #value_attr #on_change_attr #disabled_attr } }
+    }
+}
+
 fn emit_element(el: &Element) -> TokenStream {
     let inner = emit_element_inner(el);
     wrap_with_cfg(&el.attrs, inner)
@@ -319,6 +366,8 @@ fn emit_element_inner(el: &Element) -> TokenStream {
         "progress" => emit_progress(el),
         "checkbox" => emit_checkbox(el),
         "switch" => emit_switch(el),
+        "radio_group" => emit_radio_group(el),
+        "radio" => emit_radio(el),
         "tabs" => emit_tabs(el),
         "data_table" => emit_data_table(el),
         "dropdown_menu" => emit_dropdown_menu(el),

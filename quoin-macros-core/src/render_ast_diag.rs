@@ -104,6 +104,8 @@ const KNOWN_ELEMENTS: &[&str] = &[
     "progress",
     "checkbox",
     "switch",
+    "radio_group",
+    "radio",
     "item",
 ];
 
@@ -219,6 +221,12 @@ pub fn check_element_args(element_name: &str, arg_keys: &[&Ident]) -> Vec<String
         }
         "switch" => {
             // checked and on_checked_change are optional
+        }
+        "radio_group" => {
+            // wrapper element, no required args
+        }
+        "radio" => {
+            // value is expected for meaningful radio groups
         }
         "input" | "button" | "div" => {}
         _ => {

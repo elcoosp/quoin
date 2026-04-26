@@ -281,6 +281,8 @@ const KNOWN_ELEMENTS: &[&str] = &[
     "progress",
     "checkbox",
     "switch",
+    "radio_group",
+    "radio",
 ];
 
 impl Parse for RenderNode {
