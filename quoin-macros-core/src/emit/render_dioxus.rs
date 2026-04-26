@@ -626,169 +626,8 @@ fn emit_scroll_area(el: &Element) -> TokenStream {
 fn emit_button(el: &Element) -> TokenStream {
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
     {
-        emit_button_shadcn(el)
-    }
-    #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
-    {
-        emit_button_plain(el)
-    }
-}
 
-fn emit_button_plain(el: &Element) -> TokenStream {
-    let tooltip_text = el.args.iter().find(|a| a.key == "tooltip").and_then(|a| {
-        if let syn::Expr::Lit(syn::ExprLit {
-            lit: syn::Lit::Str(s),
-            ..
-        }) = &a.value
-        {
-            Some(s.value())
-        } else {
-            None
-        }
-    });
-
-    let inner_button = emit_html_el_inner(el, "button");
-
-    match tooltip_text {
-        Some(text) => quote! {
-            {
-                let mut __tip_open = dioxus::prelude::use_signal(|| false);
-                dioxus::prelude::rsx! {
-                    div {
-                        class: "relative inline-flex",
-                        onmouseenter: move |_| __tip_open.set(true),
-                        onmouseleave: move |_| __tip_open.set(false),
-                        #inner_button,
-                        if *__tip_open.read() {
-                            div {
-                                class: "absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs rounded bg-gray-800 text-white whitespace-nowrap shadow-lg z-50",
-                                #text
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        None => inner_button,
-    }
-}
-
-#[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
-fn emit_button_shadcn(el: &Element) -> TokenStream {
-    let tooltip_text = el.args.iter().find(|a| a.key == "tooltip").and_then(|a| {
-        if let syn::Expr::Lit(syn::ExprLit {
-            lit: syn::Lit::Str(s),
-            ..
-        }) = &a.value
-        {
-            Some(s.value())
-        } else {
-            None
-        }
-    });
-
-    let class_expr = el.args.iter().find(|a| a.key == "class").map(|a| &a.value);
-
-    let primary = find_arg_bool(el, "primary");
-    let destructive = find_arg_bool(el, "destructive");
-    let ghost = find_arg_bool(el, "ghost");
-    let disabled = find_arg_bool(el, "disabled");
-
-    let variant_class = if destructive {
-        "bg-destructive text-destructive-foreground hover:bg-destructive/90"
-    } else if ghost {
-        "hover:bg-accent hover:text-accent-foreground"
-    } else if primary {
-        "bg-primary text-primary-foreground hover:bg-primary/90"
-    } else {
-        "border border-input bg-background hover:bg-accent hover:text-accent-foreground"
-    };
-
-    let base_class = "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors cursor-pointer";
-    let disabled_class = if disabled {
-        " opacity-50 pointer-events-none"
-    } else {
-        ""
-    };
-
-    let full_class = match class_expr {
-        Some(cls) => {
-            quote! { format!("{} {}{} {}", #base_class, #variant_class, #disabled_class, #cls) }
-        }
-        None => quote! { format!("{} {}{}", #base_class, #variant_class, #disabled_class) },
-    };
-
-    let on_click_attr = el
-        .args
-        .iter()
-        .find(|a| a.key == "on_click")
-        .map(|a| &a.value)
-        .map(|handler_expr| {
-            let handler = wrap_dioxus_handler(handler_expr);
-            quote! { onclick: {#handler}, }
-        });
-
-    let children: Vec<TokenStream> = el.children.iter().map(emit_render_inner).collect();
-
-    let inner_button = if children.is_empty() {
-        quote! {
-            button { class: #full_class, #on_click_attr }
-        }
-    } else {
-        quote! {
-            button { class: #full_class, #on_click_attr #(#children)* }
-        }
-    };
-
-    match tooltip_text {
-        Some(text) => quote! {
-            {
-                let mut __tip_open = dioxus::prelude::use_signal(|| false);
-                dioxus::prelude::rsx! {
-                    div {
-                        class: "relative inline-flex",
-                        onmouseenter: move |_| __tip_open.set(true),
-                        onmouseleave: move |_| __tip_open.set(false),
-                        #inner_button,
-                        if *__tip_open.read() {
-                            div {
-                                class: "absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs rounded bg-gray-800 text-white whitespace-nowrap shadow-lg z-50",
-                                #text
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        None => inner_button,
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Input
-// ---------------------------------------------------------------------------
-fn emit_input(el: &Element) -> TokenStream {
-    #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
-    {
-        emit_input_shadcn(el)
-    }
-    #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
-    {
-        emit_input_plain(el)
-    }
-}
-
-fn emit_input_plain(el: &Element) -> TokenStream {
-    emit_html_el_inner(el, "input")
-}
-
-#[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
-fn emit_input_shadcn(el: &Element) -> TokenStream {
-    let placeholder = el
-        .args
-        .iter()
-        .find(|a| a.key == "placeholder")
-        .and_then(|a| {
+        let tooltip_text = el.args.iter().find(|a| a.key == "tooltip").and_then(|a| {
             if let syn::Expr::Lit(syn::ExprLit {
                 lit: syn::Lit::Str(s),
                 ..
@@ -798,68 +637,217 @@ fn emit_input_shadcn(el: &Element) -> TokenStream {
             } else {
                 None
             }
-        })
-        .unwrap_or_default();
+        });
 
-    let class_expr = el.args.iter().find(|a| a.key == "class").map(|a| &a.value);
-    let value_expr = el.args.iter().find(|a| a.key == "value").map(|a| &a.value);
-    let on_input_expr = el
-        .args
-        .iter()
-        .find(|a| a.key == "on_input")
-        .map(|a| &a.value);
-    let disabled = find_arg_bool(el, "disabled");
+        let class_expr = el.args.iter().find(|a| a.key == "class").map(|a| &a.value);
 
-    let base_class = "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
+        let primary = find_arg_bool(el, "primary");
+        let destructive = find_arg_bool(el, "destructive");
+        let ghost = find_arg_bool(el, "ghost");
+        let disabled = find_arg_bool(el, "disabled");
 
-    let full_class = match class_expr {
-        Some(cls) => quote! { format!("{} {}", #base_class, #cls) },
-        None => quote! { #base_class },
-    };
+        let variant_class = if destructive {
+            "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+        } else if ghost {
+            "hover:bg-accent hover:text-accent-foreground"
+        } else if primary {
+            "bg-primary text-primary-foreground hover:bg-primary/90"
+        } else {
+            "border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+        };
 
-    let placeholder_attr = if placeholder.is_empty() {
-        quote! {}
-    } else {
-        quote! { placeholder: #placeholder, }
-    };
+        let base_class = "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors cursor-pointer";
+        let disabled_class = if disabled {
+            " opacity-50 pointer-events-none"
+        } else {
+            ""
+        };
 
-    let disabled_attr = if disabled {
-        quote! { disabled: true, }
-    } else {
-        quote! {}
-    };
+        let full_class = match class_expr {
+            Some(cls) => {
+                quote! { format!("{} {}{} {}", #base_class, #variant_class, #disabled_class, #cls) }
+            }
+            None => quote! { format!("{} {}{}", #base_class, #variant_class, #disabled_class) },
+        };
 
-    // FIX: Use signal.get() directly, not string interpolation
-    let value_attr = if let Some(val) = value_expr {
-        quote! { value: {#val.get()}, }
-    } else {
-        quote! {}
-    };
+        let on_click_attr = el
+            .args
+            .iter()
+            .find(|a| a.key == "on_click")
+            .map(|a| &a.value)
+            .map(|handler_expr| {
+                let handler = wrap_dioxus_handler(handler_expr);
+                quote! { onclick: {#handler}, }
+            });
 
-    let oninput_attr = if let Some(handler) = on_input_expr {
-        let wrapped = wrap_dioxus_handler(handler);
-        quote! { oninput: #wrapped, }
-    } else if let Some(val) = value_expr {
-        quote! {
-            oninput: move |ev: dioxus::prelude::Event<dioxus::prelude::FormData>| {
-                #val.set(ev.value());
+        let children: Vec<TokenStream> = el.children.iter().map(emit_render_inner).collect();
+
+        let inner_button = if children.is_empty() {
+            quote! {
+                button { class: #full_class, #on_click_attr }
+            }
+        } else {
+            quote! {
+                button { class: #full_class, #on_click_attr #(#children)* }
+            }
+        };
+
+        match tooltip_text {
+            Some(text) => quote! {
+                {
+                    let mut __tip_open = dioxus::prelude::use_signal(|| false);
+                    dioxus::prelude::rsx! {
+                        div {
+                            class: "relative inline-flex",
+                            onmouseenter: move |_| __tip_open.set(true),
+                            onmouseleave: move |_| __tip_open.set(false),
+                            #inner_button,
+                            if *__tip_open.read() {
+                                div {
+                                    class: "absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs rounded bg-gray-800 text-white whitespace-nowrap shadow-lg z-50",
+                                    #text
+                                }
+                            }
+                        }
+                    }
+                }
             },
+            None => inner_button,
         }
-    } else {
-        quote! {}
-    };
 
-    quote! {
-        input {
-            class: #full_class,
-            #placeholder_attr
-            #value_attr
-            #oninput_attr
-            #disabled_attr
+    }
+    #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
+    {
+
+        let tooltip_text = el.args.iter().find(|a| a.key == "tooltip").and_then(|a| {
+            if let syn::Expr::Lit(syn::ExprLit {
+                lit: syn::Lit::Str(s),
+                ..
+            }) = &a.value
+            {
+                Some(s.value())
+            } else {
+                None
+            }
+        });
+
+        let inner_button = emit_html_el_inner(el, "button");
+
+        match tooltip_text {
+            Some(text) => quote! {
+                {
+                    let mut __tip_open = dioxus::prelude::use_signal(|| false);
+                    dioxus::prelude::rsx! {
+                        div {
+                            class: "relative inline-flex",
+                            onmouseenter: move |_| __tip_open.set(true),
+                            onmouseleave: move |_| __tip_open.set(false),
+                            #inner_button,
+                            if *__tip_open.read() {
+                                div {
+                                    class: "absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs rounded bg-gray-800 text-white whitespace-nowrap shadow-lg z-50",
+                                    #text
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            None => inner_button,
         }
+
     }
 }
+// ---------------------------------------------------------------------------
+// Input
+// ---------------------------------------------------------------------------
+fn emit_input(el: &Element) -> TokenStream {
+    #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
+    {
 
+        let placeholder = el
+            .args
+            .iter()
+            .find(|a| a.key == "placeholder")
+            .and_then(|a| {
+                if let syn::Expr::Lit(syn::ExprLit {
+                    lit: syn::Lit::Str(s),
+                    ..
+                }) = &a.value
+                {
+                    Some(s.value())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_default();
+
+        let class_expr = el.args.iter().find(|a| a.key == "class").map(|a| &a.value);
+        let value_expr = el.args.iter().find(|a| a.key == "value").map(|a| &a.value);
+        let on_input_expr = el
+            .args
+            .iter()
+            .find(|a| a.key == "on_input")
+            .map(|a| &a.value);
+        let disabled = find_arg_bool(el, "disabled");
+
+        let base_class = "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
+
+        let full_class = match class_expr {
+            Some(cls) => quote! { format!("{} {}", #base_class, #cls) },
+            None => quote! { #base_class },
+        };
+
+        let placeholder_attr = if placeholder.is_empty() {
+            quote! {}
+        } else {
+            quote! { placeholder: #placeholder, }
+        };
+
+        let disabled_attr = if disabled {
+            quote! { disabled: true, }
+        } else {
+            quote! {}
+        };
+
+        // FIX: Use signal.get() directly, not string interpolation
+        let value_attr = if let Some(val) = value_expr {
+            quote! { value: {#val.get()}, }
+        } else {
+            quote! {}
+        };
+
+        let oninput_attr = if let Some(handler) = on_input_expr {
+            let wrapped = wrap_dioxus_handler(handler);
+            quote! { oninput: #wrapped, }
+        } else if let Some(val) = value_expr {
+            quote! {
+                oninput: move |ev: dioxus::prelude::Event<dioxus::prelude::FormData>| {
+                    #val.set(ev.value());
+                },
+            }
+        } else {
+            quote! {}
+        };
+
+        quote! {
+            input {
+                class: #full_class,
+                #placeholder_attr
+                #value_attr
+                #oninput_attr
+                #disabled_attr
+            }
+        }
+
+    }
+    #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
+    {
+
+        emit_html_el_inner(el, "input")
+
+    }
+}
 // ---------------------------------------------------------------------------
 // Icon
 // ---------------------------------------------------------------------------
@@ -1200,429 +1188,411 @@ fn emit_nodes_inner(nodes: &[RenderNode]) -> TokenStream {
 fn emit_tabs(el: &Element) -> TokenStream {
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
     {
-        return emit_tabs_shadcn(el);
-    }
-    #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
-    {
-        emit_tabs_plain(el)
-    }
-}
 
-fn emit_tabs_plain(el: &Element) -> TokenStream {
-    let active_expr = el
-        .args
-        .iter()
-        .find(|a| a.key == "active")
-        .map(|a| &a.value)
-        .expect("tabs require 'active' argument");
-    let on_click_expr = el
-        .args
-        .iter()
-        .find(|a| a.key == "on_click")
-        .map(|a| &a.value)
-        .expect("tabs require 'on_click' callback");
-
-    let param_idents: Vec<proc_macro2::Ident> = if let syn::Expr::Closure(closure) = on_click_expr {
-        closure
-            .inputs
+        let active_expr = el
+            .args
             .iter()
-            .filter_map(|pat| {
-                if let syn::Pat::Ident(pat_ident) = pat {
-                    Some(pat_ident.ident.clone())
+            .find(|a| a.key == "active")
+            .map(|a| &a.value)
+            .expect("tabs require 'active' argument");
+        let on_click_expr = el
+            .args
+            .iter()
+            .find(|a| a.key == "on_click")
+            .map(|a| &a.value)
+            .expect("tabs require 'on_click' callback");
+
+        let on_click_with_move = force_move_on_closure(on_click_expr);
+
+        let tab_triggers: Vec<TokenStream> = el
+            .children
+            .iter()
+            .filter_map(|c| {
+                if let RenderNode::Element(e) = c
+                    && e.name == "tab"
+                {
+                    let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
+                    let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
+                    let index_clone = index.clone();
+                    Some(quote! {
+                        shadcn_dioxus::tabs::TabsTrigger {
+                            value: "{#index.to_string()}",
+                            onclick: {
+                                let __tab_on_click = #on_click_with_move;
+                                move |_| { __tab_on_click(#index_clone); }
+                            },
+                            #label
+                        }
+                    })
                 } else {
                     None
                 }
             })
-            .collect()
-    } else {
-        Vec::new()
-    };
+            .collect();
 
-    let param_names: std::collections::HashSet<String> =
-        param_idents.iter().map(|id| id.to_string()).collect();
-
-    let body_idents: Vec<proc_macro2::Ident> = collect_handler_idents(on_click_expr)
-        .into_iter()
-        .filter(|id| !param_names.contains(&id.to_string()))
-        .collect();
-
-    let on_click_with_move = force_move_on_closure(on_click_expr);
-
-    let tab_elements: Vec<TokenStream> = el
-        .children
-        .iter()
-        .filter_map(|c| {
-            if let RenderNode::Element(e) = c
-                && e.name == "tab"
-            {
-                let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
-                let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
-
-                let param_shadows: Vec<TokenStream> = param_idents
-                    .iter()
-                    .map(|id| quote! { let #id = #index; })
-                    .collect();
-                let clone_shadows: Vec<TokenStream> = body_idents
-                    .iter()
-                    .map(|id| quote! { let #id = #id.clone(); })
-                    .collect();
-                let call_args: Vec<TokenStream> =
-                    param_idents.iter().map(|id| quote! { #id }).collect();
-
-                Some(quote! {
-                    div {
-                        class: if #index == #active_expr {
-                            "px-4 py-2 cursor-pointer text-white"
-                        } else {
-                            "px-4 py-2 cursor-pointer text-gray-400"
-                        },
-                        onclick: {
-                            #(#param_shadows)*
-                            #(#clone_shadows)*
-                            let __tab_on_click = #on_click_with_move;
-                            move |_| { __tab_on_click(#(#call_args)*) }
-                        },
-                        {#label}
-                    }
-                })
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    quote! {
-        div { class: "flex", #(#tab_elements)* }
-    }
-}
-
-#[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
-fn emit_tabs_shadcn(el: &Element) -> TokenStream {
-    let active_expr = el
-        .args
-        .iter()
-        .find(|a| a.key == "active")
-        .map(|a| &a.value)
-        .expect("tabs require 'active' argument");
-    let on_click_expr = el
-        .args
-        .iter()
-        .find(|a| a.key == "on_click")
-        .map(|a| &a.value)
-        .expect("tabs require 'on_click' callback");
-
-    let on_click_with_move = force_move_on_closure(on_click_expr);
-
-    let tab_triggers: Vec<TokenStream> = el
-        .children
-        .iter()
-        .filter_map(|c| {
-            if let RenderNode::Element(e) = c
-                && e.name == "tab"
-            {
-                let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
-                let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
-                let index_clone = index.clone();
-                Some(quote! {
-                    shadcn_dioxus::tabs::TabsTrigger {
-                        value: "{#index.to_string()}",
-                        onclick: {
-                            let __tab_on_click = #on_click_with_move;
-                            move |_| { __tab_on_click(#index_clone); }
-                        },
-                        #label
-                    }
-                })
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    quote! {
-        shadcn_dioxus::tabs::Tabs {
-            value: "{#active_expr.to_string()}",
-            shadcn_dioxus::tabs::TabsList {
-                #(#tab_triggers)*
+        quote! {
+            shadcn_dioxus::tabs::Tabs {
+                value: "{#active_expr.to_string()}",
+                shadcn_dioxus::tabs::TabsList {
+                    #(#tab_triggers)*
+                }
             }
         }
+
+    }
+    #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
+    {
+
+        let active_expr = el
+            .args
+            .iter()
+            .find(|a| a.key == "active")
+            .map(|a| &a.value)
+            .expect("tabs require 'active' argument");
+        let on_click_expr = el
+            .args
+            .iter()
+            .find(|a| a.key == "on_click")
+            .map(|a| &a.value)
+            .expect("tabs require 'on_click' callback");
+
+        let param_idents: Vec<proc_macro2::Ident> = if let syn::Expr::Closure(closure) = on_click_expr {
+            closure
+                .inputs
+                .iter()
+                .filter_map(|pat| {
+                    if let syn::Pat::Ident(pat_ident) = pat {
+                        Some(pat_ident.ident.clone())
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+
+        let param_names: std::collections::HashSet<String> =
+            param_idents.iter().map(|id| id.to_string()).collect();
+
+        let body_idents: Vec<proc_macro2::Ident> = collect_handler_idents(on_click_expr)
+            .into_iter()
+            .filter(|id| !param_names.contains(&id.to_string()))
+            .collect();
+
+        let on_click_with_move = force_move_on_closure(on_click_expr);
+
+        let tab_elements: Vec<TokenStream> = el
+            .children
+            .iter()
+            .filter_map(|c| {
+                if let RenderNode::Element(e) = c
+                    && e.name == "tab"
+                {
+                    let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
+                    let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
+
+                    let param_shadows: Vec<TokenStream> = param_idents
+                        .iter()
+                        .map(|id| quote! { let #id = #index; })
+                        .collect();
+                    let clone_shadows: Vec<TokenStream> = body_idents
+                        .iter()
+                        .map(|id| quote! { let #id = #id.clone(); })
+                        .collect();
+                    let call_args: Vec<TokenStream> =
+                        param_idents.iter().map(|id| quote! { #id }).collect();
+
+                    Some(quote! {
+                        div {
+                            class: if #index == #active_expr {
+                                "px-4 py-2 cursor-pointer text-white"
+                            } else {
+                                "px-4 py-2 cursor-pointer text-gray-400"
+                            },
+                            onclick: {
+                                #(#param_shadows)*
+                                #(#clone_shadows)*
+                                let __tab_on_click = #on_click_with_move;
+                                move |_| { __tab_on_click(#(#call_args)*) }
+                            },
+                            {#label}
+                        }
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        quote! {
+            div { class: "flex", #(#tab_elements)* }
+        }
+
     }
 }
-
 // ---------------------------------------------------------------------------
 // Dropdown menu
 // ---------------------------------------------------------------------------
 fn emit_dropdown_menu(el: &Element) -> TokenStream {
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
     {
-        return emit_dropdown_menu_shadcn(el);
+
+        let trigger_expr = match &el.trigger_expr {
+            Some(e) => e,
+            None => return quote! { div { "dropdown: missing trigger" } },
+        };
+
+        let item_tokens: Vec<TokenStream> = el
+            .children
+            .iter()
+            .filter_map(|c| {
+                if let RenderNode::Element(e) = c
+                    && e.name == "item"
+                {
+                    let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
+                    let on_click = e
+                        .args
+                        .iter()
+                        .find(|a| a.key == "on_click")
+                        .map(|a| &a.value)?;
+                    let handler = wrap_dioxus_handler(on_click);
+                    Some(quote! {
+                        shadcn_dioxus::dropdown_menu::DropdownMenuItem {
+                            onclick: {#handler},
+                            #label
+                        }
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        let trigger_inner = emit_render_inner(&RenderNode::Expr(trigger_expr.clone()));
+
+        quote! {
+            shadcn_dioxus::dropdown_menu::DropdownMenu {
+                shadcn_dioxus::dropdown_menu::DropdownMenuTrigger {
+                    #trigger_inner
+                }
+                shadcn_dioxus::dropdown_menu::DropdownMenuContent {
+                    #(#item_tokens)*
+                }
+            }
+        }
+
     }
     #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
     {
-        emit_dropdown_menu_plain(el)
-    }
-}
 
-fn emit_dropdown_menu_plain(el: &Element) -> TokenStream {
-    let trigger_expr = match &el.trigger_expr {
-        Some(e) => e,
-        None => return quote! { div { "dropdown: missing trigger" } },
-    };
+        let trigger_expr = match &el.trigger_expr {
+            Some(e) => e,
+            None => return quote! { div { "dropdown: missing trigger" } },
+        };
 
-    let item_tokens: Vec<TokenStream> = el
-        .children
-        .iter()
-        .filter_map(|c| {
-            if let RenderNode::Element(e) = c
-                && e.name == "item"
-            {
-                let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
-                let on_click = e
-                    .args
-                    .iter()
-                    .find(|a| a.key == "on_click")
-                    .map(|a| &a.value)?;
+        let item_tokens: Vec<TokenStream> = el
+            .children
+            .iter()
+            .filter_map(|c| {
+                if let RenderNode::Element(e) = c
+                    && e.name == "item"
+                {
+                    let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
+                    let on_click = e
+                        .args
+                        .iter()
+                        .find(|a| a.key == "on_click")
+                        .map(|a| &a.value)?;
 
-                let checked = e.args.iter().any(|a| a.key == "checked" && {
-                    matches!(&a.value, syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Bool(b), .. }) if b.value)
-                });
+                    let checked = e.args.iter().any(|a| a.key == "checked" && {
+                        matches!(&a.value, syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Bool(b), .. }) if b.value)
+                    });
 
-                let handler = wrap_dioxus_handler(on_click);
-                let check_mark = if checked { "\u{2713} " } else { "" };
-                Some(quote! {
-                    div {
-                        class: "px-3 py-2 cursor-pointer text-white hover:bg-gray-600 flex items-center",
-                        onclick: {
-                            let __item_handler = #handler;
-                            move |ev: dioxus::prelude::Event<dioxus::prelude::MouseData>| {
-                                ev.stop_propagation();
-                                __open.set(false);
-                                __item_handler(ev);
-                            }
-                        },
-                        #check_mark
-                        #label
-                    }
-                })
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    let trigger_inner = emit_render_inner(&RenderNode::Expr(trigger_expr.clone()));
-
-    quote! {
-        {
-            let mut __open = dioxus::prelude::use_signal(|| false);
-            dioxus::prelude::rsx! {
-                div {
-                    class: "relative inline-block",
-                    onclick: move |ev: dioxus::prelude::Event<dioxus::prelude::MouseData>| {
-                        ev.stop_propagation();
-                        __open.toggle();
-                    },
-                    #trigger_inner,
-                    if *__open.read() {
+                    let handler = wrap_dioxus_handler(on_click);
+                    let check_mark = if checked { "\u{2713} " } else { "" };
+                    Some(quote! {
                         div {
-                            class: "absolute top-full left-0 z-50 min-w-32 rounded-md border border-gray-700 bg-gray-800 py-1 shadow-lg",
-                            onclick: move |ev: dioxus::prelude::Event<dioxus::prelude::MouseData>| {
-                                ev.stop_propagation();
+                            class: "px-3 py-2 cursor-pointer text-white hover:bg-gray-600 flex items-center",
+                            onclick: {
+                                let __item_handler = #handler;
+                                move |ev: dioxus::prelude::Event<dioxus::prelude::MouseData>| {
+                                    ev.stop_propagation();
+                                    __open.set(false);
+                                    __item_handler(ev);
+                                }
                             },
-                            onmousedown: move |ev: dioxus::prelude::Event<dioxus::prelude::MouseData>| {
-                                ev.prevent_default();
-                            },
-                            #(#item_tokens)*
+                            #check_mark
+                            #label
+                        }
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        let trigger_inner = emit_render_inner(&RenderNode::Expr(trigger_expr.clone()));
+
+        quote! {
+            {
+                let mut __open = dioxus::prelude::use_signal(|| false);
+                dioxus::prelude::rsx! {
+                    div {
+                        class: "relative inline-block",
+                        onclick: move |ev: dioxus::prelude::Event<dioxus::prelude::MouseData>| {
+                            ev.stop_propagation();
+                            __open.toggle();
+                        },
+                        #trigger_inner,
+                        if *__open.read() {
+                            div {
+                                class: "absolute top-full left-0 z-50 min-w-32 rounded-md border border-gray-700 bg-gray-800 py-1 shadow-lg",
+                                onclick: move |ev: dioxus::prelude::Event<dioxus::prelude::MouseData>| {
+                                    ev.stop_propagation();
+                                },
+                                onmousedown: move |ev: dioxus::prelude::Event<dioxus::prelude::MouseData>| {
+                                    ev.prevent_default();
+                                },
+                                #(#item_tokens)*
+                            }
                         }
                     }
                 }
             }
         }
+
     }
 }
-
-#[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
-fn emit_dropdown_menu_shadcn(el: &Element) -> TokenStream {
-    let trigger_expr = match &el.trigger_expr {
-        Some(e) => e,
-        None => return quote! { div { "dropdown: missing trigger" } },
-    };
-
-    let item_tokens: Vec<TokenStream> = el
-        .children
-        .iter()
-        .filter_map(|c| {
-            if let RenderNode::Element(e) = c
-                && e.name == "item"
-            {
-                let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
-                let on_click = e
-                    .args
-                    .iter()
-                    .find(|a| a.key == "on_click")
-                    .map(|a| &a.value)?;
-                let handler = wrap_dioxus_handler(on_click);
-                Some(quote! {
-                    shadcn_dioxus::dropdown_menu::DropdownMenuItem {
-                        onclick: {#handler},
-                        #label
-                    }
-                })
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    let trigger_inner = emit_render_inner(&RenderNode::Expr(trigger_expr.clone()));
-
-    quote! {
-        shadcn_dioxus::dropdown_menu::DropdownMenu {
-            shadcn_dioxus::dropdown_menu::DropdownMenuTrigger {
-                #trigger_inner
-            }
-            shadcn_dioxus::dropdown_menu::DropdownMenuContent {
-                #(#item_tokens)*
-            }
-        }
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Data table
 // ---------------------------------------------------------------------------
 fn emit_data_table(el: &Element) -> TokenStream {
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
     {
-        return emit_data_table_shadcn(el);
+
+        let rows = el
+            .args
+            .iter()
+            .find(|a| a.key == "rows")
+            .map(|a| &a.value)
+            .unwrap();
+
+        let header_cells: Vec<TokenStream> = el
+            .children
+            .iter()
+            .filter_map(|c| {
+                if let RenderNode::Element(e) = c
+                    && e.name == "column"
+                {
+                    let label = e
+                        .args
+                        .iter()
+                        .find(|a| a.key == "label")
+                        .map(|a| &a.value)
+                        .unwrap();
+                    Some(quote! { th { class: "px-3 py-2 text-gray-400 font-medium", #label } })
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        let row_cells: Vec<TokenStream> = el
+            .children
+            .iter()
+            .filter_map(|c| {
+                if let RenderNode::Element(e) = c
+                    && e.name == "column"
+                {
+                    let render_closure = e
+                        .args
+                        .iter()
+                        .find(|a| a.key == "render")
+                        .map(|a| &a.value)
+                        .unwrap();
+                    Some(quote! { td { class: "px-3 py-2 text-white", { (#render_closure)(&__row) } } })
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        quote! {
+            table { class: "w-full text-sm",
+                thead { tr { #(#header_cells)* } }
+                tbody {
+                    for __row in #rows {
+                        tr { #(#row_cells)* }
+                    }
+                }
+            }
+        }
+
     }
     #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
     {
-        emit_data_table_plain(el)
-    }
-}
 
-fn emit_data_table_plain(el: &Element) -> TokenStream {
-    let rows = el
-        .args
-        .iter()
-        .find(|a| a.key == "rows")
-        .map(|a| &a.value)
-        .unwrap();
+        let rows = el
+            .args
+            .iter()
+            .find(|a| a.key == "rows")
+            .map(|a| &a.value)
+            .unwrap();
 
-    let header_cells: Vec<TokenStream> = el
-        .children
-        .iter()
-        .filter_map(|c| {
-            if let RenderNode::Element(e) = c
-                && e.name == "column"
-            {
-                let label = e
-                    .args
-                    .iter()
-                    .find(|a| a.key == "label")
-                    .map(|a| &a.value)
-                    .unwrap();
-                Some(quote! { th { #label } })
-            } else {
-                None
-            }
-        })
-        .collect();
+        let header_cells: Vec<TokenStream> = el
+            .children
+            .iter()
+            .filter_map(|c| {
+                if let RenderNode::Element(e) = c
+                    && e.name == "column"
+                {
+                    let label = e
+                        .args
+                        .iter()
+                        .find(|a| a.key == "label")
+                        .map(|a| &a.value)
+                        .unwrap();
+                    Some(quote! { th { #label } })
+                } else {
+                    None
+                }
+            })
+            .collect();
 
-    let row_cells: Vec<TokenStream> = el
-        .children
-        .iter()
-        .filter_map(|c| {
-            if let RenderNode::Element(e) = c
-                && e.name == "column"
-            {
-                let render_closure = e
-                    .args
-                    .iter()
-                    .find(|a| a.key == "render")
-                    .map(|a| &a.value)
-                    .unwrap();
-                Some(quote! { td { { (#render_closure)(&__row) } } })
-            } else {
-                None
-            }
-        })
-        .collect();
+        let row_cells: Vec<TokenStream> = el
+            .children
+            .iter()
+            .filter_map(|c| {
+                if let RenderNode::Element(e) = c
+                    && e.name == "column"
+                {
+                    let render_closure = e
+                        .args
+                        .iter()
+                        .find(|a| a.key == "render")
+                        .map(|a| &a.value)
+                        .unwrap();
+                    Some(quote! { td { { (#render_closure)(&__row) } } })
+                } else {
+                    None
+                }
+            })
+            .collect();
 
-    quote! {
-        table {
-            thead { tr { #(#header_cells)* } }
-            tbody {
-                for __row in #rows {
-                    tr { #(#row_cells)* }
+        quote! {
+            table {
+                thead { tr { #(#header_cells)* } }
+                tbody {
+                    for __row in #rows {
+                        tr { #(#row_cells)* }
+                    }
                 }
             }
         }
+
     }
 }
-
-#[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
-fn emit_data_table_shadcn(el: &Element) -> TokenStream {
-    let rows = el
-        .args
-        .iter()
-        .find(|a| a.key == "rows")
-        .map(|a| &a.value)
-        .unwrap();
-
-    let header_cells: Vec<TokenStream> = el
-        .children
-        .iter()
-        .filter_map(|c| {
-            if let RenderNode::Element(e) = c
-                && e.name == "column"
-            {
-                let label = e
-                    .args
-                    .iter()
-                    .find(|a| a.key == "label")
-                    .map(|a| &a.value)
-                    .unwrap();
-                Some(quote! { th { class: "px-3 py-2 text-gray-400 font-medium", #label } })
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    let row_cells: Vec<TokenStream> = el
-        .children
-        .iter()
-        .filter_map(|c| {
-            if let RenderNode::Element(e) = c
-                && e.name == "column"
-            {
-                let render_closure = e
-                    .args
-                    .iter()
-                    .find(|a| a.key == "render")
-                    .map(|a| &a.value)
-                    .unwrap();
-                Some(quote! { td { class: "px-3 py-2 text-white", { (#render_closure)(&__row) } } })
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    quote! {
-        table { class: "w-full text-sm",
-            thead { tr { #(#header_cells)* } }
-            tbody {
-                for __row in #rows {
-                    tr { #(#row_cells)* }
-                }
-            }
-        }
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Utilities
 // ---------------------------------------------------------------------------
