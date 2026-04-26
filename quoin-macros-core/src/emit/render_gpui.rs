@@ -61,6 +61,7 @@ fn emit_element_inner(el: &Element) -> TokenStream {
         "skeleton_avatar" => emit_skeleton(el),
         "progress" => emit_progress(el),
         "checkbox" => emit_checkbox(el),
+        "switch" => emit_switch(el),
         "clipboard_button" => emit_clipboard_button(el),
         _ => emit_generic_element(el),
     }
@@ -599,6 +600,48 @@ fn emit_checkbox(el: &Element) -> TokenStream {
         .text_color(::gpui::white())
         .text_xxs()
         .child(inner);
+
+    if !disabled {
+        chain = chain.cursor_pointer();
+    }
+    if disabled {
+        chain = chain.opacity(0.5);
+    }
+
+    if let Some(handler_expr) = find_arg_expr(el, "on_checked_change").or_else(|| find_arg_expr(el, "on_change")) {
+        let wrap = emit_handler_rc_wrap(handler_expr);
+        chain = chain.on_mouse_down(::gpui::MouseButton::Left, #wrap);
+    }
+
+    chain
+}
+
+fn emit_switch(el: &Element) -> TokenStream {
+    let checked = find_arg_bool(el, "checked");
+    let disabled = find_arg_bool(el, "disabled");
+    let track_w = ::gpui::px(44.0);
+    let track_h = ::gpui::px(24.0);
+    let thumb_size = ::gpui::px(20.0);
+
+    let bg_color = if checked { ::gpui::rgb(0x6366f1) } else { ::gpui::rgb(0x374151) };
+    let thumb_offset = if checked { ::gpui::px(20.0) } else { ::gpui::px(2.0) };
+
+    let track = ::gpui::div()
+        .size(track_w)
+        .h(track_h)
+        .rounded_full()
+        .bg(bg_color)
+        .relative();
+
+    let thumb = ::gpui::div()
+        .size(thumb_size)
+        .rounded_full()
+        .bg(::gpui::white())
+        .absolute()
+        .top(::gpui::px(2.0))
+        .left(thumb_offset);
+
+    let mut chain = track.child(thumb);
 
     if !disabled {
         chain = chain.cursor_pointer();

@@ -254,6 +254,51 @@ fn emit_checkbox(el: &Element) -> TokenStream {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Switch (Tier 2 — toggle-switch styled checkbox)
+// ---------------------------------------------------------------------------
+
+fn emit_switch(el: &Element) -> TokenStream {
+    let checked_expr = el.args.iter().find(|a| a.key == "checked").map(|a| &a.value);
+    let on_change_expr = el.args.iter().find(|a| a.key == "on_checked_change").or_else(|| {
+        el.args.iter().find(|a| a.key == "on_change")
+    }).map(|a| &a.value);
+    let disabled = find_arg_bool(el, "disabled");
+
+    let checked_attr = match checked_expr {
+        Some(val) => quote! { checked: #val, },
+        None => quote! {},
+    };
+    let on_change_attr = match on_change_expr {
+        Some(handler) => {
+            let wrapped = wrap_dioxus_handler(handler);
+            quote! { onchange: #wrapped, }
+        }
+        None => quote! {},
+    };
+    let disabled_attr = if disabled { quote! { disabled: true, } } else { quote! {} };
+
+    #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
+    {
+        quote! { shadcn_dioxus::switch::Switch { #checked_attr #on_change_attr #disabled_attr } }
+    }
+    #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn"))]
+    {
+        let track_cls = "relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors bg-input";
+        let thumb_cls = "pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform translate-x-0";
+        quote! {
+            button {
+                class: #track_cls,
+                role: "switch",
+                #disabled_attr
+                onclick: move |_| {},
+                input { r#type: "checkbox", #checked_attr #on_change_attr, class: "sr-only peer" },
+                div { class: #thumb_cls }
+            }
+        }
+    }
+}
+
 fn emit_element(el: &Element) -> TokenStream {
     let inner = emit_element_inner(el);
     wrap_with_cfg(&el.attrs, inner)
@@ -273,6 +318,7 @@ fn emit_element_inner(el: &Element) -> TokenStream {
         "skeleton_avatar" => emit_skeleton_avatar(el),
         "progress" => emit_progress(el),
         "checkbox" => emit_checkbox(el),
+        "switch" => emit_switch(el),
         "tabs" => emit_tabs(el),
         "data_table" => emit_data_table(el),
         "dropdown_menu" => emit_dropdown_menu(el),
