@@ -365,6 +365,88 @@ fn emit_progress(
     }
 }
 
+// ---------------------------------------------------------------------------
+// Checkbox (Tier 2 — type=checkbox vs shadcn Checkbox)
+// ---------------------------------------------------------------------------
+
+fn emit_checkbox(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
+    let checked_expr = el.args.iter().find(|a| a.key == "checked").map(|a| &a.value);
+    let on_change_expr = el.args.iter().find(|a| a.key == "on_checked_change").or_else(|| {
+        el.args.iter().find(|a| a.key == "on_change")
+    }).map(|a| &a.value);
+    let disabled = find_arg_bool(el, "disabled");
+    let user_class = find_arg_string(el, "class").unwrap_or_default();
+
+    #[cfg(feature = "leptos-shadcn")]
+    {
+        let tag = import_shadcn_or_html_tag(bindings, "Checkbox", "input");
+        let checked_prop = match checked_expr {
+            Some(val) => quote! { checked={#val} },
+            None => quote! {},
+        };
+        let on_change_prop = match on_change_expr {
+            Some(handler) => {
+                let wrapped = wrap_event_handler(handler);
+                quote! { on_checked_change={#wrapped} }
+            }
+            None => quote! {},
+        };
+        let class_prop = if user_class.is_empty() { quote! {} } else { quote! { class={#user_class} } };
+        quote! { <#tag #checked_prop #on_change_prop #class_prop disabled={#disabled} /> }
+    }
+
+    #[cfg(not(feature = "leptos-shadcn"))]
+    {
+        let base = "h-4 w-4 rounded border border-input ring-offset-background accent-primary-500 cursor-pointer";
+        let full_class = if user_class.is_empty() { base.to_string() } else { format!("{} {}", base, user_class) };
+
+        let checked_prop = match checked_expr {
+            Some(val) => {
+                quote! { prop:checked={leptos::prelude::Signal::derive(move || #val)} }
+            }
+            None => quote! {},
+        };
+
+        let on_input_prop = match on_change_expr {
+            Some(handler) => {
+                let handler = wrap_event_handler(handler);
+                let bind_id = next_extract_id();
+                let bind_name = quote::format_ident!("__quoin_cb_bind_{}", bind_id);
+                bindings.push(quote! {
+                    let #bind_name = {
+                        let __handler = #handler;
+                        move |ev: leptos::ev::Event| {
+                            let checked = leptos::prelude::event_target_checked(&ev);
+                            __handler(checked);
+                        }
+                    };
+                });
+                quote! { on:input=#bind_name }
+            }
+            None => quote! {},
+        };
+
+        let disabled_prop = if disabled { quote! { disabled=true } } else { quote! {} };
+        let type_prop = quote! { r#type="checkbox"# };
+
+        // Build attrs list
+        let mut attrs: Vec<TokenStream> = vec![
+            quote! { class=#full_class },
+            type_prop,
+            checked_prop,
+            on_input_prop,
+            disabled_prop,
+        ];
+
+        let tag_ident = proc_macro2::Ident::new("input", proc_macro2::Span::call_site());
+        quote! { <#tag_ident #(#attrs)* /> }
+    }
+}
+
 fn emit_element(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
     let inner = emit_element_inner(el, bindings, inside_for);
     wrap_with_cfg(&el.attrs, inner)
@@ -382,6 +464,7 @@ fn emit_element_inner(
         "skeleton_text" => emit_skeleton_text(el, bindings, inside_for),
         "skeleton_avatar" => emit_skeleton_avatar(el, bindings, inside_for),
         "progress" => emit_progress(el, bindings, inside_for),
+        "checkbox" => emit_checkbox(el, bindings, inside_for),
         "tabs" => emit_tabs(el, bindings, inside_for),
         "data_table" => emit_data_table(el, bindings, inside_for),
         "dropdown_menu" => emit_dropdown_menu(el, bindings, inside_for),

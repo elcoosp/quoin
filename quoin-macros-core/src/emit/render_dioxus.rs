@@ -214,6 +214,46 @@ fn emit_progress(el: &Element) -> TokenStream {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Checkbox (Tier 2 — type=checkbox vs shadcn Checkbox)
+// ---------------------------------------------------------------------------
+
+fn emit_checkbox(el: &Element) -> TokenStream {
+    let checked_expr = el.args.iter().find(|a| a.key == "checked").map(|a| &a.value);
+    let on_change_expr = el.args.iter().find(|a| a.key == "on_checked_change").or_else(|| {
+        el.args.iter().find(|a| a.key == "on_change")
+    }).map(|a| &a.value);
+    let disabled = find_arg_bool(el, "disabled");
+    let user_class = find_arg_string(el, "class").unwrap_or_default();
+
+    let base = "h-4 w-4 rounded border border-input ring-offset-background accent-primary-500 cursor-pointer";
+    let full_class = if user_class.is_empty() { base } else { &user_class };
+
+    let checked_attr = match checked_expr {
+        Some(val) => quote! { checked: #val, },
+        None => quote! {},
+    };
+
+    let on_change_attr = match on_change_expr {
+        Some(handler) => {
+            let wrapped = wrap_dioxus_handler(handler);
+            quote! { onchange: #wrapped, }
+        }
+        None => quote! {},
+    };
+
+    let disabled_attr = if disabled { quote! { disabled: true, } } else { quote! {} };
+
+    #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
+    {
+        quote! { shadcn_dioxus::checkbox::Checkbox { #checked_attr #on_change_attr #disabled_attr } }
+    }
+    #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
+    {
+        quote! { input { r#type: "checkbox", class: #full_class, #checked_attr #on_change_attr #disabled_attr } }
+    }
+}
+
 fn emit_element(el: &Element) -> TokenStream {
     let inner = emit_element_inner(el);
     wrap_with_cfg(&el.attrs, inner)
@@ -232,6 +272,7 @@ fn emit_element_inner(el: &Element) -> TokenStream {
         "skeleton_text" => emit_skeleton_text(el),
         "skeleton_avatar" => emit_skeleton_avatar(el),
         "progress" => emit_progress(el),
+        "checkbox" => emit_checkbox(el),
         "tabs" => emit_tabs(el),
         "data_table" => emit_data_table(el),
         "dropdown_menu" => emit_dropdown_menu(el),

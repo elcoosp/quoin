@@ -60,6 +60,7 @@ fn emit_element_inner(el: &Element) -> TokenStream {
         "skeleton_text" => emit_skeleton(el),
         "skeleton_avatar" => emit_skeleton(el),
         "progress" => emit_progress(el),
+        "checkbox" => emit_checkbox(el),
         "clipboard_button" => emit_clipboard_button(el),
         _ => emit_generic_element(el),
     }
@@ -573,6 +574,45 @@ fn emit_progress(el: &Element) -> TokenStream {
             .rounded(::gpui::px(9999.0))
             .bg(::gpui::rgb(0x1e293b))
     }
+}
+
+fn emit_checkbox(el: &Element) -> TokenStream {
+    let checked = find_arg_bool(el, "checked");
+    let disabled = find_arg_bool(el, "disabled");
+    let size = ::gpui::px(16.0);
+
+    let inner = if checked {
+        quote! { "✓" }
+    } else {
+        quote! { "" }
+    };
+
+    let mut chain = ::gpui::div()
+        .size(size)
+        .rounded(::gpui::px(4.0))
+        .border_1()
+        .border_color(if checked { ::gpui::rgb(0x6366f1) } else { ::gpui::rgb(0x374151) })
+        .bg(if checked { ::gpui::rgb(0x6366f1) } else { ::gpui::rgb(0x1e293b) })
+        .flex()
+        .items_center()
+        .justify_center()
+        .text_color(::gpui::white())
+        .text_xxs()
+        .child(inner);
+
+    if !disabled {
+        chain = chain.cursor_pointer();
+    }
+    if disabled {
+        chain = chain.opacity(0.5);
+    }
+
+    if let Some(handler_expr) = find_arg_expr(el, "on_checked_change").or_else(|| find_arg_expr(el, "on_change")) {
+        let wrap = emit_handler_rc_wrap(handler_expr);
+        chain = chain.on_mouse_down(::gpui::MouseButton::Left, #wrap);
+    }
+
+    chain
 }
 
 fn emit_generic_element(el: &Element) -> TokenStream {

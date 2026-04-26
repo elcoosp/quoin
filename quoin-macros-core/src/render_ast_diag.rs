@@ -61,6 +61,7 @@ const KNOWN_ARGS: &[&str] = &[
     "value",
     "max",
     "indeterminate",
+    "on_checked_change",
 ];
 
 const KNOWN_ELEMENTS: &[&str] = &[
@@ -101,6 +102,7 @@ const KNOWN_ELEMENTS: &[&str] = &[
     "skeleton_text",
     "skeleton_avatar",
     "progress",
+    "checkbox",
     "item",
 ];
 
@@ -210,6 +212,9 @@ pub fn check_element_args(element_name: &str, arg_keys: &[&Ident]) -> Vec<String
         }
         "progress" => {
             // value is optional (indeterminate when missing), no validation needed
+        }
+        "checkbox" => {
+            // checked and on_checked_change are optional
         }
         "input" | "button" | "div" => {}
         _ => {

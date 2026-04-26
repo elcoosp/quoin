@@ -279,6 +279,7 @@ const KNOWN_ELEMENTS: &[&str] = &[
     "skeleton_text",
     "skeleton_avatar",
     "progress",
+    "checkbox",
 ];
 
 impl Parse for RenderNode {
