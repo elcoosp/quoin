@@ -10,12 +10,16 @@ quote = "1.0"
 proc-macro2 = "1.0"
 thiserror = "2.0"
 
+# Framework crates – optional, behind the corresponding feature flags
+gpui   = { git = "https://github.com/zed-industries/zed", optional = true }
+leptos = { version = "0.8", optional = true }
+dioxus = { version = "0.7", optional = true }
+
 [features]
 default = []
-gpui = []
-dioxus = []
-leptos = []
+gpui   = ["dep:gpui"]
+dioxus = ["dep:dioxus"]
+leptos = ["dep:leptos"]
 # When enabled, emitters produce shadcn component calls instead of plain HTML.
-# The consumer crate must have the shadcn deps available for the emitted code to compile.
 leptos-shadcn = []
 dioxus-shadcn = []

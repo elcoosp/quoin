@@ -362,8 +362,7 @@ fn emit_data_table(el: &Element) -> TokenStream {
             if let RenderNode::Element(e) = c
                 && e.name == "column"
             {
-                let render_closure =
-                    find_arg_expr(e, "render").expect("column requires 'render'");
+                let render_closure = find_arg_expr(e, "render").expect("column requires 'render'");
                 let width = find_arg_f32(e, "width");
 
                 let mut cell = quote! {
@@ -505,9 +504,8 @@ fn emit_clipboard_button(el: &Element) -> TokenStream {
     chain
 }
 
-
 fn emit_separator(el: &Element) -> TokenStream {
-    let orientation = find_arg_string(el, "orientation").unwrap_or("horizontal");
+    let orientation = find_arg_string(el, "orientation").unwrap_or("horizontal".to_string());
     let mut chain = if orientation == "horizontal" {
         quote! { ::gpui::div().h(::gpui::px(1.0)).bg(::gpui::rgb(0x374151)).w_full() }
     } else {
@@ -544,9 +542,17 @@ fn emit_skeleton(el: &Element) -> TokenStream {
 
 fn emit_progress(el: &Element) -> TokenStream {
     let value_f = find_arg_expr(el, "value").and_then(|e| {
-        if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Float(f), .. }) = e {
+        if let syn::Expr::Lit(syn::ExprLit {
+            lit: syn::Lit::Float(f),
+            ..
+        }) = e
+        {
             f.base10_parse::<f32>().ok()
-        } else if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Int(i), .. }) = e {
+        } else if let syn::Expr::Lit(syn::ExprLit {
+            lit: syn::Lit::Int(i),
+            ..
+        }) = e
+        {
             i.base10_parse::<f32>().ok()
         } else {
             None
@@ -554,37 +560,41 @@ fn emit_progress(el: &Element) -> TokenStream {
     });
 
     if let Some(pct) = value_f {
-        let clamped = if pct < 0.0 { 0.0 } else if pct > 100.0 { 100.0 } else { pct };
-        let track = ::gpui::div()
-            .h(::gpui::px(16.0))
-            .w_full()
-            .rounded(::gpui::px(9999.0))
-            .bg(::gpui::rgb(0x1e293b));
-        let fill = ::gpui::div()
-            .h_full()
-            .rounded(::gpui::px(9999.0))
-            .bg(::gpui::rgb(0x6366f1));
-        // Approximate width: we can't do percentage in GPUI easily,
-        // so use a proportional approach via a parent with known width
-        let fill_w = ::gpui::relative(0.01).max(::gpui::px(4.0));
-        ::gpui::div()
-            .flex_col()
-            .gap(::gpui::px(4.0))
-            .child(track.child(fill.w(::gpui::relative(clamped / 100.0))))
+        let clamped = pct.clamp(0.0, 100.0);
+        quote! {
+            ::gpui::div()
+                .flex_col()
+                .gap(::gpui::px(4.0))
+                .child(
+                    ::gpui::div()
+                        .h(::gpui::px(16.0))
+                        .w_full()
+                        .rounded(::gpui::px(9999.0))
+                        .bg(::gpui::rgb(0x1e293b))
+                        .child(
+                            ::gpui::div()
+                                .h_full()
+                                .rounded(::gpui::px(9999.0))
+                                .bg(::gpui::rgb(0x6366f1))
+                                .w(::gpui::relative(#clamped / 100.0))
+                        )
+                )
+        }
     } else {
         // Indeterminate: just show a track with an animated-looking partial fill
-        ::gpui::div()
-            .h(::gpui::px(16.0))
-            .w_full()
-            .rounded(::gpui::px(9999.0))
-            .bg(::gpui::rgb(0x1e293b))
+        quote! {
+            ::gpui::div()
+                .h(::gpui::px(16.0))
+                .w_full()
+                .rounded(::gpui::px(9999.0))
+                .bg(::gpui::rgb(0x1e293b))
+        }
     }
 }
 
 fn emit_checkbox(el: &Element) -> TokenStream {
     let checked = find_arg_bool(el, "checked");
     let disabled = find_arg_bool(el, "disabled");
-    let size = ::gpui::px(16.0);
 
     let inner = if checked {
         quote! { "✓" }
@@ -592,29 +602,44 @@ fn emit_checkbox(el: &Element) -> TokenStream {
         quote! { "" }
     };
 
-    let mut chain = ::gpui::div()
-        .size(size)
-        .rounded(::gpui::px(4.0))
-        .border_1()
-        .border_color(if checked { ::gpui::rgb(0x6366f1) } else { ::gpui::rgb(0x374151) })
-        .bg(if checked { ::gpui::rgb(0x6366f1) } else { ::gpui::rgb(0x1e293b) })
-        .flex()
-        .items_center()
-        .justify_center()
-        .text_color(::gpui::white())
-        .text_xxs()
-        .child(inner);
+    let border_color = if checked {
+        quote! { ::gpui::rgb(0x6366f1) }
+    } else {
+        quote! { ::gpui::rgb(0x374151) }
+    };
+    let bg_color = if checked {
+        quote! { ::gpui::rgb(0x6366f1) }
+    } else {
+        quote! { ::gpui::rgb(0x1e293b) }
+    };
+
+    let mut chain = quote! {
+        ::gpui::div()
+            .size(::gpui::px(16.0))
+            .rounded(::gpui::px(4.0))
+            .border_1()
+            .border_color(#border_color)
+            .bg(#bg_color)
+            .flex()
+            .items_center()
+            .justify_center()
+            .text_color(::gpui::white())
+            .text_xxs()
+            .child(#inner)
+    };
 
     if !disabled {
-        chain = chain.cursor_pointer();
+        chain = quote! { #chain.cursor_pointer() };
     }
     if disabled {
-        chain = chain.opacity(0.5);
+        chain = quote! { #chain.opacity(0.5) };
     }
 
-    if let Some(handler_expr) = find_arg_expr(el, "on_checked_change").or_else(|| find_arg_expr(el, "on_change")) {
+    if let Some(handler_expr) =
+        find_arg_expr(el, "on_checked_change").or_else(|| find_arg_expr(el, "on_change"))
+    {
         let wrap = emit_handler_rc_wrap(handler_expr);
-        chain = chain.on_mouse_down(::gpui::MouseButton::Left, #wrap);
+        chain = quote! { #chain.on_mouse_down(::gpui::MouseButton::Left, #wrap) };
     }
 
     chain
@@ -623,111 +648,162 @@ fn emit_checkbox(el: &Element) -> TokenStream {
 fn emit_switch(el: &Element) -> TokenStream {
     let checked = find_arg_bool(el, "checked");
     let disabled = find_arg_bool(el, "disabled");
-    let track_w = ::gpui::px(44.0);
-    let track_h = ::gpui::px(24.0);
-    let thumb_size = ::gpui::px(20.0);
 
-    let bg_color = if checked { ::gpui::rgb(0x6366f1) } else { ::gpui::rgb(0x374151) };
-    let thumb_offset = if checked { ::gpui::px(20.0) } else { ::gpui::px(2.0) };
+    let bg_color = if checked {
+        quote! { ::gpui::rgb(0x6366f1) }
+    } else {
+        quote! { ::gpui::rgb(0x374151) }
+    };
+    let thumb_offset = if checked {
+        quote! { ::gpui::px(20.0) }
+    } else {
+        quote! { ::gpui::px(2.0) }
+    };
 
-    let track = ::gpui::div()
-        .size(track_w)
-        .h(track_h)
-        .rounded_full()
-        .bg(bg_color)
-        .relative();
-
-    let thumb = ::gpui::div()
-        .size(thumb_size)
-        .rounded_full()
-        .bg(::gpui::white())
-        .absolute()
-        .top(::gpui::px(2.0))
-        .left(thumb_offset);
-
-    let mut chain = track.child(thumb);
+    let mut chain = quote! {
+        ::gpui::div()
+            .w(::gpui::px(44.0))
+            .h(::gpui::px(24.0))
+            .rounded_full()
+            .bg(#bg_color)
+            .relative()
+            .child(
+                ::gpui::div()
+                    .size(::gpui::px(20.0))
+                    .rounded_full()
+                    .bg(::gpui::white())
+                    .absolute()
+                    .top(::gpui::px(2.0))
+                    .left(#thumb_offset)
+            )
+    };
 
     if !disabled {
-        chain = chain.cursor_pointer();
+        chain = quote! { #chain.cursor_pointer() };
     }
     if disabled {
-        chain = chain.opacity(0.5);
+        chain = quote! { #chain.opacity(0.5) };
     }
 
-    if let Some(handler_expr) = find_arg_expr(el, "on_checked_change").or_else(|| find_arg_expr(el, "on_change")) {
+    if let Some(handler_expr) =
+        find_arg_expr(el, "on_checked_change").or_else(|| find_arg_expr(el, "on_change"))
+    {
         let wrap = emit_handler_rc_wrap(handler_expr);
-        chain = chain.on_mouse_down(::gpui::MouseButton::Left, #wrap);
+        chain = quote! { #chain.on_mouse_down(::gpui::MouseButton::Left, #wrap) };
     }
 
     chain
 }
 
-
 fn emit_radio_group(el: &Element) -> TokenStream {
-    let children: Vec<::gpui::AnyElement> = el.children.iter().map(|c| emit_render(c)).collect();
-    ::gpui::div().flex_col().gap_2().children(children)
+    let children: Vec<TokenStream> = el.children.iter().map(|c| emit_render(c)).collect();
+    quote! {
+        ::gpui::div().flex_col().gap_2().children(vec![#(#children),*])
+    }
 }
 
 fn emit_radio(el: &Element) -> TokenStream {
     let checked = find_arg_bool(el, "checked");
     let disabled = find_arg_bool(el, "disabled");
-    let size = ::gpui::px(16.0);
 
-    let mut chain = ::gpui::div()
-        .size(size)
-        .rounded_full()
-        .border_1()
-        .border_color(if checked { ::gpui::rgb(0x6366f1) } else { ::gpui::rgb(0x374151) })
-        .bg(if checked { ::gpui::rgb(0x6366f1) } else { ::gpui::rgb(0x1e293b) });
+    let border_color = if checked {
+        quote! { ::gpui::rgb(0x6366f1) }
+    } else {
+        quote! { ::gpui::rgb(0x374151) }
+    };
+    let bg_color = if checked {
+        quote! { ::gpui::rgb(0x6366f1) }
+    } else {
+        quote! { ::gpui::rgb(0x1e293b) }
+    };
+
+    let mut chain = quote! {
+        ::gpui::div()
+            .size(::gpui::px(16.0))
+            .rounded_full()
+            .border_1()
+            .border_color(#border_color)
+            .bg(#bg_color)
+    };
 
     if !disabled {
-        chain = chain.cursor_pointer();
+        chain = quote! { #chain.cursor_pointer() };
     }
     if disabled {
-        chain = chain.opacity(0.5);
+        chain = quote! { #chain.opacity(0.5) };
     }
 
-    if let Some(handler_expr) = find_arg_expr(el, "on_change").or_else(|| find_arg_expr(el, "on_checked_change")) {
+    if let Some(handler_expr) =
+        find_arg_expr(el, "on_change").or_else(|| find_arg_expr(el, "on_checked_change"))
+    {
         let wrap = emit_handler_rc_wrap(handler_expr);
-        chain = chain.on_mouse_down(::gpui::MouseButton::Left, #wrap);
+        chain = quote! { #chain.on_mouse_down(::gpui::MouseButton::Left, #wrap) };
     }
 
     chain
 }
 
-
 fn emit_slider(el: &Element) -> TokenStream {
     let value_f = find_arg_expr(el, "value").and_then(|e| {
-        if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Float(f), .. }) = e {
+        if let syn::Expr::Lit(syn::ExprLit {
+            lit: syn::Lit::Float(f),
+            ..
+        }) = e
+        {
             f.base10_parse::<f32>().ok()
-        } else if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Int(i), .. }) = e {
+        } else if let syn::Expr::Lit(syn::ExprLit {
+            lit: syn::Lit::Int(i),
+            ..
+        }) = e
+        {
             i.base10_parse::<f32>().ok()
         } else {
             None
         }
     });
     let min_f = find_arg_expr(el, "min").and_then(|e| {
-        if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Float(f), .. }) = e {
+        if let syn::Expr::Lit(syn::ExprLit {
+            lit: syn::Lit::Float(f),
+            ..
+        }) = e
+        {
             f.base10_parse::<f32>().ok()
-        } else if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Int(i), .. }) = e {
+        } else if let syn::Expr::Lit(syn::ExprLit {
+            lit: syn::Lit::Int(i),
+            ..
+        }) = e
+        {
             i.base10_parse::<f32>().ok()
-        } else { None }
+        } else {
+            None
+        }
     });
     let max_f = find_arg_expr(el, "max").and_then(|e| {
-        if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Float(f), .. }) = e {
+        if let syn::Expr::Lit(syn::ExprLit {
+            lit: syn::Lit::Float(f),
+            ..
+        }) = e
+        {
             f.base10_parse::<f32>().ok()
-        } else if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Int(i), .. }) = e {
+        } else if let syn::Expr::Lit(syn::ExprLit {
+            lit: syn::Lit::Int(i),
+            ..
+        }) = e
+        {
             i.base10_parse::<f32>().ok()
-        } else { None }
+        } else {
+            None
+        }
     });
     let disabled = find_arg_bool(el, "disabled");
 
-    let pct = if let (Some(v)) = value_f {
-        if let (Some(mx)) = max_f {
-            if mx > 0.0 { ((v - min_f.unwrap_or(0.0)) / mx * 100.0).clamp(0.0, 100.0) }
-            else { v.clamp(0.0, 100.0) }
-        } else if let (Some(mx)) = max_f {
-            (v / mx * 100.0).clamp(0.0, 100.0)
+    let pct = if let Some(v) = value_f {
+        if let Some(mx) = max_f {
+            if mx > 0.0 {
+                ((v - min_f.unwrap_or(0.0)) / mx * 100.0).clamp(0.0, 100.0)
+            } else {
+                v.clamp(0.0, 100.0)
+            }
         } else {
             v.clamp(0.0, 100.0)
         }
@@ -735,37 +811,37 @@ fn emit_slider(el: &Element) -> TokenStream {
         0.0
     };
 
-    let track_h = ::gpui::px(8.0);
-    let track = ::gpui::div()
-        .w_full()
-        .h(track_h)
-        .rounded_full()
-        .bg(::gpui::rgb(0x374151));
-
-    let fill_w = ::gpui::relative(pct / 100.0).max(::gpui::px(0.0));
-    let fill = ::gpui::div()
-        .h_full()
-        .rounded_full()
-        .bg(::gpui::rgb(0x6366f1))
-        .w(fill_w);
-
-    let mut chain = track.child(fill);
+    let mut chain = quote! {
+        ::gpui::div()
+            .w_full()
+            .h(::gpui::px(8.0))
+            .rounded_full()
+            .bg(::gpui::rgb(0x374151))
+            .child(
+                ::gpui::div()
+                    .h_full()
+                    .rounded_full()
+                    .bg(::gpui::rgb(0x6366f1))
+                    .w(::gpui::relative(#pct / 100.0))
+            )
+    };
 
     if !disabled {
-        chain = chain.cursor_pointer();
+        chain = quote! { #chain.cursor_pointer() };
     }
     if disabled {
-        chain = chain.opacity(0.5);
+        chain = quote! { #chain.opacity(0.5) };
     }
 
-    if let Some(handler_expr) = find_arg_expr(el, "on_change").or_else(|| find_arg_expr(el, "on_input")) {
+    if let Some(handler_expr) =
+        find_arg_expr(el, "on_change").or_else(|| find_arg_expr(el, "on_input"))
+    {
         let wrap = emit_handler_rc_wrap(handler_expr);
-        chain = chain.on_mouse_down(::gpui::MouseButton::Left, #wrap);
+        chain = quote! { #chain.on_mouse_down(::gpui::MouseButton::Left, #wrap) };
     }
 
     chain
 }
-
 
 fn emit_tooltip(el: &Element) -> TokenStream {
     let trigger_expr = &el.trigger_expr;
@@ -776,12 +852,15 @@ fn emit_tooltip(el: &Element) -> TokenStream {
         quote! { ::gpui::div().child(#text) }
     } else {
         // GPUI has no hover detection in Styled trait — just render trigger + text below
-        let trigger_inner = emit_render(&RenderNode::Expr(trigger_expr.clone()));
+        let trigger_inner = match &el.trigger_expr {
+            Some(expr) => emit_render(&RenderNode::Expr(expr.clone())),
+            None => quote! { ::gpui::div() },
+        };
         quote! {
             ::gpui::div()
                 .flex_col()
                 .gap_1()
-                .child(trigger_inner)
+                .child(#trigger_inner)
                 .child(
                     ::gpui::div()
                         .text_xs()
