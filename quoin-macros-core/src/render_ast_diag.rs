@@ -58,6 +58,9 @@ const KNOWN_ARGS: &[&str] = &[
     "navigate_to",
     "cfg",
     "tooltip",
+    "value",
+    "max",
+    "indeterminate",
 ];
 
 const KNOWN_ELEMENTS: &[&str] = &[
@@ -97,6 +100,7 @@ const KNOWN_ELEMENTS: &[&str] = &[
     "skeleton",
     "skeleton_text",
     "skeleton_avatar",
+    "progress",
     "item",
 ];
 
@@ -203,6 +207,9 @@ pub fn check_element_args(element_name: &str, arg_keys: &[&Ident]) -> Vec<String
                     "tab requires a 'label:' argument (e.g., label: \"Tab Name\")".to_string(),
                 );
             }
+        }
+        "progress" => {
+            // value is optional (indeterminate when missing), no validation needed
         }
         "input" | "button" | "div" => {}
         _ => {

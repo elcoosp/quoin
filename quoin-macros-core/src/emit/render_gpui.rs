@@ -59,6 +59,7 @@ fn emit_element_inner(el: &Element) -> TokenStream {
         "skeleton" => emit_skeleton(el),
         "skeleton_text" => emit_skeleton(el),
         "skeleton_avatar" => emit_skeleton(el),
+        "progress" => emit_progress(el),
         "clipboard_button" => emit_clipboard_button(el),
         _ => emit_generic_element(el),
     }
@@ -533,6 +534,45 @@ fn emit_skeleton(el: &Element) -> TokenStream {
         }
     }
     chain
+}
+
+fn emit_progress(el: &Element) -> TokenStream {
+    let value_f = find_arg_expr(el, "value").and_then(|e| {
+        if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Float(f), .. }) = e {
+            f.base10_parse::<f32>().ok()
+        } else if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Int(i), .. }) = e {
+            i.base10_parse::<f32>().ok()
+        } else {
+            None
+        }
+    });
+
+    if let Some(pct) = value_f {
+        let clamped = if pct < 0.0 { 0.0 } else if pct > 100.0 { 100.0 } else { pct };
+        let track = ::gpui::div()
+            .h(::gpui::px(16.0))
+            .w_full()
+            .rounded(::gpui::px(9999.0))
+            .bg(::gpui::rgb(0x1e293b));
+        let fill = ::gpui::div()
+            .h_full()
+            .rounded(::gpui::px(9999.0))
+            .bg(::gpui::rgb(0x6366f1));
+        // Approximate width: we can't do percentage in GPUI easily,
+        // so use a proportional approach via a parent with known width
+        let fill_w = ::gpui::relative(0.01).max(::gpui::px(4.0));
+        ::gpui::div()
+            .flex_col()
+            .gap(::gpui::px(4.0))
+            .child(track.child(fill.w(::gpui::relative(clamped / 100.0))))
+    } else {
+        // Indeterminate: just show a track with an animated-looking partial fill
+        ::gpui::div()
+            .h(::gpui::px(16.0))
+            .w_full()
+            .rounded(::gpui::px(9999.0))
+            .bg(::gpui::rgb(0x1e293b))
+    }
 }
 
 fn emit_generic_element(el: &Element) -> TokenStream {

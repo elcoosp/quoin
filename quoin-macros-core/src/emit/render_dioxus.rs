@@ -154,6 +154,66 @@ fn emit_skeleton_avatar(el: &Element) -> TokenStream {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Progress (Tier 2 — determinate value vs indeterminate)
+// ---------------------------------------------------------------------------
+
+fn emit_progress(el: &Element) -> TokenStream {
+    let value_expr = el.args.iter().find(|a| a.key == "value").map(|a| &a.value);
+    let max_expr = el.args.iter().find(|a| a.key == "max").map(|a| &a.value);
+    let user_class = find_arg_string(el, "class").unwrap_or_default();
+
+    let outer_cls = if user_class.is_empty() {
+        "relative h-4 w-full overflow-hidden rounded-full bg-secondary"
+    } else {
+        // Dioxus class takes &str, interpolate
+        ""
+    };
+
+    #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
+    {
+        let value_prop = match value_expr {
+            Some(val) => {
+                let max = match max_expr {
+                    Some(m) => quote! { value={format!("{}", (#val as f64) / (#m as f64))} },
+                    None => quote! { value={format!("{}", (#val as f64) / 100.0)} },
+                };
+                quote! { #value_prop }
+            }
+            None => quote! {},
+        };
+        quote! { shadcn_dioxus::progress::Progress { #value_prop } }
+    }
+
+    #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
+    {
+        let bar_cls = "h-full rounded-full bg-primary transition-all duration-300";
+        match value_expr {
+            Some(val) => {
+                let max = match max_expr {
+                    Some(m) => quote! { (#val as f64) / (#m as f64) * 100.0 },
+                    None => quote! { (#val as f64) },
+                };
+                let full_cls = if user_class.is_empty() { outer_cls } else { &user_class };
+                quote! {
+                    div { class: #full_cls,
+                        div { class: #bar_cls, style: "width: {#max}%" }
+                    }
+                }
+            }
+            None => {
+                let indeterminate_cls = "h-full w-1/3 rounded-full bg-primary animate-indeterminate";
+                let full_cls = if user_class.is_empty() { outer_cls } else { &user_class };
+                quote! {
+                    div { class: #full_cls,
+                        div { class: #indeterminate_cls }
+                    }
+                }
+            }
+        }
+    }
+}
+
 fn emit_element(el: &Element) -> TokenStream {
     let inner = emit_element_inner(el);
     wrap_with_cfg(&el.attrs, inner)
@@ -171,6 +231,7 @@ fn emit_element_inner(el: &Element) -> TokenStream {
         "skeleton" => emit_skeleton(el),
         "skeleton_text" => emit_skeleton_text(el),
         "skeleton_avatar" => emit_skeleton_avatar(el),
+        "progress" => emit_progress(el),
         "tabs" => emit_tabs(el),
         "data_table" => emit_data_table(el),
         "dropdown_menu" => emit_dropdown_menu(el),

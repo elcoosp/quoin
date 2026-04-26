@@ -298,6 +298,73 @@ fn emit_skeleton_avatar(
     quote! { <#tag class=#full_class /> }
 }
 
+// ---------------------------------------------------------------------------
+// Progress (Tier 2 — variant: determinate value vs indeterminate)
+// ---------------------------------------------------------------------------
+
+fn emit_progress(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    _inside_for: bool,
+) -> TokenStream {
+    let value_expr = el.args.iter().find(|a| a.key == "value").map(|a| &a.value);
+    let max_expr = el.args.iter().find(|a| a.key == "max").map(|a| &a.value);
+    let user_class = find_arg_string(el, "class").unwrap_or_default();
+
+    #[cfg(feature = "leptos-shadcn")]
+    {
+        let tag = import_shadcn_or_html_tag(bindings, "Progress", "div");
+        let value_prop = match value_expr {
+            Some(val) => {
+                let max = match max_expr {
+                    Some(m) => quote! { (#val as f64) / (#m as f64) },
+                    None => quote! { (#val as f64) / 100.0 },
+                };
+                quote! { value={leptos::prelude::Signal::derive(move || #max)} }
+            }
+            None => quote! {},
+        };
+        let class_prop = if user_class.is_empty() { quote! {} } else { quote! { class={#user_class} } };
+        quote! { <#tag #value_prop #class_prop /> }
+    }
+
+    #[cfg(not(feature = "leptos-shadcn"))]
+    {
+        let outer_cls = if user_class.is_empty() {
+            "relative h-4 w-full overflow-hidden rounded-full bg-secondary".to_string()
+        } else {
+            format!("relative h-4 w-full overflow-hidden rounded-full bg-secondary {}", user_class)
+        };
+        let bar_cls = "h-full rounded-full bg-primary transition-all duration-300";
+
+        match value_expr {
+            Some(val) => {
+                let max = match max_expr {
+                    Some(m) => quote! { (#val as f64) / (#m as f64) * 100.0 },
+                    None => quote! { (#val as f64) },
+                };
+                let val_id = next_extract_id();
+                let val_name = quote::format_ident!("__quoin_prog_val_{}", val_id);
+                bindings.push(quote! { let #val_name = #max; });
+                quote! {
+                    <div class=#outer_cls>
+                        <div class=#bar_cls style={leptos::prelude::Signal::derive(move || format!("width: {}%", #val_name))} />
+                    </div>
+                }
+            }
+            None => {
+                // Indeterminate: animated sliding bar
+                let indeterminate_cls = "h-full w-1/3 rounded-full bg-primary animate-indeterminate";
+                quote! {
+                    <div class=#outer_cls>
+                        <div class=#indeterminate_cls />
+                    </div>
+                }
+            }
+        }
+    }
+}
+
 fn emit_element(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
     let inner = emit_element_inner(el, bindings, inside_for);
     wrap_with_cfg(&el.attrs, inner)
@@ -314,6 +381,7 @@ fn emit_element_inner(
         "skeleton" => emit_skeleton(el, bindings, inside_for),
         "skeleton_text" => emit_skeleton_text(el, bindings, inside_for),
         "skeleton_avatar" => emit_skeleton_avatar(el, bindings, inside_for),
+        "progress" => emit_progress(el, bindings, inside_for),
         "tabs" => emit_tabs(el, bindings, inside_for),
         "data_table" => emit_data_table(el, bindings, inside_for),
         "dropdown_menu" => emit_dropdown_menu(el, bindings, inside_for),
