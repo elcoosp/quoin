@@ -27,6 +27,7 @@ fn import_shadcn_or_html_tag(
 }
 
 #[cfg(not(feature = "leptos-shadcn"))]
+#[allow(dead_code)]
 fn import_shadcn_or_html_tag(
     _bindings: &mut Vec<TokenStream>,
     _shadcn_comp: &str,
@@ -762,6 +763,66 @@ fn emit_slider(
     }
 }
 
+
+// ---------------------------------------------------------------------------
+// Tooltip (Tier 2 - standalone tooltip element)
+// ---------------------------------------------------------------------------
+
+fn emit_tooltip(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
+    let trigger_expr = &el.trigger_expr;
+    let text = find_arg_string(el, "text").unwrap_or_default();
+
+    // Case 1: No trigger — simple title-attribute tooltip
+    if trigger_expr.is_none() {
+        return quote! { <span title={#text}>{#text}</span> };
+    }
+
+    // Case 2: With trigger — wrap trigger in hover tooltip wrapper
+    let trigger_inner = emit_node(&RenderNode::Expr(trigger_expr.clone().unwrap()), bindings, inside_for);
+
+    #[cfg(feature = "leptos-shadcn")]
+    {
+        let tp_alias = quote::format_ident!("TooltipProvider_{}", next_extract_id());
+        let tt_alias = quote::format_ident!("Tooltip_{}", next_extract_id());
+        let ttr_alias = quote::format_ident!("TooltipTrigger_{}", next_extract_id());
+        let ttc_alias = quote::format_ident!("TooltipContent_{}", next_extract_id());
+
+        bindings.push(quote! {
+            let #tp_alias = leptos_shadcn_ui::TooltipProvider;
+            let #tt_alias = leptos_shadcn_ui::Tooltip;
+            let #ttr_alias = leptos_shadcn_ui::TooltipTrigger;
+            let #ttc_alias = leptos_shadcn_ui::TooltipContent;
+        });
+        quote! {
+            <#tp_alias>
+                <#tt_alias>
+                    <#ttr_alias>
+                        {#trigger_inner}
+                    </#ttr_alias>
+                    <#ttc_alias>
+                        {#text}
+                    </#ttc_alias>
+                </#tt_alias>
+            </#tp_alias>
+        }
+    }
+    #[cfg(not(feature = "leptos-shadcn"))]
+    {
+        quote! {
+            <div class="relative inline-block group">
+                {#trigger_inner}
+                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs rounded bg-gray-800 text-white whitespace-nowrap shadow-lg z-50 hidden group-hover:block">
+                    {#text}
+                </div>
+            </div>
+        }
+    }
+}
+
 fn emit_element(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
     let inner = emit_element_inner(el, bindings, inside_for);
     wrap_with_cfg(&el.attrs, inner)
@@ -784,6 +845,7 @@ fn emit_element_inner(
         "radio_group" => emit_radio_group(el, bindings, inside_for),
         "radio" => emit_radio(el, bindings, inside_for),
         "slider" => emit_slider(el, bindings, inside_for),
+        "tooltip" => emit_tooltip(el, bindings, inside_for),
         "tabs" => emit_tabs(el, bindings, inside_for),
         "data_table" => emit_data_table(el, bindings, inside_for),
         "dropdown_menu" => emit_dropdown_menu(el, bindings, inside_for),
@@ -831,92 +893,70 @@ fn emit_element_inner(
 // Badge
 // ---------------------------------------------------------------------------
 fn emit_badge(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
-    #[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
-    {
-        emit_badge_shadcn(el, bindings, inside_for)
-    }
-    #[cfg(not(all(feature = "leptos", feature = "leptos-shadcn")))]
-    {
-        emit_badge_plain(el, bindings, inside_for)
-    }
-}
-
-#[allow(dead_code)]
-fn emit_badge_plain(
-    el: &Element,
-    bindings: &mut Vec<TokenStream>,
-    inside_for: bool,
-) -> TokenStream {
+    // --- Shared computation (always runs) ---
     let color_expr = el.args.iter().find(|a| a.key == "color").map(|a| &a.value);
     let mut children: Vec<TokenStream> = Vec::new();
     for child in &el.children {
         children.push(emit_node(child, bindings, inside_for));
     }
-    match color_expr {
-        Some(color) => {
+
+    // --- Branching: tag + render structure ---
+    #[cfg(feature = "leptos-shadcn")]
+    {
+        let badge_alias = quote::format_ident!("Badge_{}", next_extract_id());
+        bindings.push(quote! {
+            let #badge_alias = leptos_shadcn_ui::Badge;
+        });
+
+        let class_prop = if let Some(color) = color_expr {
             let bg_class = crate::transpile::theme_tokens::try_resolve_bg_class(color);
             match bg_class {
-                Some(cls) => quote! {
-                    <span class={concat!("inline-flex items-center px-1.5 rounded text-xs font-medium text-white ", #cls)}>
-                        #(#children)*
-                    </span>
-                },
-                None => quote! {
-                    <span
-                        class="inline-flex items-center px-1.5 rounded text-xs font-medium text-white"
-                        style=format!("background-color: {}", #color)
-                    >
-                        #(#children)*
-                    </span>
-                },
+                Some(cls) => {
+                    quote! { class={format!("inline-flex items-center px-1.5 rounded text-xs font-medium text-white {}", #cls)} }
+                }
+                None => {
+                    quote! { class="inline-flex items-center px-1.5 rounded text-xs font-medium text-white" }
+                }
             }
+        } else {
+            quote! { class="inline-flex items-center px-1.5 rounded text-xs font-medium bg-gray-600 text-white" }
+        };
+
+        if children.is_empty() {
+            quote! { <#badge_alias #class_prop /> }
+        } else {
+            quote! { <#badge_alias #class_prop> #(#children)* </#badge_alias> }
         }
-        None => quote! {
-            <span class="inline-flex items-center px-1.5 rounded text-xs font-medium bg-gray-600 text-white">
-                #(#children)*
-            </span>
-        },
+    }
+    #[cfg(not(feature = "leptos-shadcn"))]
+    {
+        match color_expr {
+            Some(color) => {
+                let bg_class = crate::transpile::theme_tokens::try_resolve_bg_class(color);
+                match bg_class {
+                    Some(cls) => quote! {
+                        <span class={concat!("inline-flex items-center px-1.5 rounded text-xs font-medium text-white ", #cls)}>
+                            #(#children)*
+                        </span>
+                    },
+                    None => quote! {
+                        <span
+                            class="inline-flex items-center px-1.5 rounded text-xs font-medium text-white"
+                            style=format!("background-color: {}", #color)
+                        >
+                            #(#children)*
+                        </span>
+                    },
+                }
+            }
+            None => quote! {
+                <span class="inline-flex items-center px-1.5 rounded text-xs font-medium bg-gray-600 text-white">
+                    #(#children)*
+                </span>
+            },
+        }
     }
 }
-
-#[cfg(all(feature = "leptos", feature = "leptos-shadcn"))]
-fn emit_badge_shadcn(
-    el: &Element,
-    bindings: &mut Vec<TokenStream>,
-    inside_for: bool,
-) -> TokenStream {
-    let color_expr = el.args.iter().find(|a| a.key == "color").map(|a| &a.value);
-    let mut children: Vec<TokenStream> = Vec::new();
-    for child in &el.children {
-        children.push(emit_node(child, bindings, inside_for));
-    }
-
-    let badge_alias = quote::format_ident!("Badge_{}", next_extract_id());
-    bindings.push(quote! {
-        let #badge_alias = leptos_shadcn_ui::Badge;
-    });
-
-    let class_prop = if let Some(color) = color_expr {
-        let bg_class = crate::transpile::theme_tokens::try_resolve_bg_class(color);
-        match bg_class {
-            Some(cls) => {
-                quote! { class={format!("inline-flex items-center px-1.5 rounded text-xs font-medium text-white {}", #cls)} }
-            }
-            None => {
-                quote! { class="inline-flex items-center px-1.5 rounded text-xs font-medium text-white" }
-            }
-        }
-    } else {
-        quote! { class="inline-flex items-center px-1.5 rounded text-xs font-medium bg-gray-600 text-white" }
-    };
-
-    if children.is_empty() {
-        quote! { <#badge_alias #class_prop /> }
-    } else {
-        quote! { <#badge_alias #class_prop> #(#children)* </#badge_alias> }
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Scroll area
 // ---------------------------------------------------------------------------

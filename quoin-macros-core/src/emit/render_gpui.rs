@@ -65,6 +65,7 @@ fn emit_element_inner(el: &Element) -> TokenStream {
         "radio_group" => emit_radio_group(el),
         "radio" => emit_radio(el),
         "slider" => emit_slider(el),
+        "tooltip" => emit_tooltip(el),
         "clipboard_button" => emit_clipboard_button(el),
         _ => emit_generic_element(el),
     }
@@ -763,6 +764,32 @@ fn emit_slider(el: &Element) -> TokenStream {
     }
 
     chain
+}
+
+
+fn emit_tooltip(el: &Element) -> TokenStream {
+    let trigger_expr = &el.trigger_expr;
+    let text = find_arg_string(el, "text").unwrap_or_default();
+
+    if trigger_expr.is_none() {
+        // Simple title-attribute tooltip
+        quote! { ::gpui::div().child(#text) }
+    } else {
+        // GPUI has no hover detection in Styled trait — just render trigger + text below
+        let trigger_inner = emit_render(&RenderNode::Expr(trigger_expr.clone()));
+        quote! {
+            ::gpui::div()
+                .flex_col()
+                .gap_1()
+                .child(trigger_inner)
+                .child(
+                    ::gpui::div()
+                        .text_xs()
+                        .text_color(::gpui::rgb(0x9ca3af))
+                        .child(#text)
+                )
+        }
+    }
 }
 
 fn emit_generic_element(el: &Element) -> TokenStream {

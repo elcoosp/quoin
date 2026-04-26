@@ -383,6 +383,56 @@ fn emit_slider(el: &Element) -> TokenStream {
     }
 }
 
+
+// ---------------------------------------------------------------------------
+// Tooltip (Tier 2 - standalone tooltip element)
+// ---------------------------------------------------------------------------
+
+fn emit_tooltip(el: &Element) -> TokenStream {
+    let trigger_expr = &el.trigger_expr;
+    let text = find_arg_string(el, "text").unwrap_or_default();
+
+    // Case 1: No trigger — simple title-attribute tooltip
+    if trigger_expr.is_none() {
+        return quote! { span { title: #text } {#text} };
+    }
+
+    // Case 2: With trigger — wrap trigger in hover tooltip wrapper
+    let trigger_inner = emit_render_inner(&RenderNode::Expr(trigger_expr.clone().unwrap()));
+
+    #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
+    {
+        quote! {
+            shadcn_dioxus::tooltip::Tooltip {
+                shadcn_dioxus::tooltip::TooltipTrigger { #trigger_inner }
+                shadcn_dioxus::tooltip::TooltipContent { #text }
+            }
+        }
+    }
+    #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn"))]
+    {
+        quote! {
+            {
+                let mut __tip_open = dioxus::prelude::use_signal(|| false);
+                dioxus::prelude::rsx! {
+                    div {
+                        class: "relative inline-block",
+                        onmouseenter: move |_| __tip_open.set(true),
+                        onmouseleave: move |_| __tip_open.set(false),
+                        #trigger_inner,
+                        if *__tip_open.read() {
+                            div {
+                                class: "absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs rounded bg-gray-800 text-white whitespace-nowrap shadow-lg z-50",
+                                #text
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 fn emit_element(el: &Element) -> TokenStream {
     let inner = emit_element_inner(el);
     wrap_with_cfg(&el.attrs, inner)
@@ -406,6 +456,7 @@ fn emit_element_inner(el: &Element) -> TokenStream {
         "radio_group" => emit_radio_group(el),
         "radio" => emit_radio(el),
         "slider" => emit_slider(el),
+        "tooltip" => emit_tooltip(el),
         "tabs" => emit_tabs(el),
         "data_table" => emit_data_table(el),
         "dropdown_menu" => emit_dropdown_menu(el),
@@ -458,72 +509,62 @@ fn emit_virtual_list(el: &Element) -> TokenStream {
 // Badge
 // ---------------------------------------------------------------------------
 fn emit_badge(el: &Element) -> TokenStream {
+    // --- Shared computation (always runs) ---
+    let color_expr = el.args.iter().find(|a| a.key == "color").map(|a| &a.value);
+    let children: Vec<TokenStream> = el.children.iter().map(emit_render_inner).collect();
+
+    // --- Branching: tag + render structure ---
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
     {
-        return emit_badge_shadcn(el);
+        let class_str = if let Some(color) = color_expr {
+            let bg_class = crate::transpile::theme_tokens::try_resolve_bg_class(color);
+            match bg_class {
+                Some(cls) => format!(
+                    "inline-flex items-center px-1.5 rounded text-xs font-medium text-white {}",
+                    cls
+                ),
+                None => {
+                    "inline-flex items-center px-1.5 rounded text-xs font-medium text-white bg-gray-600"
+                        .to_string()
+                }
+            }
+        } else {
+            "inline-flex items-center px-1.5 rounded text-xs font-medium bg-gray-600 text-white"
+                .to_string()
+        };
+
+        if children.is_empty() {
+            quote! { shadcn_dioxus::badge::Badge { class: #class_str } }
+        } else {
+            quote! { shadcn_dioxus::badge::Badge { class: #class_str, #(#children)* } }
+        }
     }
     #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
     {
-        emit_badge_plain(el)
-    }
-}
-
-fn emit_badge_plain(el: &Element) -> TokenStream {
-    let color_expr = el.args.iter().find(|a| a.key == "color").map(|a| &a.value);
-    let children: Vec<TokenStream> = el.children.iter().map(emit_render_inner).collect();
-    match color_expr {
-        Some(color) => {
-            let bg_class = crate::transpile::theme_tokens::try_resolve_bg_class(color);
-            match bg_class {
-                Some(cls) => quote! {
-                    span {
-                        class: format!("inline-flex items-center px-1.5 rounded text-xs font-medium text-white {}", #cls),
-                        #(#children)*
-                    }
-                },
-                None => quote! {
-                    span {
-                        class: "inline-flex items-center px-1.5 rounded text-xs font-medium text-white bg-gray-600",
-                        #(#children)*
-                    }
-                },
+        match color_expr {
+            Some(color) => {
+                let bg_class = crate::transpile::theme_tokens::try_resolve_bg_class(color);
+                match bg_class {
+                    Some(cls) => quote! {
+                        span {
+                            class: format!("inline-flex items-center px-1.5 rounded text-xs font-medium text-white {}", #cls),
+                            #(#children)*
+                        }
+                    },
+                    None => quote! {
+                        span {
+                            class: "inline-flex items-center px-1.5 rounded text-xs font-medium text-white bg-gray-600",
+                            #(#children)*
+                        }
+                    },
+                }
             }
+            None => quote! {
+                span { class: "inline-flex items-center px-1.5 rounded text-xs font-medium bg-gray-600 text-white", #(#children)* }
+            },
         }
-        None => quote! {
-            span { class: "inline-flex items-center px-1.5 rounded text-xs font-medium bg-gray-600 text-white", #(#children)* }
-        },
     }
 }
-
-#[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
-fn emit_badge_shadcn(el: &Element) -> TokenStream {
-    let color_expr = el.args.iter().find(|a| a.key == "color").map(|a| &a.value);
-    let children: Vec<TokenStream> = el.children.iter().map(emit_render_inner).collect();
-
-    let class_str = if let Some(color) = color_expr {
-        let bg_class = crate::transpile::theme_tokens::try_resolve_bg_class(color);
-        match bg_class {
-            Some(cls) => format!(
-                "inline-flex items-center px-1.5 rounded text-xs font-medium text-white {}",
-                cls
-            ),
-            None => {
-                "inline-flex items-center px-1.5 rounded text-xs font-medium text-white bg-gray-600"
-                    .to_string()
-            }
-        }
-    } else {
-        "inline-flex items-center px-1.5 rounded text-xs font-medium bg-gray-600 text-white"
-            .to_string()
-    };
-
-    if children.is_empty() {
-        quote! { shadcn_dioxus::badge::Badge { class: #class_str } }
-    } else {
-        quote! { shadcn_dioxus::badge::Badge { class: #class_str, #(#children)* } }
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Scroll area
 // ---------------------------------------------------------------------------

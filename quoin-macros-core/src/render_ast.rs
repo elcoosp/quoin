@@ -284,6 +284,7 @@ const KNOWN_ELEMENTS: &[&str] = &[
     "radio_group",
     "radio",
     "slider",
+    "tooltip",
 ];
 
 impl Parse for RenderNode {
