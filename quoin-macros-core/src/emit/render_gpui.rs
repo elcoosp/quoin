@@ -64,6 +64,7 @@ fn emit_element_inner(el: &Element) -> TokenStream {
         "switch" => emit_switch(el),
         "radio_group" => emit_radio_group(el),
         "radio" => emit_radio(el),
+        "slider" => emit_slider(el),
         "clipboard_button" => emit_clipboard_button(el),
         _ => emit_generic_element(el),
     }
@@ -686,6 +687,77 @@ fn emit_radio(el: &Element) -> TokenStream {
     }
 
     if let Some(handler_expr) = find_arg_expr(el, "on_change").or_else(|| find_arg_expr(el, "on_checked_change")) {
+        let wrap = emit_handler_rc_wrap(handler_expr);
+        chain = chain.on_mouse_down(::gpui::MouseButton::Left, #wrap);
+    }
+
+    chain
+}
+
+
+fn emit_slider(el: &Element) -> TokenStream {
+    let value_f = find_arg_expr(el, "value").and_then(|e| {
+        if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Float(f), .. }) = e {
+            f.base10_parse::<f32>().ok()
+        } else if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Int(i), .. }) = e {
+            i.base10_parse::<f32>().ok()
+        } else {
+            None
+        }
+    });
+    let min_f = find_arg_expr(el, "min").and_then(|e| {
+        if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Float(f), .. }) = e {
+            f.base10_parse::<f32>().ok()
+        } else if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Int(i), .. }) = e {
+            i.base10_parse::<f32>().ok()
+        } else { None }
+    });
+    let max_f = find_arg_expr(el, "max").and_then(|e| {
+        if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Float(f), .. }) = e {
+            f.base10_parse::<f32>().ok()
+        } else if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Int(i), .. }) = e {
+            i.base10_parse::<f32>().ok()
+        } else { None }
+    });
+    let disabled = find_arg_bool(el, "disabled");
+
+    let pct = if let (Some(v)) = value_f {
+        if let (Some(mx)) = max_f {
+            if mx > 0.0 { ((v - min_f.unwrap_or(0.0)) / mx * 100.0).clamp(0.0, 100.0) }
+            else { v.clamp(0.0, 100.0) }
+        } else if let (Some(mx)) = max_f {
+            (v / mx * 100.0).clamp(0.0, 100.0)
+        } else {
+            v.clamp(0.0, 100.0)
+        }
+    } else {
+        0.0
+    };
+
+    let track_h = ::gpui::px(8.0);
+    let track = ::gpui::div()
+        .w_full()
+        .h(track_h)
+        .rounded_full()
+        .bg(::gpui::rgb(0x374151));
+
+    let fill_w = ::gpui::relative(pct / 100.0).max(::gpui::px(0.0));
+    let fill = ::gpui::div()
+        .h_full()
+        .rounded_full()
+        .bg(::gpui::rgb(0x6366f1))
+        .w(fill_w);
+
+    let mut chain = track.child(fill);
+
+    if !disabled {
+        chain = chain.cursor_pointer();
+    }
+    if disabled {
+        chain = chain.opacity(0.5);
+    }
+
+    if let Some(handler_expr) = find_arg_expr(el, "on_change").or_else(|| find_arg_expr(el, "on_input")) {
         let wrap = emit_handler_rc_wrap(handler_expr);
         chain = chain.on_mouse_down(::gpui::MouseButton::Left, #wrap);
     }

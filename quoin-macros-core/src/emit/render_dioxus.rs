@@ -346,6 +346,43 @@ fn emit_radio(el: &Element) -> TokenStream {
     }
 }
 
+
+// ---------------------------------------------------------------------------
+// Slider (Tier 2 - range input)
+// ---------------------------------------------------------------------------
+
+fn emit_slider(el: &Element) -> TokenStream {
+    let value_expr = el.args.iter().find(|a| a.key == "value").map(|a| &a.value);
+    let min_expr = el.args.iter().find(|a| a.key == "min").map(|a| &a.value);
+    let max_expr = el.args.iter().find(|a| a.key == "max").map(|a| &a.value);
+    let step_expr = el.args.iter().find(|a| a.key == "step").map(|a| &a.value);
+    let on_change_expr = el.args.iter().find(|a| a.key == "on_change").or_else(|| {
+        el.args.iter().find(|a| a.key == "on_input")
+    }).map(|a| &a.value);
+    let disabled = find_arg_bool(el, "disabled");
+
+    let base = "w-full h-2 rounded-lg appearance-none cursor-pointer accent-primary-500 bg-transparent";
+
+    let value_attr = match value_expr { Some(v) => quote! { value: #v, }, None => quote! {} };
+    let min_attr = match min_expr { Some(m) => quote! { min: #m, }, None => quote! {} };
+    let max_attr = match max_expr { Some(m) => quote! { max: #m, }, None => quote! {} };
+    let step_attr = match step_expr { Some(s) => quote! { step: #s, }, None => quote! {} };
+    let on_change_attr = match on_change_expr {
+        Some(handler) => { let w = wrap_dioxus_handler(handler); quote! { onchange: #w, } }
+        None => quote! {},
+    };
+    let disabled_attr = if disabled { quote! { disabled: true, } } else { quote! {} };
+
+    #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
+    {
+        quote! { shadcn_dioxus::slider::Slider { #value_attr #min_attr #max_attr #step_attr #on_change_attr #disabled_attr } }
+    }
+    #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
+    {
+        quote! { input { r#type: "range", class: #base, #value_attr #min_attr #max_attr #step_attr #on_change_attr #disabled_attr } }
+    }
+}
+
 fn emit_element(el: &Element) -> TokenStream {
     let inner = emit_element_inner(el);
     wrap_with_cfg(&el.attrs, inner)
@@ -368,6 +405,7 @@ fn emit_element_inner(el: &Element) -> TokenStream {
         "switch" => emit_switch(el),
         "radio_group" => emit_radio_group(el),
         "radio" => emit_radio(el),
+        "slider" => emit_slider(el),
         "tabs" => emit_tabs(el),
         "data_table" => emit_data_table(el),
         "dropdown_menu" => emit_dropdown_menu(el),

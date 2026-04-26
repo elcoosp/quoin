@@ -106,6 +106,7 @@ const KNOWN_ELEMENTS: &[&str] = &[
     "switch",
     "radio_group",
     "radio",
+    "slider",
     "item",
 ];
 
@@ -227,6 +228,9 @@ pub fn check_element_args(element_name: &str, arg_keys: &[&Ident]) -> Vec<String
         }
         "radio" => {
             // value is expected for meaningful radio groups
+        }
+        "slider" => {
+            // value is expected, min/max/step are optional
         }
         "input" | "button" | "div" => {}
         _ => {
