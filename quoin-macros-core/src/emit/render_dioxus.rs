@@ -79,14 +79,19 @@ fn wrap_dioxus_handler(handler_expr: &syn::Expr) -> TokenStream {
 // ---------------------------------------------------------------------------
 
 fn resolve_separator_tag(el: &Element) -> TokenStream {
-    let orientation = find_arg_string(el, "orientation").unwrap_or("horizontal");
+    let orientation =
+        find_arg_string(el, "orientation").unwrap_or_else(|| "horizontal".to_string());
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
     {
         quote! { shadcn_dioxus::separator::Separator }
     }
     #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
     {
-        let tag = if orientation == "horizontal" { "hr" } else { "div" };
+        let tag = if orientation == "horizontal" {
+            "hr"
+        } else {
+            "div"
+        };
         let ident = proc_macro2::Ident::new(tag, proc_macro2::Span::call_site());
         quote! { #ident }
     }
@@ -100,7 +105,11 @@ fn emit_separator(el: &Element) -> TokenStream {
         let value = &arg.value;
         match key_str.as_str() {
             "class" => {
-                if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }) = value {
+                if let syn::Expr::Lit(syn::ExprLit {
+                    lit: syn::Lit::Str(s),
+                    ..
+                }) = value
+                {
                     attrs.push(quote! { class: #s, });
                 } else {
                     attrs.push(quote! { class: {#value}, });
@@ -123,33 +132,51 @@ fn emit_separator(el: &Element) -> TokenStream {
 
 fn emit_skeleton(el: &Element) -> TokenStream {
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
-    { quote! { shadcn_dioxus::skeleton::Skeleton { class: "animate-pulse rounded-md bg-muted" } } }
+    {
+        quote! { shadcn_dioxus::skeleton::Skeleton { class: "animate-pulse rounded-md bg-muted" } }
+    }
     #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
     {
         let user_class = find_arg_string(el, "class").unwrap_or_default();
-        let cls = if user_class.is_empty() { "animate-pulse rounded-md bg-muted" } else { &user_class };
+        let cls = if user_class.is_empty() {
+            "animate-pulse rounded-md bg-muted"
+        } else {
+            &user_class
+        };
         quote! { div { class: #cls } }
     }
 }
 
 fn emit_skeleton_text(el: &Element) -> TokenStream {
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
-    { quote! { shadcn_dioxus::skeleton::Skeleton { class: "animate-pulse h-4 w-full rounded-md bg-muted" } } }
+    {
+        quote! { shadcn_dioxus::skeleton::Skeleton { class: "animate-pulse h-4 w-full rounded-md bg-muted" } }
+    }
     #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
     {
         let user_class = find_arg_string(el, "class").unwrap_or_default();
-        let cls = if user_class.is_empty() { "animate-pulse h-4 w-full rounded-md bg-muted" } else { &user_class };
+        let cls = if user_class.is_empty() {
+            "animate-pulse h-4 w-full rounded-md bg-muted"
+        } else {
+            &user_class
+        };
         quote! { div { class: #cls } }
     }
 }
 
 fn emit_skeleton_avatar(el: &Element) -> TokenStream {
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
-    { quote! { shadcn_dioxus::skeleton::Skeleton { class: "animate-pulse h-10 w-10 rounded-full bg-muted" } } }
+    {
+        quote! { shadcn_dioxus::skeleton::Skeleton { class: "animate-pulse h-10 w-10 rounded-full bg-muted" } }
+    }
     #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
     {
         let user_class = find_arg_string(el, "class").unwrap_or_default();
-        let cls = if user_class.is_empty() { "animate-pulse h-10 w-10 rounded-full bg-muted" } else { &user_class };
+        let cls = if user_class.is_empty() {
+            "animate-pulse h-10 w-10 rounded-full bg-muted"
+        } else {
+            &user_class
+        };
         quote! { div { class: #cls } }
     }
 }
@@ -173,13 +200,10 @@ fn emit_progress(el: &Element) -> TokenStream {
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
     {
         let value_prop = match value_expr {
-            Some(val) => {
-                let max = match max_expr {
-                    Some(m) => quote! { value={format!("{}", (#val as f64) / (#m as f64))} },
-                    None => quote! { value={format!("{}", (#val as f64) / 100.0)} },
-                };
-                quote! { #value_prop }
-            }
+            Some(val) => match max_expr {
+                Some(m) => quote! { value={format!("{}", (#val as f64) / (#m as f64))} },
+                None => quote! { value={format!("{}", (#val as f64) / 100.0)} },
+            },
             None => quote! {},
         };
         quote! { shadcn_dioxus::progress::Progress { #value_prop } }
@@ -194,7 +218,11 @@ fn emit_progress(el: &Element) -> TokenStream {
                     Some(m) => quote! { (#val as f64) / (#m as f64) * 100.0 },
                     None => quote! { (#val as f64) },
                 };
-                let full_cls = if user_class.is_empty() { outer_cls } else { &user_class };
+                let full_cls = if user_class.is_empty() {
+                    outer_cls
+                } else {
+                    &user_class
+                };
                 quote! {
                     div { class: #full_cls,
                         div { class: #bar_cls, style: "width: {#max}%" }
@@ -202,8 +230,13 @@ fn emit_progress(el: &Element) -> TokenStream {
                 }
             }
             None => {
-                let indeterminate_cls = "h-full w-1/3 rounded-full bg-primary animate-indeterminate";
-                let full_cls = if user_class.is_empty() { outer_cls } else { &user_class };
+                let indeterminate_cls =
+                    "h-full w-1/3 rounded-full bg-primary animate-indeterminate";
+                let full_cls = if user_class.is_empty() {
+                    outer_cls
+                } else {
+                    &user_class
+                };
                 quote! {
                     div { class: #full_cls,
                         div { class: #indeterminate_cls }
@@ -219,15 +252,26 @@ fn emit_progress(el: &Element) -> TokenStream {
 // ---------------------------------------------------------------------------
 
 fn emit_checkbox(el: &Element) -> TokenStream {
-    let checked_expr = el.args.iter().find(|a| a.key == "checked").map(|a| &a.value);
-    let on_change_expr = el.args.iter().find(|a| a.key == "on_checked_change").or_else(|| {
-        el.args.iter().find(|a| a.key == "on_change")
-    }).map(|a| &a.value);
+    let checked_expr = el
+        .args
+        .iter()
+        .find(|a| a.key == "checked")
+        .map(|a| &a.value);
+    let on_change_expr = el
+        .args
+        .iter()
+        .find(|a| a.key == "on_checked_change")
+        .or_else(|| el.args.iter().find(|a| a.key == "on_change"))
+        .map(|a| &a.value);
     let disabled = find_arg_bool(el, "disabled");
     let user_class = find_arg_string(el, "class").unwrap_or_default();
 
     let base = "h-4 w-4 rounded border border-input ring-offset-background accent-primary-500 cursor-pointer";
-    let full_class = if user_class.is_empty() { base } else { &user_class };
+    let full_class = if user_class.is_empty() {
+        base
+    } else {
+        &user_class
+    };
 
     let checked_attr = match checked_expr {
         Some(val) => quote! { checked: #val, },
@@ -242,7 +286,11 @@ fn emit_checkbox(el: &Element) -> TokenStream {
         None => quote! {},
     };
 
-    let disabled_attr = if disabled { quote! { disabled: true, } } else { quote! {} };
+    let disabled_attr = if disabled {
+        quote! { disabled: true, }
+    } else {
+        quote! {}
+    };
 
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
     {
@@ -259,10 +307,17 @@ fn emit_checkbox(el: &Element) -> TokenStream {
 // ---------------------------------------------------------------------------
 
 fn emit_switch(el: &Element) -> TokenStream {
-    let checked_expr = el.args.iter().find(|a| a.key == "checked").map(|a| &a.value);
-    let on_change_expr = el.args.iter().find(|a| a.key == "on_checked_change").or_else(|| {
-        el.args.iter().find(|a| a.key == "on_change")
-    }).map(|a| &a.value);
+    let checked_expr = el
+        .args
+        .iter()
+        .find(|a| a.key == "checked")
+        .map(|a| &a.value);
+    let on_change_expr = el
+        .args
+        .iter()
+        .find(|a| a.key == "on_checked_change")
+        .or_else(|| el.args.iter().find(|a| a.key == "on_change"))
+        .map(|a| &a.value);
     let disabled = find_arg_bool(el, "disabled");
 
     let checked_attr = match checked_expr {
@@ -276,13 +331,17 @@ fn emit_switch(el: &Element) -> TokenStream {
         }
         None => quote! {},
     };
-    let disabled_attr = if disabled { quote! { disabled: true, } } else { quote! {} };
+    let disabled_attr = if disabled {
+        quote! { disabled: true, }
+    } else {
+        quote! {}
+    };
 
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
     {
         quote! { shadcn_dioxus::switch::Switch { #checked_attr #on_change_attr #disabled_attr } }
     }
-    #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn"))]
+    #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
     {
         let track_cls = "relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors bg-input";
         let thumb_cls = "pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform translate-x-0";
@@ -299,7 +358,6 @@ fn emit_switch(el: &Element) -> TokenStream {
     }
 }
 
-
 // ---------------------------------------------------------------------------
 // RadioGroup / Radio (Tier 2 - grouped radio inputs)
 // ---------------------------------------------------------------------------
@@ -314,7 +372,11 @@ fn emit_radio_group(el: &Element) -> TokenStream {
     }
     #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
     {
-        let cls = if user_class.is_empty() { "flex flex-col gap-2" } else { &user_class };
+        let cls = if user_class.is_empty() {
+            "flex flex-col gap-2"
+        } else {
+            &user_class
+        };
         quote! { div { class: #cls, #(#children)* } }
     }
 }
@@ -322,19 +384,43 @@ fn emit_radio_group(el: &Element) -> TokenStream {
 fn emit_radio(el: &Element) -> TokenStream {
     let value_expr = el.args.iter().find(|a| a.key == "value").map(|a| &a.value);
     let name_expr = el.args.iter().find(|a| a.key == "name").map(|a| &a.value);
-    let checked_expr = el.args.iter().find(|a| a.key == "checked").map(|a| &a.value);
-    let on_change_expr = el.args.iter().find(|a| a.key == "on_change").map(|a| &a.value);
+    let checked_expr = el
+        .args
+        .iter()
+        .find(|a| a.key == "checked")
+        .map(|a| &a.value);
+    let on_change_expr = el
+        .args
+        .iter()
+        .find(|a| a.key == "on_change")
+        .map(|a| &a.value);
     let disabled = find_arg_bool(el, "disabled");
 
     let base = "h-4 w-4 rounded-full border border-input accent-primary-500 cursor-pointer";
-    let checked_attr = match checked_expr { Some(v) => quote! { checked: #v, }, None => quote! {} };
-    let name_attr = match name_expr { Some(n) => quote! { name: #n, }, None => quote! {} };
-    let value_attr = match value_expr { Some(v) => quote! { value: #v }, None => quote! {} };
-    let on_change_attr = match on_change_expr {
-        Some(handler) => { let w = wrap_dioxus_handler(handler); quote! { onchange: #w, } }
+    let checked_attr = match checked_expr {
+        Some(v) => quote! { checked: #v, },
         None => quote! {},
     };
-    let disabled_attr = if disabled { quote! { disabled: true, } } else { quote! {} };
+    let name_attr = match name_expr {
+        Some(n) => quote! { name: #n, },
+        None => quote! {},
+    };
+    let value_attr = match value_expr {
+        Some(v) => quote! { value: #v },
+        None => quote! {},
+    };
+    let on_change_attr = match on_change_expr {
+        Some(handler) => {
+            let w = wrap_dioxus_handler(handler);
+            quote! { onchange: #w, }
+        }
+        None => quote! {},
+    };
+    let disabled_attr = if disabled {
+        quote! { disabled: true, }
+    } else {
+        quote! {}
+    };
 
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
     {
@@ -346,7 +432,6 @@ fn emit_radio(el: &Element) -> TokenStream {
     }
 }
 
-
 // ---------------------------------------------------------------------------
 // Slider (Tier 2 - range input)
 // ---------------------------------------------------------------------------
@@ -356,22 +441,45 @@ fn emit_slider(el: &Element) -> TokenStream {
     let min_expr = el.args.iter().find(|a| a.key == "min").map(|a| &a.value);
     let max_expr = el.args.iter().find(|a| a.key == "max").map(|a| &a.value);
     let step_expr = el.args.iter().find(|a| a.key == "step").map(|a| &a.value);
-    let on_change_expr = el.args.iter().find(|a| a.key == "on_change").or_else(|| {
-        el.args.iter().find(|a| a.key == "on_input")
-    }).map(|a| &a.value);
+    let on_change_expr = el
+        .args
+        .iter()
+        .find(|a| a.key == "on_change")
+        .or_else(|| el.args.iter().find(|a| a.key == "on_input"))
+        .map(|a| &a.value);
     let disabled = find_arg_bool(el, "disabled");
 
-    let base = "w-full h-2 rounded-lg appearance-none cursor-pointer accent-primary-500 bg-transparent";
+    let base =
+        "w-full h-2 rounded-lg appearance-none cursor-pointer accent-primary-500 bg-transparent";
 
-    let value_attr = match value_expr { Some(v) => quote! { value: #v, }, None => quote! {} };
-    let min_attr = match min_expr { Some(m) => quote! { min: #m, }, None => quote! {} };
-    let max_attr = match max_expr { Some(m) => quote! { max: #m, }, None => quote! {} };
-    let step_attr = match step_expr { Some(s) => quote! { step: #s, }, None => quote! {} };
-    let on_change_attr = match on_change_expr {
-        Some(handler) => { let w = wrap_dioxus_handler(handler); quote! { onchange: #w, } }
+    let value_attr = match value_expr {
+        Some(v) => quote! { value: #v, },
         None => quote! {},
     };
-    let disabled_attr = if disabled { quote! { disabled: true, } } else { quote! {} };
+    let min_attr = match min_expr {
+        Some(m) => quote! { min: #m, },
+        None => quote! {},
+    };
+    let max_attr = match max_expr {
+        Some(m) => quote! { max: #m, },
+        None => quote! {},
+    };
+    let step_attr = match step_expr {
+        Some(s) => quote! { step: #s, },
+        None => quote! {},
+    };
+    let on_change_attr = match on_change_expr {
+        Some(handler) => {
+            let w = wrap_dioxus_handler(handler);
+            quote! { onchange: #w, }
+        }
+        None => quote! {},
+    };
+    let disabled_attr = if disabled {
+        quote! { disabled: true, }
+    } else {
+        quote! {}
+    };
 
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
     {
@@ -382,7 +490,6 @@ fn emit_slider(el: &Element) -> TokenStream {
         quote! { input { r#type: "range", class: #base, #value_attr #min_attr #max_attr #step_attr #on_change_attr #disabled_attr } }
     }
 }
-
 
 // ---------------------------------------------------------------------------
 // Tooltip (Tier 2 - standalone tooltip element)
@@ -409,7 +516,7 @@ fn emit_tooltip(el: &Element) -> TokenStream {
             }
         }
     }
-    #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn"))]
+    #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
     {
         quote! {
             {
@@ -595,7 +702,6 @@ fn emit_scroll_area(el: &Element) -> TokenStream {
     let mut attrs: Vec<TokenStream> = Vec::new();
     for arg in &el.args {
         let key_str = arg.key.to_string();
-        let _key_ident = arg.key.clone();
         let value = &arg.value;
         match key_str.as_str() {
             "class" => {
@@ -626,7 +732,6 @@ fn emit_scroll_area(el: &Element) -> TokenStream {
 fn emit_button(el: &Element) -> TokenStream {
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
     {
-
         let tooltip_text = el.args.iter().find(|a| a.key == "tooltip").and_then(|a| {
             if let syn::Expr::Lit(syn::ExprLit {
                 lit: syn::Lit::Str(s),
@@ -714,11 +819,9 @@ fn emit_button(el: &Element) -> TokenStream {
             },
             None => inner_button,
         }
-
     }
     #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
     {
-
         let tooltip_text = el.args.iter().find(|a| a.key == "tooltip").and_then(|a| {
             if let syn::Expr::Lit(syn::ExprLit {
                 lit: syn::Lit::Str(s),
@@ -755,7 +858,6 @@ fn emit_button(el: &Element) -> TokenStream {
             },
             None => inner_button,
         }
-
     }
 }
 // ---------------------------------------------------------------------------
@@ -764,7 +866,6 @@ fn emit_button(el: &Element) -> TokenStream {
 fn emit_input(el: &Element) -> TokenStream {
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
     {
-
         let placeholder = el
             .args
             .iter()
@@ -839,13 +940,10 @@ fn emit_input(el: &Element) -> TokenStream {
                 #disabled_attr
             }
         }
-
     }
     #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
     {
-
         emit_html_el_inner(el, "input")
-
     }
 }
 // ---------------------------------------------------------------------------
@@ -954,7 +1052,6 @@ fn emit_clipboard_button(el: &Element) -> TokenStream {
     let mut attrs: Vec<TokenStream> = Vec::new();
     for arg in &el.args {
         let key_str = arg.key.to_string();
-        let key_ident = arg.key.clone();
         let value = &arg.value;
         match key_str.as_str() {
             "class" => {
@@ -1188,7 +1285,6 @@ fn emit_nodes_inner(nodes: &[RenderNode]) -> TokenStream {
 fn emit_tabs(el: &Element) -> TokenStream {
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
     {
-
         let active_expr = el
             .args
             .iter()
@@ -1238,11 +1334,9 @@ fn emit_tabs(el: &Element) -> TokenStream {
                 }
             }
         }
-
     }
     #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
     {
-
         let active_expr = el
             .args
             .iter()
@@ -1256,21 +1350,22 @@ fn emit_tabs(el: &Element) -> TokenStream {
             .map(|a| &a.value)
             .expect("tabs require 'on_click' callback");
 
-        let param_idents: Vec<proc_macro2::Ident> = if let syn::Expr::Closure(closure) = on_click_expr {
-            closure
-                .inputs
-                .iter()
-                .filter_map(|pat| {
-                    if let syn::Pat::Ident(pat_ident) = pat {
-                        Some(pat_ident.ident.clone())
-                    } else {
-                        None
-                    }
-                })
-                .collect()
-        } else {
-            Vec::new()
-        };
+        let param_idents: Vec<proc_macro2::Ident> =
+            if let syn::Expr::Closure(closure) = on_click_expr {
+                closure
+                    .inputs
+                    .iter()
+                    .filter_map(|pat| {
+                        if let syn::Pat::Ident(pat_ident) = pat {
+                            Some(pat_ident.ident.clone())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            } else {
+                Vec::new()
+            };
 
         let param_names: std::collections::HashSet<String> =
             param_idents.iter().map(|id| id.to_string()).collect();
@@ -1328,7 +1423,6 @@ fn emit_tabs(el: &Element) -> TokenStream {
         quote! {
             div { class: "flex", #(#tab_elements)* }
         }
-
     }
 }
 // ---------------------------------------------------------------------------
@@ -1337,7 +1431,6 @@ fn emit_tabs(el: &Element) -> TokenStream {
 fn emit_dropdown_menu(el: &Element) -> TokenStream {
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
     {
-
         let trigger_expr = match &el.trigger_expr {
             Some(e) => e,
             None => return quote! { div { "dropdown: missing trigger" } },
@@ -1381,11 +1474,9 @@ fn emit_dropdown_menu(el: &Element) -> TokenStream {
                 }
             }
         }
-
     }
     #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
     {
-
         let trigger_expr = match &el.trigger_expr {
             Some(e) => e,
             None => return quote! { div { "dropdown: missing trigger" } },
@@ -1461,7 +1552,6 @@ fn emit_dropdown_menu(el: &Element) -> TokenStream {
                 }
             }
         }
-
     }
 }
 // ---------------------------------------------------------------------------
@@ -1470,7 +1560,6 @@ fn emit_dropdown_menu(el: &Element) -> TokenStream {
 fn emit_data_table(el: &Element) -> TokenStream {
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
     {
-
         let rows = el
             .args
             .iter()
@@ -1528,11 +1617,9 @@ fn emit_data_table(el: &Element) -> TokenStream {
                 }
             }
         }
-
     }
     #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
     {
-
         let rows = el
             .args
             .iter()
@@ -1590,7 +1677,6 @@ fn emit_data_table(el: &Element) -> TokenStream {
                 }
             }
         }
-
     }
 }
 // ---------------------------------------------------------------------------

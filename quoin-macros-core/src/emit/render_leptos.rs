@@ -10,7 +10,6 @@ fn next_extract_id() -> usize {
     EXTRACT_COUNTER.fetch_add(1, Ordering::Relaxed)
 }
 
-
 /// Returns the element identifier to use in view!.
 /// - shadcn ON:  imports the shadcn component as a local alias, returns the alias ident
 /// - shadcn OFF: returns the plain HTML tag ident
@@ -57,10 +56,8 @@ fn emit_node(node: &RenderNode, bindings: &mut Vec<TokenStream>, inside_for: boo
             if inside_for {
                 quote! { {#e} }
             } else {
-                let expr_id = next_extract_id();
-                let expr_name = quote::format_ident!("__quoin_expr_{}", expr_id);
-                bindings.push(quote! { let #expr_name = (#e).clone(); });
-                quote! { {#expr_name.clone()} }
+                // Don't hoist — emit inline so the outer closure stays FnMut
+                quote! { {(#e).clone()} }
             }
         }
         RenderNode::If(if_node) => emit_if(if_node, bindings, inside_for),
@@ -108,28 +105,18 @@ fn emit_if_reactive(
     bindings: &mut Vec<TokenStream>,
     inside_for: bool,
 ) -> TokenStream {
-    let mut cond_bindings = Vec::new();
-    let body = build_if_expr_extracting_conds(if_node, bindings, inside_for, &mut cond_bindings);
-
+    let body = build_if_body(if_node, bindings, inside_for);
     quote! {
-        {
-            #(#cond_bindings)*
-            move || { use leptos::prelude::*; #body }
-        }
+        move || { use leptos::prelude::*; #body }
     }
 }
 
-fn build_if_expr_extracting_conds(
+fn build_if_body(
     if_node: &IfNode,
     bindings: &mut Vec<TokenStream>,
     inside_for: bool,
-    cond_bindings: &mut Vec<TokenStream>,
 ) -> TokenStream {
-    let cond_id = next_extract_id();
-    let cond_name = quote::format_ident!("__quoin_if_cond_{}", cond_id);
     let cond_expr = &if_node.condition;
-
-    cond_bindings.push(quote! { let #cond_name = #cond_expr; });
 
     let then_tokens: Vec<TokenStream> = if_node
         .then_branch
@@ -142,14 +129,9 @@ fn build_if_expr_extracting_conds(
         Some(else_branch) => {
             if else_branch.len() == 1 {
                 if let RenderNode::If(nested_if) = &else_branch[0] {
-                    let nested_body = build_if_expr_extracting_conds(
-                        nested_if,
-                        bindings,
-                        inside_for,
-                        cond_bindings,
-                    );
+                    let nested_body = build_if_body(nested_if, bindings, inside_for);
                     return quote! {
-                        if #cond_name {
+                        if #cond_expr {
                             { leptos::view! { #then_view } }.into_any()
                         } else {
                             #nested_body
@@ -163,7 +145,7 @@ fn build_if_expr_extracting_conds(
                 .collect();
             let else_view = quote! { #(#else_tokens)* };
             quote! {
-                if #cond_name {
+                if #cond_expr {
                     { leptos::view! { #then_view } }.into_any()
                 } else {
                     { leptos::view! { #else_view } }.into_any()
@@ -172,7 +154,7 @@ fn build_if_expr_extracting_conds(
         }
         None => {
             quote! {
-                (#cond_name).then(|| { leptos::view! { #then_view } }.into_any())
+                (#cond_expr).then(|| { leptos::view! { #then_view } }.into_any())
             }
         }
     }
@@ -210,25 +192,22 @@ fn emit_for_inner(for_node: &ForNode, bindings: &mut Vec<TokenStream>) -> TokenS
     }
 }
 
-
 // ---------------------------------------------------------------------------
 // Separator (Tier 1 — no variant, just tag swap)
 // ---------------------------------------------------------------------------
 
-fn resolve_separator_element(
-    bindings: &mut Vec<TokenStream>,
-    el: &Element,
-) -> proc_macro2::Ident {
-    let orientation = find_arg_string(el, "orientation").unwrap_or_else(|| "horizontal".to_string());
-    let html_tag = if orientation == "horizontal" { "hr" } else { "div" };
+fn resolve_separator_element(bindings: &mut Vec<TokenStream>, el: &Element) -> proc_macro2::Ident {
+    let orientation =
+        find_arg_string(el, "orientation").unwrap_or_else(|| "horizontal".to_string());
+    let html_tag = if orientation == "horizontal" {
+        "hr"
+    } else {
+        "div"
+    };
     import_shadcn_or_html_tag(bindings, "Separator", html_tag)
 }
 
-fn emit_separator(
-    el: &Element,
-    bindings: &mut Vec<TokenStream>,
-    _inside_for: bool,
-) -> TokenStream {
+fn emit_separator(el: &Element, bindings: &mut Vec<TokenStream>, _inside_for: bool) -> TokenStream {
     let tag = resolve_separator_element(bindings, el);
     let mut attrs: Vec<TokenStream> = Vec::new();
     for arg in &el.args {
@@ -251,11 +230,7 @@ fn emit_separator(
 // Skeleton / SkeletonText / SkeletonAvatar (Tier 1 — no variant, just tag swap)
 // ---------------------------------------------------------------------------
 
-fn emit_skeleton(
-    el: &Element,
-    bindings: &mut Vec<TokenStream>,
-    _inside_for: bool,
-) -> TokenStream {
+fn emit_skeleton(el: &Element, bindings: &mut Vec<TokenStream>, _inside_for: bool) -> TokenStream {
     let tag = import_shadcn_or_html_tag(bindings, "Skeleton", "div");
     let base = "animate-pulse rounded-md bg-muted";
     let user_class = find_arg_string(el, "class").unwrap_or_default();
@@ -303,11 +278,7 @@ fn emit_skeleton_avatar(
 // Progress (Tier 2 — variant: determinate value vs indeterminate)
 // ---------------------------------------------------------------------------
 
-fn emit_progress(
-    el: &Element,
-    bindings: &mut Vec<TokenStream>,
-    _inside_for: bool,
-) -> TokenStream {
+fn emit_progress(el: &Element, bindings: &mut Vec<TokenStream>, _inside_for: bool) -> TokenStream {
     let value_expr = el.args.iter().find(|a| a.key == "value").map(|a| &a.value);
     let max_expr = el.args.iter().find(|a| a.key == "max").map(|a| &a.value);
     let user_class = find_arg_string(el, "class").unwrap_or_default();
@@ -325,7 +296,11 @@ fn emit_progress(
             }
             None => quote! {},
         };
-        let class_prop = if user_class.is_empty() { quote! {} } else { quote! { class={#user_class} } };
+        let class_prop = if user_class.is_empty() {
+            quote! {}
+        } else {
+            quote! { class={#user_class} }
+        };
         quote! { <#tag #value_prop #class_prop /> }
     }
 
@@ -334,7 +309,10 @@ fn emit_progress(
         let outer_cls = if user_class.is_empty() {
             "relative h-4 w-full overflow-hidden rounded-full bg-secondary".to_string()
         } else {
-            format!("relative h-4 w-full overflow-hidden rounded-full bg-secondary {}", user_class)
+            format!(
+                "relative h-4 w-full overflow-hidden rounded-full bg-secondary {}",
+                user_class
+            )
         };
         let bar_cls = "h-full rounded-full bg-primary transition-all duration-300";
 
@@ -355,7 +333,8 @@ fn emit_progress(
             }
             None => {
                 // Indeterminate: animated sliding bar
-                let indeterminate_cls = "h-full w-1/3 rounded-full bg-primary animate-indeterminate";
+                let indeterminate_cls =
+                    "h-full w-1/3 rounded-full bg-primary animate-indeterminate";
                 quote! {
                     <div class=#outer_cls>
                         <div class=#indeterminate_cls />
@@ -370,15 +349,18 @@ fn emit_progress(
 // Checkbox (Tier 2 — type=checkbox vs shadcn Checkbox)
 // ---------------------------------------------------------------------------
 
-fn emit_checkbox(
-    el: &Element,
-    bindings: &mut Vec<TokenStream>,
-    inside_for: bool,
-) -> TokenStream {
-    let checked_expr = el.args.iter().find(|a| a.key == "checked").map(|a| &a.value);
-    let on_change_expr = el.args.iter().find(|a| a.key == "on_checked_change").or_else(|| {
-        el.args.iter().find(|a| a.key == "on_change")
-    }).map(|a| &a.value);
+fn emit_checkbox(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
+    let checked_expr = el
+        .args
+        .iter()
+        .find(|a| a.key == "checked")
+        .map(|a| &a.value);
+    let on_change_expr = el
+        .args
+        .iter()
+        .find(|a| a.key == "on_checked_change")
+        .or_else(|| el.args.iter().find(|a| a.key == "on_change"))
+        .map(|a| &a.value);
     let disabled = find_arg_bool(el, "disabled");
     let user_class = find_arg_string(el, "class").unwrap_or_default();
 
@@ -396,14 +378,22 @@ fn emit_checkbox(
             }
             None => quote! {},
         };
-        let class_prop = if user_class.is_empty() { quote! {} } else { quote! { class={#user_class} } };
+        let class_prop = if user_class.is_empty() {
+            quote! {}
+        } else {
+            quote! { class={#user_class} }
+        };
         quote! { <#tag #checked_prop #on_change_prop #class_prop disabled={#disabled} /> }
     }
 
     #[cfg(not(feature = "leptos-shadcn"))]
     {
         let base = "h-4 w-4 rounded border border-input ring-offset-background accent-primary-500 cursor-pointer";
-        let full_class = if user_class.is_empty() { base.to_string() } else { format!("{} {}", base, user_class) };
+        let full_class = if user_class.is_empty() {
+            base.to_string()
+        } else {
+            format!("{} {}", base, user_class)
+        };
 
         let checked_prop = match checked_expr {
             Some(val) => {
@@ -431,7 +421,11 @@ fn emit_checkbox(
             None => quote! {},
         };
 
-        let disabled_prop = if disabled { quote! { disabled=true } } else { quote! {} };
+        let disabled_prop = if disabled {
+            quote! { disabled=true }
+        } else {
+            quote! {}
+        };
         let type_prop = quote! { r#type="checkbox"# };
 
         // Build attrs list
@@ -452,15 +446,18 @@ fn emit_checkbox(
 // Switch (Tier 2 — toggle-switch styled checkbox)
 // ---------------------------------------------------------------------------
 
-fn emit_switch(
-    el: &Element,
-    bindings: &mut Vec<TokenStream>,
-    inside_for: bool,
-) -> TokenStream {
-    let checked_expr = el.args.iter().find(|a| a.key == "checked").map(|a| &a.value);
-    let on_change_expr = el.args.iter().find(|a| a.key == "on_checked_change").or_else(|| {
-        el.args.iter().find(|a| a.key == "on_change")
-    }).map(|a| &a.value);
+fn emit_switch(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
+    let checked_expr = el
+        .args
+        .iter()
+        .find(|a| a.key == "checked")
+        .map(|a| &a.value);
+    let on_change_expr = el
+        .args
+        .iter()
+        .find(|a| a.key == "on_checked_change")
+        .or_else(|| el.args.iter().find(|a| a.key == "on_change"))
+        .map(|a| &a.value);
     let disabled = find_arg_bool(el, "disabled");
     let user_class = find_arg_string(el, "class").unwrap_or_default();
 
@@ -478,7 +475,11 @@ fn emit_switch(
             }
             None => quote! {},
         };
-        let class_prop = if user_class.is_empty() { quote! {} } else { quote! { class={#user_class} } };
+        let class_prop = if user_class.is_empty() {
+            quote! {}
+        } else {
+            quote! { class={#user_class} }
+        };
         quote! { <#tag #checked_prop #on_change_prop #class_prop disabled={#disabled} /> }
     }
 
@@ -490,7 +491,11 @@ fn emit_switch(
         let thumb_cls = "pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform";
         let thumb_on_cls = "translate-x-5";
         let thumb_off_cls = "translate-x-0";
-        let disabled_cls = if disabled { " opacity-50 pointer-events-none" } else { "" };
+        let disabled_cls = if disabled {
+            " opacity-50 pointer-events-none"
+        } else {
+            ""
+        };
 
         let checked_prop = match checked_expr {
             Some(val) => {
@@ -542,7 +547,11 @@ fn emit_switch(
             });
         });
 
-        let full_cls = if user_class.is_empty() { track_cls.to_string() } else { format!("{} {}", track_cls, user_class) };
+        let full_cls = if user_class.is_empty() {
+            track_cls.to_string()
+        } else {
+            format!("{} {}", track_cls, user_class)
+        };
 
         quote! {
             <button
@@ -560,7 +569,6 @@ fn emit_switch(
     }
 }
 
-
 // ---------------------------------------------------------------------------
 // RadioGroup / Radio (Tier 2 - grouped radio inputs)
 // ---------------------------------------------------------------------------
@@ -570,36 +578,56 @@ fn emit_radio_group(
     bindings: &mut Vec<TokenStream>,
     inside_for: bool,
 ) -> TokenStream {
-    let children: Vec<TokenStream> = el.children.iter().map(|c| emit_node(c, bindings, inside_for)).collect();
+    let children: Vec<TokenStream> = el
+        .children
+        .iter()
+        .map(|c| emit_node(c, bindings, inside_for))
+        .collect();
     let user_class = find_arg_string(el, "class").unwrap_or_default();
 
     #[cfg(feature = "leptos-shadcn")]
     {
         let tag = import_shadcn_or_html_tag(bindings, "RadioGroup", "div");
-        let class_prop = if user_class.is_empty() { quote! {} } else { quote! { class=#user_class } };
+        let class_prop = if user_class.is_empty() {
+            quote! {}
+        } else {
+            quote! { class=#user_class }
+        };
         quote! { <#tag #class_prop> #(#children)* </#tag> }
     }
     #[cfg(not(feature = "leptos-shadcn"))]
     {
-        let cls = if user_class.is_empty() { "flex flex-col gap-2" } else { &user_class };
+        let cls = if user_class.is_empty() {
+            "flex flex-col gap-2"
+        } else {
+            &user_class
+        };
         quote! { <div class=#cls> #(#children)* </div> }
     }
 }
 
-fn emit_radio(
-    el: &Element,
-    bindings: &mut Vec<TokenStream>,
-    _inside_for: bool,
-) -> TokenStream {
+fn emit_radio(el: &Element, bindings: &mut Vec<TokenStream>, _inside_for: bool) -> TokenStream {
     let value_expr = el.args.iter().find(|a| a.key == "value").map(|a| &a.value);
     let name_expr = el.args.iter().find(|a| a.key == "name").map(|a| &a.value);
-    let checked_expr = el.args.iter().find(|a| a.key == "checked").map(|a| &a.value);
-    let on_change_expr = el.args.iter().find(|a| a.key == "on_change").map(|a| &a.value);
+    let checked_expr = el
+        .args
+        .iter()
+        .find(|a| a.key == "checked")
+        .map(|a| &a.value);
+    let on_change_expr = el
+        .args
+        .iter()
+        .find(|a| a.key == "on_change")
+        .map(|a| &a.value);
     let disabled = find_arg_bool(el, "disabled");
     let user_class = find_arg_string(el, "class").unwrap_or_default();
 
     let base = "h-4 w-4 rounded-full border border-input ring-offset-background accent-primary-500 cursor-pointer";
-    let full_class = if user_class.is_empty() { base.to_string() } else { format!("{} {}", base, user_class) };
+    let full_class = if user_class.is_empty() {
+        base.to_string()
+    } else {
+        format!("{} {}", base, user_class)
+    };
 
     #[cfg(feature = "leptos-shadcn")]
     {
@@ -619,7 +647,11 @@ fn emit_radio(
             }
             None => quote! {},
         };
-        let class_prop = if user_class.is_empty() { quote! {} } else { quote! { class=#user_class } };
+        let class_prop = if user_class.is_empty() {
+            quote! {}
+        } else {
+            quote! { class=#user_class }
+        };
         quote! { <#tag #value_prop #checked_prop #on_change_prop #class_prop disabled=#disabled /> }
     }
     #[cfg(not(feature = "leptos-shadcn"))]
@@ -657,29 +689,31 @@ fn emit_radio(
             }
             None => quote! {},
         };
-        let disabled_prop = if disabled { quote! { disabled=true } } else { quote! {} };
+        let disabled_prop = if disabled {
+            quote! { disabled=true }
+        } else {
+            quote! {}
+        };
         let tag_ident = proc_macro2::Ident::new("input", proc_macro2::Span::call_site());
         quote! { <#tag_ident class=#full_class #type_prop #name_prop #value_prop #checked_prop #on_input_prop #disabled_prop /> }
     }
 }
 
-
 // ---------------------------------------------------------------------------
 // Slider (Tier 2 - range input)
 // ---------------------------------------------------------------------------
 
-fn emit_slider(
-    el: &Element,
-    bindings: &mut Vec<TokenStream>,
-    inside_for: bool,
-) -> TokenStream {
+fn emit_slider(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
     let value_expr = el.args.iter().find(|a| a.key == "value").map(|a| &a.value);
     let min_expr = el.args.iter().find(|a| a.key == "min").map(|a| &a.value);
     let max_expr = el.args.iter().find(|a| a.key == "max").map(|a| &a.value);
     let step_expr = el.args.iter().find(|a| a.key == "step").map(|a| &a.value);
-    let on_input_expr = el.args.iter().find(|a| a.key == "on_change").or_else(|| {
-        el.args.iter().find(|a| a.key == "on_input")
-    }).map(|a| &a.value);
+    let on_input_expr = el
+        .args
+        .iter()
+        .find(|a| a.key == "on_change")
+        .or_else(|| el.args.iter().find(|a| a.key == "on_input"))
+        .map(|a| &a.value);
     let disabled = find_arg_bool(el, "disabled");
     let user_class = find_arg_string(el, "class").unwrap_or_default();
 
@@ -709,13 +743,21 @@ fn emit_slider(
             }
             None => quote! {},
         };
-        let class_prop = if user_class.is_empty() { quote! {} } else { quote! { class={#user_class} } };
+        let class_prop = if user_class.is_empty() {
+            quote! {}
+        } else {
+            quote! { class={#user_class} }
+        };
         quote! { <#tag #value_prop #min_prop #max_prop #step_prop #on_change_prop #class_prop disabled={#disabled} /> }
     }
     #[cfg(not(feature = "leptos-shadcn"))]
     {
         let base = "w-full h-2 rounded-lg appearance-none cursor-pointer accent-primary-500 bg-transparent";
-        let full_class = if user_class.is_empty() { base.to_string() } else { format!("{} {}", base, user_class) };
+        let full_class = if user_class.is_empty() {
+            base.to_string()
+        } else {
+            format!("{} {}", base, user_class)
+        };
 
         let type_prop = quote! { r#type="range"# };
         let min_prop = match min_expr {
@@ -757,22 +799,21 @@ fn emit_slider(
             None => quote! {},
         };
 
-        let disabled_prop = if disabled { quote! { disabled=true } } else { quote! {} };
+        let disabled_prop = if disabled {
+            quote! { disabled=true }
+        } else {
+            quote! {}
+        };
         let tag_ident = proc_macro2::Ident::new("input", proc_macro2::Span::call_site());
         quote! { <#tag_ident class=#full_class #type_prop #value_prop #min_prop #max_prop #step_prop #on_input_prop #disabled_prop /> }
     }
 }
 
-
 // ---------------------------------------------------------------------------
 // Tooltip (Tier 2 - standalone tooltip element)
 // ---------------------------------------------------------------------------
 
-fn emit_tooltip(
-    el: &Element,
-    bindings: &mut Vec<TokenStream>,
-    inside_for: bool,
-) -> TokenStream {
+fn emit_tooltip(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
     let trigger_expr = &el.trigger_expr;
     let text = find_arg_string(el, "text").unwrap_or_default();
 
@@ -782,7 +823,11 @@ fn emit_tooltip(
     }
 
     // Case 2: With trigger — wrap trigger in hover tooltip wrapper
-    let trigger_inner = emit_node(&RenderNode::Expr(trigger_expr.clone().unwrap()), bindings, inside_for);
+    let trigger_inner = emit_node(
+        &RenderNode::Expr(trigger_expr.clone().unwrap()),
+        bindings,
+        inside_for,
+    );
 
     #[cfg(feature = "leptos-shadcn")]
     {
@@ -967,7 +1012,6 @@ fn emit_scroll_area(
 ) -> TokenStream {
     #[cfg(feature = "leptos-shadcn")]
     {
-
         let class_expr = el.args.iter().find(|a| a.key == "class").map(|a| &a.value);
         let mut children: Vec<TokenStream> = Vec::new();
         for child in &el.children {
@@ -986,11 +1030,9 @@ fn emit_scroll_area(
         });
 
         quote! { <#sa_alias #class_prop> #(#children)* </#sa_alias> }
-
     }
     #[cfg(not(feature = "leptos-shadcn"))]
     {
-
         let direction = el
             .args
             .iter()
@@ -1033,7 +1075,6 @@ fn emit_scroll_area(
             children.push(emit_node(child, bindings, inside_for));
         }
         quote! { <div #(#attrs)*> #(#children)* </div> }
-
     }
 }
 // ---------------------------------------------------------------------------
@@ -1042,7 +1083,6 @@ fn emit_scroll_area(
 fn emit_button(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
     #[cfg(feature = "leptos-shadcn")]
     {
-
         let tooltip_text = el.args.iter().find(|a| a.key == "tooltip").and_then(|a| {
             if let syn::Expr::Lit(syn::ExprLit {
                 lit: syn::Lit::Str(s),
@@ -1143,11 +1183,9 @@ fn emit_button(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) 
         };
 
         wrapped
-
     }
     #[cfg(not(feature = "leptos-shadcn"))]
     {
-
         let tooltip_text = el.args.iter().find(|a| a.key == "tooltip").and_then(|a| {
             if let syn::Expr::Lit(syn::ExprLit {
                 lit: syn::Lit::Str(s),
@@ -1173,7 +1211,6 @@ fn emit_button(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) 
             },
             None => inner_button,
         }
-
     }
 }
 // ---------------------------------------------------------------------------
@@ -1182,7 +1219,6 @@ fn emit_button(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) 
 fn emit_input(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
     #[cfg(feature = "leptos-shadcn")]
     {
-
         let placeholder = el
             .args
             .iter()
@@ -1275,13 +1311,10 @@ fn emit_input(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -
         });
 
         quote! { <#input_alias #value_prop #on_change_prop #placeholder_prop #class_prop #disabled_prop /> }
-
     }
     #[cfg(not(feature = "leptos-shadcn"))]
     {
-
         emit_html_tag_inner(el, "input", bindings, inside_for)
-
     }
 }
 // ---------------------------------------------------------------------------
@@ -1554,7 +1587,6 @@ fn emit_html_tag_inner(
 fn emit_tabs(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
     #[cfg(feature = "leptos-shadcn")]
     {
-
         let active_expr = el
             .args
             .iter()
@@ -1615,11 +1647,9 @@ fn emit_tabs(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) ->
                 </#tabs_list_alias>
             </#tabs_alias>
         }
-
     }
     #[cfg(not(feature = "leptos-shadcn"))]
     {
-
         let active_expr = el
             .args
             .iter()
@@ -1633,21 +1663,22 @@ fn emit_tabs(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) ->
             .map(|a| &a.value)
             .expect("tabs require 'on_click' callback");
 
-        let param_idents: Vec<proc_macro2::Ident> = if let syn::Expr::Closure(closure) = on_click_expr {
-            closure
-                .inputs
-                .iter()
-                .filter_map(|pat| {
-                    if let syn::Pat::Ident(pat_ident) = pat {
-                        Some(pat_ident.ident.clone())
-                    } else {
-                        None
-                    }
-                })
-                .collect()
-        } else {
-            Vec::new()
-        };
+        let param_idents: Vec<proc_macro2::Ident> =
+            if let syn::Expr::Closure(closure) = on_click_expr {
+                closure
+                    .inputs
+                    .iter()
+                    .filter_map(|pat| {
+                        if let syn::Pat::Ident(pat_ident) = pat {
+                            Some(pat_ident.ident.clone())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            } else {
+                Vec::new()
+            };
 
         let on_click_wrapped = wrap_event_handler(on_click_expr);
 
@@ -1685,7 +1716,6 @@ fn emit_tabs(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) ->
             .collect();
 
         quote! { <ul class="tabs"> #(#tab_labels)* </ul> }
-
     }
 }
 // ---------------------------------------------------------------------------
@@ -1698,7 +1728,6 @@ fn emit_dropdown_menu(
 ) -> TokenStream {
     #[cfg(feature = "leptos-shadcn")]
     {
-
         let trigger_expr = match &el.trigger_expr {
             Some(e) => e,
             None => return quote! { <div>dropdown: missing trigger</div> },
@@ -1757,11 +1786,9 @@ fn emit_dropdown_menu(
                 </#dmc_alias>
             </#dm_alias>
         }
-
     }
     #[cfg(not(feature = "leptos-shadcn"))]
     {
-
         let trigger_expr = match &el.trigger_expr {
             Some(e) => e,
             None => return quote! { <div>dropdown: missing trigger</div> },
@@ -1852,7 +1879,6 @@ fn emit_dropdown_menu(
                 }
             </div>
         }
-
     }
 }
 // ---------------------------------------------------------------------------
@@ -1861,7 +1887,6 @@ fn emit_dropdown_menu(
 fn emit_data_table(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
     #[cfg(feature = "leptos-shadcn")]
     {
-
         let rows_expr = el.args.iter().find(|a| a.key == "rows").map(|a| &a.value);
         let striped = find_arg_bool(el, "striped");
         let empty_label: syn::Expr = syn::parse_quote! { "" };
@@ -1928,11 +1953,9 @@ fn emit_data_table(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bo
                 </tbody>
             </#table_alias>
         }
-
     }
     #[cfg(not(feature = "leptos-shadcn"))]
     {
-
         let rows_expr = el.args.iter().find(|a| a.key == "rows").map(|a| &a.value);
         let striped = find_arg_bool(el, "striped");
         let empty_label: syn::Expr = syn::parse_quote! { "" };
@@ -1992,7 +2015,6 @@ fn emit_data_table(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bo
                 </tbody>
             </table>
         }
-
     }
 }
 fn wrap_with_cfg(attrs: &[syn::Attribute], inner: TokenStream) -> TokenStream {

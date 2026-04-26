@@ -4682,6 +4682,7 @@ dependencies = [
 name = "quoin-macros-core"
 version = "0.1.0"
 dependencies = [
+ "gpui",
  "proc-macro2",
  "quote",
  "syn",

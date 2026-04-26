@@ -3391,6 +3391,7 @@ dependencies = [
 name = "quoin-macros-core"
 version = "0.1.0"
 dependencies = [
+ "dioxus",
  "proc-macro2",
  "quote",
  "syn 2.0.117",
