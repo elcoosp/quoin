@@ -1,3 +1,5 @@
+#![allow(unused_variables)]
+
 use crate::emit::common::{find_arg_bool, find_arg_expr, find_arg_f32, find_arg_string};
 use crate::render_ast::{Element, ForNode, IfNode, RenderNode};
 use crate::transpile::{collect_handler_idents_excluding_params, force_move_on_closure};
@@ -878,16 +880,6 @@ fn emit_element_inner(
                 .collect();
 
             // WARNING: This is a stub implementation that does NOT provide true virtualization.
-            // All child elements are rendered into a scrollable container regardless of the
-            // number of items. The `estimated_height` parameter only sets the container's
-            // fixed height via CSS but does NOT affect which items are rendered.
-            //
-            // For large lists (1000+ items), this will have significant performance overhead
-            // compared to a proper virtualized implementation. True virtualization (only
-            // rendering visible items based on scroll position) is not yet implemented.
-            //
-            // If you need true virtualization for large datasets, consider using a framework-
-            // specific virtualization library directly instead of this component.
             let style = match estimated_height {
                 Some(h) => format!("overflow-y: auto; height: {}px", h),
                 None => "overflow-y: auto".to_string(),
@@ -927,14 +919,12 @@ fn emit_element_inner(
 // Badge
 // ---------------------------------------------------------------------------
 fn emit_badge(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
-    // --- Shared computation (always runs) ---
     let color_expr = find_arg_expr(el, "color");
     let mut children: Vec<TokenStream> = Vec::new();
     for child in &el.children {
         children.push(emit_node(child, bindings, inside_for));
     }
 
-    // --- Branching: tag + render structure ---
     #[cfg(feature = "leptos-shadcn")]
     {
         let badge_alias = quote::format_ident!("Badge_{}", next_extract_id());
@@ -1809,9 +1799,6 @@ fn emit_data_table(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bo
             let #table_alias = leptos_shadcn_ui::Table;
         });
 
-        // Direct block evaluation avoids FnOnce/FnMut and PartialEq bounds entirely.
-        // It perfectly mirrors how `emit_for_inner` operates, rebuilding the rows
-        // on every render cycle naturally via Leptos's reactive graph.
         quote! {
             <#table_alias class=#class_value>
                 <thead><tr>#(#header_cells)*</tr></thead>
@@ -1866,9 +1853,6 @@ fn emit_data_table(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bo
         let rows = rows_expr.unwrap_or(&empty_rows);
         let striped_class = if striped { " table-striped" } else { "" };
 
-        // Direct block evaluation avoids FnOnce/FnMut and PartialEq bounds entirely.
-        // It perfectly mirrors how `emit_for_inner` operates, rebuilding the rows
-        // on every render cycle naturally via Leptos's reactive graph.
         quote! {
             <table class={concat!("w-full", #striped_class)}>
                 <thead><tr> #(#header_cells)* </tr></thead>

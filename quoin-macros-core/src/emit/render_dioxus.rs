@@ -1,3 +1,4 @@
+#![allow(unused_variables)]
 use crate::emit::common::{find_arg_bool, find_arg_expr, find_arg_f32, find_arg_string};
 use crate::render_ast::{Element, ForNode, IfNode, RenderNode};
 use crate::transpile::{
