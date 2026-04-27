@@ -107,6 +107,43 @@ pub mod tests {
         signal.with(|s| assert_eq!(s, "hello world"));
     }
 
+    // --- Edge‑case tests ---
+
+    /// Verify that a clone of a signal shares the same state
+    pub async fn signal_clone_then_mutate<C: ReactiveContext>(cx: &C) {
+        let signal = cx.create_signal(42u32);
+        let clone = signal.clone();
+        clone.set(99);
+        assert_eq!(signal.get(), 99);
+    }
+
+    /// Ensure nested `with` calls do not deadlock or panic
+    pub async fn signal_nested_with<C: ReactiveContext>(cx: &C) {
+        let signal = cx.create_signal(42u32);
+        signal.with(|outer| {
+            signal.with(|inner| {
+                assert_eq!(*outer, *inner);
+            });
+        });
+    }
+
+    /// Stress test with a large value (10k elements)
+    pub async fn signal_large_value<C: ReactiveContext>(cx: &C) {
+        let large: Vec<u32> = (0..10_000).collect();
+        let signal = cx.create_signal(large.clone());
+        assert_eq!(signal.get(), large);
+        signal.set(large.clone().into_iter().rev().collect());
+        assert_eq!(signal.get().len(), 10_000);
+        let mut acc = 0u64;
+        signal.with(|v| {
+            for (i, item) in v.iter().enumerate() {
+                acc += (i as u64) * (*item as u64);
+            }
+        });
+        // arbitrary sanity: acc non‑zero for non‑trivial input
+        assert!(acc > 0);
+    }
+
     // --- Executor and cancellation tests ---
 
     pub async fn executor_spawn_success<C: ReactiveContext>(cx: &C)
@@ -258,6 +295,24 @@ macro_rules! define_conformance_tests {
         }
 
         #[test]
+        fn test_signal_clone_then_mutate() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(signal_clone_then_mutate(&cx));
+        }
+
+        #[test]
+        fn test_signal_nested_with() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(signal_nested_with(&cx));
+        }
+
+        #[test]
+        fn test_signal_large_value() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(signal_large_value(&cx));
+        }
+
+        #[test]
         fn test_executor_spawn_success() {
             let cx = <$cx_type>::setup_context();
             <$cx_type>::block_on(executor_spawn_success(&cx));
@@ -345,6 +400,24 @@ macro_rules! define_conformance_tests {
         async fn test_signal_mutation_observable_via_with(cx: &mut TestAppContext) {
             let harness = <$cx_type>::new(cx);
             signal_mutation_observable_via_with(&harness).await;
+        }
+
+        #[gpui::test]
+        async fn test_signal_clone_then_mutate(cx: &mut TestAppContext) {
+            let harness = <$cx_type>::new(cx);
+            signal_clone_then_mutate(&harness).await;
+        }
+
+        #[gpui::test]
+        async fn test_signal_nested_with(cx: &mut TestAppContext) {
+            let harness = <$cx_type>::new(cx);
+            signal_nested_with(&harness).await;
+        }
+
+        #[gpui::test]
+        async fn test_signal_large_value(cx: &mut TestAppContext) {
+            let harness = <$cx_type>::new(cx);
+            signal_large_value(&harness).await;
         }
 
         #[gpui::test]

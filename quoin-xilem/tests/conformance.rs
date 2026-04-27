@@ -1,5 +1,5 @@
 use quoin_conformance::{SleepExt, define_conformance_tests};
-use quoin_core::{Executor, ReactiveContext};
+use quoin_core::{Executor, JoinHandle, ReactiveContext};
 use quoin_xilem::{XilemContext, XilemExecutor};
 use std::future::Future;
 use std::sync::Arc;
@@ -84,3 +84,32 @@ impl quoin_conformance::TestContextProvider for TestHarness {
 }
 
 define_conformance_tests!(sync, TestHarness);
+
+// ---------------------------------------------------------------------------
+// Additional test: JoinHandle::abort actually cancels the task
+// ---------------------------------------------------------------------------
+#[test]
+fn test_join_handle_abort_cancels_task() {
+    let harness = TestHarness::new();
+    let executor = harness.executor();
+
+    // Spawn a task that will never complete on its own
+    let handle = executor.spawn(async {
+        loop {
+            futures_timer::Delay::new(Duration::from_secs(60)).await;
+        }
+    });
+
+    // Immediately abort the task
+    handle.abort();
+
+    // Await the result via .into_future(). The oneshot receiver should
+    // be cancelled because the underlying tokio task was aborted and the
+    // sender dropped without sending a value.
+    let result = futures::executor::block_on(handle.into_future());
+    assert!(
+        matches!(result, Err(futures::channel::oneshot::Canceled)),
+        "Expected JoinHandle to be cancelled after abort, but got: {:?}",
+        result
+    );
+}
