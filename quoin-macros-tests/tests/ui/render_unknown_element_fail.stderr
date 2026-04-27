@@ -1,0 +1,5 @@
+error: unknown element `foobar`. Known elements: div, h1, h2, h3, p, text, span, button, input, label, img, a, ul, ol, li, hr, br, textarea, select, form, tabs, tab, data_table, column, virtual_list, dropdown_menu, rich_text, clipboard_button, item, badge, badge, styled_text, icon, scroll_area, tab_bar, separator, skeleton, skeleton_text, skeleton_avatar, progress, checkbox, switch, radio_group, radio, slider, tooltip. If this is a function call, wrap it in braces: `{ expr }`
+ --> tests/ui/render_unknown_element_fail.rs:5:9
+  |
+5 |         foobar(class: "x") { "hello" }
+  |         ^^^^^^

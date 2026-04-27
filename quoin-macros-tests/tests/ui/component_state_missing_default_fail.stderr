@@ -1,0 +1,5 @@
+error: State requires default value (e.g., count: u32 = 0)
+ --> tests/ui/component_state_missing_default_fail.rs:6:13
+  |
+6 |             count: u32, // missing default
+  |             ^^^^^
