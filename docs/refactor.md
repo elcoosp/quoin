@@ -459,3 +459,61 @@ The shadcn support adds significant complexity to every emitter. Consider:
 15. Add comprehensive error message tests
 16. Implement actual virtual list support or clearly gate behind feature
 17. Consider separating shadcn support into its own layer
+We’ve made substantial progress.  Here’s a concise summary of what’s **already fixed** and what **remains to be done**, based on the original deep‑dive review.
+
+---
+
+## ✅ Completed (Critical + High‑Priority + Most Short‑Term)
+
+| Issue | Status |
+|-------|--------|
+| **1.1** Leaked GPUI references in `dropdown_codegen.rs` | Fixed – stubs removed |
+| **1.2** GPUI effect cleanup guard scoping | Fixed – now emits `compile_error!` |
+| **1.3** Unsafe `Send`/`Sync` in Dioxus conformance tests | Fixed – leaked `VirtualDom` pattern |
+| **2.1** Edition inconsistency (5 crates → 2024) | All crates now `edition = "2024"` |
+| **2.3** Identical handler‑wrap functions in `render_gpui.rs` | Merged into single `wrap_handler` |
+| **2.4** Debug impls that could fail (4 adapter crates) | Fixed – `unwrap_or_else` everywhere |
+| **2.5** Empty/stub test files | Removed |
+| **3.1** Duplicate `"badge"` in `KNOWN_ELEMENTS` | Removed |
+| **3.2** Confusing `request_update` naming in `GpuiContext` | Renamed to `notify_update` |
+| **3.5** Orphaned `wr` recipe in justfile | Removed |
+| **3.6** Unused `generate_gpui_table_delegate` | Deleted |
+| **4.3** Commented‑out dead code in `quoin-core/src/lib.rs` | Removed |
+| **4.4** Inconsistent `use quoin::Signal` in Leptos example | Cleaned up |
+| **4.6** CI cache invalidation (missing toolchain hash) | Fixed |
+| **Shared helpers** (`common.rs`) | Created and applied to `render_gpui.rs` |
+| **JoinHandle::abort documentation** | Added doc comments in all five adapter crates |
+| **quoin-expand-test purpose** | README added |
+
+---
+
+## ⚠️ Partially Done / Needs Final Verification
+
+| Issue | What’s left |
+|-------|-------------|
+| **2.2** Shared helpers applied to **Dioxus and Leptos** emitters | The files have been patched by scripts, but compilation may still have warnings (`unused variable: inside_for` in Leptos, unused `max` in Dioxus). Should be verified by running `just build-examples` and `just test`. |
+
+---
+
+## ❌ Remaining Work (Next Steps)
+
+### 1. Silencing the remaining warnings
+Even if compilation succeeds, we should suppress the harmless warnings to keep CI clean.
+- **`quoin-macros-core/src/emit/render_leptos.rs`**: `inside_for` parameter unused in a few functions → add `#![allow(unused_variables)]` at the top (already included in the last fix script; verify).
+- **`quoin-macros-core/src/emit/render_dioxus.rs`**: `let max` vs `let _max` – already addressed. Verify there are no other warnings.
+
+### 2. Medium‑term deduplication of larger render blocks (Recommendation 2.2 / 5.2)
+The shared `common.rs` only covers argument extractors. The review suggested extracting **tab rendering**, **data table rendering**, **dropdown**, etc. into common functions. This is a larger refactor but would greatly reduce duplication.
+
+### 3. Testing gaps (Section 6)
+- Add tests for signal edge cases (clone‑then‑mutate, nested `with`, large values).
+- Test that `JoinHandle::abort` actually works or document that it’s a no‑op where applicable.
+- Enable the commented‑out `compile_fail` test for multiple adapter features.
+- Add trybuild tests for error messages (each `QuoinError` variant).
+
+### 4. Architectural improvements (Section 5)
+- Consider the trait‑based emitter architecture to eliminate `#[cfg]` soup.
+- Separate shadcn support into its own crate or layer.
+
+### 5. Low‑priority remaining
+- **4.5**: Use `QuoinError` consistently for better macro error messages.

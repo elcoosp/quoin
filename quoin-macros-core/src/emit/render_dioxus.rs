@@ -1,9 +1,5 @@
+use crate::emit::common::{find_arg_bool, find_arg_expr, find_arg_f32, find_arg_string};
 use crate::render_ast::{Element, ForNode, IfNode, RenderNode};
-use crate::emit::common::{find_arg_bool, find_arg_f32, find_arg_string, find_arg_expr};
-use crate::emit::common::{find_arg_bool, find_arg_f32, find_arg_string, find_arg_expr};
-use crate::emit::common::{find_arg_bool, find_arg_f32, find_arg_string, find_arg_expr};
-use crate::emit::common::{find_arg_bool, find_arg_f32, find_arg_string, find_arg_expr};
-use crate::emit::common::{find_arg_bool, find_arg_f32, find_arg_string, find_arg_expr};
 use crate::transpile::{
     collect_handler_idents, collect_handler_idents_excluding_params, force_move_on_closure,
 };
@@ -191,8 +187,8 @@ fn emit_skeleton_avatar(el: &Element) -> TokenStream {
 // ---------------------------------------------------------------------------
 
 fn emit_progress(el: &Element) -> TokenStream {
-    let value_expr = el.args.iter().find(|a| a.key == "value").map(|a| &a.value);
-    let max_expr = el.args.iter().find(|a| a.key == "max").map(|a| &a.value);
+    let value_expr = find_arg_expr(el, "value");
+    let max_expr = find_arg_expr(el, "max");
     let user_class = find_arg_string(el, "class").unwrap_or_default();
 
     let outer_cls = if user_class.is_empty() {
@@ -219,7 +215,7 @@ fn emit_progress(el: &Element) -> TokenStream {
         let bar_cls = "h-full rounded-full bg-primary transition-all duration-300";
         match value_expr {
             Some(val) => {
-                let _max = match max_expr {
+                let max = match max_expr {
                     Some(m) => quote! { (#val as f64) / (#m as f64) * 100.0 },
                     None => quote! { (#val as f64) },
                 };
@@ -257,17 +253,13 @@ fn emit_progress(el: &Element) -> TokenStream {
 // ---------------------------------------------------------------------------
 
 fn emit_checkbox(el: &Element) -> TokenStream {
-    let checked_expr = el
-        .args
-        .iter()
-        .find(|a| a.key == "checked")
-        .map(|a| &a.value);
-    let on_change_expr = el
-        .args
-        .iter()
-        .find(|a| a.key == "on_checked_change")
-        .or_else(|| el.args.iter().find(|a| a.key == "on_change"))
-        .map(|a| &a.value);
+    let checked_expr = find_arg_expr(el, "on_checked_change")
+        .or_else(|| find_arg_expr(el, "on_change"))
+        .is_some()
+        .then(|| find_arg_expr(el, "checked"))
+        .flatten();
+    let on_change_expr =
+        find_arg_expr(el, "on_checked_change").or_else(|| find_arg_expr(el, "on_change"));
     let disabled = find_arg_bool(el, "disabled");
     let user_class = find_arg_string(el, "class").unwrap_or_default();
 
@@ -312,17 +304,9 @@ fn emit_checkbox(el: &Element) -> TokenStream {
 // ---------------------------------------------------------------------------
 
 fn emit_switch(el: &Element) -> TokenStream {
-    let checked_expr = el
-        .args
-        .iter()
-        .find(|a| a.key == "checked")
-        .map(|a| &a.value);
-    let on_change_expr = el
-        .args
-        .iter()
-        .find(|a| a.key == "on_checked_change")
-        .or_else(|| el.args.iter().find(|a| a.key == "on_change"))
-        .map(|a| &a.value);
+    let checked_expr = find_arg_expr(el, "checked");
+    let on_change_expr =
+        find_arg_expr(el, "on_checked_change").or_else(|| find_arg_expr(el, "on_change"));
     let disabled = find_arg_bool(el, "disabled");
 
     let checked_attr = match checked_expr {
@@ -387,18 +371,10 @@ fn emit_radio_group(el: &Element) -> TokenStream {
 }
 
 fn emit_radio(el: &Element) -> TokenStream {
-    let value_expr = el.args.iter().find(|a| a.key == "value").map(|a| &a.value);
-    let name_expr = el.args.iter().find(|a| a.key == "name").map(|a| &a.value);
-    let checked_expr = el
-        .args
-        .iter()
-        .find(|a| a.key == "checked")
-        .map(|a| &a.value);
-    let on_change_expr = el
-        .args
-        .iter()
-        .find(|a| a.key == "on_change")
-        .map(|a| &a.value);
+    let value_expr = find_arg_expr(el, "value");
+    let name_expr = find_arg_expr(el, "name");
+    let checked_expr = find_arg_expr(el, "checked");
+    let on_change_expr = find_arg_expr(el, "on_change");
     let disabled = find_arg_bool(el, "disabled");
 
     let base = "h-4 w-4 rounded-full border border-input accent-primary-500 cursor-pointer";
@@ -442,16 +418,11 @@ fn emit_radio(el: &Element) -> TokenStream {
 // ---------------------------------------------------------------------------
 
 fn emit_slider(el: &Element) -> TokenStream {
-    let value_expr = el.args.iter().find(|a| a.key == "value").map(|a| &a.value);
-    let min_expr = el.args.iter().find(|a| a.key == "min").map(|a| &a.value);
-    let max_expr = el.args.iter().find(|a| a.key == "max").map(|a| &a.value);
-    let step_expr = el.args.iter().find(|a| a.key == "step").map(|a| &a.value);
-    let on_change_expr = el
-        .args
-        .iter()
-        .find(|a| a.key == "on_change")
-        .or_else(|| el.args.iter().find(|a| a.key == "on_input"))
-        .map(|a| &a.value);
+    let value_expr = find_arg_expr(el, "value");
+    let min_expr = find_arg_expr(el, "min");
+    let max_expr = find_arg_expr(el, "max");
+    let step_expr = find_arg_expr(el, "step");
+    let on_change_expr = find_arg_expr(el, "on_change").or_else(|| find_arg_expr(el, "on_input"));
     let disabled = find_arg_bool(el, "disabled");
 
     let base =
@@ -586,29 +557,21 @@ fn emit_element_inner(el: &Element) -> TokenStream {
 
 // ---------------------------------------------------------------------------
 // Virtual list
+//
+// WARNING: This is a stub implementation that does NOT provide true virtualization.
+// All child elements are rendered into a scrollable container regardless of the
+// number of items. The `estimated_height` parameter only sets the container's
+// fixed height via CSS but does NOT affect which items are rendered.
+//
+// For large lists (1000+ items), this will have significant performance overhead
+// compared to a proper virtualized implementation. True virtualization (only
+// rendering visible items based on scroll position) is not yet implemented.
+//
+// If you need true virtualization for large datasets, consider using a framework-
+// specific virtualization library directly instead of this component.
 // ---------------------------------------------------------------------------
 fn emit_virtual_list(el: &Element) -> TokenStream {
-    let estimated_height = el
-        .args
-        .iter()
-        .find(|a| a.key == "estimated_height")
-        .and_then(|a| {
-            if let syn::Expr::Lit(syn::ExprLit {
-                lit: syn::Lit::Float(f),
-                ..
-            }) = &a.value
-            {
-                f.base10_parse::<f32>().ok()
-            } else if let syn::Expr::Lit(syn::ExprLit {
-                lit: syn::Lit::Int(i),
-                ..
-            }) = &a.value
-            {
-                i.base10_parse::<f32>().ok()
-            } else {
-                None
-            }
-        });
+    let estimated_height = find_arg_f32(el, "estimated_height");
     let children_tokens: Vec<TokenStream> = el.children.iter().map(emit_render_inner).collect();
     let style = match estimated_height {
         Some(h) => format!("overflow-y: auto; height: {}px", h),
@@ -622,7 +585,7 @@ fn emit_virtual_list(el: &Element) -> TokenStream {
 // ---------------------------------------------------------------------------
 fn emit_badge(el: &Element) -> TokenStream {
     // --- Shared computation (always runs) ---
-    let color_expr = el.args.iter().find(|a| a.key == "color").map(|a| &a.value);
+    let color_expr = find_arg_expr(el, "color");
     let children: Vec<TokenStream> = el.children.iter().map(emit_render_inner).collect();
 
     // --- Branching: tag + render structure ---
@@ -681,22 +644,7 @@ fn emit_badge(el: &Element) -> TokenStream {
 // Scroll area
 // ---------------------------------------------------------------------------
 fn emit_scroll_area(el: &Element) -> TokenStream {
-    let direction = el
-        .args
-        .iter()
-        .find(|a| a.key == "direction")
-        .and_then(|a| {
-            if let syn::Expr::Lit(syn::ExprLit {
-                lit: syn::Lit::Str(s),
-                ..
-            }) = &a.value
-            {
-                Some(s.value())
-            } else {
-                None
-            }
-        })
-        .unwrap_or_else(|| "vertical".to_string());
+    let direction = find_arg_string(el, "direction").unwrap_or_else(|| "vertical".to_string());
 
     let overflow_class = match direction.as_str() {
         "horizontal" => "overflow-x-auto",
@@ -737,19 +685,8 @@ fn emit_scroll_area(el: &Element) -> TokenStream {
 fn emit_button(el: &Element) -> TokenStream {
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
     {
-        let tooltip_text = el.args.iter().find(|a| a.key == "tooltip").and_then(|a| {
-            if let syn::Expr::Lit(syn::ExprLit {
-                lit: syn::Lit::Str(s),
-                ..
-            }) = &a.value
-            {
-                Some(s.value())
-            } else {
-                None
-            }
-        });
-
-        let class_expr = el.args.iter().find(|a| a.key == "class").map(|a| &a.value);
+        let tooltip_text = find_arg_string(el, "tooltip");
+        let class_expr = find_arg_expr(el, "class");
 
         let primary = find_arg_bool(el, "primary");
         let destructive = find_arg_bool(el, "destructive");
@@ -780,15 +717,10 @@ fn emit_button(el: &Element) -> TokenStream {
             None => quote! { format!("{} {}{}", #base_class, #variant_class, #disabled_class) },
         };
 
-        let on_click_attr = el
-            .args
-            .iter()
-            .find(|a| a.key == "on_click")
-            .map(|a| &a.value)
-            .map(|handler_expr| {
-                let handler = wrap_dioxus_handler(handler_expr);
-                quote! { onclick: {#handler}, }
-            });
+        let on_click_attr = find_arg_expr(el, "on_click").map(|handler_expr| {
+            let handler = wrap_dioxus_handler(handler_expr);
+            quote! { onclick: {#handler}, }
+        });
 
         let children: Vec<TokenStream> = el.children.iter().map(emit_render_inner).collect();
 
@@ -827,17 +759,7 @@ fn emit_button(el: &Element) -> TokenStream {
     }
     #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
     {
-        let tooltip_text = el.args.iter().find(|a| a.key == "tooltip").and_then(|a| {
-            if let syn::Expr::Lit(syn::ExprLit {
-                lit: syn::Lit::Str(s),
-                ..
-            }) = &a.value
-            {
-                Some(s.value())
-            } else {
-                None
-            }
-        });
+        let tooltip_text = find_arg_string(el, "tooltip");
 
         let inner_button = emit_html_el_inner(el, "button");
 
@@ -871,30 +793,11 @@ fn emit_button(el: &Element) -> TokenStream {
 fn emit_input(el: &Element) -> TokenStream {
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
     {
-        let placeholder = el
-            .args
-            .iter()
-            .find(|a| a.key == "placeholder")
-            .and_then(|a| {
-                if let syn::Expr::Lit(syn::ExprLit {
-                    lit: syn::Lit::Str(s),
-                    ..
-                }) = &a.value
-                {
-                    Some(s.value())
-                } else {
-                    None
-                }
-            })
-            .unwrap_or_default();
+        let placeholder = find_arg_string(el, "placeholder").unwrap_or_default();
 
-        let class_expr = el.args.iter().find(|a| a.key == "class").map(|a| &a.value);
-        let value_expr = el.args.iter().find(|a| a.key == "value").map(|a| &a.value);
-        let on_input_expr = el
-            .args
-            .iter()
-            .find(|a| a.key == "on_input")
-            .map(|a| &a.value);
+        let class_expr = find_arg_expr(el, "class");
+        let value_expr = find_arg_expr(el, "value");
+        let on_input_expr = find_arg_expr(el, "on_input");
         let disabled = find_arg_bool(el, "disabled");
 
         let base_class = "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
@@ -955,19 +858,8 @@ fn emit_input(el: &Element) -> TokenStream {
 // Icon
 // ---------------------------------------------------------------------------
 fn emit_icon(el: &Element) -> TokenStream {
-    let name = el.args.iter().find(|a| a.key == "icon_name").and_then(|a| {
-        if let syn::Expr::Lit(syn::ExprLit {
-            lit: syn::Lit::Str(s),
-            ..
-        }) = &a.value
-        {
-            Some(s.value())
-        } else {
-            None
-        }
-    });
-
-    let size_class = el.args.iter().find(|a| a.key == "class").map(|a| &a.value);
+    let name = find_arg_string(el, "icon_name");
+    let size_class = find_arg_expr(el, "class");
 
     let class_str = match size_class {
         Some(c) => quote! { format!("{} w-4 h-4 inline-block", #c) },
@@ -998,8 +890,8 @@ fn emit_icon(el: &Element) -> TokenStream {
 // StyledText
 // ---------------------------------------------------------------------------
 fn emit_styled_text(el: &Element) -> TokenStream {
-    let text_expr = el.args.iter().find(|a| a.key == "text").map(|a| &a.value);
-    let query_expr = el.args.iter().find(|a| a.key == "query").map(|a| &a.value);
+    let text_expr = find_arg_expr(el, "text");
+    let query_expr = find_arg_expr(el, "query");
 
     match (text_expr, query_expr) {
         (Some(text), None) => {
@@ -1044,12 +936,7 @@ fn emit_styled_text(el: &Element) -> TokenStream {
 // Clipboard button
 // ---------------------------------------------------------------------------
 fn emit_clipboard_button(el: &Element) -> TokenStream {
-    let copy_text = match el
-        .args
-        .iter()
-        .find(|a| a.key == "copy_text")
-        .map(|a| &a.value)
-    {
+    let copy_text = match find_arg_expr(el, "copy_text") {
         Some(ct) => ct,
         None => return emit_html_el(el, "button"),
     };
@@ -1198,12 +1085,7 @@ fn emit_html_el_inner(el: &Element, name_str: &str) -> TokenStream {
     }
 
     if auto_bind_input {
-        let value_expr = el
-            .args
-            .iter()
-            .find(|a| a.key == "value")
-            .map(|a| &a.value)
-            .unwrap();
+        let value_expr = find_arg_expr(el, "value").unwrap();
         attrs.push(quote! {
             oninput: move |ev: dioxus::prelude::Event<dioxus::prelude::FormData>| {
                 #value_expr.set(ev.value());
@@ -1290,18 +1172,9 @@ fn emit_nodes_inner(nodes: &[RenderNode]) -> TokenStream {
 fn emit_tabs(el: &Element) -> TokenStream {
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
     {
-        let active_expr = el
-            .args
-            .iter()
-            .find(|a| a.key == "active")
-            .map(|a| &a.value)
-            .expect("tabs require 'active' argument");
-        let on_click_expr = el
-            .args
-            .iter()
-            .find(|a| a.key == "on_click")
-            .map(|a| &a.value)
-            .expect("tabs require 'on_click' callback");
+        let active_expr = find_arg_expr(el, "active").expect("tabs require 'active' argument");
+        let on_click_expr =
+            find_arg_expr(el, "on_click").expect("tabs require 'on_click' callback");
 
         let on_click_with_move = force_move_on_closure(on_click_expr);
 
@@ -1312,8 +1185,8 @@ fn emit_tabs(el: &Element) -> TokenStream {
                 if let RenderNode::Element(e) = c
                     && e.name == "tab"
                 {
-                    let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
-                    let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
+                    let label = find_arg_expr(e, "label")?;
+                    let index = find_arg_expr(e, "index")?;
                     let index_clone = index.clone();
                     Some(quote! {
                         shadcn_dioxus::tabs::TabsTrigger {
@@ -1342,18 +1215,9 @@ fn emit_tabs(el: &Element) -> TokenStream {
     }
     #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
     {
-        let active_expr = el
-            .args
-            .iter()
-            .find(|a| a.key == "active")
-            .map(|a| &a.value)
-            .expect("tabs require 'active' argument");
-        let on_click_expr = el
-            .args
-            .iter()
-            .find(|a| a.key == "on_click")
-            .map(|a| &a.value)
-            .expect("tabs require 'on_click' callback");
+        let active_expr = find_arg_expr(el, "active").expect("tabs require 'active' argument");
+        let on_click_expr =
+            find_arg_expr(el, "on_click").expect("tabs require 'on_click' callback");
 
         let param_idents: Vec<proc_macro2::Ident> =
             if let syn::Expr::Closure(closure) = on_click_expr {
@@ -1389,8 +1253,8 @@ fn emit_tabs(el: &Element) -> TokenStream {
                 if let RenderNode::Element(e) = c
                     && e.name == "tab"
                 {
-                    let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
-                    let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
+                    let label = find_arg_expr(e, "label")?;
+                    let index = find_arg_expr(e, "index")?;
 
                     let param_shadows: Vec<TokenStream> = param_idents
                         .iter()
@@ -1448,12 +1312,8 @@ fn emit_dropdown_menu(el: &Element) -> TokenStream {
                 if let RenderNode::Element(e) = c
                     && e.name == "item"
                 {
-                    let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
-                    let on_click = e
-                        .args
-                        .iter()
-                        .find(|a| a.key == "on_click")
-                        .map(|a| &a.value)?;
+                    let label = find_arg_expr(e, "label")?;
+                    let on_click = find_arg_expr(e, "on_click")?;
                     let handler = wrap_dioxus_handler(on_click);
                     Some(quote! {
                         shadcn_dioxus::dropdown_menu::DropdownMenuItem {
@@ -1494,16 +1354,10 @@ fn emit_dropdown_menu(el: &Element) -> TokenStream {
                 if let RenderNode::Element(e) = c
                     && e.name == "item"
                 {
-                    let label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
-                    let on_click = e
-                        .args
-                        .iter()
-                        .find(|a| a.key == "on_click")
-                        .map(|a| &a.value)?;
+                    let label = find_arg_expr(e, "label")?;
+                    let on_click = find_arg_expr(e, "on_click")?;
 
-                    let checked = e.args.iter().any(|a| a.key == "checked" && {
-                        matches!(&a.value, syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Bool(b), .. }) if b.value)
-                    });
+                    let checked = find_arg_bool(e, "checked");
 
                     let handler = wrap_dioxus_handler(on_click);
                     let check_mark = if checked { "\u{2713} " } else { "" };
@@ -1565,12 +1419,7 @@ fn emit_dropdown_menu(el: &Element) -> TokenStream {
 fn emit_data_table(el: &Element) -> TokenStream {
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
     {
-        let rows = el
-            .args
-            .iter()
-            .find(|a| a.key == "rows")
-            .map(|a| &a.value)
-            .unwrap();
+        let rows = find_arg_expr(el, "rows").unwrap();
 
         let header_cells: Vec<TokenStream> = el
             .children
@@ -1579,12 +1428,7 @@ fn emit_data_table(el: &Element) -> TokenStream {
                 if let RenderNode::Element(e) = c
                     && e.name == "column"
                 {
-                    let label = e
-                        .args
-                        .iter()
-                        .find(|a| a.key == "label")
-                        .map(|a| &a.value)
-                        .unwrap();
+                    let label = find_arg_expr(e, "label").unwrap();
                     Some(quote! { th { class: "px-3 py-2 text-gray-400 font-medium", #label } })
                 } else {
                     None
@@ -1599,12 +1443,7 @@ fn emit_data_table(el: &Element) -> TokenStream {
                 if let RenderNode::Element(e) = c
                     && e.name == "column"
                 {
-                    let render_closure = e
-                        .args
-                        .iter()
-                        .find(|a| a.key == "render")
-                        .map(|a| &a.value)
-                        .unwrap();
+                    let render_closure = find_arg_expr(e, "render").unwrap();
                     Some(quote! { td { class: "px-3 py-2 text-white", { (#render_closure)(&__row) } } })
                 } else {
                     None
@@ -1625,12 +1464,7 @@ fn emit_data_table(el: &Element) -> TokenStream {
     }
     #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
     {
-        let rows = el
-            .args
-            .iter()
-            .find(|a| a.key == "rows")
-            .map(|a| &a.value)
-            .unwrap();
+        let rows = find_arg_expr(el, "rows").unwrap();
 
         let header_cells: Vec<TokenStream> = el
             .children
@@ -1639,12 +1473,7 @@ fn emit_data_table(el: &Element) -> TokenStream {
                 if let RenderNode::Element(e) = c
                     && e.name == "column"
                 {
-                    let label = e
-                        .args
-                        .iter()
-                        .find(|a| a.key == "label")
-                        .map(|a| &a.value)
-                        .unwrap();
+                    let label = find_arg_expr(e, "label").unwrap();
                     Some(quote! { th { #label } })
                 } else {
                     None
@@ -1659,12 +1488,7 @@ fn emit_data_table(el: &Element) -> TokenStream {
                 if let RenderNode::Element(e) = c
                     && e.name == "column"
                 {
-                    let render_closure = e
-                        .args
-                        .iter()
-                        .find(|a| a.key == "render")
-                        .map(|a| &a.value)
-                        .unwrap();
+                    let render_closure = find_arg_expr(e, "render").unwrap();
                     Some(quote! { td { { (#render_closure)(&__row) } } })
                 } else {
                     None
@@ -1684,4 +1508,3 @@ fn emit_data_table(el: &Element) -> TokenStream {
         }
     }
 }
-// ---------------------------------------------------------------------------

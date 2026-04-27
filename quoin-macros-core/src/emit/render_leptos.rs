@@ -1,5 +1,4 @@
 use crate::render_ast::{Element, ForNode, IfNode, RenderNode};
-use crate::emit::common::{find_arg_bool, find_arg_f32, find_arg_string, find_arg_expr};
 use crate::transpile::{collect_handler_idents_excluding_params, force_move_on_closure};
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -128,17 +127,17 @@ fn build_if_body(
 
     match &if_node.else_branch {
         Some(else_branch) => {
-            if else_branch.len() == 1
-                && let RenderNode::If(nested_if) = &else_branch[0]
-            {
-                let nested_body = build_if_body(nested_if, bindings, inside_for);
-                return quote! {
-                    if #cond_expr {
-                        { leptos::view! { #then_view } }.into_any()
-                    } else {
-                        #nested_body
-                    }
-                };
+            if else_branch.len() == 1 {
+                if let RenderNode::If(nested_if) = &else_branch[0] {
+                    let nested_body = build_if_body(nested_if, bindings, inside_for);
+                    return quote! {
+                        if #cond_expr {
+                            { leptos::view! { #then_view } }.into_any()
+                        } else {
+                            #nested_body
+                        }
+                    };
+                }
             }
             let else_tokens: Vec<TokenStream> = else_branch
                 .iter()
@@ -350,7 +349,6 @@ fn emit_progress(el: &Element, bindings: &mut Vec<TokenStream>, _inside_for: boo
 // Checkbox (Tier 2 — type=checkbox vs shadcn Checkbox)
 // ---------------------------------------------------------------------------
 
-#[allow(unused_variables)]
 fn emit_checkbox(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
     let checked_expr = el
         .args
@@ -431,7 +429,7 @@ fn emit_checkbox(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool
         let type_prop = quote! { r#type="checkbox"# };
 
         // Build attrs list
-        let attrs: Vec<TokenStream> = vec![
+        let mut attrs: Vec<TokenStream> = vec![
             quote! { class=#full_class },
             type_prop,
             checked_prop,
@@ -447,7 +445,6 @@ fn emit_checkbox(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool
 // ---------------------------------------------------------------------------
 // Switch (Tier 2 — toggle-switch styled checkbox)
 // ---------------------------------------------------------------------------
-#[allow(unused_variables)]
 
 fn emit_switch(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
     let checked_expr = el
@@ -526,7 +523,7 @@ fn emit_switch(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) 
             None => quote! {},
         };
 
-        let _role_prop = quote! { role="switch" };
+        let role_prop = quote! { role="switch" };
         let type_prop = quote! { r#type="checkbox"# };
 
         let track_class_id = next_extract_id();
@@ -704,7 +701,6 @@ fn emit_radio(el: &Element, bindings: &mut Vec<TokenStream>, _inside_for: bool) 
 
 // ---------------------------------------------------------------------------
 // Slider (Tier 2 - range input)
-#[allow(unused_variables)]
 // ---------------------------------------------------------------------------
 
 fn emit_slider(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
@@ -1585,8 +1581,6 @@ fn emit_html_tag_inner(
 }
 
 // ---------------------------------------------------------------------------
-#[allow(unused_variables)]
-#[allow(clippy::ptr_arg)]
 // Tabs
 // ---------------------------------------------------------------------------
 
@@ -2032,6 +2026,15 @@ fn wrap_with_cfg(attrs: &[syn::Attribute], inner: TokenStream) -> TokenStream {
     }
 }
 
+fn find_arg_bool(el: &Element, key: &str) -> bool {
+    el.args
+        .iter()
+        .find(|a| a.key == key)
+        .map(|a| {
+            if let syn::Expr::Lit(syn::ExprLit {
+                lit: syn::Lit::Bool(b),
+                ..
+            }) = &a.value
             {
                 return b.value;
             }
@@ -2040,6 +2043,12 @@ fn wrap_with_cfg(attrs: &[syn::Attribute], inner: TokenStream) -> TokenStream {
         .unwrap_or(false)
 }
 
+fn find_arg_string(el: &Element, key: &str) -> Option<String> {
+    el.args.iter().find(|a| a.key == key).and_then(|a| {
+        if let syn::Expr::Lit(syn::ExprLit {
+            lit: syn::Lit::Str(s),
+            ..
+        }) = &a.value
         {
             Some(s.value())
         } else {
