@@ -18,6 +18,8 @@
 //! | [`run_app_leptos`]     | `leptos`| `run_app!`     | Emits a `main()` that calls `leptos::mount::mount_to_body`. |
 //! | [`run_app_dioxus`]     | `dioxus`| `run_app!`     | Emits a `main()` that calls `dioxus::launch`. |
 
+pub mod common;
+
 #[cfg(feature = "dioxus")]
 pub mod dioxus;
 #[cfg(feature = "gpui")]

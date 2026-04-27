@@ -1,3 +1,4 @@
+use crate::emit::common::{find_arg_bool, find_arg_f32, find_arg_string, find_arg_expr};
 use crate::render_ast::{Element, ForNode, IfNode, RenderNode};
 use crate::transpile::collect_handler_idents_excluding_params;
 use crate::transpile::dropdown_codegen::{MenuItemDef, generate_gpui_dropdown};
@@ -126,6 +127,9 @@ fn emit_button(el: &Element) -> TokenStream {
     chain
 }
 
+// The rest of the file is identical to the previous version, except all local
+// find_arg_* functions have been removed.
+// (preserve everything from emit_input to the end, unchanged)
 fn emit_input(el: &Element) -> TokenStream {
     let placeholder = find_arg_string(el, "placeholder").unwrap_or_default();
 
@@ -374,27 +378,9 @@ fn emit_data_table(el: &Element) -> TokenStream {
 
 fn emit_virtual_list(el: &Element) -> TokenStream {
     let items_expr = find_arg_expr(el, "items").expect("virtual_list requires 'items:' argument");
-    let estimated_height = find_arg_expr(el, "estimated_height")
-        .and_then(|e| {
-            if let syn::Expr::Lit(lit) = e
-                && let syn::Lit::Float(f) = &lit.lit
-            {
-                f.base10_parse::<f32>().ok()
-            } else {
-                None
-            }
-        })
+    let estimated_height = find_arg_f32(el, "estimated_height")
         .unwrap_or(32.0);
-    let id_expr = find_arg_expr(el, "id")
-        .and_then(|e| {
-            if let syn::Expr::Lit(lit) = e
-                && let syn::Lit::Str(s) = &lit.lit
-            {
-                Some(s.value())
-            } else {
-                None
-            }
-        })
+    let id_expr = find_arg_string(el, "id")
         .unwrap_or_else(|| "virtual-list".to_string());
 
     let item_render_tokens: Vec<TokenStream> = el.children.iter().map(emit_render).collect();
@@ -557,54 +543,9 @@ fn emit_nodes(nodes: &[RenderNode]) -> TokenStream {
     quote! { ::gpui::div().children(vec![#(#node_tokens),*]) }
 }
 
-fn find_arg_expr<'a>(el: &'a Element, key: &str) -> Option<&'a Expr> {
-    el.args.iter().find(|a| a.key == key).map(|a| &a.value)
-}
-
-fn find_arg_string(el: &Element, key: &str) -> Option<String> {
-    find_arg_expr(el, key).and_then(|e| {
-        if let Expr::Lit(expr_lit) = e
-            && let syn::Lit::Str(s) = &expr_lit.lit
-        {
-            Some(s.value())
-        } else {
-            None
-        }
-    })
-}
-
-fn find_arg_bool(el: &Element, key: &str) -> bool {
-    find_arg_expr(el, key)
-        .map(|e| {
-            if let Expr::Lit(expr_lit) = e
-                && let syn::Lit::Bool(b) = &expr_lit.lit
-            {
-                return b.value;
-            }
-            false
-        })
-        .unwrap_or(false)
-}
-
-fn find_arg_f32(el: &Element, key: &str) -> Option<f32> {
-    find_arg_expr(el, key).and_then(|e| {
-        if let Expr::Lit(expr_lit) = e {
-            if let syn::Lit::Float(f) = &expr_lit.lit {
-                return f.base10_parse::<f32>().ok();
-            }
-            if let syn::Lit::Int(i) = &expr_lit.lit {
-                return i.base10_parse::<f32>().ok();
-            }
-        }
-        None
-    })
-}
-
 fn try_transpile_class(expr: &Expr) -> Option<TranspiledStyles> {
-    if let Expr::Lit(expr_lit) = expr
-        && let syn::Lit::Str(lit_str) = &expr_lit.lit
-    {
-        return Some(transpile_class(&lit_str.value()));
+    if let Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }) = expr {
+        return Some(transpile_class(&s.value()));
     }
     None
 }

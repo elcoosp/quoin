@@ -1,6 +1,5 @@
 use counter_lib::use_counter;
 use leptos::prelude::*;
-use quoin::Signal;
 use quoin::prelude::*; // Bring Signal trait into scope for .get()
 
 #[leptos::component] // Disambiguate from quoin's #[component]

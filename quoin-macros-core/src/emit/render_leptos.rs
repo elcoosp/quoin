@@ -1,4 +1,5 @@
 use crate::render_ast::{Element, ForNode, IfNode, RenderNode};
+use crate::emit::common::{find_arg_bool, find_arg_f32, find_arg_string, find_arg_expr};
 use crate::transpile::{collect_handler_idents_excluding_params, force_move_on_closure};
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -2031,15 +2032,6 @@ fn wrap_with_cfg(attrs: &[syn::Attribute], inner: TokenStream) -> TokenStream {
     }
 }
 
-fn find_arg_bool(el: &Element, key: &str) -> bool {
-    el.args
-        .iter()
-        .find(|a| a.key == key)
-        .map(|a| {
-            if let syn::Expr::Lit(syn::ExprLit {
-                lit: syn::Lit::Bool(b),
-                ..
-            }) = &a.value
             {
                 return b.value;
             }
@@ -2048,12 +2040,6 @@ fn find_arg_bool(el: &Element, key: &str) -> bool {
         .unwrap_or(false)
 }
 
-fn find_arg_string(el: &Element, key: &str) -> Option<String> {
-    el.args.iter().find(|a| a.key == key).and_then(|a| {
-        if let syn::Expr::Lit(syn::ExprLit {
-            lit: syn::Lit::Str(s),
-            ..
-        }) = &a.value
         {
             Some(s.value())
         } else {

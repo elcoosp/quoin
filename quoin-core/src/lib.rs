@@ -86,19 +86,6 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs, clippy::all, clippy::pedantic)]
 
-// #[cfg(any(
-//     all(feature = "gpui", feature = "dioxus"),
-//     all(feature = "gpui", feature = "leptos"),
-//     all(feature = "gpui", feature = "xilem"),
-//     all(feature = "gpui", feature = "floem"),
-//     all(feature = "dioxus", feature = "leptos"),
-//     all(feature = "dioxus", feature = "xilem"),
-//     all(feature = "dioxus", feature = "floem"),
-//     all(feature = "leptos", feature = "xilem"),
-//     all(feature = "leptos", feature = "floem"),
-//     all(feature = "xilem", feature = "floem"),
-// ))]
-// compile_error!("Only one framework adapter feature may be enabled at a time.");
 pub mod cancellation;
 pub mod executor;
 pub mod macros;

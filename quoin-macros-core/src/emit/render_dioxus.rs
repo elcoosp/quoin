@@ -1,4 +1,5 @@
 use crate::render_ast::{Element, ForNode, IfNode, RenderNode};
+use crate::emit::common::{find_arg_bool, find_arg_f32, find_arg_string, find_arg_expr};
 use crate::transpile::{
     collect_handler_idents, collect_handler_idents_excluding_params, force_move_on_closure,
 };
@@ -1682,28 +1683,12 @@ fn emit_data_table(el: &Element) -> TokenStream {
 // ---------------------------------------------------------------------------
 // Utilities
 // ---------------------------------------------------------------------------
-fn find_arg_bool(el: &Element, key: &str) -> bool {
-    el.args
-        .iter()
-        .find(|a| a.key == key)
-        .map(|a| {
-            if let syn::Expr::Lit(expr_lit) = &a.value
-                && let syn::Lit::Bool(b) = &expr_lit.lit
-            {
-                b.value
-            } else {
                 false
             }
         })
         .unwrap_or(false)
 }
 
-fn find_arg_string(el: &Element, key: &str) -> Option<String> {
-    el.args.iter().find(|a| a.key == key).and_then(|a| {
-        if let syn::Expr::Lit(syn::ExprLit {
-            lit: syn::Lit::Str(s),
-            ..
-        }) = &a.value
         {
             Some(s.value())
         } else {

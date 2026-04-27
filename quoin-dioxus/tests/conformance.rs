@@ -31,7 +31,8 @@ impl Executor for TestExecutor {
 }
 
 thread_local! {
-    static TEST_VDOM: std::cell::RefCell<Option<Box<VirtualDom>>> = std::cell::RefCell::new(None);
+    static TEST_VDOM: std::cell::RefCell<Option<&'static VirtualDom>> =
+        std::cell::RefCell::new(None);
 }
 
 struct TestHarness {
@@ -46,12 +47,13 @@ impl Clone for TestHarness {
 
 impl TestHarness {
     fn new() -> Self {
-        TEST_VDOM.with(|vdom_cell| {
-            let mut vdom_opt = vdom_cell.borrow_mut();
-            if vdom_opt.is_none() {
+        TEST_VDOM.with(|cell| {
+            let mut opt = cell.borrow_mut();
+            if opt.is_none() {
+                // Leak the VirtualDom so it is never dropped (avoids TLS destruction panic)
                 let mut vdom = VirtualDom::new(app);
                 vdom.rebuild_in_place();
-                *vdom_opt = Some(Box::new(vdom));
+                *opt = Some(Box::leak(Box::new(vdom)));
             }
         });
         Self {
@@ -63,9 +65,9 @@ impl TestHarness {
     where
         F: FnOnce() -> R,
     {
-        TEST_VDOM.with(|vdom_cell| {
-            let vdom_opt = vdom_cell.borrow();
-            vdom_opt.as_ref().unwrap().in_scope(ScopeId::ROOT, f)
+        TEST_VDOM.with(|cell| {
+            let vdom_ref = cell.borrow();
+            vdom_ref.unwrap().in_scope(ScopeId::ROOT, f)
         })
     }
 }
@@ -95,7 +97,7 @@ impl ReactiveContext for TestHarness {
     }
 }
 
-impl TestContextProvider for TestHarness {
+impl quoin_conformance::TestContextProvider for TestHarness {
     fn setup_context() -> Self {
         Self::new()
     }
