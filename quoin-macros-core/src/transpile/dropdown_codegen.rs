@@ -6,8 +6,13 @@
 //! - **GPUI** ([`generate_gpui_dropdown`]): Emits an absolutely-positioned overlay
 //!   panel with click handlers for each menu item. The trigger element is provided
 //!   as a `RenderNode` expression.
-//! - **Leptos / Dioxus**: Currently emit stub divs. Full implementations are
-//!   planned for future releases.
+//! - **Leptos / Dioxus**: Dropdown rendering is handled inline in their respective
+//!   `render_leptos.rs` and `render_dioxus.rs` emitters.
+
+#[allow(unused)]
+use proc_macro2::TokenStream;
+#[allow(unused)]
+use quote::quote;
 
 pub struct MenuItemDef {
     pub label: syn::Expr,
@@ -75,22 +80,4 @@ pub fn generate_gpui_dropdown(
                 )
         }
     }
-}
-
-#[cfg(feature = "leptos")]
-pub fn generate_leptos_dropdown(
-    _trigger_expr: &syn::Expr,
-    _menu_items: &[MenuItemDef],
-) -> proc_macro2::TokenStream {
-    use quote::quote;
-    quote! { ::gpui::div() }
-}
-
-#[cfg(feature = "dioxus")]
-pub fn generate_dioxus_dropdown(
-    _trigger_expr: &syn::Expr,
-    _menu_items: &[MenuItemDef],
-) -> proc_macro2::TokenStream {
-    use quote::quote;
-    quote! { ::gpui::div() }
 }
