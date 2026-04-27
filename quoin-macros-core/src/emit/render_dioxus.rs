@@ -1,5 +1,6 @@
 use crate::render_ast::{Element, ForNode, IfNode, RenderNode};
 use crate::emit::common::{find_arg_bool, find_arg_f32, find_arg_string, find_arg_expr};
+use crate::emit::common::{find_arg_bool, find_arg_f32, find_arg_string, find_arg_expr};
 use crate::transpile::{
     collect_handler_idents, collect_handler_idents_excluding_params, force_move_on_closure,
 };
@@ -1681,18 +1682,3 @@ fn emit_data_table(el: &Element) -> TokenStream {
     }
 }
 // ---------------------------------------------------------------------------
-// Utilities
-// ---------------------------------------------------------------------------
-                false
-            }
-        })
-        .unwrap_or(false)
-}
-
-        {
-            Some(s.value())
-        } else {
-            None
-        }
-    })
-}
