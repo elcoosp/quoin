@@ -1,6 +1,7 @@
 use crate::render_ast::{Element, ForNode, IfNode, RenderNode};
 use crate::emit::common::{find_arg_bool, find_arg_f32, find_arg_string, find_arg_expr};
 use crate::emit::common::{find_arg_bool, find_arg_f32, find_arg_string, find_arg_expr};
+use crate::emit::common::{find_arg_bool, find_arg_f32, find_arg_string, find_arg_expr};
 use crate::transpile::{
     collect_handler_idents, collect_handler_idents_excluding_params, force_move_on_closure,
 };
@@ -216,7 +217,7 @@ fn emit_progress(el: &Element) -> TokenStream {
         let bar_cls = "h-full rounded-full bg-primary transition-all duration-300";
         match value_expr {
             Some(val) => {
-                let max = match max_expr {
+                let _max = match max_expr {
                     Some(m) => quote! { (#val as f64) / (#m as f64) * 100.0 },
                     None => quote! { (#val as f64) },
                 };
