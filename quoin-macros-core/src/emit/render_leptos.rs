@@ -127,17 +127,17 @@ fn build_if_body(
 
     match &if_node.else_branch {
         Some(else_branch) => {
-            if else_branch.len() == 1 {
-                if let RenderNode::If(nested_if) = &else_branch[0] {
-                    let nested_body = build_if_body(nested_if, bindings, inside_for);
-                    return quote! {
-                        if #cond_expr {
-                            { leptos::view! { #then_view } }.into_any()
-                        } else {
-                            #nested_body
-                        }
-                    };
-                }
+            if else_branch.len() == 1
+                && let RenderNode::If(nested_if) = &else_branch[0]
+            {
+                let nested_body = build_if_body(nested_if, bindings, inside_for);
+                return quote! {
+                    if #cond_expr {
+                        { leptos::view! { #then_view } }.into_any()
+                    } else {
+                        #nested_body
+                    }
+                };
             }
             let else_tokens: Vec<TokenStream> = else_branch
                 .iter()
@@ -349,6 +349,7 @@ fn emit_progress(el: &Element, bindings: &mut Vec<TokenStream>, _inside_for: boo
 // Checkbox (Tier 2 — type=checkbox vs shadcn Checkbox)
 // ---------------------------------------------------------------------------
 
+#[allow(unused_variables)]
 fn emit_checkbox(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
     let checked_expr = el
         .args
@@ -429,7 +430,7 @@ fn emit_checkbox(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool
         let type_prop = quote! { r#type="checkbox"# };
 
         // Build attrs list
-        let mut attrs: Vec<TokenStream> = vec![
+        let attrs: Vec<TokenStream> = vec![
             quote! { class=#full_class },
             type_prop,
             checked_prop,
@@ -445,6 +446,7 @@ fn emit_checkbox(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool
 // ---------------------------------------------------------------------------
 // Switch (Tier 2 — toggle-switch styled checkbox)
 // ---------------------------------------------------------------------------
+#[allow(unused_variables)]
 
 fn emit_switch(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
     let checked_expr = el
@@ -523,7 +525,7 @@ fn emit_switch(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) 
             None => quote! {},
         };
 
-        let role_prop = quote! { role="switch" };
+        let _role_prop = quote! { role="switch" };
         let type_prop = quote! { r#type="checkbox"# };
 
         let track_class_id = next_extract_id();
@@ -701,6 +703,7 @@ fn emit_radio(el: &Element, bindings: &mut Vec<TokenStream>, _inside_for: bool) 
 
 // ---------------------------------------------------------------------------
 // Slider (Tier 2 - range input)
+#[allow(unused_variables)]
 // ---------------------------------------------------------------------------
 
 fn emit_slider(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
@@ -1581,6 +1584,8 @@ fn emit_html_tag_inner(
 }
 
 // ---------------------------------------------------------------------------
+#[allow(unused_variables)]
+#[allow(clippy::ptr_arg)]
 // Tabs
 // ---------------------------------------------------------------------------
 

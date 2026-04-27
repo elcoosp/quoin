@@ -250,7 +250,10 @@ impl<T> Drop for XilemJoinHandle<T> {
 impl<T: Clone + std::fmt::Debug + 'static> std::fmt::Debug for XilemSignal<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("XilemSignal")
-            .field("value", &self.inner.read().map_err(|_| std::fmt::Error)?)
+            .field(
+                "value",
+                &self.inner.read().unwrap_or_else(|e| e.into_inner()),
+            )
             .finish()
     }
 }

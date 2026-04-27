@@ -13,7 +13,9 @@ mod tests {
                 args.push(feature.to_string());
             }
             // trybuild will pick up this environment variable
-            env::set_var("TRYBUILD_CARGO_OPTIONS", args.join(" "));
+            unsafe {
+                env::set_var("TRYBUILD_CARGO_OPTIONS", args.join(" "));
+            }
         }
     }
 

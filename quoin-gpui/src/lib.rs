@@ -161,7 +161,7 @@ impl GpuiContext {
         }
     }
 
-    fn request_update(&self) {
+    fn notify_update(&self) {
         if let Some(notifier) = self.update_notifier.lock().unwrap().as_ref() {
             notifier();
         }
@@ -198,7 +198,7 @@ impl ReactiveContext for GpuiContext {
     }
 
     fn request_update(&self) {
-        self.request_update();
+        self.notify_update();
     }
 
     fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T) {

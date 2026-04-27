@@ -119,7 +119,3 @@ pub fn generate_gpui_table_delegate(
         }
     }
 }
-
-
-
-
