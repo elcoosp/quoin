@@ -1,3 +1,4 @@
+use crate::emit::common::{find_arg_bool, find_arg_expr, find_arg_f32, find_arg_string};
 use crate::render_ast::{Element, ForNode, IfNode, RenderNode};
 use crate::transpile::{collect_handler_idents_excluding_params, force_move_on_closure};
 use proc_macro2::TokenStream;
@@ -279,8 +280,8 @@ fn emit_skeleton_avatar(
 // ---------------------------------------------------------------------------
 
 fn emit_progress(el: &Element, bindings: &mut Vec<TokenStream>, _inside_for: bool) -> TokenStream {
-    let value_expr = el.args.iter().find(|a| a.key == "value").map(|a| &a.value);
-    let max_expr = el.args.iter().find(|a| a.key == "max").map(|a| &a.value);
+    let value_expr = find_arg_expr(el, "value");
+    let max_expr = find_arg_expr(el, "max");
     let user_class = find_arg_string(el, "class").unwrap_or_default();
 
     #[cfg(feature = "leptos-shadcn")]
@@ -350,17 +351,9 @@ fn emit_progress(el: &Element, bindings: &mut Vec<TokenStream>, _inside_for: boo
 // ---------------------------------------------------------------------------
 
 fn emit_checkbox(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
-    let checked_expr = el
-        .args
-        .iter()
-        .find(|a| a.key == "checked")
-        .map(|a| &a.value);
-    let on_change_expr = el
-        .args
-        .iter()
-        .find(|a| a.key == "on_checked_change")
-        .or_else(|| el.args.iter().find(|a| a.key == "on_change"))
-        .map(|a| &a.value);
+    let checked_expr = find_arg_expr(el, "checked");
+    let on_change_expr =
+        find_arg_expr(el, "on_checked_change").or_else(|| find_arg_expr(el, "on_change"));
     let disabled = find_arg_bool(el, "disabled");
     let user_class = find_arg_string(el, "class").unwrap_or_default();
 
@@ -447,17 +440,9 @@ fn emit_checkbox(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool
 // ---------------------------------------------------------------------------
 
 fn emit_switch(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
-    let checked_expr = el
-        .args
-        .iter()
-        .find(|a| a.key == "checked")
-        .map(|a| &a.value);
-    let on_change_expr = el
-        .args
-        .iter()
-        .find(|a| a.key == "on_checked_change")
-        .or_else(|| el.args.iter().find(|a| a.key == "on_change"))
-        .map(|a| &a.value);
+    let checked_expr = find_arg_expr(el, "checked");
+    let on_change_expr =
+        find_arg_expr(el, "on_checked_change").or_else(|| find_arg_expr(el, "on_change"));
     let disabled = find_arg_bool(el, "disabled");
     let user_class = find_arg_string(el, "class").unwrap_or_default();
 
@@ -607,18 +592,10 @@ fn emit_radio_group(
 }
 
 fn emit_radio(el: &Element, bindings: &mut Vec<TokenStream>, _inside_for: bool) -> TokenStream {
-    let value_expr = el.args.iter().find(|a| a.key == "value").map(|a| &a.value);
-    let name_expr = el.args.iter().find(|a| a.key == "name").map(|a| &a.value);
-    let checked_expr = el
-        .args
-        .iter()
-        .find(|a| a.key == "checked")
-        .map(|a| &a.value);
-    let on_change_expr = el
-        .args
-        .iter()
-        .find(|a| a.key == "on_change")
-        .map(|a| &a.value);
+    let value_expr = find_arg_expr(el, "value");
+    let name_expr = find_arg_expr(el, "name");
+    let checked_expr = find_arg_expr(el, "checked");
+    let on_change_expr = find_arg_expr(el, "on_change");
     let disabled = find_arg_bool(el, "disabled");
     let user_class = find_arg_string(el, "class").unwrap_or_default();
 
@@ -704,16 +681,11 @@ fn emit_radio(el: &Element, bindings: &mut Vec<TokenStream>, _inside_for: bool) 
 // ---------------------------------------------------------------------------
 
 fn emit_slider(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
-    let value_expr = el.args.iter().find(|a| a.key == "value").map(|a| &a.value);
-    let min_expr = el.args.iter().find(|a| a.key == "min").map(|a| &a.value);
-    let max_expr = el.args.iter().find(|a| a.key == "max").map(|a| &a.value);
-    let step_expr = el.args.iter().find(|a| a.key == "step").map(|a| &a.value);
-    let on_input_expr = el
-        .args
-        .iter()
-        .find(|a| a.key == "on_change")
-        .or_else(|| el.args.iter().find(|a| a.key == "on_input"))
-        .map(|a| &a.value);
+    let value_expr = find_arg_expr(el, "value");
+    let min_expr = find_arg_expr(el, "min");
+    let max_expr = find_arg_expr(el, "max");
+    let step_expr = find_arg_expr(el, "step");
+    let on_input_expr = find_arg_expr(el, "on_change").or_else(|| find_arg_expr(el, "on_input"));
     let disabled = find_arg_bool(el, "disabled");
     let user_class = find_arg_string(el, "class").unwrap_or_default();
 
@@ -898,12 +870,29 @@ fn emit_element_inner(
         "badge" => emit_badge(el, bindings, inside_for),
         "scroll_area" => emit_scroll_area(el, bindings, inside_for),
         "virtual_list" => {
+            let estimated_height = find_arg_f32(el, "estimated_height");
             let children_tokens: Vec<TokenStream> = el
                 .children
                 .iter()
                 .map(|c| emit_node(c, bindings, inside_for))
                 .collect();
-            quote! { <div style="overflow-y: auto"> #(#children_tokens)* </div> }
+
+            // WARNING: This is a stub implementation that does NOT provide true virtualization.
+            // All child elements are rendered into a scrollable container regardless of the
+            // number of items. The `estimated_height` parameter only sets the container's
+            // fixed height via CSS but does NOT affect which items are rendered.
+            //
+            // For large lists (1000+ items), this will have significant performance overhead
+            // compared to a proper virtualized implementation. True virtualization (only
+            // rendering visible items based on scroll position) is not yet implemented.
+            //
+            // If you need true virtualization for large datasets, consider using a framework-
+            // specific virtualization library directly instead of this component.
+            let style = match estimated_height {
+                Some(h) => format!("overflow-y: auto; height: {}px", h),
+                None => "overflow-y: auto".to_string(),
+            };
+            quote! { <div style=#style> #(#children_tokens)* </div> }
         }
         "clipboard_button" => emit_clipboard_button(el, bindings, inside_for),
         "button" => emit_button(el, bindings, inside_for),
@@ -939,7 +928,7 @@ fn emit_element_inner(
 // ---------------------------------------------------------------------------
 fn emit_badge(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
     // --- Shared computation (always runs) ---
-    let color_expr = el.args.iter().find(|a| a.key == "color").map(|a| &a.value);
+    let color_expr = find_arg_expr(el, "color");
     let mut children: Vec<TokenStream> = Vec::new();
     for child in &el.children {
         children.push(emit_node(child, bindings, inside_for));
@@ -1012,7 +1001,7 @@ fn emit_scroll_area(
 ) -> TokenStream {
     #[cfg(feature = "leptos-shadcn")]
     {
-        let class_expr = el.args.iter().find(|a| a.key == "class").map(|a| &a.value);
+        let class_expr = find_arg_expr(el, "class");
         let mut children: Vec<TokenStream> = Vec::new();
         for child in &el.children {
             children.push(emit_node(child, bindings, inside_for));
@@ -1033,22 +1022,7 @@ fn emit_scroll_area(
     }
     #[cfg(not(feature = "leptos-shadcn"))]
     {
-        let direction = el
-            .args
-            .iter()
-            .find(|a| a.key == "direction")
-            .and_then(|a| {
-                if let syn::Expr::Lit(syn::ExprLit {
-                    lit: syn::Lit::Str(s),
-                    ..
-                }) = &a.value
-                {
-                    Some(s.value())
-                } else {
-                    None
-                }
-            })
-            .unwrap_or_else(|| "vertical".to_string());
+        let direction = find_arg_string(el, "direction").unwrap_or_else(|| "vertical".to_string());
 
         let overflow_class = match direction.as_str() {
             "horizontal" => "overflow-x-auto",
@@ -1083,17 +1057,7 @@ fn emit_scroll_area(
 fn emit_button(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
     #[cfg(feature = "leptos-shadcn")]
     {
-        let tooltip_text = el.args.iter().find(|a| a.key == "tooltip").and_then(|a| {
-            if let syn::Expr::Lit(syn::ExprLit {
-                lit: syn::Lit::Str(s),
-                ..
-            }) = &a.value
-            {
-                Some(s.value())
-            } else {
-                None
-            }
-        });
+        let tooltip_text = find_arg_string(el, "tooltip");
 
         let primary = find_arg_bool(el, "primary");
         let destructive = find_arg_bool(el, "destructive");
@@ -1115,24 +1079,17 @@ fn emit_button(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) 
             quote! { { leptos_shadcn_ui::ButtonVariant::Outline } }
         };
 
-        let on_click_prop: Option<TokenStream> = if let Some(handler_expr) = el
-            .args
-            .iter()
-            .find(|a| a.key == "on_click")
-            .map(|a| &a.value)
-        {
-            let handler = wrap_event_handler(handler_expr);
-            Some(quote! { on_click={#handler} })
-        } else {
-            None
-        };
+        let on_click_prop: Option<TokenStream> =
+            find_arg_expr(el, "on_click").map(|handler_expr| {
+                let handler = wrap_event_handler(handler_expr);
+                quote! { on_click={#handler} }
+            });
 
-        let class_prop: TokenStream =
-            if let Some(cls) = el.args.iter().find(|a| a.key == "class").map(|a| &a.value) {
-                quote! { class={#cls} }
-            } else {
-                quote! {}
-            };
+        let class_prop: TokenStream = if let Some(cls) = find_arg_expr(el, "class") {
+            quote! { class={#cls} }
+        } else {
+            quote! {}
+        };
 
         let mut children = Vec::new();
         for child in &el.children {
@@ -1186,17 +1143,7 @@ fn emit_button(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) 
     }
     #[cfg(not(feature = "leptos-shadcn"))]
     {
-        let tooltip_text = el.args.iter().find(|a| a.key == "tooltip").and_then(|a| {
-            if let syn::Expr::Lit(syn::ExprLit {
-                lit: syn::Lit::Str(s),
-                ..
-            }) = &a.value
-            {
-                Some(s.value())
-            } else {
-                None
-            }
-        });
+        let tooltip_text = find_arg_string(el, "tooltip");
 
         let inner_button = emit_html_tag_inner(el, "button", bindings, inside_for);
 
@@ -1219,35 +1166,12 @@ fn emit_button(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) 
 fn emit_input(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
     #[cfg(feature = "leptos-shadcn")]
     {
-        let placeholder = el
-            .args
-            .iter()
-            .find(|a| a.key == "placeholder")
-            .and_then(|a| {
-                if let syn::Expr::Lit(syn::ExprLit {
-                    lit: syn::Lit::Str(s),
-                    ..
-                }) = &a.value
-                {
-                    Some(s.value())
-                } else {
-                    None
-                }
-            })
-            .unwrap_or_default();
+        let placeholder = find_arg_string(el, "placeholder").unwrap_or_default();
 
-        let class_expr = el.args.iter().find(|a| a.key == "class").map(|a| &a.value);
-        let value_expr = el.args.iter().find(|a| a.key == "value").map(|a| &a.value);
-        let on_change_expr = el
-            .args
-            .iter()
-            .find(|a| a.key == "on_change")
-            .map(|a| &a.value);
-        let on_input_expr = el
-            .args
-            .iter()
-            .find(|a| a.key == "on_input")
-            .map(|a| &a.value);
+        let class_expr = find_arg_expr(el, "class");
+        let value_expr = find_arg_expr(el, "value");
+        let on_change_expr = find_arg_expr(el, "on_change");
+        let on_input_expr = find_arg_expr(el, "on_input");
         let disabled = find_arg_bool(el, "disabled");
 
         let has_explicit_handler = on_change_expr.is_some() || on_input_expr.is_some();
@@ -1321,19 +1245,9 @@ fn emit_input(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -
 // Icon
 // ---------------------------------------------------------------------------
 fn emit_icon(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
-    let name = el.args.iter().find(|a| a.key == "icon_name").and_then(|a| {
-        if let syn::Expr::Lit(syn::ExprLit {
-            lit: syn::Lit::Str(s),
-            ..
-        }) = &a.value
-        {
-            Some(s.value())
-        } else {
-            None
-        }
-    });
+    let name = find_arg_string(el, "icon_name");
 
-    let size_class = el.args.iter().find(|a| a.key == "class").map(|a| &a.value);
+    let size_class = find_arg_expr(el, "class");
     let class_str = match size_class {
         Some(c) => quote! { format!("{} w-4 h-4 inline-block", #c) },
         None => quote! { "w-4 h-4 inline-block" },
@@ -1382,8 +1296,8 @@ fn emit_styled_text(
     _bindings: &mut Vec<TokenStream>,
     _inside_for: bool,
 ) -> TokenStream {
-    let text_expr = el.args.iter().find(|a| a.key == "text").map(|a| &a.value);
-    let query_expr = el.args.iter().find(|a| a.key == "query").map(|a| &a.value);
+    let text_expr = find_arg_expr(el, "text");
+    let query_expr = find_arg_expr(el, "query");
 
     match (text_expr, query_expr) {
         (Some(text), None) => quote! { <span>{#text}</span> },
@@ -1433,11 +1347,7 @@ fn emit_clipboard_button(
     bindings: &mut Vec<TokenStream>,
     inside_for: bool,
 ) -> TokenStream {
-    let copy_text = el
-        .args
-        .iter()
-        .find(|a| a.key == "copy_text")
-        .map(|a| &a.value);
+    let copy_text = find_arg_expr(el, "copy_text");
     match copy_text {
         Some(ct) => {
             let clip_id = next_extract_id();
@@ -1539,12 +1449,7 @@ fn emit_html_tag_inner(
     }
 
     if auto_bind_input {
-        let value_expr = el
-            .args
-            .iter()
-            .find(|a| a.key == "value")
-            .map(|a| &a.value)
-            .unwrap();
+        let value_expr = find_arg_expr(el, "value").unwrap();
         let bind_id = next_extract_id();
         let bind_name = quote::format_ident!("__quoin_input_bind_{}", bind_id);
         bindings.push(quote! {
@@ -1587,18 +1492,9 @@ fn emit_html_tag_inner(
 fn emit_tabs(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
     #[cfg(feature = "leptos-shadcn")]
     {
-        let active_expr = el
-            .args
-            .iter()
-            .find(|a| a.key == "active")
-            .map(|a| &a.value)
-            .expect("tabs require 'active' argument");
-        let on_click_expr = el
-            .args
-            .iter()
-            .find(|a| a.key == "on_click")
-            .map(|a| &a.value)
-            .expect("tabs require 'on_click' callback");
+        let active_expr = find_arg_expr(el, "active").expect("tabs require 'active' argument");
+        let on_click_expr =
+            find_arg_expr(el, "on_click").expect("tabs require 'on_click' callback");
 
         let on_click_wrapped = wrap_event_handler(on_click_expr);
 
@@ -1619,8 +1515,8 @@ fn emit_tabs(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) ->
                 if let RenderNode::Element(e) = c
                     && e.name == "tab"
                 {
-                    let tab_label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
-                    let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
+                    let tab_label = find_arg_expr(e, "label")?;
+                    let index = find_arg_expr(e, "index")?;
                     Some(quote! {
                         <#tabs_trigger_alias value={#index.to_string()} class="text-white">{#tab_label}</#tabs_trigger_alias>
                     })
@@ -1650,18 +1546,9 @@ fn emit_tabs(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) ->
     }
     #[cfg(not(feature = "leptos-shadcn"))]
     {
-        let active_expr = el
-            .args
-            .iter()
-            .find(|a| a.key == "active")
-            .map(|a| &a.value)
-            .expect("tabs require 'active' argument");
-        let on_click_expr = el
-            .args
-            .iter()
-            .find(|a| a.key == "on_click")
-            .map(|a| &a.value)
-            .expect("tabs require 'on_click' callback");
+        let active_expr = find_arg_expr(el, "active").expect("tabs require 'active' argument");
+        let on_click_expr =
+            find_arg_expr(el, "on_click").expect("tabs require 'on_click' callback");
 
         let param_idents: Vec<proc_macro2::Ident> =
             if let syn::Expr::Closure(closure) = on_click_expr {
@@ -1689,8 +1576,8 @@ fn emit_tabs(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) ->
                 if let RenderNode::Element(e) = c
                     && e.name == "tab"
                 {
-                    let tab_label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
-                    let index = e.args.iter().find(|a| a.key == "index").map(|a| &a.value)?;
+                    let tab_label = find_arg_expr(e, "label")?;
+                    let index = find_arg_expr(e, "index")?;
 
                     let param_shadows: Vec<TokenStream> = param_idents
                         .iter()
@@ -1752,12 +1639,8 @@ fn emit_dropdown_menu(
                 if let RenderNode::Element(e) = c
                     && e.name == "item"
                 {
-                    let item_label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
-                    let on_click = e
-                        .args
-                        .iter()
-                        .find(|a| a.key == "on_click")
-                        .map(|a| &a.value)?;
+                    let item_label = find_arg_expr(e, "label")?;
+                    let on_click = find_arg_expr(e, "on_click")?;
                     let handler = wrap_event_handler(on_click);
                     Some(quote! {
                         <#dmi_alias on_click={#handler}>
@@ -1809,15 +1692,9 @@ fn emit_dropdown_menu(
                 if let RenderNode::Element(e) = c
                     && e.name == "item"
                 {
-                    let item_label = e.args.iter().find(|a| a.key == "label").map(|a| &a.value)?;
-                    let on_click = e
-                        .args
-                        .iter()
-                        .find(|a| a.key == "on_click")
-                        .map(|a| &a.value)?;
-                    let checked = e.args.iter().any(|a| a.key == "checked" && {
-                        matches!(&a.value, syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Bool(b), .. }) if b.value)
-                    });
+                    let item_label = find_arg_expr(e, "label")?;
+                    let on_click = find_arg_expr(e, "on_click")?;
+                    let checked = find_arg_bool(e, "checked");
                     let handler = wrap_event_handler(on_click);
                     let close_open = quote! { #open_name.set(false); };
                     let checked_icon = if checked {
@@ -1887,7 +1764,7 @@ fn emit_dropdown_menu(
 fn emit_data_table(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
     #[cfg(feature = "leptos-shadcn")]
     {
-        let rows_expr = el.args.iter().find(|a| a.key == "rows").map(|a| &a.value);
+        let rows_expr = find_arg_expr(el, "rows");
         let striped = find_arg_bool(el, "striped");
         let empty_label: syn::Expr = syn::parse_quote! { "" };
         let mut header_cells = Vec::new();
@@ -1897,18 +1774,13 @@ fn emit_data_table(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bo
             if let RenderNode::Element(e) = c
                 && e.name == "column"
             {
-                let col_label = e
-                    .args
-                    .iter()
-                    .find(|a| a.key == "label")
-                    .map(|a| &a.value)
-                    .unwrap_or(&empty_label);
+                let col_label = find_arg_expr(e, "label").unwrap_or(&empty_label);
 
                 header_cells.push(quote! {
                     <th class="px-3 py-2 text-gray-400 font-medium">{#col_label}</th>
                 });
 
-                let render_closure = e.args.iter().find(|a| a.key == "render").map(|a| &a.value);
+                let render_closure = find_arg_expr(e, "render");
                 if let Some(rc) = render_closure {
                     let col_id = next_extract_id();
                     let render_name = quote::format_ident!("__quoin_col_{}", col_id);
@@ -1956,7 +1828,7 @@ fn emit_data_table(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bo
     }
     #[cfg(not(feature = "leptos-shadcn"))]
     {
-        let rows_expr = el.args.iter().find(|a| a.key == "rows").map(|a| &a.value);
+        let rows_expr = find_arg_expr(el, "rows");
         let striped = find_arg_bool(el, "striped");
         let empty_label: syn::Expr = syn::parse_quote! { "" };
         let mut header_cells = Vec::new();
@@ -1966,20 +1838,15 @@ fn emit_data_table(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bo
             if let RenderNode::Element(e) = c
                 && e.name == "column"
             {
-                let col_label = e
-                    .args
-                    .iter()
-                    .find(|a| a.key == "label")
-                    .map(|a| &a.value)
-                    .unwrap_or(&empty_label);
-                let width = e.args.iter().find(|a| a.key == "width").map(|a| &a.value);
+                let col_label = find_arg_expr(e, "label").unwrap_or(&empty_label);
+                let width = find_arg_expr(e, "width");
                 let mut th_attrs = vec![quote! { class="px-3 py-2 text-gray-400 font-medium" }];
                 if let Some(w) = width {
                     th_attrs.push(quote! { style=format!("width: {}px", #w) });
                 }
                 header_cells.push(quote! { <th #(#th_attrs)*>{#col_label}</th> });
 
-                let render_closure = e.args.iter().find(|a| a.key == "render").map(|a| &a.value);
+                let render_closure = find_arg_expr(e, "render");
                 if let Some(rc) = render_closure {
                     let col_id = next_extract_id();
                     let render_name = quote::format_ident!("__quoin_col_{}", col_id);
@@ -2024,35 +1891,4 @@ fn wrap_with_cfg(attrs: &[syn::Attribute], inner: TokenStream) -> TokenStream {
     } else {
         quote! { { #(#cfg_attrs)* { #inner } } }
     }
-}
-
-fn find_arg_bool(el: &Element, key: &str) -> bool {
-    el.args
-        .iter()
-        .find(|a| a.key == key)
-        .map(|a| {
-            if let syn::Expr::Lit(syn::ExprLit {
-                lit: syn::Lit::Bool(b),
-                ..
-            }) = &a.value
-            {
-                return b.value;
-            }
-            false
-        })
-        .unwrap_or(false)
-}
-
-fn find_arg_string(el: &Element, key: &str) -> Option<String> {
-    el.args.iter().find(|a| a.key == key).and_then(|a| {
-        if let syn::Expr::Lit(syn::ExprLit {
-            lit: syn::Lit::Str(s),
-            ..
-        }) = &a.value
-        {
-            Some(s.value())
-        } else {
-            None
-        }
-    })
 }
