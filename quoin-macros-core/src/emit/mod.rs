@@ -3,6 +3,7 @@
 //! This module defines the [`FrameworkEmitter`] trait and the [`Emitter`] struct,
 //! which dispatches to the active framework’s implementation.
 
+pub mod cfg;
 pub mod common;
 
 #[cfg(feature = "dioxus")]
