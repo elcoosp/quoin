@@ -30,13 +30,13 @@ impl Executor for TestExecutor {
     }
 }
 
-struct TestHarness {
-    context: DioxusContext,
-    vdom: Box<VirtualDom>,
+thread_local! {
+    static TEST_VDOM: std::cell::RefCell<Option<Box<VirtualDom>>> = std::cell::RefCell::new(None);
 }
 
-unsafe impl Send for TestHarness {}
-unsafe impl Sync for TestHarness {}
+struct TestHarness {
+    context: DioxusContext,
+}
 
 impl Clone for TestHarness {
     fn clone(&self) -> Self {
@@ -46,11 +46,16 @@ impl Clone for TestHarness {
 
 impl TestHarness {
     fn new() -> Self {
-        let mut vdom = VirtualDom::new(app);
-        vdom.rebuild_in_place();
+        TEST_VDOM.with(|vdom_cell| {
+            let mut vdom_opt = vdom_cell.borrow_mut();
+            if vdom_opt.is_none() {
+                let mut vdom = VirtualDom::new(app);
+                vdom.rebuild_in_place();
+                *vdom_opt = Some(Box::new(vdom));
+            }
+        });
         Self {
             context: DioxusContext::new(),
-            vdom: Box::new(vdom),
         }
     }
 
@@ -58,7 +63,10 @@ impl TestHarness {
     where
         F: FnOnce() -> R,
     {
-        self.vdom.in_scope(ScopeId::ROOT, f)
+        TEST_VDOM.with(|vdom_cell| {
+            let vdom_opt = vdom_cell.borrow();
+            vdom_opt.as_ref().unwrap().in_scope(ScopeId::ROOT, f)
+        })
     }
 }
 

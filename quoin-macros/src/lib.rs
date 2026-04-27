@@ -134,18 +134,14 @@ pub fn effect(input: TokenStream) -> TokenStream {
 
     #[cfg(all(feature = "gpui", not(any(feature = "leptos", feature = "dioxus"))))]
     let tokens = match cleanup {
-        Some(cleanup_expr) => quote::quote! {{
-            {
-                struct __QuoinEffectGuard;
-                impl Drop for __QuoinEffectGuard {
-                    fn drop(&mut self) {
-                        #cleanup_expr;
-                    }
-                }
-                (#body)();
-                let _guard = __QuoinEffectGuard;
-            }
-        }},
+        Some(_cleanup_expr) => quote::quote! {
+            compile_error!(
+                "effect! cleanup is not supported in GPUI.\n\n\
+                 GPUI has no effect scoping mechanism. If you need cleanup \
+                 logic, handle it manually in your view's Drop impl or use \
+                 a dedicated cleanup function called on unmount."
+            )
+        },
         None => quote::quote! {{
             (#body)();
         }},
