@@ -27,10 +27,6 @@ component! {
                 data_table(
                     rows: entries,
                     striped: true,
-                    on_sort: |col: &str, dir: &str| {
-                        sort_col.set(col.to_string());
-                        sort_dir.set(dir.to_string());
-                    },
                 ) {
                     column(key: "key",   label: "Key",   sortable: true, width: 120.0,
                            render: |row: &Entry| row.key.clone())

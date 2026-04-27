@@ -25,8 +25,8 @@
 //! - [`force_move_on_closure`] — ensures the outermost closure has the `move` keyword.
 
 pub mod dropdown_codegen;
-pub mod rich_text_codegen;
 pub mod icon_codegen;
+pub mod rich_text_codegen;
 pub mod table_codegen;
 pub mod tailwind;
 pub mod theme_tokens;
@@ -44,9 +44,7 @@ pub fn collect_handler_idents(expr: &syn::Expr) -> Vec<proc_macro2::Ident> {
 
     let mut collector = PathIdentCollectorSkipClosures(vec![]);
     collector.visit_expr(body_expr);
-    collector
-        .0
-        .sort_by_key(|id| id.to_string());
+    collector.0.sort_by_key(|id| id.to_string());
     collector.0.dedup_by(|a, b| *a == *b);
     collector.0
 }
@@ -55,9 +53,7 @@ pub fn collect_handler_idents(expr: &syn::Expr) -> Vec<proc_macro2::Ident> {
 pub fn collect_block_idents(block: &syn::Block) -> Vec<proc_macro2::Ident> {
     let mut collector = PathIdentCollectorAll(vec![]);
     collector.visit_block(block);
-    collector
-        .0
-        .sort_by_key(|id| id.to_string());
+    collector.0.sort_by_key(|id| id.to_string());
     collector.0.dedup_by(|a, b| *a == *b);
     collector.0
 }

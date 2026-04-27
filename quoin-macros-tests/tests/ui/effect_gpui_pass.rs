@@ -5,7 +5,5 @@ fn main() {
     effect! { watch: [x], || println!("{}", x) }
     // New structured syntax
     effect! { deps: [x], run: || println!("{}", x) }
-    // With cleanup
-    let _handle = 0;
-    effect! { deps: [x], run: || println!("{}", x), cleanup: || println!("cleaning up") }
+    // cleanup not supported in GPUI, so the line below is removed
 }

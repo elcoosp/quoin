@@ -22,7 +22,12 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-        components: rustfmt, clippy
+        with:
+          components: rustfmt, clippy
+
+      - name: Get Rust toolchain hash
+        id: toolchain
+        run: echo "rustc_hash=$(rustc --version --verbose | grep 'commit-hash' | awk '{print $2}')" >> $GITHUB_OUTPUT
 
       - name: Install cargo-nextest
         uses: taiki-e/install-action@cargo-nextest
@@ -34,14 +39,14 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-check-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-check-
+          key: ${{ runner.os }}-${{ steps.toolchain.outputs.rustc_hash }}-check-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-${{ steps.toolchain.outputs.rustc_hash }}-check-
 
       - name: Run just check
         run: just check
 
   # -----------------------------------------------------------------------
-  # Core & adapter tests (non-GPUI — no system deps needed)
+  # Core & adapter tests (non‑GPUI — no system deps needed)
   # -----------------------------------------------------------------------
   test-core:
     name: Test Core & Non-GPUI Adapters
@@ -66,6 +71,10 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Get Rust toolchain hash
+        id: toolchain
+        run: echo "rustc_hash=$(rustc --version --verbose | grep 'commit-hash' | awk '{print $2}')" >> $GITHUB_OUTPUT
+
       - name: Install cargo-nextest
         uses: taiki-e/install-action@cargo-nextest
 
@@ -76,8 +85,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-test-${{ matrix.recipe }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-test-
+          key: ${{ runner.os }}-${{ steps.toolchain.outputs.rustc_hash }}-test-${{ matrix.recipe }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-${{ steps.toolchain.outputs.rustc_hash }}-test-
 
       - name: Run just ${{ matrix.recipe }}
         run: just ${{ matrix.recipe }}
@@ -101,6 +110,10 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Get Rust toolchain hash
+        id: toolchain
+        run: echo "rustc_hash=$(rustc --version --verbose | grep 'commit-hash' | awk '{print $2}')" >> $GITHUB_OUTPUT
+
       - name: Install cargo-nextest
         uses: taiki-e/install-action@cargo-nextest
 
@@ -111,8 +124,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-macros-${{ matrix.recipe }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-macros-
+          key: ${{ runner.os }}-${{ steps.toolchain.outputs.rustc_hash }}-macros-${{ matrix.recipe }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-${{ steps.toolchain.outputs.rustc_hash }}-macros-
 
       - name: Run just ${{ matrix.recipe }}
         run: just ${{ matrix.recipe }}
@@ -129,6 +142,10 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Get Rust toolchain hash
+        id: toolchain
+        run: echo "rustc_hash=$(rustc --version --verbose | grep 'commit-hash' | awk '{print $2}')" >> $GITHUB_OUTPUT
 
       - name: Install cargo-nextest
         uses: taiki-e/install-action@cargo-nextest
@@ -151,8 +168,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-gpui-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-gpui-
+          key: ${{ runner.os }}-${{ steps.toolchain.outputs.rustc_hash }}-gpui-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-${{ steps.toolchain.outputs.rustc_hash }}-gpui-
 
       - name: Run just test-quoin-gpui
         run: just test-quoin-gpui
@@ -176,6 +193,10 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Get Rust toolchain hash
+        id: toolchain
+        run: echo "rustc_hash=$(rustc --version --verbose | grep 'commit-hash' | awk '{print $2}')" >> $GITHUB_OUTPUT
+
       - name: Install GPUI system dependencies
         run: |
           sudo apt-get update
@@ -194,8 +215,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-examples-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-examples-
+          key: ${{ runner.os }}-${{ steps.toolchain.outputs.rustc_hash }}-examples-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-${{ steps.toolchain.outputs.rustc_hash }}-examples-
 
       - name: Run just build-examples
         run: just build-examples
@@ -212,6 +233,10 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Get Rust toolchain hash
+        id: toolchain
+        run: echo "rustc_hash=$(rustc --version --verbose | grep 'commit-hash' | awk '{print $2}')" >> $GITHUB_OUTPUT
 
       - name: Install cargo-nextest
         uses: taiki-e/install-action@cargo-nextest
@@ -234,8 +259,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-all-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-all-
+          key: ${{ runner.os }}-${{ steps.toolchain.outputs.rustc_hash }}-all-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-${{ steps.toolchain.outputs.rustc_hash }}-all-
 
       - name: Run just test
         run: just test

@@ -161,7 +161,7 @@ impl GpuiContext {
         }
     }
 
-    fn request_update(&self) {
+    fn notify_update(&self) {
         if let Some(notifier) = self.update_notifier.lock().unwrap().as_ref() {
             notifier();
         }
@@ -198,7 +198,7 @@ impl ReactiveContext for GpuiContext {
     }
 
     fn request_update(&self) {
-        self.request_update();
+        self.notify_update();
     }
 
     fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T) {
@@ -316,6 +316,66 @@ pub struct GpuiJoinHandle<T> {
 }
 
 impl<T: Send + 'static> JoinHandle<T> for GpuiJoinHandle<T> {
+    /// Abort the spawned task.
+    ///
+    /// # Limitations
+    ///
+    /// This is currently a **no-op**. The spawned thread runs to completion
+    /// regardless of whether `abort()` is called. This is because:
+    ///
+    /// - The task runs on a dedicated `std::thread` with no cancellation token.
+    /// - There is no built-in mechanism to interrupt a blocked `futures::executor::block_on`.
+    ///
+    /// If you need cancellation support, consider:
+    /// - Using a `CancellationToken` pattern inside your future.
+    /// - Switching to a tokio-based executor with proper task cancellation.
+    ///
+    /// This limitation will be addressed in a future version.
+    /// Abort the spawned task.
+    ///
+    /// # Limitations
+    ///
+    /// This is currently a **no-op**. The spawned thread runs to completion
+    /// regardless of whether `abort()` is called. This is because:
+    ///
+    /// - The task runs on a dedicated `std::thread` with no cancellation token.
+    /// - There is no built-in mechanism to interrupt a blocked `futures::executor::block_on`.
+    ///
+    /// If you need cancellation support, consider:
+    /// - Using a `CancellationToken` pattern inside your future.
+    /// - Switching to a tokio-based executor with proper task cancellation.
+    ///
+    /// This limitation will be addressed in a future version.
+    /// Abort the spawned task.
+    ///
+    /// # Limitations
+    ///
+    /// This is currently a **no-op**. The spawned thread runs to completion
+    /// regardless of whether `abort()` is called. This is because:
+    ///
+    /// - The task runs on a dedicated `std::thread` with no cancellation token.
+    /// - There is no built-in mechanism to interrupt a blocked `futures::executor::block_on`.
+    ///
+    /// If you need cancellation support, consider:
+    /// - Using a `CancellationToken` pattern inside your future.
+    /// - Switching to a tokio-based executor with proper task cancellation.
+    ///
+    /// This limitation will be addressed in a future version.
+    /// Abort the spawned task.
+    ///
+    /// # Limitations
+    ///
+    /// This is currently a **no-op**. The spawned thread runs to completion
+    /// regardless of whether `abort()` is called. This is because:
+    ///
+    /// - The task runs on a dedicated `std::thread` with no cancellation token.
+    /// - There is no built-in mechanism to interrupt a blocked `futures::executor::block_on`.
+    ///
+    /// If you need cancellation support, consider:
+    /// - Using a `CancellationToken` pattern inside your future.
+    /// - Switching to a tokio-based executor with proper task cancellation.
+    ///
+    /// This limitation will be addressed in a future version.
     fn abort(&self) {}
 }
 

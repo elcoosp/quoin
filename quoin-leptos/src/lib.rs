@@ -162,6 +162,21 @@ pub struct LeptosJoinHandle<T> {
 }
 
 impl<T: Send + 'static> JoinHandle<T> for LeptosJoinHandle<T> {
+    /// Abort the spawned task.
+    ///
+    /// # Limitations
+    ///
+    /// This is currently a **no-op**. The spawned thread runs to completion
+    /// regardless of whether `abort()` is called. This is because:
+    ///
+    /// - The task runs on a dedicated `std::thread` with no cancellation token.
+    /// - There is no built-in mechanism to interrupt a blocked `futures::executor::block_on`.
+    ///
+    /// If you need cancellation support, consider:
+    /// - Using a `CancellationToken` pattern inside your future.
+    /// - Switching to a tokio-based executor with proper task cancellation.
+    ///
+    /// This limitation will be addressed in a future version.
     fn abort(&self) {}
 }
 

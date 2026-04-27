@@ -1,0 +1,5 @@
+error: Unexpected identifier. Expected 'props', 'state', 'globals', 'on_mount', 'on_unmount', 'render', or a function definition
+ --> tests/ui/component_unexpected_ident_fail.rs:5:9
+  |
+5 |         rendr { // typo: should be "render"
+  |         ^^^^^
