@@ -1,0 +1,20 @@
+[package]
+name = "shadcn-showcase"
+version = "0.1.0"
+edition = "2021"
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+getrandom = { version = "0.4", features = ["wasm_js"] }
+quoin = { path = "../../quoin", features = ["leptos", "leptos-shadcn"] }
+quoin-macros = { path = "../../quoin-macros", features = ["leptos", "leptos-shadcn"] }
+leptos = { version = "0.8", default-features = false, features = ["csr"] }
+leptos-shadcn-ui = { git = "https://github.com/elcoosp/leptos-shadcn-ui", default-features = false, features = [
+    "all-components",
+
+] }
+console_error_panic_hook = "0.1"
+wasm-bindgen = "0.2"
+[features]
+default = []
