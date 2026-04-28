@@ -31,7 +31,7 @@ pub(crate) fn emit_progress(el: &Element, bindings: &mut Vec<TokenStream>, _insi
         let class_prop = if user_class.is_empty() {
             quote! {}
         } else {
-            quote! { class={#user_class} }
+            quote! { class={ #user_class.into() } }
         };
         quote! { <#tag #value_prop #class_prop /> }
     }

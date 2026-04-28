@@ -32,10 +32,10 @@ pub(crate) fn emit_input(el: &Element, bindings: &mut Vec<TokenStream>, inside_f
 
         let on_change_prop: TokenStream = if let Some(handler) = on_change_expr {
             let wrapped = wrap_event_handler(handler);
-            quote! { on_change={#wrapped} }
+            quote! { on_change={ #wrapped.into() } }
         } else if let Some(handler) = on_input_expr {
             let wrapped = wrap_event_handler(handler);
-            quote! { on_change={#wrapped} }
+            quote! { on_change={ #wrapped.into() } }
         } else if needs_auto_bind {
             let val = value_expr.unwrap();
             let bind_id = next_extract_id();
@@ -56,11 +56,11 @@ pub(crate) fn emit_input(el: &Element, bindings: &mut Vec<TokenStream>, inside_f
         let placeholder_prop: TokenStream = if placeholder.is_empty() {
             quote! {}
         } else {
-            quote! { placeholder={#placeholder} }
+            quote! { placeholder={ #placeholder.into() } }
         };
 
         let class_prop: TokenStream = if let Some(cls) = class_expr {
-            quote! { class={#cls} }
+            quote! { class={ #cls.into() } }
         } else {
             quote! {}
         };

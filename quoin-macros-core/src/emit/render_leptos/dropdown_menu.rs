@@ -40,7 +40,7 @@ pub(crate) fn emit_dropdown_menu(
                     let on_click = find_arg_expr(e, "on_click")?;
                     let handler = wrap_event_handler(on_click);
                     Some(quote! {
-                        <#dmi_alias on_click={#handler}>
+                        <#dmi_alias on_click={ #handler.into() }>
                             {#item_label}
                         </#dmi_alias>
                     })
@@ -93,15 +93,15 @@ pub(crate) fn emit_dropdown_menu(
                     let on_click = find_arg_expr(e, "on_click")?;
                     let checked = find_arg_bool(e, "checked");
                     let handler = wrap_event_handler(on_click);
-                    let close_open = quote! { #open_name.set(false); };
+                    let close_open = quote! { #open_name.set({ false.into() }); };
                     let checked_icon = if checked {
-                        Some(quote! { <span class="mr-2">"✓"</span> })
+                        Some(quote! { <span class={ "mr-2".into() }>"✓"</span> })
                     } else {
                         None
                     };
                     Some(quote! {
                         <div
-                            class="px-3 py-2 cursor-pointer text-white hover:bg-gray-600 flex items-center"
+                            class={ "px-3 py-2 cursor-pointer text-white hover:bg-gray-600 flex items-center".into() }
                             on:click={
                                 let __item_handler = #handler;
                                 move |ev: leptos::ev::MouseEvent| {
@@ -127,7 +127,7 @@ pub(crate) fn emit_dropdown_menu(
         quote! {
             <div
                 node_ref=#node_ref_name
-                class="relative inline-block"
+                class={ "relative inline-block".into() }
                 on:click=move |ev: leptos::ev::MouseEvent| {
                     ev.stop_propagation();
                     #open_name.update(|v| *v = !*v);
@@ -138,7 +138,7 @@ pub(crate) fn emit_dropdown_menu(
                     move || #open_name.get().then(|| {
                         leptos::view! {
                             <div
-                                class="absolute top-full left-0 z-50 min-w-32 rounded-md border border-gray-700 bg-gray-800 py-1 shadow-lg"
+                                class={ "absolute top-full left-0 z-50 min-w-32 rounded-md border border-gray-700 bg-gray-800 py-1 shadow-lg".into() }
                                 on:click=move |ev: leptos::ev::MouseEvent| {
                                     ev.stop_propagation();
                                 }

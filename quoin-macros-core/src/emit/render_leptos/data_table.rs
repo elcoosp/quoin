@@ -16,7 +16,7 @@ pub(crate) fn emit_data_table(el: &Element, bindings: &mut Vec<TokenStream>, _in
         if let RenderNode::Element(e) = c && e.name == "column" {
             let col_label = find_arg_expr(e, "label").unwrap_or(&empty_label);
             let width = find_arg_expr(e, "width");
-            let mut th_attrs = vec![quote! { class="px-3 py-2 text-gray-400 font-medium" }];
+            let mut th_attrs = vec![quote! { class={ "px-3 py-2 text-gray-400 font-medium".into() } }];
             if let Some(w) = width {
                 th_attrs.push(quote! { style=format!("width: {}px", #w) });
             }
@@ -27,13 +27,13 @@ pub(crate) fn emit_data_table(el: &Element, bindings: &mut Vec<TokenStream>, _in
                 let col_id = next_extract_id();
                 let render_name = quote::format_ident!("__quoin_col_{}", col_id);
                 bindings.push(quote! { let #render_name = std::sync::Arc::new(#rc); });
-                let mut td_attrs = vec![quote! { class="px-3 py-2 text-white" }];
+                let mut td_attrs = vec![quote! { class={ "px-3 py-2 text-white".into() } }];
                 if let Some(w) = width {
                     td_attrs.push(quote! { style=format!("width: {}px", #w) });
                 }
                 row_cells.push(quote! { <td #(#td_attrs)*>{ (&*#render_name)(&__row) }</td> });
             } else {
-                row_cells.push(quote! { <td class="px-3 py-2 text-white"></td> });
+                row_cells.push(quote! { <td class={ "px-3 py-2 text-white".into() }></td> });
             }
         }
     }

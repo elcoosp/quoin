@@ -26,11 +26,11 @@ pub(crate) fn emit_badge(el: &Element, bindings: &mut Vec<TokenStream>, inside_f
                     quote! { class={format!("inline-flex items-center px-1.5 rounded text-xs font-medium text-white {}", #cls)} }
                 }
                 None => {
-                    quote! { class="inline-flex items-center px-1.5 rounded text-xs font-medium text-white" }
+                    quote! { class={ "inline-flex items-center px-1.5 rounded text-xs font-medium text-white".into() } }
                 }
             }
         } else {
-            quote! { class="inline-flex items-center px-1.5 rounded text-xs font-medium bg-gray-600 text-white" }
+            quote! { class={ "inline-flex items-center px-1.5 rounded text-xs font-medium bg-gray-600 text-white".into() } }
         };
 
         if children.is_empty() {
@@ -52,7 +52,7 @@ pub(crate) fn emit_badge(el: &Element, bindings: &mut Vec<TokenStream>, inside_f
                     },
                     None => quote! {
                         <span
-                            class="inline-flex items-center px-1.5 rounded text-xs font-medium text-white"
+                            class={ "inline-flex items-center px-1.5 rounded text-xs font-medium text-white".into() }
                             style=format!("background-color: {}", #color)
                         >
                             #(#children)*
@@ -61,7 +61,7 @@ pub(crate) fn emit_badge(el: &Element, bindings: &mut Vec<TokenStream>, inside_f
                 }
             }
             None => quote! {
-                <span class="inline-flex items-center px-1.5 rounded text-xs font-medium bg-gray-600 text-white">
+                <span class={ "inline-flex items-center px-1.5 rounded text-xs font-medium bg-gray-600 text-white".into() }>
                     #(#children)*
                 </span>
             },

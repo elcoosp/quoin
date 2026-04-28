@@ -35,7 +35,7 @@ pub(crate) fn emit_tabs(el: &Element, bindings: &mut Vec<TokenStream>, inside_fo
                     let tab_label = find_arg_expr(e, "label")?;
                     let index = find_arg_expr(e, "index")?;
                     Some(quote! {
-                        <#tabs_trigger_alias value={#index.to_string()} class="text-white">{#tab_label}</#tabs_trigger_alias>
+                        <#tabs_trigger_alias value={#index.to_string()} class={ "text-white".into() }>{#tab_label}</#tabs_trigger_alias>
                     })
                 } else {
                     None
@@ -45,7 +45,7 @@ pub(crate) fn emit_tabs(el: &Element, bindings: &mut Vec<TokenStream>, inside_fo
 
         quote! {
             <#tabs_alias
-                value={leptos::prelude::Signal::derive(move || (#active_expr).to_string())}
+                value={leptos::prelude::Signal::derive(move || (#active_expr).to_string()).into()}
                 on_value_change={
                     let __on_click = #on_click_wrapped;
                     move |val: String| {
@@ -119,6 +119,6 @@ pub(crate) fn emit_tabs(el: &Element, bindings: &mut Vec<TokenStream>, inside_fo
             })
             .collect();
 
-        quote! { <ul class="tabs"> #(#tab_labels)* </ul> }
+        quote! { <ul class={ "tabs".into() }> #(#tab_labels)* </ul> }
     }
 }

@@ -11,13 +11,13 @@ pub(crate) fn emit_calendar(el: &Element, bindings: &mut Vec<TokenStream>, insid
             .map(|m| quote! { mode={leptos::prelude::Signal::derive(move || #m)} })
             .unwrap_or_else(|| quote! {});
         let selected = find_arg_expr(el, "selected")
-            .map(|s| quote! { selected={#s} })
+            .map(|s| quote! { selected={ #s.into() } })
             .unwrap_or_else(|| quote! {});
         let on_select = find_arg_expr(el, "on_select")
-            .map(|h| { let w = super::handler::wrap_event_handler(h); quote! { on_select={#w} } })
+            .map(|h| { let w = super::handler::wrap_event_handler(h); quote! { on_select={ #w.into() } } })
             .unwrap_or_else(|| quote! {});
         let class = crate::emit::common::find_arg_string(el, "class").unwrap_or_default();
-        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={#class} } };
+        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={ #class.into() } } };
         let alias = quote::format_ident!("Calendar_{}", next_extract_id());
         bindings.push(quote! { let #alias = leptos_shadcn_ui::Calendar; });
         quote! { <#alias #mode #selected #on_select #class_prop /> }

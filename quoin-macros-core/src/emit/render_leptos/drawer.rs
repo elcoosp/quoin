@@ -8,11 +8,11 @@ pub(crate) fn emit_drawer(el: &Element, bindings: &mut Vec<TokenStream>, inside_
     {
         use super::bindings::next_extract_id;
         let open = crate::emit::common::find_arg_expr(el, "open")
-            .map(|e| quote! { open={#e} });
+            .map(|e| quote! { open={ #e.into() } });
         let on_open_change = crate::emit::common::find_arg_expr(el, "on_open_change")
-            .map(|h| { let w = wrap_event_handler(h); quote! { on_open_change={#w} } });
+            .map(|h| { let w = wrap_event_handler(h); quote! { on_open_change={ #w.into() } } });
         let direction = crate::emit::common::find_arg_expr(el, "direction")
-            .map(|d| quote! { direction={#d} });
+            .map(|d| quote! { direction={ #d.into() } });
         let should_scale_background = crate::emit::common::find_arg_bool(el, "should_scale_background");
         let children: Vec<TokenStream> = el.children.iter().map(|c| emit_node(c, bindings, inside_for)).collect();
         let alias = quote::format_ident!("Drawer_{}", next_extract_id());
@@ -21,7 +21,7 @@ pub(crate) fn emit_drawer(el: &Element, bindings: &mut Vec<TokenStream>, inside_
         if let Some(o) = open { props.extend(quote! { #o }); }
         if let Some(oc) = on_open_change { props.extend(quote! { #oc }); }
         if let Some(d) = direction { props.extend(quote! { #d }); }
-        props.extend(quote! { should_scale_background={#should_scale_background} });
+        props.extend(quote! { should_scale_background={ #should_scale_background.into() } });
         if children.is_empty() { quote! { <#alias #props /> } } else { quote! { <#alias #props> #(#children)* </#alias> } }
     }
     #[cfg(not(feature = "leptos-shadcn"))]
@@ -34,7 +34,7 @@ fn make_drawer_component(name: &str, el: &Element, bindings: &mut Vec<TokenStrea
         use super::bindings::next_extract_id;
         let class = crate::emit::common::find_arg_string(el, "class").unwrap_or_default();
         let children: Vec<TokenStream> = el.children.iter().map(|c| emit_node(c, bindings, inside_for)).collect();
-        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={#class} } };
+        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={ #class.into() } } };
         let alias = quote::format_ident!("{}_{}", name, next_extract_id());
         let comp_ident = quote::format_ident!("{}", name);
         bindings.push(quote! { let #alias = leptos_shadcn_ui::#comp_ident; });

@@ -21,22 +21,22 @@ pub(crate) fn emit_checkbox(el: &Element, bindings: &mut Vec<TokenStream>, insid
             alias
         };
         let checked_prop = match checked_expr {
-            Some(val) => quote! { checked={#val} },
+            Some(val) => quote! { checked={ #val.into() } },
             None => quote! {},
         };
         let on_change_prop = match on_change_expr {
             Some(handler) => {
                 let wrapped = wrap_event_handler(handler);
-                quote! { on_checked_change={#wrapped} }
+                quote! { on_checked_change={ #wrapped.into() } }
             }
             None => quote! {},
         };
         let class_prop = if user_class.is_empty() {
             quote! {}
         } else {
-            quote! { class={#user_class} }
+            quote! { class={ #user_class.into() } }
         };
-        quote! { <#tag #checked_prop #on_change_prop #class_prop disabled={#disabled} /> }
+        quote! { <#tag #checked_prop #on_change_prop #class_prop disabled={ #disabled.into() } /> }
     }
 
     #[cfg(not(feature = "leptos-shadcn"))]

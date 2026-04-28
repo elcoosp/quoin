@@ -21,22 +21,22 @@ pub(crate) fn emit_switch(el: &Element, bindings: &mut Vec<TokenStream>, inside_
             alias
         };
         let checked_prop = match checked_expr {
-            Some(val) => quote! { checked={#val} },
+            Some(val) => quote! { checked={ #val.into() } },
             None => quote! {},
         };
         let on_change_prop = match on_change_expr {
             Some(handler) => {
                 let wrapped = wrap_event_handler(handler);
-                quote! { on_checked_change={#wrapped} }
+                quote! { on_checked_change={ #wrapped.into() } }
             }
             None => quote! {},
         };
         let class_prop = if user_class.is_empty() {
             quote! {}
         } else {
-            quote! { class={#user_class} }
+            quote! { class={ #user_class.into() } }
         };
-        quote! { <#tag #checked_prop #on_change_prop #class_prop disabled={#disabled} /> }
+        quote! { <#tag #checked_prop #on_change_prop #class_prop disabled={ #disabled.into() } /> }
     }
 
     #[cfg(not(feature = "leptos-shadcn"))]
@@ -88,14 +88,14 @@ pub(crate) fn emit_switch(el: &Element, bindings: &mut Vec<TokenStream>, inside_
         let thumb_class_name = quote::format_ident!("__quoin_sw_thumb_{}", thumb_class_id);
         bindings.push(quote! {
             let #track_class_name = leptos::prelude::Signal::derive(move || {
-                if #checked_expr.map(|v| v.clone()).unwrap_or(false) {
+                if #checked_expr.map(|v| v.clone()).unwrap_or({ false.into() }) {
                     concat!(#track_on_cls, #disabled_cls)
                 } else {
                     concat!(#track_off_cls, #disabled_cls)
                 }
             });
             let #thumb_class_name = leptos::prelude::Signal::derive(move || {
-                if #checked_expr.map(|v| v.clone()).unwrap_or(false) {
+                if #checked_expr.map(|v| v.clone()).unwrap_or({ false.into() }) {
                     concat!(#thumb_cls, " ", #thumb_on_cls)
                 } else {
                     concat!(#thumb_cls, " ", #thumb_off_cls)
@@ -114,12 +114,12 @@ pub(crate) fn emit_switch(el: &Element, bindings: &mut Vec<TokenStream>, inside_
                 type="button"
                 role="switch"
                 class=#full_cls
-                disabled={#disabled}
+                disabled={ #disabled.into() }
                 on:click=move |_| {}
             >
-                <input #type_prop #checked_prop #on_input_prop class="sr-only peer" />
-                <div class={#track_class_name} />
-                <div class={#thumb_class_name} />
+                <input #type_prop #checked_prop #on_input_prop class={ "sr-only peer".into() } />
+                <div class={ #track_class_name.into() } />
+                <div class={ #thumb_class_name.into() } />
             </button>
         }
     }

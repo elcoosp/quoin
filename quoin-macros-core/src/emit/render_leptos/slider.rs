@@ -23,34 +23,34 @@ pub(crate) fn emit_slider(el: &Element, bindings: &mut Vec<TokenStream>, inside_
             alias
         };
         let value_prop = match value_expr {
-            Some(val) => quote! { value={#val} },
+            Some(val) => quote! { value={ #val.into() } },
             None => quote! {},
         };
         let min_prop = match min_expr {
-            Some(m) => quote! { min={#m} },
+            Some(m) => quote! { min={ #m.into() } },
             None => quote! {},
         };
         let max_prop = match max_expr {
-            Some(m) => quote! { max={#m} },
+            Some(m) => quote! { max={ #m.into() } },
             None => quote! {},
         };
         let step_prop = match step_expr {
-            Some(s) => quote! { step={#s} },
+            Some(s) => quote! { step={ #s.into() } },
             None => quote! {},
         };
         let on_change_prop = match on_input_expr {
             Some(handler) => {
                 let wrapped = wrap_event_handler(handler);
-                quote! { on_value_change={#wrapped} }
+                quote! { on_value_change={ #wrapped.into() } }
             }
             None => quote! {},
         };
         let class_prop = if user_class.is_empty() {
             quote! {}
         } else {
-            quote! { class={#user_class} }
+            quote! { class={ #user_class.into() } }
         };
-        quote! { <#tag #value_prop #min_prop #max_prop #step_prop #on_change_prop #class_prop disabled={#disabled} /> }
+        quote! { <#tag #value_prop #min_prop #max_prop #step_prop #on_change_prop #class_prop disabled={ #disabled.into() } /> }
     }
     #[cfg(not(feature = "leptos-shadcn"))]
     {
@@ -63,15 +63,15 @@ pub(crate) fn emit_slider(el: &Element, bindings: &mut Vec<TokenStream>, inside_
 
         let type_prop = quote! { r#type="range"# };
         let min_prop = match min_expr {
-            Some(m) => quote! { min={#m} },
+            Some(m) => quote! { min={ #m.into() } },
             None => quote! {},
         };
         let max_prop = match max_expr {
-            Some(m) => quote! { max={#m} },
+            Some(m) => quote! { max={ #m.into() } },
             None => quote! {},
         };
         let step_prop = match step_expr {
-            Some(s) => quote! { step={#s} },
+            Some(s) => quote! { step={ #s.into() } },
             None => quote! {},
         };
 

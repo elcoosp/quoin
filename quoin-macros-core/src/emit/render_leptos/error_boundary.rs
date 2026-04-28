@@ -9,7 +9,7 @@ pub(crate) fn emit_error_boundary(el: &Element, bindings: &mut Vec<TokenStream>,
     {
         let class = find_arg_string(el, "class").unwrap_or_default();
         let children: Vec<TokenStream> = el.children.iter().map(|c| emit_node(c, bindings, inside_for)).collect();
-        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={#class} } };
+        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={ #class.into() } } };
         let alias = quote::format_ident!("ErrorBoundary_{}", next_extract_id());
         bindings.push(quote! { let #alias = leptos_shadcn_ui::ErrorBoundary; });
         if children.is_empty() { quote! { <#alias #class_prop /> } } else { quote! { <#alias #class_prop> #(#children)* </#alias> } }

@@ -10,7 +10,7 @@ pub(crate) fn emit_tooltip(el: &Element, bindings: &mut Vec<TokenStream>, inside
     let text = find_arg_string(el, "text").unwrap_or_default();
 
     if trigger_expr.is_none() {
-        return quote! { <span title={#text}>{#text}</span> };
+        return quote! { <span title={ #text.into() }>{#text}</span> };
     }
 
     let trigger_inner = emit_node(
@@ -48,9 +48,9 @@ pub(crate) fn emit_tooltip(el: &Element, bindings: &mut Vec<TokenStream>, inside
     #[cfg(not(feature = "leptos-shadcn"))]
     {
         quote! {
-            <div class="relative inline-block group">
+            <div class={ "relative inline-block group".into() }>
                 {#trigger_inner}
-                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs rounded bg-gray-800 text-white whitespace-nowrap shadow-lg z-50 hidden group-hover:block">
+                <div class={ "absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs rounded bg-gray-800 text-white whitespace-nowrap shadow-lg z-50 hidden group-hover:block".into() }>
                     {#text}
                 </div>
             </div>

@@ -8,19 +8,19 @@ pub(crate) fn emit_accordion(el: &Element, bindings: &mut Vec<TokenStream>, insi
     #[cfg(feature = "leptos-shadcn")]
     {
         let r#type = find_arg_expr(el, "type")
-            .map(|e| quote! { type={#e} });
+            .map(|e| quote! { type={ #e.into() } });
         let orientation = find_arg_expr(el, "orientation")
-            .map(|e| quote! { orientation={#e} });
+            .map(|e| quote! { orientation={ #e.into() } });
         let collapsible = find_arg_expr(el, "collapsible")
-            .map(|e| quote! { collapsible={#e} });
+            .map(|e| quote! { collapsible={ #e.into() } });
         let disabled = find_arg_bool(el, "disabled");
         let value = find_arg_expr(el, "value")
-            .map(|e| quote! { value={#e} })
+            .map(|e| quote! { value={ #e.into() } })
             .expect("Accordion requires 'value' argument (RwSignal<Vec<String>>)");
         let on_value_change = find_arg_expr(el, "on_value_change")
-            .map(|h| { let w = wrap_event_handler(h); quote! { on_value_change={#w} } });
+            .map(|h| { let w = wrap_event_handler(h); quote! { on_value_change={ #w.into() } } });
         let class = find_arg_string(el, "class").unwrap_or_default();
-        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={#class} } };
+        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={ #class.into() } } };
 
         let mut children: Vec<TokenStream> = Vec::new();
         for child in &el.children {
@@ -41,7 +41,7 @@ pub(crate) fn emit_accordion(el: &Element, bindings: &mut Vec<TokenStream>, insi
         if let Some(t) = r#type { props.extend(t); }
         if let Some(o) = orientation { props.extend(o); }
         if let Some(c) = collapsible { props.extend(c); }
-        props.extend(quote! { disabled={#disabled} });
+        props.extend(quote! { disabled={ #disabled.into() } });
         props.extend(value);
         if let Some(oc) = on_value_change { props.extend(oc); }
         props.extend(class_prop);
@@ -56,18 +56,18 @@ pub(crate) fn emit_accordion_item(el: &Element, bindings: &mut Vec<TokenStream>,
     #[cfg(feature = "leptos-shadcn")]
     {
         let value = find_arg_expr(el, "value")
-            .map(|e| quote! { value={#e} })
+            .map(|e| quote! { value={ #e.into() } })
             .expect("AccordionItem requires 'value'");
         let disabled = find_arg_bool(el, "disabled");
         let class = find_arg_string(el, "class").unwrap_or_default();
         let children: Vec<TokenStream> = el.children.iter().map(|c| emit_node(c, bindings, inside_for)).collect();
-        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={#class} } };
+        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={ #class.into() } } };
         let alias = quote::format_ident!("AccordionItem_{}", next_extract_id());
         bindings.push(quote! { let #alias = leptos_shadcn_ui::AccordionItem; });
         if children.is_empty() {
-            quote! { <#alias #value disabled={#disabled} #class_prop /> }
+            quote! { <#alias #value disabled={ #disabled.into() } #class_prop /> }
         } else {
-            quote! { <#alias #value disabled={#disabled} #class_prop> #(#children)* </#alias> }
+            quote! { <#alias #value disabled={ #disabled.into() } #class_prop> #(#children)* </#alias> }
         }
     }
     #[cfg(not(feature = "leptos-shadcn"))]
@@ -84,13 +84,13 @@ pub(crate) fn emit_accordion_content(el: &Element, bindings: &mut Vec<TokenStrea
         let force_mount = find_arg_bool(el, "force_mount");
         let class = find_arg_string(el, "class").unwrap_or_default();
         let children: Vec<TokenStream> = el.children.iter().map(|c| emit_node(c, bindings, inside_for)).collect();
-        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={#class} } };
+        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={ #class.into() } } };
         let alias = quote::format_ident!("AccordionContent_{}", next_extract_id());
         bindings.push(quote! { let #alias = leptos_shadcn_ui::AccordionContent; });
         if children.is_empty() {
-            quote! { <#alias force_mount={#force_mount} #class_prop /> }
+            quote! { <#alias force_mount={ #force_mount.into() } #class_prop /> }
         } else {
-            quote! { <#alias force_mount={#force_mount} #class_prop> #(#children)* </#alias> }
+            quote! { <#alias force_mount={ #force_mount.into() } #class_prop> #(#children)* </#alias> }
         }
     }
     #[cfg(not(feature = "leptos-shadcn"))]
@@ -102,7 +102,7 @@ fn simple_component(name: &str, el: &Element, bindings: &mut Vec<TokenStream>, i
     {
         let class = find_arg_string(el, "class").unwrap_or_default();
         let children: Vec<TokenStream> = el.children.iter().map(|c| emit_node(c, bindings, inside_for)).collect();
-        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={#class} } };
+        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={ #class.into() } } };
         let alias = quote::format_ident!("{}_{}", name, next_extract_id());
         let comp_ident = quote::format_ident!("{}", name);
         bindings.push(quote! { let #alias = leptos_shadcn_ui::#comp_ident; });

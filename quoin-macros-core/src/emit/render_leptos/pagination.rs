@@ -8,10 +8,10 @@ pub(crate) fn emit_pagination(el: &Element, bindings: &mut Vec<TokenStream>, ins
     #[cfg(feature = "leptos-shadcn")]
     {
         let current_page = find_arg_expr(el, "current_page")
-            .map(|e| quote! { current_page={leptos::prelude::Signal::derive(move || #e)} })
+            .map(|e| quote! { current_page={leptos::prelude::Signal::derive(move || #e.into().into())} })
             .unwrap_or_else(|| quote! {});
         let total_pages = find_arg_expr(el, "total_pages")
-            .map(|e| quote! { total_pages={#e} })
+            .map(|e| quote! { total_pages={ #e.into() } })
             .unwrap_or_else(|| quote! { total_pages=1usize });
         let on_page_change = find_arg_expr(el, "on_page_change")
             .map(|h| { let w = wrap_event_handler(h); quote! { on_page_change={#w} } })
@@ -20,15 +20,13 @@ pub(crate) fn emit_pagination(el: &Element, bindings: &mut Vec<TokenStream>, ins
         let show_first_last = find_arg_bool(el, "show_first_last");
         let class = find_arg_string(el, "class").unwrap_or_default();
         let class_prop = if class.is_empty() { quote! {} } else { quote! { class={#class} } };
-
         let children: Vec<TokenStream> = el.children.iter().map(|c| emit_node(c, bindings, inside_for)).collect();
         let alias = quote::format_ident!("Pagination_{}", next_extract_id());
         bindings.push(quote! { let #alias = leptos_shadcn_ui::Pagination; });
-
         if children.is_empty() {
-            quote! { <#alias #current_page #total_pages #on_page_change show_previous_next={#show_previous_next} show_first_last={#show_first_last} #class_prop /> }
+            quote! { <#alias #current_page #total_pages #on_page_change show_previous_next={ #show_previous_next.into() } show_first_last={ #show_first_last.into() } #class_prop /> }
         } else {
-            quote! { <#alias #current_page #total_pages #on_page_change show_previous_next={#show_previous_next} show_first_last={#show_first_last} #class_prop> #(#children)* </#alias> }
+            quote! { <#alias #current_page #total_pages #on_page_change show_previous_next={ #show_previous_next.into() } show_first_last={ #show_first_last.into() } #class_prop> #(#children)* </#alias> }
         }
     }
     #[cfg(not(feature = "leptos-shadcn"))]

@@ -8,7 +8,7 @@ pub(crate) fn emit_label(el: &Element, bindings: &mut Vec<TokenStream>, inside_f
     #[cfg(feature = "leptos-shadcn")]
     {
         let class_expr = find_arg_expr(el, "class");
-        let class_prop = class_expr.map(|c| quote! { class={#c} }).unwrap_or_else(|| quote! {});
+        let class_prop = class_expr.map(|c| quote! { class={ #c.into() } }).unwrap_or_else(|| quote! {});
         let children: Vec<TokenStream> = el.children.iter().map(|c| emit_node(c, bindings, inside_for)).collect();
         let alias = quote::format_ident!("Label_{}", next_extract_id());
         bindings.push(quote! { let #alias = leptos_shadcn_ui::Label; });

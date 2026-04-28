@@ -19,7 +19,7 @@ pub(crate) fn emit_scroll_area(
         }
 
         let class_prop = if let Some(cls) = class_expr {
-            quote! { class={#cls} }
+            quote! { class={ #cls.into() } }
         } else {
             quote! {}
         };

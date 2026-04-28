@@ -22,11 +22,11 @@ pub(crate) fn emit_textarea(el: &Element, bindings: &mut Vec<TokenStream>, insid
 
         let on_change_prop = if let Some(handler) = on_change_expr {
             let wrapped = wrap_event_handler(handler);
-            quote! { on_change={#wrapped} }
+            quote! { on_change={ #wrapped.into() } }
         } else { quote! {} };
 
-        let placeholder_prop = if placeholder.is_empty() { quote! {} } else { quote! { placeholder={#placeholder} } };
-        let class_prop = class_expr.map(|c| quote! { class={#c} }).unwrap_or_else(|| quote! {});
+        let placeholder_prop = if placeholder.is_empty() { quote! {} } else { quote! { placeholder={ #placeholder.into() } } };
+        let class_prop = class_expr.map(|c| quote! { class={ #c.into() } }).unwrap_or_else(|| quote! {});
         let disabled_prop = if disabled { quote! { disabled=true } } else { quote! {} };
 
         let alias = quote::format_ident!("Textarea_{}", next_extract_id());
@@ -52,10 +52,10 @@ pub(crate) fn emit_toggle(el: &Element, bindings: &mut Vec<TokenStream>, inside_
         let class = find_arg_string(el, "class").unwrap_or_default();
         let children: Vec<TokenStream> = el.children.iter().map(|c| emit_node(c, bindings, inside_for)).collect();
 
-        let pressed_prop = pressed.map(|p| quote! { pressed={#p} }).unwrap_or_else(|| quote! {});
-        let on_change_prop = on_change.map(|h| { let w = wrap_event_handler(h); quote! { on_pressed_change={#w} } }).unwrap_or_else(|| quote! {});
+        let pressed_prop = pressed.map(|p| quote! { pressed={ #p.into() } }).unwrap_or_else(|| quote! {});
+        let on_change_prop = on_change.map(|h| { let w = wrap_event_handler(h); quote! { on_pressed_change={ #w.into() } } }).unwrap_or_else(|| quote! {});
         let disabled_prop = if disabled { quote! { disabled=true } } else { quote! {} };
-        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={#class} } };
+        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={ #class.into() } } };
 
         let alias = quote::format_ident!("Toggle_{}", next_extract_id());
         bindings.push(quote! { let #alias = leptos_shadcn_ui::Toggle; });
@@ -79,7 +79,7 @@ pub(crate) fn emit_menubar(el: &Element, bindings: &mut Vec<TokenStream>, inside
     {
         let class = find_arg_string(el, "class").unwrap_or_default();
         let children: Vec<TokenStream> = el.children.iter().map(|c| emit_node(c, bindings, inside_for)).collect();
-        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={#class} } };
+        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={ #class.into() } } };
         let alias = quote::format_ident!("Menubar_{}", next_extract_id());
         bindings.push(quote! { let #alias = leptos_shadcn_ui::Menubar; });
         if children.is_empty() { quote! { <#alias #class_prop /> } } else { quote! { <#alias #class_prop> #(#children)* </#alias> } }
@@ -93,7 +93,7 @@ pub(crate) fn emit_navigation_menu(el: &Element, bindings: &mut Vec<TokenStream>
     {
         let class = find_arg_string(el, "class").unwrap_or_default();
         let children: Vec<TokenStream> = el.children.iter().map(|c| emit_node(c, bindings, inside_for)).collect();
-        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={#class} } };
+        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={ #class.into() } } };
         let alias = quote::format_ident!("NavigationMenu_{}", next_extract_id());
         bindings.push(quote! { let #alias = leptos_shadcn_ui::NavigationMenu; });
         if children.is_empty() { quote! { <#alias #class_prop /> } } else { quote! { <#alias #class_prop> #(#children)* </#alias> } }
@@ -107,7 +107,7 @@ pub(crate) fn emit_popover(el: &Element, bindings: &mut Vec<TokenStream>, inside
     {
         let class = find_arg_string(el, "class").unwrap_or_default();
         let children: Vec<TokenStream> = el.children.iter().map(|c| emit_node(c, bindings, inside_for)).collect();
-        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={#class} } };
+        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={ #class.into() } } };
         let alias = quote::format_ident!("Popover_{}", next_extract_id());
         bindings.push(quote! { let #alias = leptos_shadcn_ui::Popover; });
         if children.is_empty() { quote! { <#alias #class_prop /> } } else { quote! { <#alias #class_prop> #(#children)* </#alias> } }
@@ -131,17 +131,17 @@ pub(crate) fn emit_input_otp(el: &Element, bindings: &mut Vec<TokenStream>, insi
     #[cfg(feature = "leptos-shadcn")]
     {
         let max_length = crate::emit::common::find_arg_expr(el, "max_length")
-            .map(|e| quote! { max_length={#e} })
+            .map(|e| quote! { max_length={ #e.into() } })
             .unwrap_or_else(|| quote! { max_length=6usize });
         let value = crate::emit::common::find_arg_expr(el, "value")
-            .map(|e| quote! { value={#e} });
+            .map(|e| quote! { value={ #e.into() } });
         let on_change = crate::emit::common::find_arg_expr(el, "on_change")
-            .map(|h| { let w = wrap_event_handler(h); quote! { on_change={#w} } });
+            .map(|h| { let w = wrap_event_handler(h); quote! { on_change={ #w.into() } } });
         let on_complete = crate::emit::common::find_arg_expr(el, "on_complete")
-            .map(|h| { let w = wrap_event_handler(h); quote! { on_complete={#w} } });
+            .map(|h| { let w = wrap_event_handler(h); quote! { on_complete={ #w.into() } } });
         let disabled = crate::emit::common::find_arg_bool(el, "disabled");
         let class = crate::emit::common::find_arg_string(el, "class").unwrap_or_default();
-        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={#class} } };
+        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={ #class.into() } } };
 
         let alias = quote::format_ident!("InputOtp_{}", next_extract_id());
         bindings.push(quote! { let #alias = leptos_shadcn_ui::InputOtp; });
@@ -151,7 +151,7 @@ pub(crate) fn emit_input_otp(el: &Element, bindings: &mut Vec<TokenStream>, insi
         if let Some(v) = value { props.extend(quote! { #v }); }
         if let Some(oc) = on_change { props.extend(quote! { #oc }); }
         if let Some(oc) = on_complete { props.extend(quote! { #oc }); }
-        props.extend(quote! { disabled={#disabled} });
+        props.extend(quote! { disabled={ #disabled.into() } });
         props.extend(class_prop);
 
         quote! { <#alias #props /> }

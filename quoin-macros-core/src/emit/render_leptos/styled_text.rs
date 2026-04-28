@@ -36,7 +36,7 @@ pub(crate) fn emit_styled_text(
                             }
                             let __match: &str = &__remaining[__idx..__idx + __query_val.len()];
                             __parts.push(
-                                { use leptos::prelude::*; leptos::view! { <span class="bg-yellow-200 text-black">{__match}</span> } }.into_any()
+                                { use leptos::prelude::*; leptos::view! { <span class={ "bg-yellow-200 text-black".into() }>{__match}</span> } }.into_any()
                             );
                             __remaining = &__remaining[__idx + __query_val.len()..];
                         }

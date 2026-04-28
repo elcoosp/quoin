@@ -9,7 +9,7 @@ pub(crate) fn emit_toast_provider(el: &Element, bindings: &mut Vec<TokenStream>,
     {
         let class = find_arg_string(el, "class").unwrap_or_default();
         let children: Vec<TokenStream> = el.children.iter().map(|c| emit_node(c, bindings, inside_for)).collect();
-        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={#class} } };
+        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={ #class.into() } } };
         let alias = quote::format_ident!("Toaster_{}", next_extract_id());
         // leptos_shadcn_ui provides Toaster as the toast provider
         bindings.push(quote! { let #alias = leptos_shadcn_ui::Toaster; });

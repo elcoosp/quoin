@@ -33,11 +33,11 @@ pub(crate) fn emit_button(el: &Element, bindings: &mut Vec<TokenStream>, inside_
         let on_click_prop: Option<TokenStream> =
             find_arg_expr(el, "on_click").map(|handler_expr| {
                 let handler = wrap_event_handler(handler_expr);
-                quote! { on_click={#handler} }
+                quote! { on_click={ #handler.into() } }
             });
 
         let class_prop: TokenStream = if let Some(cls) = find_arg_expr(el, "class") {
-            quote! { class={#cls} }
+            quote! { class={ #cls.into() } }
         } else {
             quote! {}
         };
@@ -49,14 +49,14 @@ pub(crate) fn emit_button(el: &Element, bindings: &mut Vec<TokenStream>, inside_
 
         let button = if children.is_empty() {
             let props = match on_click_prop {
-                Some(oc) => quote! { variant=#variant #class_prop #oc disabled={#disabled} },
-                None => quote! { variant=#variant #class_prop disabled={#disabled} },
+                Some(oc) => quote! { variant=#variant #class_prop #oc disabled={ #disabled.into() } },
+                None => quote! { variant=#variant #class_prop disabled={ #disabled.into() } },
             };
             quote! { <#btn_alias #props /> }
         } else {
             let props = match on_click_prop {
-                Some(oc) => quote! { variant=#variant #class_prop #oc disabled={#disabled} },
-                None => quote! { variant=#variant #class_prop disabled={#disabled} },
+                Some(oc) => quote! { variant=#variant #class_prop #oc disabled={ #disabled.into() } },
+                None => quote! { variant=#variant #class_prop disabled={ #disabled.into() } },
             };
             quote! { <#btn_alias #props> #(#children)* </#btn_alias> }
         };
@@ -100,9 +100,9 @@ pub(crate) fn emit_button(el: &Element, bindings: &mut Vec<TokenStream>, inside_
 
         match tooltip_text {
             Some(text) => quote! {
-                <div class="relative inline-block group">
+                <div class={ "relative inline-block group".into() }>
                     #inner_button
-                    <div class="absolute bottom full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs rounded bg-gray-800 text-white whitespace-nowrap shadow-lg z-50 hidden group-hover:block">
+                    <div class={ "absolute bottom full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs rounded bg-gray-800 text-white whitespace-nowrap shadow-lg z-50 hidden group-hover:block".into() }>
                         {#text}
                     </div>
                 </div>

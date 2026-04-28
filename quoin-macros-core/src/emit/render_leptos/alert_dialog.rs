@@ -8,9 +8,9 @@ pub(crate) fn emit_alert_dialog(el: &Element, bindings: &mut Vec<TokenStream>, i
     {
         use super::bindings::next_extract_id;
         let open = crate::emit::common::find_arg_expr(el, "open")
-            .map(|e| quote! { open={#e} });
+            .map(|e| quote! { open={ #e.into() } });
         let on_open_change = crate::emit::common::find_arg_expr(el, "on_open_change")
-            .map(|h| { let w = wrap_event_handler(h); quote! { on_open_change={#w} } });
+            .map(|h| { let w = wrap_event_handler(h); quote! { on_open_change={ #w.into() } } });
         let children: Vec<TokenStream> = el.children.iter().map(|c| emit_node(c, bindings, inside_for)).collect();
         let alias = quote::format_ident!("AlertDialog_{}", next_extract_id());
         bindings.push(quote! { let #alias = leptos_shadcn_ui::AlertDialog; });
@@ -29,7 +29,7 @@ fn make_alert_component(name: &str, el: &Element, bindings: &mut Vec<TokenStream
         use super::bindings::next_extract_id;
         let class = crate::emit::common::find_arg_string(el, "class").unwrap_or_default();
         let children: Vec<TokenStream> = el.children.iter().map(|c| emit_node(c, bindings, inside_for)).collect();
-        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={#class} } };
+        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={ #class.into() } } };
         let alias = quote::format_ident!("{}_{}", name, next_extract_id());
         let comp_ident = quote::format_ident!("{}", name);
         bindings.push(quote! { let #alias = leptos_shadcn_ui::#comp_ident; });

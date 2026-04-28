@@ -8,7 +8,7 @@ pub(crate) fn emit_breadcrumb(el: &Element, bindings: &mut Vec<TokenStream>, ins
     {
         let class = crate::emit::common::find_arg_string(el, "class").unwrap_or_default();
         let children: Vec<TokenStream> = el.children.iter().map(|c| emit_node(c, bindings, inside_for)).collect();
-        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={#class} } };
+        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={ #class.into() } } };
         let alias = quote::format_ident!("Breadcrumb_{}", next_extract_id());
         bindings.push(quote! { let #alias = leptos_shadcn_ui::Breadcrumb; });
         if children.is_empty() { quote! { <#alias #class_prop /> } } else { quote! { <#alias #class_prop> #(#children)* </#alias> } }
@@ -22,7 +22,7 @@ pub(crate) fn emit_breadcrumb_list(el: &Element, bindings: &mut Vec<TokenStream>
     {
         let class = crate::emit::common::find_arg_string(el, "class").unwrap_or_default();
         let children: Vec<TokenStream> = el.children.iter().map(|c| emit_node(c, bindings, inside_for)).collect();
-        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={#class} } };
+        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={ #class.into() } } };
         let alias = quote::format_ident!("BreadcrumbList_{}", next_extract_id());
         bindings.push(quote! { let #alias = leptos_shadcn_ui::BreadcrumbList; });
         if children.is_empty() { quote! { <#alias #class_prop /> } } else { quote! { <#alias #class_prop> #(#children)* </#alias> } }
@@ -36,7 +36,7 @@ pub(crate) fn emit_breadcrumb_item(el: &Element, bindings: &mut Vec<TokenStream>
     {
         let class = crate::emit::common::find_arg_string(el, "class").unwrap_or_default();
         let children: Vec<TokenStream> = el.children.iter().map(|c| emit_node(c, bindings, inside_for)).collect();
-        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={#class} } };
+        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={ #class.into() } } };
         let alias = quote::format_ident!("BreadcrumbItem_{}", next_extract_id());
         bindings.push(quote! { let #alias = leptos_shadcn_ui::BreadcrumbItem; });
         if children.is_empty() { quote! { <#alias #class_prop /> } } else { quote! { <#alias #class_prop> #(#children)* </#alias> } }
@@ -49,11 +49,11 @@ pub(crate) fn emit_breadcrumb_link(el: &Element, bindings: &mut Vec<TokenStream>
     #[cfg(feature = "leptos-shadcn")]
     {
         let href = crate::emit::common::find_arg_expr(el, "href")
-            .map(|h| quote! { href={#h} })
+            .map(|h| quote! { href={#h.into()} })
             .unwrap_or_else(|| quote! {});
         let class = crate::emit::common::find_arg_string(el, "class").unwrap_or_default();
         let children: Vec<TokenStream> = el.children.iter().map(|c| emit_node(c, bindings, inside_for)).collect();
-        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={#class} } };
+        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={ #class.into() } } };
         let alias = quote::format_ident!("BreadcrumbLink_{}", next_extract_id());
         bindings.push(quote! { let #alias = leptos_shadcn_ui::BreadcrumbLink; });
         if children.is_empty() { quote! { <#alias #href #class_prop /> } } else { quote! { <#alias #href #class_prop> #(#children)* </#alias> } }
@@ -67,7 +67,7 @@ pub(crate) fn emit_breadcrumb_page(el: &Element, bindings: &mut Vec<TokenStream>
     {
         let class = crate::emit::common::find_arg_string(el, "class").unwrap_or_default();
         let children: Vec<TokenStream> = el.children.iter().map(|c| emit_node(c, bindings, inside_for)).collect();
-        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={#class} } };
+        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={ #class.into() } } };
         let alias = quote::format_ident!("BreadcrumbPage_{}", next_extract_id());
         bindings.push(quote! { let #alias = leptos_shadcn_ui::BreadcrumbPage; });
         if children.is_empty() { quote! { <#alias #class_prop /> } } else { quote! { <#alias #class_prop> #(#children)* </#alias> } }
@@ -81,7 +81,7 @@ pub(crate) fn emit_breadcrumb_separator(el: &Element, bindings: &mut Vec<TokenSt
     {
         let class = crate::emit::common::find_arg_string(el, "class").unwrap_or_default();
         let children: Vec<TokenStream> = el.children.iter().map(|c| emit_node(c, bindings, inside_for)).collect();
-        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={#class} } };
+        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={ #class.into() } } };
         let alias = quote::format_ident!("BreadcrumbSeparator_{}", next_extract_id());
         bindings.push(quote! { let #alias = leptos_shadcn_ui::BreadcrumbSeparator; });
         if children.is_empty() { quote! { <#alias #class_prop /> } } else { quote! { <#alias #class_prop> #(#children)* </#alias> } }
@@ -94,7 +94,7 @@ pub(crate) fn emit_breadcrumb_ellipsis(el: &Element, bindings: &mut Vec<TokenStr
     #[cfg(feature = "leptos-shadcn")]
     {
         let class = crate::emit::common::find_arg_string(el, "class").unwrap_or_default();
-        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={#class} } };
+        let class_prop = if class.is_empty() { quote! {} } else { quote! { class={ #class.into() } } };
         let alias = quote::format_ident!("BreadcrumbEllipsis_{}", next_extract_id());
         bindings.push(quote! { let #alias = leptos_shadcn_ui::BreadcrumbEllipsis; });
         quote! { <#alias #class_prop /> }
