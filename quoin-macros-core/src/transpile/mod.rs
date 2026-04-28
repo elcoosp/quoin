@@ -132,3 +132,59 @@ impl<'ast> Visit<'ast> for PathIdentCollectorAll {
         syn::visit::visit_expr_path(self, expr_path);
     }
 }
+
+/// Collect all single-segment path idents referenced in a slice of RenderNodes.
+
+/// Collect all single-segment path idents referenced in a slice of RenderNodes (fully recursive).
+pub fn collect_render_idents(nodes: &[crate::render_ast::RenderNode]) -> Vec<proc_macro2::Ident> {
+    use crate::render_ast::RenderNode;
+    use syn::visit::Visit;
+    struct IdentCollector(Vec<proc_macro2::Ident>);
+    impl Visit<'_> for IdentCollector {
+        fn visit_expr_path(&mut self, expr_path: &syn::ExprPath) {
+            if expr_path.path.segments.len() == 1 && expr_path.path.leading_colon.is_none() {
+                if let Some(seg) = expr_path.path.segments.last() {
+                    self.0.push(seg.ident.clone());
+                }
+            }
+            syn::visit::visit_expr_path(self, expr_path);
+        }
+        fn visit_expr_closure(&mut self, _: &syn::ExprClosure) {}
+    }
+
+    let mut collector = IdentCollector(vec![]);
+    fn walk(nodes: &[RenderNode], collector: &mut IdentCollector) {
+        for node in nodes {
+            match node {
+                RenderNode::Element(el) => {
+                    for arg in &el.args {
+                        collector.visit_expr(&arg.value);
+                    }
+                    walk(&el.children, collector);
+                }
+                RenderNode::Expr(e) => {
+                    collector.visit_expr(e);
+                }
+                RenderNode::If(if_node) => {
+                    collector.visit_expr(&if_node.condition);
+                    walk(&if_node.then_branch, collector);
+                    if let Some(else_branch) = &if_node.else_branch {
+                        walk(else_branch, collector);
+                    }
+                }
+                RenderNode::For(for_node) => {
+                    // Only collect from the iterable expression — the loop body
+                    // is a separate scope whose variables are already handled
+                    // by emit_for_inner. Cloning them in the outer scope would
+                    // try to resolve identifiers that do not exist yet.
+                    collector.visit_expr(&for_node.iterable);
+                }
+                _ => {}
+            }
+        }
+    }
+    walk(nodes, &mut collector);
+    collector.0.sort_by_key(|id| id.to_string());
+    collector.0.dedup_by(|a, b| *a == *b);
+    collector.0
+}

@@ -28,6 +28,7 @@ exclude = [
     "examples/ucp-lib",
     "examples/mini-devtools-gpui",
     "examples/ucp-demo-leptos-shadcn",
+    "examples/shadcn-showcase",
     "quoin-expand-test",
 ]
 

@@ -105,7 +105,7 @@ component! {
                 let rows = rows.get();
                 rows.iter().map(|person| {
                     let text = format!("{} ({} years old)", person.name, person.age);
-                    quoin_render! {
+            quoin_render! {
                         div(class: "p-2 bg-gray-800 rounded-md") { text  }
                     }
                 }).collect::<Vec<_>>()
@@ -148,8 +148,7 @@ component! {
             let active_tab_val = active_tab.get();
             let event_count_val = event_count.get();
             let filter_text_val = filter_text.get();
-            let cache_entries_val = cache_entries.get();
-
+            let timeline_len = timeline_events.get().len();
             let filtered_events: Vec<TimelineEvent> = timeline_events.get()
                 .into_iter()
                 .filter(|e| filter_text_val.is_empty() || e.label.to_lowercase().contains(&filter_text_val.to_lowercase()))
@@ -185,7 +184,7 @@ component! {
                     if[active_tab_val == 0] {
                         div(class: "flex flex-col gap-1 size-full") {
                             div(class: "text-sm text-gray-400") {
-                                format!("{} timeline events (showing {} filtered)", event_count_val, filtered_events.len())
+                                format!("{} timeline events (showing {} filtered)", event_count_val, timeline_len)
                             }
                             for[event in filtered_events] {
                                 div(class: "flex gap-4 p-2") {
@@ -196,7 +195,7 @@ component! {
                             }
                         }
                     } else if[active_tab_val == 1] {
-                        data_table(rows: cache_entries_val, striped: true) {
+                        data_table(rows: { cache_entries.get().clone() }, striped: true) {
                             column(key: "key", label: "Key", render: |row: &CacheEntry| row.key.clone())
                             column(key: "value", label: "Value", render: |row: &CacheEntry| row.value.clone())
                             column(key: "hits", label: "Hits", render: |row: &CacheEntry| row.hits.to_string())

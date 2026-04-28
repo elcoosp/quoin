@@ -1,5 +1,5 @@
 target
 wr.sh
 node_modules
-dist
+dist/**
 .patch-ts
