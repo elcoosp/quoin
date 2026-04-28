@@ -9,12 +9,14 @@ component! {
             category_index: usize = 0,
         }
         render {
-            let categories: Vec<&str> = vec!["Buttons", "Inputs", "Data", "Navigation", "Overlays"];
+            let categories: Vec<&str> = vec![
+                "Buttons", "Inputs", "Data", "Navigation", "Forms"
+            ];
             let selected = category_index.get();
 
             quoin_render! {
                 div(class: "flex h-screen bg-gray-900 text-white overflow-hidden") {
-                    div(class: "flex flex-col bg-gray-950 border-r border-gray-800 w-64 p-4 gap-2") {
+                    div(class: "flex flex-col bg-gray-950 border-r border-gray-800 w-64 p-4 gap-2 overflow-y-auto") {
                         div(class: "text-lg font-bold mb-4") { "ShadCN Showcase" }
                         for[cat in categories.clone()] {
                             div(
@@ -33,37 +35,101 @@ component! {
                             ) { { cat.to_string() } }
                         }
                     }
+
                     div(class: "flex-1 overflow-y-auto p-6") {
+
+                        // ── Buttons ────────────────────────────────────────
                         if[selected == 0] {
-                            div(class: "flex flex-col gap-4") {
+                            div(class: "flex flex-col gap-6") {
                                 div(class: "text-2xl font-bold") { "Buttons" }
-                                button(primary: true, on_click: |_| {}) { "Primary" }
-                                button(on_click: |_| {}) { "Outline" }
+                                div(class: "flex flex-wrap gap-3") {
+                                    button(primary: true, on_click: |_| {}) { "Primary" }
+                                    button(on_click: |_| {}) { "Outline" }
+                                    button(ghost: true, on_click: |_| {}) { "Ghost" }
+                                    button(destructive: true, on_click: |_| {}) { "Destructive" }
+                                    button(disabled: true) { "Disabled" }
+                                }
+                                div(class: "mt-4") {
+                                    switch(checked: true) {}
+                                }
                             }
-                        } else if[selected == 1] {
-                            div(class: "flex flex-col gap-4") {
+                        }
+
+                        // ── Inputs ────────────────────────────────────────
+                        else if[selected == 1] {
+                            div(class: "flex flex-col gap-6") {
                                 div(class: "text-2xl font-bold") { "Inputs" }
-                                input(placeholder: "Text input...")
+                                label() { "Text Input" }
+                                input(placeholder: "Type something...")
+                                label() { "Textarea" }
+                                textarea(placeholder: "Multiline text...")
+                                label() { "Date Picker" }
+                                date_picker(placeholder: "Pick a date...")
                             }
-                        } else if[selected == 2] {
-                            div(class: "flex flex-col gap-4") {
+                        }
+
+                        // ── Data Display ──────────────────────────────────
+                        else if[selected == 2] {
+                            div(class: "flex flex-col gap-6") {
                                 div(class: "text-2xl font-bold") { "Data Display" }
-                                badge(color: "primary") { "Badge" }
+                                div(class: "flex flex-wrap gap-2") {
+                                    badge(color: "primary") { "Primary" }
+                                    badge(color: "success") { "Success" }
+                                    badge(color: "destructive") { "Destructive" }
+                                    badge() { "Default" }
+                                }
+                                progress(value: 65.0, class: "w-full")
+                                div(class: "flex gap-2") {
+                                    skeleton() {}
+                                    skeleton_text() {}
+                                    skeleton_avatar() {}
+                                }
+                                separator() {}
+                                calendar() {}
                             }
-                        } else if[selected == 3] {
-                            div(class: "flex flex-col gap-4") {
+                        }
+
+                        // ── Navigation ────────────────────────────────────
+                        else if[selected == 3] {
+                            div(class: "flex flex-col gap-6") {
                                 div(class: "text-2xl font-bold") { "Navigation" }
                                 tabs(active: 0, on_click: |_| {}) {
                                     tab(index: 0, label: "Overview")
                                     tab(index: 1, label: "Details")
+                                    tab(index: 2, label: "Settings")
                                 }
-                            }
-                        } else {
-                            div(class: "flex flex-col gap-4") {
-                                div(class: "text-2xl font-bold") { "Overlays" }
-                                tooltip(text: "Tooltip") { button(on_click: |_| {}) { "Hover" } }
+                                breadcrumb() {
+                                    breadcrumb_list() {
+                                        breadcrumb_item() { breadcrumb_link(href: "#") { "Home" } }
+                                        breadcrumb_separator() {}
+                                        breadcrumb_item() { breadcrumb_link(href: "#") { "Components" } }
+                                        breadcrumb_separator() {}
+                                        breadcrumb_item() { breadcrumb_page() { "Current" } }
+                                    }
+                                }
+                                pagination(current_page: 1, total_pages: 5)
                             }
                         }
+
+                        // ── Forms ─────────────────────────────────────────
+                        else {
+                            div(class: "flex flex-col gap-6") {
+                                div(class: "text-2xl font-bold") { "Forms" }
+                                form(on_submit: |_| {}) {
+                                    form_field(name: "username") {
+                                        form_label(for_field: "username") { "Username" }
+                                        form_control() { input(placeholder: "Enter username") }
+                                        form_message(message: "Required field") {}
+                                    }
+                                    form_field(name: "email") {
+                                        form_label(for_field: "email") { "Email" }
+                                        form_control() { input(placeholder: "Enter email") }
+                                        form_description() { "We'll never share your email." }
+                                    }
+                                }
+                            }
+                        }
+
                     }
                 }
             }
