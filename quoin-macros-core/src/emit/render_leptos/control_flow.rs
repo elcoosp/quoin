@@ -11,7 +11,10 @@ use super::emit_node;
 
 pub(crate) fn emit_if(if_node: &IfNode, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
     let inner = emit_if_reactive(if_node, bindings, inside_for);
-    wrap_with_cfg(&if_node.attrs, inner)
+    // Wrap in a block to prevent the `move ||` tokens from being parsed as
+    // literal children by leptos::view!.
+    let guarded = quote! { { #inner } };
+    wrap_with_cfg(&if_node.attrs, guarded)
 }
 
 fn emit_if_reactive(
@@ -80,7 +83,8 @@ pub(crate) fn build_if_body(
 
 pub(crate) fn emit_for(for_node: &ForNode, bindings: &mut Vec<TokenStream>) -> TokenStream {
     let inner = emit_for_inner(for_node, bindings);
-    wrap_with_cfg(&for_node.attrs, inner)
+    let guarded = quote! { { #inner } };
+    wrap_with_cfg(&for_node.attrs, guarded)
 }
 
 fn emit_for_inner(for_node: &ForNode, bindings: &mut Vec<TokenStream>) -> TokenStream {
@@ -97,10 +101,13 @@ fn emit_for_inner(for_node: &ForNode, bindings: &mut Vec<TokenStream>) -> TokenS
     let iter_name = quote::format_ident!("__quoin_for_iter_{}", iter_id);
     bindings.push(quote! { let #iter_name = (#iterable).clone(); });
 
+    // Each map iteration produces a leptos::Fragment by wrapping
+    // the view inside a move closure. This prevents any raw token
+    // leakage (like "move ||") into the DOM.
     quote! {
         {
             #iter_name.clone().into_iter().map(|#pat| {
-                leptos::view! { #body_view }
+                { leptos::view! { #body_view } }.into_any()
             }).collect::<Vec<_>>()
         }
     }

@@ -9,10 +9,24 @@ pub(crate) fn wrap_event_handler(handler_expr: &syn::Expr) -> TokenStream {
         .map(|id| quote! { let #id = #id.clone(); })
         .collect();
     let handler_with_move = force_move_on_closure(handler_expr);
-    quote! {
-        {
-            #(#shadows)*
-            #handler_with_move
+
+    // If the handler is already a block (e.g., `{ let x = ...; move |_| ... }`),
+    // inject clones at the beginning of that block to avoid nested blocks
+    // that can leak as raw text in the DOM.
+    if let syn::Expr::Block(block) = &handler_with_move {
+        let stmts = &block.block.stmts;
+        quote! {
+            {
+                #(#shadows)*
+                #(#stmts)*
+            }
+        }
+    } else {
+        quote! {
+            {
+                #(#shadows)*
+                #handler_with_move
+            }
         }
     }
 }
