@@ -27,7 +27,7 @@ pub(crate) fn emit_accordion(el: &Element, bindings: &mut Vec<TokenStream>, insi
             if let RenderNode::Element(child_el) = child {
                 let child_name = child_el.name.to_string();
                 match child_name.as_str() {
-                    "accordionitem" => children.push(emit_accordion_item(child_el, bindings, inside_for)),
+                    "accordion_item" => children.push(emit_accordion_item(child_el, bindings, inside_for)),
                     _ => children.push(emit_node(child, bindings, inside_for)),
                 }
             } else {

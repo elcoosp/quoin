@@ -68,8 +68,8 @@ fn test_toggle() {
 
 #[test]
 fn test_card_with_header() {
-    let card_title = el("cardtitle", vec![], vec![txt("Title")]);
-    let card_header = el("cardheader", vec![], vec![card_title]);
+    let card_title = el("card_title", vec![], vec![txt("Title")]);
+    let card_header = el("card_header", vec![], vec![card_title]);
     let ts = emit(&el("card", vec![("variant", str_expr("warning"))], vec![card_header]));
     assert!(contains(&ts, "leptos_shadcn_ui :: Card"));
     assert!(contains(&ts, "leptos_shadcn_ui :: CardHeader"));
@@ -78,7 +78,7 @@ fn test_card_with_header() {
 
 #[test]
 fn test_dialog() {
-    let content = el("dialogcontent", vec![], vec![txt("Content")]);
+    let content = el("dialog_content", vec![], vec![txt("Content")]);
     let ts = emit(&el("dialog", vec![("open", ident_expr("my_signal"))], vec![content]));
     assert!(contains(&ts, "leptos_shadcn_ui :: Dialog"));
     assert!(contains(&ts, "leptos_shadcn_ui :: DialogContent"));
@@ -86,9 +86,9 @@ fn test_dialog() {
 
 #[test]
 fn test_accordion() {
-    let trigger = el("accordiontrigger", vec![], vec![txt("Trigger")]);
-    let content = el("accordioncontent", vec![("force_mount", bool_expr(true))], vec![txt("Content")]);
-    let item = el("accordionitem", vec![("value", str_expr("item1"))], vec![trigger, content]);
+    let trigger = el("accordion_trigger", vec![], vec![txt("Trigger")]);
+    let content = el("accordion_content", vec![("force_mount", bool_expr(true))], vec![txt("Content")]);
+    let item = el("accordion_item", vec![("value", str_expr("item1"))], vec![trigger, content]);
     let ts = emit(&el("accordion", vec![("value", ident_expr("my_value_signal"))], vec![item]));
     assert!(contains(&ts, "leptos_shadcn_ui :: Accordion"));
     assert!(contains(&ts, "leptos_shadcn_ui :: AccordionItem"));
@@ -98,10 +98,10 @@ fn test_accordion() {
 
 #[test]
 fn test_context_menu() {
-    let trigger = el("contextmenutrigger", vec![], vec![txt("Right Click")]);
-    let item = el("contextmenuitem", vec![("class", str_expr("item"))], vec![txt("Action")]);
-    let content = el("contextmenucontent", vec![], vec![item]);
-    let ts = emit(&el("contextmenu", vec![], vec![trigger, content]));
+    let trigger = el("context_menu_trigger", vec![], vec![txt("Right Click")]);
+    let item = el("context_menu_item", vec![("class", str_expr("item"))], vec![txt("Action")]);
+    let content = el("context_menu_content", vec![], vec![item]);
+    let ts = emit(&el("context_menu", vec![], vec![trigger, content]));
     assert!(contains(&ts, "leptos_shadcn_ui :: ContextMenu"));
     assert!(contains(&ts, "leptos_shadcn_ui :: ContextMenuTrigger"));
     assert!(contains(&ts, "leptos_shadcn_ui :: ContextMenuItem"));
@@ -109,9 +109,9 @@ fn test_context_menu() {
 
 #[test]
 fn test_command() {
-    let input = el("commandinput", vec![("placeholder", str_expr("Search..."))], vec![]);
-    let item = el("commanditem", vec![("value", str_expr("opt1"))], vec![txt("Option 1")]);
-    let list = el("commandlist", vec![], vec![item]);
+    let input = el("command_input", vec![("placeholder", str_expr("Search..."))], vec![]);
+    let item = el("command_item", vec![("value", str_expr("opt1"))], vec![txt("Option 1")]);
+    let list = el("command_list", vec![], vec![item]);
     let ts = emit(&el("command", vec![], vec![input, list]));
     assert!(contains(&ts, "leptos_shadcn_ui :: Command"));
     assert!(contains(&ts, "leptos_shadcn_ui :: CommandInput"));
@@ -120,10 +120,10 @@ fn test_command() {
 
 #[test]
 fn test_form() {
-    let label = el("formlabel", vec![("for_field", str_expr("email"))], vec![txt("Email")]);
-    let control = el("formcontrol", vec![], vec![]);
-    let message = el("formmessage", vec![("message", str_expr("Invalid email"))], vec![]);
-    let field = el("formfield", vec![("name", str_expr("email"))], vec![label, control, message]);
+    let label = el("form_label", vec![("for_field", str_expr("email"))], vec![txt("Email")]);
+    let control = el("form_control", vec![], vec![]);
+    let message = el("form_message", vec![("message", str_expr("Invalid email"))], vec![]);
+    let field = el("form_field", vec![("name", str_expr("email"))], vec![label, control, message]);
     let ts = emit(&el("form", vec![("on_submit", ident_expr("handle_submit"))], vec![field]));
     assert!(contains(&ts, "leptos_shadcn_ui :: Form"));
     assert!(contains(&ts, "leptos_shadcn_ui :: FormField"));
@@ -134,9 +134,9 @@ fn test_form() {
 
 #[test]
 fn test_select() {
-    let trigger = el("selecttrigger", vec![], vec![txt("Choose")]);
-    let item = el("selectitem", vec![("value", str_expr("a"))], vec![txt("A")]);
-    let content = el("selectcontent", vec![], vec![item]);
+    let trigger = el("select_trigger", vec![], vec![txt("Choose")]);
+    let item = el("select_item", vec![("value", str_expr("a"))], vec![txt("A")]);
+    let content = el("select_content", vec![], vec![item]);
     let ts = emit(&el("select", vec![("value", ident_expr("selected"))], vec![trigger, content]));
     assert!(contains(&ts, "leptos_shadcn_ui :: Select"));
     assert!(contains(&ts, "leptos_shadcn_ui :: SelectTrigger"));
@@ -145,18 +145,18 @@ fn test_select() {
 
 #[test]
 fn test_toast_provider() {
-    let ts = emit(&el("toastprovider", vec![], vec![]));
+    let ts = emit(&el("toast_provider", vec![], vec![]));
     assert!(contains(&ts, "leptos_shadcn_ui :: Toaster"));
 }
 
 #[test]
 fn test_error_boundary() {
-    let ts = emit(&el("errorboundary", vec![], vec![txt("fallback")]));
+    let ts = emit(&el("error_boundary", vec![], vec![txt("fallback")]));
     assert!(contains(&ts, "leptos_shadcn_ui :: ErrorBoundary"));
 }
 
 #[test]
 fn test_lazy_component() {
-    let ts = emit(&el("lazycomponent", vec![("name", str_expr("MyComp"))], vec![]));
+    let ts = emit(&el("lazy_component", vec![("name", str_expr("MyComp"))], vec![]));
     assert!(contains(&ts, "leptos_shadcn_ui :: LazyComponent"));
 }
