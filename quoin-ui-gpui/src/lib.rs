@@ -298,9 +298,20 @@ pub fn render_virtual_list_container() -> gpui::Div {
 // Adapters
 // -----------------------------------------------------------------------------
 
+// Each adapter type pairs the UCP marker trait with an inherent `render`
+// method, so callers get a discoverable, type-checked API while remaining
+// free to call the free functions directly.
+
 #[derive(Default, Clone)]
 pub struct GpuiVirtualListAdapter;
 impl VirtualListAdapter for GpuiVirtualListAdapter {}
+
+impl GpuiVirtualListAdapter {
+    /// Render the scrollable container that hosts a virtual list.
+    pub fn render(&self) -> gpui::Div {
+        render_virtual_list_container()
+    }
+}
 
 #[derive(Default, Clone)]
 pub struct GpuiTableAdapter {
@@ -308,21 +319,58 @@ pub struct GpuiTableAdapter {
 }
 impl TableAdapter for GpuiTableAdapter {}
 
+impl GpuiTableAdapter {
+    /// Render a table header row for the given column names.
+    pub fn render_header(&self, columns: &[String]) -> gpui::Div {
+        render_table_header(columns)
+    }
+}
+
 #[derive(Default, Clone)]
 pub struct GpuiTextInputAdapter;
 impl TextInputAdapter for GpuiTextInputAdapter {}
+
+impl GpuiTextInputAdapter {
+    /// Render a (static) input representation. For a fully interactive,
+    /// two-way bound input, use the `input()` element inside `quoin_render!`,
+    /// which wires a real `gpui_component::Input` through `QuoinInputManager`.
+    pub fn render(&self, placeholder: Option<String>, value: String) -> gpui::Div {
+        render_input(placeholder, value)
+    }
+}
 
 #[derive(Default, Clone)]
 pub struct GpuiButtonAdapter;
 impl ButtonAdapter for GpuiButtonAdapter {}
 
+impl GpuiButtonAdapter {
+    /// Render a styled button with the given label and variant.
+    pub fn render(&self, label: Option<String>, variant: ButtonVariant) -> gpui::Div {
+        render_button(label, variant)
+    }
+}
+
 #[derive(Default, Clone)]
 pub struct GpuiDropdownMenuAdapter;
 impl DropdownMenuAdapter for GpuiDropdownMenuAdapter {}
 
+impl GpuiDropdownMenuAdapter {
+    /// Render a dropdown menu trigger with the given label.
+    pub fn render_trigger(&self, label: String) -> gpui::Div {
+        render_dropdown_trigger(label)
+    }
+}
+
 #[derive(Default, Clone)]
 pub struct GpuiTabBarAdapter;
 impl TabBarAdapter for GpuiTabBarAdapter {}
+
+impl GpuiTabBarAdapter {
+    /// Render a tab bar with the given labels and the active index.
+    pub fn render(&self, tabs: &[String], active_index: usize) -> gpui::Div {
+        render_tab_bar(tabs, active_index)
+    }
+}
 
 // -----------------------------------------------------------------------------
 // Clipboard
