@@ -131,6 +131,14 @@ fmt-check:
 fmt:
     cargo fmt
 
+# Clippy for the framework-free crates (no GPUI system deps needed).
+lint-core:
+    cargo clippy --all-targets -p quoin-core -p quoin-macros-core -p quoin-macros -p quoin-ui -p quoin-conformance -- -D warnings
+
+# Clippy for the GPUI adapter crates (requires GPUI system libraries).
+lint-gpui:
+    cargo clippy --all-targets -p quoin-gpui -p quoin-ui-gpui -- -D warnings
+
 lint:
     cargo clippy --all-targets -p quoin-macros-core -- -D warnings
     cargo clippy --all-targets -p quoin-macros-tests --features gpui -- -D warnings
@@ -138,10 +146,27 @@ lint:
     cargo clippy --all-targets -p quoin-macros-tests --features dioxus -- -D warnings
     cargo clippy --all-targets -- -D warnings
 
-check: fmt-check lint
+# Fast pre-commit check: format + framework-free clippy.
+check: fmt-check lint-core
+
+# Full check including GPUI crates (needs libxkbcommon-dev etc.).
+check-all: fmt-check lint
 
 fix:
     cargo fix --allow-dirty --all-targets
+
+# ---------------------------------------------------------------------
+# Changelog (git-cliff)
+# ---------------------------------------------------------------------
+
+# Regenerate CHANGELOG.md from the Conventional Commit history.
+# Requires git-cliff: cargo install git-cliff --locked
+changelog:
+    git cliff --verbose --output CHANGELOG.md
+
+# Print only the changelog for the most recent version (used for release notes).
+release-notes:
+    git cliff --latest --strip all
 
 watch-counter-gpui:
     cargo watch --manifest-path examples/counter-gpui/Cargo.toml -x run
