@@ -86,14 +86,27 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs, clippy::all, clippy::pedantic)]
 
+pub mod batch;
 pub mod cancellation;
+pub mod derived;
 pub mod executor;
+pub mod ext;
+pub mod local;
 pub mod macros;
+pub mod pool;
 pub mod reactive;
+pub mod resource;
 pub mod signal;
+pub mod test_support;
 
-pub use cancellation::CancellationToken;
+pub use cancellation::{
+    CancelGuard, CancellationToken, Cancelled, CancelledFuture, RunUntilCancelled,
+};
+pub use derived::{Derived, Zipped, derived, zip};
 pub use executor::{Executor, JoinHandle};
+pub use ext::{ExecutorExt, ReactiveContextExt, SignalExt};
+pub use local::{LocalExecutor, LocalJoinHandle, LocalTask, spawn_local_task};
 pub use reactive::ReactiveContext;
+pub use resource::{Resource, ResourceState};
 pub use signal::Signal;
 pub mod prelude;
