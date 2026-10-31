@@ -10,8 +10,8 @@
 //! |------|------|
 //! | [`FloemContext`] | A zero-sized context. Creates signals via Floem's `RwSignal`. |
 //! | [`FloemSignal<T>`] | A `Clone + Send + Sync` signal backed by `RwSignal<SendWrapper<T>>`. |
-//! | [`FloemExecutor`] | Spawns tasks on a blocking `std::thread`. |
-//! | [`FloemJoinHandle<T>`] | A `JoinHandle` wrapping a oneshot channel. |
+//! | [`FloemExecutor`] | Spawns futures on worker threads with cooperative abort support. |
+//! | [`FloemJoinHandle<T>`] | A `JoinHandle` with abort/detach and result retrieval. |
 //!
 //! # Creating a Context
 //!
@@ -131,6 +131,11 @@ impl<T: Clone + 'static> Signal<T> for FloemSignal<T> {
     }
 }
 
+/// Floem async executor.
+///
+/// Futures run on dedicated worker threads via `futures::executor::block_on`
+/// and are wrapped in `futures::future::Abortable`, so `JoinHandle::abort`
+/// stops them at their next suspension point.
 #[derive(Clone)]
 pub struct FloemExecutor;
 
@@ -143,82 +148,61 @@ impl Executor for FloemExecutor {
         F::Output: Send + 'static,
     {
         let (tx, rx) = futures::channel::oneshot::channel();
+        let (abort_handle, abort_registration) = futures::future::AbortHandle::new_pair();
 
         std::thread::spawn(move || {
-            let result = futures::executor::block_on(future);
-            let _ = tx.send(result);
+            if let Ok(result) = futures::executor::block_on(futures::future::Abortable::new(
+                future,
+                abort_registration,
+            )) {
+                let _ = tx.send(result);
+            }
         });
 
-        FloemJoinHandle { rx: Some(rx) }
+        FloemJoinHandle {
+            abort: abort_handle,
+            rx: Some(rx),
+            detached: std::sync::atomic::AtomicBool::new(false),
+        }
     }
 }
 
+/// A handle to a task spawned by [`FloemExecutor`].
+///
+/// Awaiting resolves with the task's result, or `Err(Canceled)` if the task
+/// was aborted. Dropping the handle without detaching cancels the task.
 pub struct FloemJoinHandle<T> {
+    abort: futures::future::AbortHandle,
     rx: Option<futures::channel::oneshot::Receiver<T>>,
+    detached: std::sync::atomic::AtomicBool,
 }
 
 impl<T: Send + 'static> JoinHandle<T> for FloemJoinHandle<T> {
     /// Abort the spawned task.
     ///
-    /// # Limitations
-    ///
-    /// This is currently a **no-op**. The spawned thread runs to completion
-    /// regardless of whether `abort()` is called. This is because:
-    ///
-    /// - The task runs on a dedicated `std::thread` with no cancellation token.
-    /// - There is no built-in mechanism to interrupt a blocked `futures::executor::block_on`.
-    ///
-    /// If you need cancellation support, consider:
-    /// - Using a `CancellationToken` pattern inside your future.
-    /// - Switching to a tokio-based executor with proper task cancellation.
-    ///
-    /// This limitation will be addressed in a future version.
-    /// Abort the spawned task.
-    ///
-    /// # Limitations
-    ///
-    /// This is currently a **no-op**. The spawned thread runs to completion
-    /// regardless of whether `abort()` is called. This is because:
-    ///
-    /// - The task runs on a dedicated `std::thread` with no cancellation token.
-    /// - There is no built-in mechanism to interrupt a blocked `futures::executor::block_on`.
-    ///
-    /// If you need cancellation support, consider:
-    /// - Using a `CancellationToken` pattern inside your future.
-    /// - Switching to a tokio-based executor with proper task cancellation.
-    ///
-    /// This limitation will be addressed in a future version.
-    /// Abort the spawned task.
-    ///
-    /// # Limitations
-    ///
-    /// This is currently a **no-op**. The spawned thread runs to completion
-    /// regardless of whether `abort()` is called. This is because:
-    ///
-    /// - The task runs on a dedicated `std::thread` with no cancellation token.
-    /// - There is no built-in mechanism to interrupt a blocked `futures::executor::block_on`.
-    ///
-    /// If you need cancellation support, consider:
-    /// - Using a `CancellationToken` pattern inside your future.
-    /// - Switching to a tokio-based executor with proper task cancellation.
-    ///
-    /// This limitation will be addressed in a future version.
-    /// Abort the spawned task.
-    ///
-    /// # Limitations
-    ///
-    /// This is currently a **no-op**. The spawned thread runs to completion
-    /// regardless of whether `abort()` is called. This is because:
-    ///
-    /// - The task runs on a dedicated `std::thread` with no cancellation token.
-    /// - There is no built-in mechanism to interrupt a blocked `futures::executor::block_on`.
-    ///
-    /// If you need cancellation support, consider:
-    /// - Using a `CancellationToken` pattern inside your future.
-    /// - Switching to a tokio-based executor with proper task cancellation.
-    ///
-    /// This limitation will be addressed in a future version.
-    fn abort(&self) {}
+    /// Cancellation is cooperative: the wrapped future stops at its next
+    /// suspension point. The worker thread then completes without producing
+    /// a result.
+    fn abort(&self) {
+        self.abort.abort();
+    }
+
+    /// Detach the task so it runs to completion even if this handle is
+    /// dropped. The task's result is discarded.
+    fn detach(self) {
+        self.detached
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+impl<T> Drop for FloemJoinHandle<T> {
+    fn drop(&mut self) {
+        // Structured concurrency: dropping the handle without awaiting or
+        // detaching cancels the task.
+        if !self.detached.load(std::sync::atomic::Ordering::SeqCst) {
+            self.abort.abort();
+        }
+    }
 }
 
 impl<T: Send + 'static> std::future::IntoFuture for FloemJoinHandle<T> {
@@ -228,9 +212,12 @@ impl<T: Send + 'static> std::future::IntoFuture for FloemJoinHandle<T> {
     fn into_future(mut self) -> Self::IntoFuture {
         Box::pin(async move {
             if let Some(rx) = self.rx.take() {
+                // drop-after-await must not abort the task.
+                self.detached
+                    .store(true, std::sync::atomic::Ordering::SeqCst);
                 rx.await
             } else {
-                unreachable!("Receiver should be set")
+                Err(futures::channel::oneshot::Canceled)
             }
         })
     }
