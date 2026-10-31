@@ -1,10 +1,11 @@
 [package]
 name = "quoin"
-version = "0.1.0"
-edition = "2024"
-description = "A foundational reactive abstraction layer for Rust UI frameworks"
-license = "MIT"
-repository = "https://github.com/username/quoin"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Facade crate for the quoin reactive ecosystem: one reactive core, many frameworks"
+license.workspace = true
+repository.workspace = true
 readme = "README.md"
 keywords = ["reactive", "ui", "framework", "abstraction", "signals"]
 categories = ["gui", "asynchronous", "rust-patterns"]
