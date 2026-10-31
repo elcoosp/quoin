@@ -31,7 +31,7 @@ pub trait Signal<T: Clone + 'static>: Clone {
     /// Accesses the value through a closure, avoiding a clone.
     ///
     /// The closure receives a reference to the inner value. This is more
-    /// efficient than [`get`] when you only need to inspect the value.
+    /// efficient than [`get`](Signal::get) when you only need to inspect the value.
     ///
     /// # Example
     ///
@@ -56,7 +56,7 @@ pub trait Signal<T: Clone + 'static>: Clone {
     /// Updates the value of the signal using a closure.
     ///
     /// The closure receives a mutable reference to the current value.
-    /// This is more efficient than [`get`] followed by [`set`] when
+    /// This is more efficient than [`get`](Signal::get) followed by [`set`](Signal::set) when
     /// you need to modify the value based on its current state.
     ///
     /// # Example
