@@ -22,10 +22,10 @@ pub fn find_arg_bool(el: &Element, key: &str) -> bool {
 #[allow(dead_code)]
 pub fn find_arg_string(el: &Element, key: &str) -> Option<String> {
     el.args.iter().find(|a| a.key == key).and_then(|a| {
-        if let Expr::Lit(expr_lit) = &a.value {
-            if let syn::Lit::Str(s) = &expr_lit.lit {
-                return Some(s.value());
-            }
+        if let Expr::Lit(expr_lit) = &a.value
+            && let syn::Lit::Str(s) = &expr_lit.lit
+        {
+            return Some(s.value());
         }
         None
     })
@@ -56,15 +56,23 @@ pub fn find_arg_expr<'a>(el: &'a Element, key: &str) -> Option<&'a Expr> {
 /// Extract tab definitions from children of a `tabs` element.
 #[allow(dead_code)]
 pub fn extract_tab_children(el: &Element) -> Vec<TabDefinition> {
-    el.children.iter().filter_map(|c| {
-        if let RenderNode::Element(e) = c && e.name == "tab" {
-            let index = find_arg_expr(e, "index")?;
-            let label = find_arg_string(e, "label")?;
-            Some(TabDefinition { index: index.clone(), label })
-        } else {
-            None
-        }
-    }).collect()
+    el.children
+        .iter()
+        .filter_map(|c| {
+            if let RenderNode::Element(e) = c
+                && e.name == "tab"
+            {
+                let index = find_arg_expr(e, "index")?;
+                let label = find_arg_string(e, "label")?;
+                Some(TabDefinition {
+                    index: index.clone(),
+                    label,
+                })
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 /// Description of a single tab inside a `tabs` container.
