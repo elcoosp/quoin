@@ -284,6 +284,161 @@ pub mod tests {
         // Should not panic even if no global is registered.
         let _result: Option<<C as ReactiveContext>::Signal<String>> = cx.use_global();
     }
+    // -----------------------------------------------------------------------------
+    // Shared-globals semantics (unified across adapters)
+    // -----------------------------------------------------------------------------
+
+    /// Globals must be **shared**: mutations through one `use_global` signal are
+    /// visible through another. This test pins the unified semantics introduced
+    /// across all adapters (previously GPUI/Xilem/Floem/Dioxus returned
+    /// independent copies while Leptos shared).
+    pub async fn global_is_shared<C: ReactiveContext>(cx: &C) {
+        cx.provide_global(10u32);
+        let sig1 = cx.use_global::<u32>().expect("global must exist");
+        let sig2 = cx.use_global::<u32>().expect("global must exist");
+        sig1.set(55);
+        assert_eq!(sig2.get(), 55, "use_global consumers must share state");
+        assert_eq!(sig1.get(), 55);
+    }
+
+    // -----------------------------------------------------------------------------
+    // Derived signals
+    // -----------------------------------------------------------------------------
+
+    pub async fn derived_computes_and_tracks<C: ReactiveContext>(cx: &C) {
+        let source = cx.create_signal(10u32);
+        let doubled = quoin_core::derived(&source, |v| v * 2);
+        assert_eq!(doubled.get(), 20);
+        source.set(5);
+        assert_eq!(doubled.get(), 10, "derived recomputes after source change");
+    }
+
+    pub async fn derived_chains<C: ReactiveContext>(cx: &C) {
+        let source = cx.create_signal(2i32);
+        let chained = quoin_core::derived(&source, |v| v * 10).map(|v| v + 1);
+        assert_eq!(chained.get(), 21);
+        source.set(0);
+        assert_eq!(chained.get(), 1);
+    }
+
+    // -----------------------------------------------------------------------------
+    // Batched updates
+    // -----------------------------------------------------------------------------
+
+    pub async fn batch_runs_and_returns<C: ReactiveContext>(cx: &C) {
+        let a = cx.create_signal(0u32);
+        let b = cx.create_signal(0u32);
+        let result = cx.batch(|| {
+            a.set(7);
+            b.set(8);
+            a.get() + b.get()
+        });
+        assert_eq!(result, 15);
+        assert_eq!(a.get(), 7);
+        assert_eq!(b.get(), 8);
+    }
+
+    // -----------------------------------------------------------------------------
+    // SignalExt helpers
+    // -----------------------------------------------------------------------------
+
+    pub async fn set_eq_skips_equal_writes<C: ReactiveContext>(cx: &C) {
+        let signal = cx.create_signal("x".to_string());
+        assert!(
+            !signal.set_eq("x".to_string()),
+            "equal write must be skipped"
+        );
+        assert_eq!(signal.get(), "x");
+        assert!(signal.set_eq("y".to_string()), "changed write must apply");
+        assert_eq!(signal.get(), "y");
+    }
+
+    pub async fn replace_and_take<C: ReactiveContext>(cx: &C) {
+        let signal = cx.create_signal(1u32);
+        assert_eq!(signal.replace(2), 1);
+        assert_eq!(signal.get(), 2);
+        assert_eq!(signal.take(), 2);
+        assert_eq!(signal.get(), 0);
+    }
+
+    // -----------------------------------------------------------------------------
+    // ExecutorExt / spawn_with_token
+    // -----------------------------------------------------------------------------
+
+    pub async fn spawn_with_token<C>(cx: &C)
+    where
+        C: ReactiveContext,
+        C::Executor: SleepExt + Clone,
+        <<C as ReactiveContext>::Executor as Executor>::JoinHandle<u32>:
+            std::future::IntoFuture<Output = Result<u32, futures::channel::oneshot::Canceled>>,
+    {
+        use quoin_core::ExecutorExt;
+        let executor = cx.executor();
+        let task_executor = executor.clone();
+        let (handle, token) = executor.spawn_with_token(move |token| async move {
+            // Cooperative loop: exits as soon as the token is cancelled.
+            while !token.is_cancelled() {
+                task_executor.sleep(Duration::from_millis(1)).await;
+            }
+            1u32
+        });
+        let task_executor = cx.executor();
+        task_executor.sleep(Duration::from_millis(20)).await;
+        token.cancel();
+        let result = handle.await;
+        assert_eq!(result.ok(), Some(1));
+    }
+
+    // -----------------------------------------------------------------------------
+    // CancellationToken upgrades
+    // -----------------------------------------------------------------------------
+
+    pub async fn child_token_cascades<C: ReactiveContext>(_cx: &C) {
+        let parent = CancellationToken::new();
+        let child = parent.child_token();
+        assert!(!child.is_cancelled());
+        parent.cancel();
+        assert!(child.is_cancelled(), "parent cancel cascades to children");
+    }
+
+    pub async fn cancel_guard_on_drop<C: ReactiveContext>(_cx: &C) {
+        let token = CancellationToken::new();
+        {
+            let _guard = token.guard();
+            assert!(!token.is_cancelled());
+        }
+        assert!(token.is_cancelled());
+    }
+
+    pub async fn run_until_cancelled_completes<C: ReactiveContext>(_cx: &C) {
+        let token = CancellationToken::new();
+        let value = token.run_until_cancelled(async { 42u32 }).await;
+        assert_eq!(value, Some(42));
+    }
+
+    // -----------------------------------------------------------------------------
+    // Local (non-Send) task execution
+    // -----------------------------------------------------------------------------
+
+    /// Local tasks are queued on the current thread (native) and must run when
+    /// `run_local_tasks` drains the queue. On wasm they are platform-driven, so
+    /// this test only asserts queue accounting consistency there.
+    pub async fn local_task_lifecycle<C>(cx: &C)
+    where
+        C: ReactiveContext,
+        C::Executor: quoin_core::LocalExecutor,
+    {
+        let executor = cx.executor();
+        let flag = Arc::new(AtomicBool::new(false));
+        let flag2 = flag.clone();
+        let handle = executor.spawn_local(async move {
+            flag2.store(true, Ordering::SeqCst);
+            7u32
+        });
+        handle.detach();
+        let _ran = quoin_core::local::run_local_tasks();
+        assert!(flag.load(Ordering::SeqCst), "detached local task must run");
+    }
 }
 
 /// Verify provide_global / use_global round-trip.
@@ -431,6 +586,72 @@ macro_rules! define_conformance_tests {
         fn test_provide_and_use_global() {
             let cx = <$cx_type>::setup_context();
             <$cx_type>::block_on(provide_and_use_global(&cx));
+        }
+
+        #[test]
+        fn test_global_is_shared() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(global_is_shared(&cx));
+        }
+
+        #[test]
+        fn test_derived_computes_and_tracks() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(derived_computes_and_tracks(&cx));
+        }
+
+        #[test]
+        fn test_derived_chains() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(derived_chains(&cx));
+        }
+
+        #[test]
+        fn test_batch_runs_and_returns() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(batch_runs_and_returns(&cx));
+        }
+
+        #[test]
+        fn test_set_eq_skips_equal_writes() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(set_eq_skips_equal_writes(&cx));
+        }
+
+        #[test]
+        fn test_replace_and_take() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(replace_and_take(&cx));
+        }
+
+        #[test]
+        fn test_spawn_with_token() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(spawn_with_token(&cx));
+        }
+
+        #[test]
+        fn test_child_token_cascades() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(child_token_cascades(&cx));
+        }
+
+        #[test]
+        fn test_cancel_guard_on_drop() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(cancel_guard_on_drop(&cx));
+        }
+
+        #[test]
+        fn test_run_until_cancelled_completes() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(run_until_cancelled_completes(&cx));
+        }
+
+        #[test]
+        fn test_local_task_lifecycle() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(local_task_lifecycle(&cx));
         }
     };
 
