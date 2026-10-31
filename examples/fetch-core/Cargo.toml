@@ -1,0 +1,13 @@
+[package]
+name = "fetch-core"
+version = "0.1.0"
+edition.workspace = true
+publish = false
+description = "Async data-loading flows with quoin Resource: a complete, e2e-tested example"
+
+[dependencies]
+quoin-core = { path = "../../quoin-core" }
+futures-timer = "3.0"
+
+[dev-dependencies]
+quoin-testkit = { path = "../../quoin-testkit" }
