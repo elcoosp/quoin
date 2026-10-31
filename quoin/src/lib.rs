@@ -88,4 +88,13 @@ pub use quoin_macros::{component, effect, quoin_element, quoin_render, run_app};
 
 #[cfg(feature = "ui")]
 pub use quoin_ui::*;
+
+// ── Testing & devtools ─────────────────────────────────────────────────────
+
+#[cfg(feature = "testkit")]
+pub use quoin_testkit;
+
+#[cfg(feature = "devtools")]
+pub use quoin_devtools;
+
 pub mod prelude;
