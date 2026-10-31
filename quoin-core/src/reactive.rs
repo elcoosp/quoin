@@ -14,7 +14,7 @@
 //! | Framework  | Storage mechanism                                | Lifetime                            |
 //! |------------|---------------------------------------------------|--------------------------------------|
 //! | **GPUI**   | Thread‑local `HashMap<TypeId, Box<dyn Any>>`      | Thread‑scoped; cleared on thread exit |
-//! | **Leptos** | `provide_context` / `use_context` on the reactive owner tree | Scoped to the nearest `Owner` / component tree |
+//! | **Leptos** | `provide_context` / `use_context` on the reactive owner tree | Scoped to the nearest reactive owner / component tree |
 //! | **Dioxus**  | `provide_context` / `try_consume_context` on the Dioxus scope | Scoped to the component's `ScopeId` |
 //!
 //! **Important:** In GPUI, globals are stored in a *thread-local* map. This
@@ -107,13 +107,13 @@ pub trait ReactiveContext: Clone + Send + Sync + 'static {
     ///   a window closes — consider calling a manual cleanup in `on_unmount` if needed.
     ///
     /// - **Leptos**: Wraps the value in `RwSignal<SendWrapper<T>>` and calls
-    ///   `provide_context`. The global is scoped to the current reactive [`Owner`],
+    ///   `provide_context`. The global is scoped to the current reactive owner,
     ///   so it is automatically cleaned up when the owner is dropped (e.g., when a
     ///   component unmounts). A single `provide_global` at the app root propagates
     ///   to all descendant components.
     ///
     /// - **Dioxus**: Calls `provide_context` on the current Dioxus scope. The global
-    ///   is scoped to the component's [`ScopeId`] and its descendants. It is cleaned
+    ///   is scoped to the component's `ScopeId` and its descendants. It is cleaned
     ///   up when the scope is released.
     ///
     /// # Example
