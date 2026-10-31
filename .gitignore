@@ -3,3 +3,6 @@ wr.sh
 node_modules
 dist
 .patch-ts
+
+# Leptos/Trunk build outputs (belt and braces)
+dist/
