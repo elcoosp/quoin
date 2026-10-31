@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 uuid = { version = "1.0", features = ["v4"] }
-syn = { version = "2", features = ["full", "parsing", "extra-traits", "visit", "visit-mut"] }
+syn = { version = "3", features = ["full", "parsing", "extra-traits", "visit", "visit-mut"] }
 quote = "1.0"
 proc-macro2 = "1.0"
 thiserror = "2.0"
