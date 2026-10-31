@@ -2100,6 +2100,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "devtools-demo"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "futures-channel",
+ "quoin-core",
+ "quoin-devtools",
+ "quoin-testkit",
+]
+
+[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2892,6 +2903,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e6853b52649d4ac5c0bd02320cddc5ba956bdb407c4b75a2c6b75bf51500f8c"
 dependencies = [
  "simd-adler32",
+]
+
+[[package]]
+name = "fetch-core"
+version = "0.1.0"
+dependencies = [
+ "futures-timer",
+ "quoin-core",
+ "quoin-testkit",
 ]
 
 [[package]]
@@ -8079,11 +8099,13 @@ dependencies = [
  "futures-core",
  "gpui",
  "quoin-core",
+ "quoin-devtools",
  "quoin-dioxus",
  "quoin-floem",
  "quoin-gpui",
  "quoin-leptos",
  "quoin-macros",
+ "quoin-testkit",
  "quoin-ui",
  "quoin-ui-gpui",
  "quoin-xilem",
@@ -8102,9 +8124,23 @@ dependencies = [
 name = "quoin-core"
 version = "0.1.0"
 dependencies = [
+ "futures",
+ "futures-channel",
  "futures-core",
+ "futures-util",
+ "send_wrapper",
  "tokio",
  "trybuild",
+ "wasm-bindgen-futures",
+]
+
+[[package]]
+name = "quoin-devtools"
+version = "0.1.0"
+dependencies = [
+ "quoin-core",
+ "quoin-testkit",
+ "tracing",
 ]
 
 [[package]]
@@ -8205,6 +8241,17 @@ dependencies = [
  "quoin-macros",
  "quoin-ui-gpui",
  "trybuild",
+]
+
+[[package]]
+name = "quoin-testkit"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "futures-timer",
+ "quoin-core",
+ "send_wrapper",
+ "tokio",
 ]
 
 [[package]]
@@ -10511,6 +10558,14 @@ name = "tinyvec"
 version = "1.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee"
+
+[[package]]
+name = "todo-core"
+version = "0.1.0"
+dependencies = [
+ "quoin-core",
+ "quoin-testkit",
+]
 
 [[package]]
 name = "tokio"
