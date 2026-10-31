@@ -1,13 +1,15 @@
 [package]
 name = "quoin-macros"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+description = "Proc-macro entry points for the quoin declarative UI macros"
+edition.workspace = true
+rust-version.workspace = true
 
 [lib]
 proc-macro = true
 
 [dependencies]
-syn = { version = "2", features = ["full", "parsing", "extra-traits"] }
+syn = { version = "3", features = ["full", "parsing", "extra-traits"] }
 quote = "1.0"
 proc-macro2 = "1.0"
 quoin-macros-core = { path = "../quoin-macros-core" }
