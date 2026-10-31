@@ -12,6 +12,26 @@ use std::future::Future;
 /// `JoinHandle` allows you to abort a running task or await its result (via
 /// `IntoFuture`). It is returned by [`Executor::spawn`].
 ///
+/// # Lifecycle semantics
+///
+/// All adapters implement the same three lifecycle operations:
+///
+/// - **Await** — consume the handle with `.await` (via `IntoFuture`) to wait
+///   for the task's result. The output is `Result<T, Canceled>`; the `Err`
+///   variant means the task was aborted (or its executor shut down) before
+///   producing a result.
+/// - **Abort** — call [`abort`](Self::abort) to cancel the task at its next
+///   suspension point (or immediately, depending on the framework). Any
+///   subsequent await of the handle resolves with `Err(Canceled)`.
+/// - **Detach** — call [`detach`](Self::detach) to let the task run to
+///   completion without keeping a handle to its result.
+///
+/// Dropping the handle without awaiting, aborting, or detaching **cancels**
+/// the task. This is deliberate: it follows structured-concurrency
+/// principles (no orphaned tasks silently mutating UI state after their
+/// owner is gone). Use [`detach`](Self::detach) when you explicitly want
+/// fire-and-forget behaviour.
+///
 /// # Example
 ///
 /// ```rust,ignore
@@ -22,8 +42,19 @@ use std::future::Future;
 pub trait JoinHandle<T>: Send + Sync {
     /// Aborts the task.
     ///
-    /// If the task has already completed, this does nothing.
+    /// Cancellation is cooperative: the task stops at its next suspension
+    /// point (or immediately if the underlying framework supports hard
+    /// cancellation). If the task has already completed, this does nothing.
     fn abort(&self);
+
+    /// Detaches the task, letting it run to completion.
+    ///
+    /// The task will no longer be cancelled when this handle is dropped, and
+    /// its result (if any) is discarded. Use this for fire-and-forget work
+    /// such as logging or analytics.
+    fn detach(self)
+    where
+        Self: Sized;
 }
 
 /// A framework's async task executor.
