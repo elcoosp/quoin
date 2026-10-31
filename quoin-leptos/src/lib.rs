@@ -40,11 +40,15 @@
 //!
 //! # Async Executor
 //!
-//! `LeptosExecutor` runs futures on dedicated worker threads on native
+//! `LeptosExecutor` runs futures on a shared growable worker pool on native
 //! targets (SSR) and on the main thread via `wasm_bindgen_futures` on
 //! `wasm32` (CSR). Every spawned future is wrapped in
 //! `futures::future::Abortable`, so `JoinHandle::abort` stops it at its
 //! next suspension point and dropping the handle cancels it.
+//!
+//! The adapter also implements [`quoin_core::LocalExecutor`]: `spawn_local`
+//! runs `!Send` futures on the browser main thread (wasm) or queues them on
+//! the current thread (native, driven by `quoin_core::local::run_local_tasks`).
 //!
 //! # Global State (Reactive Owner Tree)
 //!
@@ -164,11 +168,12 @@ impl Executor for LeptosExecutor {
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
-            std::thread::spawn(move || {
-                if let Ok(result) = futures::executor::block_on(futures::future::Abortable::new(
-                    future,
-                    abort_registration,
-                )) {
+            // Shared growable worker pool instead of one OS thread per task:
+            // short-lived tasks (searches, timers, polls) reuse idle workers.
+            quoin_core::pool::spawn_pooled(async move {
+                if let Ok(result) =
+                    futures::future::Abortable::new(future, abort_registration).await
+                {
                     let _ = tx.send(result);
                 }
             });
@@ -243,6 +248,21 @@ impl<T: Clone + std::fmt::Debug + 'static> std::fmt::Debug for LeptosSignal<T> {
         f.debug_struct("LeptosSignal")
             .field("value", &self.inner.get())
             .finish()
+    }
+}
+
+impl quoin_core::LocalExecutor for LeptosExecutor {
+    type JoinHandle<T: 'static> = quoin_core::LocalTask<T>;
+
+    fn spawn_local<F>(&self, future: F) -> Self::JoinHandle<F::Output>
+    where
+        F: std::future::Future + 'static,
+        F::Output: 'static,
+    {
+        // On wasm the task runs on the browser main thread; on native it is
+        // queued on the current thread (drive with
+        // `quoin_core::local::run_local_tasks()`).
+        quoin_core::spawn_local_task(future)
     }
 }
 
