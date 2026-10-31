@@ -64,7 +64,11 @@ pub(crate) fn emit_nodes(nodes: &[RenderNode]) -> TokenStream {
 }
 
 pub(crate) fn try_transpile_class(expr: &Expr) -> Option<TranspiledStyles> {
-    if let Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }) = expr {
+    if let Expr::Lit(syn::ExprLit {
+        lit: syn::Lit::Str(s),
+        ..
+    }) = expr
+    {
         return Some(transpile_class(&s.value()));
     }
     None
