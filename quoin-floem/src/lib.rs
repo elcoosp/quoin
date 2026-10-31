@@ -33,12 +33,18 @@
 //! - Safe for storing in structs that cross thread boundaries, but **do not**
 //!   call `.get()` / `.set()` from a background thread.
 //!
-//! # Global State (Thread-Local)
+//! # Global State (Thread-Local Store, Shared Values)
 //!
 //! `provide_global` and `use_global` use a **thread-local** type-map (same pattern
 //! as the GPUI adapter). Globals are only visible on the registering thread.
 //!
-//! Each `use_global` call creates an independent copy of the value in a new signal.
+//! The stored value is the Floem `RwSignal` itself, so every `use_global`
+//! consumer shares one reactive cell: mutations propagate between consumers
+//! and drive Floem reactivity (unified with the Leptos adapter semantics).
+//!
+//! The adapter also implements [`quoin_core::LocalExecutor`]: `spawn_local`
+//! queues `!Send` futures on the current thread (native), driven by
+//! `quoin_core::local::run_local_tasks()`.
 
 use floem_reactive::{RwSignal, SignalGet, SignalUpdate, SignalWith};
 use quoin_core::{Executor, JoinHandle, ReactiveContext, Signal};
@@ -80,10 +86,14 @@ impl ReactiveContext for FloemContext {
     }
 
     fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T) {
+        // Store the reactive signal itself so every consumer shares the same
+        // cell: mutations propagate between consumers (matching the Leptos
+        // adapter; previously each use_global returned an independent copy).
         GLOBAL_STORE.with(|store| {
-            store
-                .borrow_mut()
-                .insert(TypeId::of::<T>(), Box::new(value));
+            store.borrow_mut().insert(
+                TypeId::of::<T>(),
+                Box::new(RwSignal::new(SendWrapper::new(value))),
+            );
         });
     }
 
@@ -92,9 +102,9 @@ impl ReactiveContext for FloemContext {
             store
                 .borrow()
                 .get(&TypeId::of::<T>())
-                .and_then(|v| v.downcast_ref::<T>())
+                .and_then(|v| v.downcast_ref::<RwSignal<SendWrapper<T>>>())
                 .cloned()
-                .map(|v| FloemSignal::new(v))
+                .map(|inner| FloemSignal { inner })
         })
     }
 }
@@ -150,11 +160,9 @@ impl Executor for FloemExecutor {
         let (tx, rx) = futures::channel::oneshot::channel();
         let (abort_handle, abort_registration) = futures::future::AbortHandle::new_pair();
 
-        std::thread::spawn(move || {
-            if let Ok(result) = futures::executor::block_on(futures::future::Abortable::new(
-                future,
-                abort_registration,
-            )) {
+        // Shared growable worker pool instead of one OS thread per task.
+        quoin_core::pool::spawn_pooled(async move {
+            if let Ok(result) = futures::future::Abortable::new(future, abort_registration).await {
                 let _ = tx.send(result);
             }
         });
@@ -220,6 +228,20 @@ impl<T: Send + 'static> std::future::IntoFuture for FloemJoinHandle<T> {
                 Err(futures::channel::oneshot::Canceled)
             }
         })
+    }
+}
+
+impl quoin_core::LocalExecutor for FloemExecutor {
+    type JoinHandle<T: 'static> = quoin_core::LocalTask<T>;
+
+    fn spawn_local<F>(&self, future: F) -> Self::JoinHandle<F::Output>
+    where
+        F: std::future::Future + 'static,
+        F::Output: 'static,
+    {
+        // Queued on the current thread; drive with
+        // `quoin_core::local::run_local_tasks()`.
+        quoin_core::spawn_local_task(future)
     }
 }
 
