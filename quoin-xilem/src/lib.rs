@@ -61,10 +61,16 @@
 //! });
 //! ```
 //!
-//! # Global State (Thread-Local)
+//! # Global State (Thread-Local Store, Shared Values)
 //!
 //! Uses a thread-local type-map (same pattern as GPUI/Floem). Globals are only
-//! visible on the registering thread. Each `use_global` creates an independent copy.
+//! visible on the registering thread. The stored value is the `XilemSignal`
+//! itself, so every `use_global` consumer shares one `Arc<RwLock>` cell and
+//! mutations propagate between consumers (unified with the other adapters).
+//!
+//! The adapter also implements [`quoin_core::LocalExecutor`]: `spawn_local`
+//! queues `!Send` futures on the current thread, driven by
+//! `quoin_core::local::run_local_tasks()`.
 
 use quoin_core::{Executor, JoinHandle, ReactiveContext, Signal as QuoinSignal};
 use std::any::TypeId;
@@ -138,10 +144,18 @@ impl ReactiveContext for XilemContext {
     }
 
     fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T) {
+        // Store the signal itself (XilemSignal is Send + Sync) so every
+        // consumer shares the same `Arc<RwLock>`: mutations propagate between
+        // consumers (matching the other adapters; previously each use_global
+        // returned an independent copy).
         GLOBAL_STORE.with(|store| {
-            store
-                .borrow_mut()
-                .insert(TypeId::of::<T>(), Box::new(value));
+            store.borrow_mut().insert(
+                TypeId::of::<T>(),
+                Box::new(XilemSignal {
+                    inner: Arc::new(std::sync::RwLock::new(value)),
+                    context: self.clone(),
+                }),
+            );
         });
     }
 
@@ -150,12 +164,8 @@ impl ReactiveContext for XilemContext {
             store
                 .borrow()
                 .get(&TypeId::of::<T>())
-                .and_then(|v| v.downcast_ref::<T>())
+                .and_then(|v| v.downcast_ref::<XilemSignal<T>>())
                 .cloned()
-                .map(|v| XilemSignal {
-                    inner: Arc::new(std::sync::RwLock::new(v)),
-                    context: self.clone(),
-                })
         })
     }
 }
@@ -179,13 +189,19 @@ impl<T: Clone + 'static> QuoinSignal<T> for XilemSignal<T> {
 
     fn set(&self, value: T) {
         *self.inner.write().unwrap() = value;
-        self.context.request_update();
+        // Inside `quoin_core::batch` the final `request_update` is issued by
+        // the batch itself; per-write notifies would be redundant work.
+        if quoin_core::batch::should_notify() {
+            self.context.request_update();
+        }
     }
 
     fn update(&self, f: impl FnOnce(&mut T)) {
         let mut guard = self.inner.write().unwrap();
         f(&mut guard);
-        self.context.request_update();
+        if quoin_core::batch::should_notify() {
+            self.context.request_update();
+        }
     }
 }
 
@@ -269,6 +285,20 @@ impl<T> Drop for XilemJoinHandle<T> {
         {
             handle.abort();
         }
+    }
+}
+
+impl quoin_core::LocalExecutor for XilemExecutor {
+    type JoinHandle<T: 'static> = quoin_core::LocalTask<T>;
+
+    fn spawn_local<F>(&self, future: F) -> Self::JoinHandle<F::Output>
+    where
+        F: std::future::Future + 'static,
+        F::Output: 'static,
+    {
+        // Queued on the current thread; drive with
+        // `quoin_core::local::run_local_tasks()`.
+        quoin_core::spawn_local_task(future)
     }
 }
 
