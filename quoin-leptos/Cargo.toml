@@ -1,10 +1,11 @@
 [package]
 name = "quoin-leptos"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
 description = "Leptos adapter for quoin reactive abstraction"
-license = "MIT"
-repository = "https://github.com/username/quoin"
+license.workspace = true
+repository.workspace = true
 
 [dependencies]
 quoin-core = { path = "../quoin-core", default-features = false, features = ["leptos"] }
@@ -14,6 +15,9 @@ leptos = { version = "0.8" }
 send_wrapper = "0.6"
 web-sys = { version = "0.3", features = ["Window", "Navigator", "Clipboard"] }
 leptos-shadcn-ui = { git = "https://github.com/elcoosp/leptos-shadcn-ui", default-features = false, features = ["button", "input", "tabs", "badge", "table", "tooltip", "scroll-area", "dropdown-menu"], optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen-futures = "0.4"
 
 [dev-dependencies]
 quoin-conformance = { path = "../quoin-conformance", features = ["leptos"] }
