@@ -41,14 +41,15 @@
 //! If you don't call `set_view_update_notifier`, signal mutations will still
 //! update the underlying value but the view will **not** repaint.
 //!
-//! # Global State (Thread-Local)
+//! # Global State (Thread-Local Store, Shared Values)
 //!
 //! `provide_global` and `use_global` use a **thread-local** type-map. This means:
 //!
 //! - Globals are only visible on the thread that registered them.
 //! - If your app opens windows on multiple threads, call `provide_global` on each.
-//! - Each `use_global` call returns an **independent copy** of the value wrapped
-//!   in a new `Arc<RwLock<T>>`. Mutations do not propagate back to other copies.
+//! - The stored value is the `GpuiSignal` itself, so every `use_global`
+//!   consumer shares one `Arc<RwLock<T>>` cell: mutations propagate between
+//!   consumers and notify the view (unified with the other adapters).
 //!
 //! # App Bootstrap
 //!
@@ -186,7 +187,7 @@ impl ReactiveContext for GpuiContext {
     fn create_signal<T: Clone + 'static>(&self, initial: T) -> Self::Signal<T> {
         GpuiSignal {
             inner: Arc::new(std::sync::RwLock::new(initial)),
-            context: self.clone(),
+            notifier: self.update_notifier.clone(),
         }
     }
 
@@ -202,10 +203,18 @@ impl ReactiveContext for GpuiContext {
     }
 
     fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T) {
+        // Store the signal itself (GpuiSignal is Send + Sync: it holds only
+        // an Arc<RwLock<T>> and the notifier arc) so every consumer shares
+        // the same cell: mutations propagate between consumers and notify the
+        // view (unified with the other adapters).
         GLOBAL_STORE.with(|store| {
-            store
-                .borrow_mut()
-                .insert(TypeId::of::<T>(), Box::new(value));
+            store.borrow_mut().insert(
+                TypeId::of::<T>(),
+                Box::new(GpuiSignal {
+                    inner: Arc::new(std::sync::RwLock::new(value)),
+                    notifier: self.update_notifier.clone(),
+                }),
+            );
         });
     }
 
@@ -214,12 +223,8 @@ impl ReactiveContext for GpuiContext {
             store
                 .borrow()
                 .get(&TypeId::of::<T>())
-                .and_then(|v| v.downcast_ref::<T>())
+                .and_then(|v| v.downcast_ref::<GpuiSignal<T>>())
                 .cloned()
-                .map(|v| GpuiSignal {
-                    inner: Arc::new(std::sync::RwLock::new(v)),
-                    context: self.clone(),
-                })
         })
     }
 }
@@ -227,10 +232,25 @@ impl ReactiveContext for GpuiContext {
 #[derive(Clone)]
 /// A GPUI-backed reactive signal.
 ///
-/// Wraps an `Arc<RwLock<T>>` and notifies the context on mutation.
+/// Wraps an `Arc<RwLock<T>>` and notifies the context's update callback on
+/// mutation. The signal deliberately stores only the notifier handle (not the
+/// whole [`GpuiContext`]), which keeps it `Send + Sync` — required for the
+/// shared global store.
 pub struct GpuiSignal<T: Clone + 'static> {
     inner: Arc<std::sync::RwLock<T>>,
-    context: GpuiContext,
+    notifier: Arc<Mutex<Option<UpdateNotifier>>>,
+}
+
+impl<T: Clone + 'static> GpuiSignal<T> {
+    /// Invokes the update notifier, unless a `quoin_core::batch` is active
+    /// (the batch issues a single update at the end).
+    fn notify(&self) {
+        if quoin_core::batch::should_notify()
+            && let Some(notifier) = self.notifier.lock().unwrap().as_ref()
+        {
+            notifier();
+        }
+    }
 }
 
 impl<T: Clone + 'static> QuoinSignal<T> for GpuiSignal<T> {
@@ -244,13 +264,14 @@ impl<T: Clone + 'static> QuoinSignal<T> for GpuiSignal<T> {
 
     fn set(&self, value: T) {
         *self.inner.write().unwrap() = value;
-        self.context.request_update();
+        self.notify();
     }
 
     fn update(&self, f: impl FnOnce(&mut T)) {
         let mut guard = self.inner.write().unwrap();
         f(&mut guard);
-        self.context.request_update();
+        drop(guard);
+        self.notify();
     }
 }
 
