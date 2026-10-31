@@ -25,6 +25,54 @@ This document outlines the planned development trajectory for the `quoin` projec
 
 ---
 
+## Phase 1.5: Depth & Completeness (Current)
+
+**Goal:** Take the library to another dimension of completeness — expand the
+API surface to cover the underlying frameworks' full capabilities, unify
+cross-framework semantics, harden testing, and ship developer tooling.
+
+### Milestones
+
+#### M1.5.1: Core API Surface Expansion ✅
+- [x] `derived()` / `.map()` / `zip()` computed signals (all adapters).
+- [x] `Resource` async data primitive: `Idle → Loading → Ready | Failed`,
+      race-free reloads, cooperative cancellation (`create_resource`).
+- [x] `batch()` — collapse multiple signal writes into one update request
+      (honoured by the GPUI and Xilem pull-based signals).
+- [x] `spawn_local` via `LocalExecutor` for `!Send` futures (WASM platform
+      loop; deterministic thread-local queue on native).
+- [x] `CancellationToken` upgrades: `child_token()`, `guard()`,
+      `into_cancelled()`, `run_until_cancelled()`.
+- [x] `SignalExt::set_eq` / `replace` / `take`; `ExecutorExt::spawn_with_token`;
+      `ReactiveContextExt::update_global` / `use_global_or_init`.
+
+#### M1.5.2: Cross-Framework Semantics Unification ✅
+- [x] **Shared globals everywhere**: `provide_global`/`use_global` now share
+      one reactive cell on **all five adapters** (GPUI, Leptos, Dioxus, Xilem,
+      Floem previously returned independent copies on four of them).
+- [x] Identical `JoinHandle` lifecycle semantics re-verified by an expanded
+      conformance suite (30+ checks per adapter, incl. locals and tokens).
+
+#### M1.5.3: Performance ✅
+- [x] Shared growable worker pool (`quoin_core::pool`) replaces one-OS-thread-
+      per-task spawning in the Leptos/Dioxus/Floem executors (~20x cheaper
+      spawn for short-lived tasks).
+- [x] `set_eq` skips redundant writes; batch suppresses redundant notifies.
+- [x] `quoin-core` micro-benchmark suite (`just bench-core`).
+
+#### M1.5.4: Testing Infrastructure ✅
+- [x] `quoin-testkit`: `TestContext` (update counting, shared globals),
+      `ImmediateExecutor`, `ThreadedExecutor`, `TokioExecutor`,
+      `LocalExecutor` support, `UpdateRecorder`.
+- [x] `quoin-devtools`: `Instrumented` context wrapper, `EventLog`
+      (`summary()`, `hot_signals()`, `dump()`), value snapshots, optional
+      `tracing` integration, `QUOIN_TRACE` env gate.
+- [x] Headless e2e examples: `todo-core` (full user sessions, render-churn
+      assertions), `fetch-core` (resource lifecycle, reload cancellation),
+      `devtools-demo` (trace session).
+
+---
+
 ## Phase 0: Foundation (Current)
 
 **Goal:** Implement the `quoin` core crate with the traits defined in the architecture specification, establish CI/CD, and publish initial development versions.
