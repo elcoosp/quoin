@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/logo.png" alt="Quoin Logo" width="200"/>
+  <img src="docs/logo.png" alt="Quoin Logo" width="300"/>
   <p>
     <strong>One Reactive Core, Many Frameworks.</strong><br/>
     A framework-agnostic reactive abstraction layer for Rust. Write your reactive business logic once using signals, effects, and async tasks—then run it with GPUI, Dioxus, Leptos, Xilem, or Floem.
