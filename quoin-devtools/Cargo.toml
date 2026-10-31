@@ -1,0 +1,23 @@
+[package]
+name = "quoin-devtools"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Devtools for quoin: signal tracing, update logging, and dev-loop instrumentation for any framework adapter"
+license.workspace = true
+repository.workspace = true
+readme = "README.md"
+keywords = ["reactive", "devtools", "debugging", "tracing"]
+categories = ["development-tools", "gui"]
+
+[dependencies]
+quoin-core = { path = "../quoin-core" }
+tracing = { version = "0.1", optional = true }
+
+[features]
+default = []
+# Emit `tracing` events alongside the internal event log.
+tracing = ["dep:tracing"]
+
+[dev-dependencies]
+quoin-testkit = { path = "../quoin-testkit" }
