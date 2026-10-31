@@ -1,3 +1,9 @@
+// Emission helpers in this module have `dioxus` and `dioxus-shadcn` variants:
+// some imports and helper variables are only exercised by one of the two
+// code paths. File-level allows keep every feature combination compiling
+// warning-free without per-line noise.
+#![allow(unused_imports, unused_variables)]
+
 use crate::emit::common::{find_arg_bool, find_arg_expr};
 use crate::render_ast::{Element, RenderNode};
 use proc_macro2::TokenStream;

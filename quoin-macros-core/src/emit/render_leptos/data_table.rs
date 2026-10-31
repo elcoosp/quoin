@@ -1,11 +1,15 @@
-use crate::emit::common::{find_arg_bool, find_arg_expr, find_arg_f32};
+use crate::emit::common::{find_arg_bool, find_arg_expr};
 use crate::render_ast::{Element, RenderNode};
 use proc_macro2::TokenStream;
 use quote::quote;
 
 use super::bindings::next_extract_id;
 
-pub(crate) fn emit_data_table(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
+pub(crate) fn emit_data_table(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
     #[cfg(feature = "leptos-shadcn")]
     {
         let rows_expr = find_arg_expr(el, "rows");

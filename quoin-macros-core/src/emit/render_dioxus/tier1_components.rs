@@ -1,4 +1,10 @@
-use crate::emit::common::{find_arg_expr, find_arg_f32, find_arg_string};
+// Emission helpers in this module have `dioxus` and `dioxus-shadcn` variants:
+// some imports and helper variables are only exercised by one of the two
+// code paths. File-level allows keep every feature combination compiling
+// warning-free without per-line noise.
+#![allow(unused_imports, unused_variables)]
+
+use crate::emit::common::{find_arg_expr, find_arg_string};
 use crate::render_ast::Element;
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -139,7 +145,7 @@ pub(crate) fn emit_progress(el: &Element) -> TokenStream {
         let bar_cls = "h-full rounded-full bg-primary transition-all duration-300";
         match value_expr {
             Some(val) => {
-                let max = match max_expr {
+                let _max = match max_expr {
                     Some(m) => quote! { (#val as f64) / (#m as f64) * 100.0 },
                     None => quote! { (#val as f64) },
                 };

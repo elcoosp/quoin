@@ -1,4 +1,4 @@
-use crate::emit::common::{find_arg_bool, find_arg_expr};
+use crate::emit::common::find_arg_expr;
 use crate::render_ast::Element;
 use proc_macro2::TokenStream;
 use quote::quote;

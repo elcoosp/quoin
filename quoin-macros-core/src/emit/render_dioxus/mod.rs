@@ -1,6 +1,5 @@
 use crate::emit::cfg::wrap_with_cfg;
-use crate::render_ast::{Element, ForNode, IfNode, RenderNode};
-use crate::transpile::collect_handler_idents_excluding_params;
+use crate::render_ast::{Element, RenderNode};
 use proc_macro2::TokenStream;
 use quote::quote;
 

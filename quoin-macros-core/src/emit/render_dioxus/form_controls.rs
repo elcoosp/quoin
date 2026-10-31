@@ -1,3 +1,9 @@
+// Emission helpers in this module have `dioxus` and `dioxus-shadcn` variants:
+// some imports and helper variables are only exercised by one of the two
+// code paths. File-level allows keep every feature combination compiling
+// warning-free without per-line noise.
+#![allow(unused_imports, unused_variables)]
+
 use crate::emit::common::{find_arg_bool, find_arg_expr, find_arg_string};
 use crate::render_ast::Element;
 use proc_macro2::TokenStream;
@@ -106,7 +112,7 @@ pub(crate) fn emit_switch(el: &Element) -> TokenStream {
 // RadioGroup / Radio
 // ---------------------------------------------------------------------------
 pub(crate) fn emit_radio_group(el: &Element) -> TokenStream {
-    let children: Vec<TokenStream> = el.children.iter().map(|c| emit_render_inner(c)).collect();
+    let children: Vec<TokenStream> = el.children.iter().map(emit_render_inner).collect();
     let user_class = find_arg_string(el, "class").unwrap_or_default();
 
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]

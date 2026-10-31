@@ -5,7 +5,11 @@ use quote::quote;
 
 use super::emit_node;
 
-pub(crate) fn emit_icon(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
+pub(crate) fn emit_icon(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
     let name = find_arg_string(el, "icon_name");
 
     let size_class = find_arg_expr(el, "class");

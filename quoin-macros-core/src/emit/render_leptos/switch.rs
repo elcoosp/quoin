@@ -5,7 +5,11 @@ use quote::quote;
 
 use super::{bindings::next_extract_id, handler::wrap_event_handler};
 
-pub(crate) fn emit_switch(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
+pub(crate) fn emit_switch(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
     let checked_expr = find_arg_expr(el, "checked");
     let on_change_expr =
         find_arg_expr(el, "on_checked_change").or_else(|| find_arg_expr(el, "on_change"));

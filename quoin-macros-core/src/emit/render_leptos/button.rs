@@ -1,11 +1,22 @@
+// Imports in this module vary with the `leptos-shadcn`/`dioxus-shadcn` feature:
+// some are only used when the shadcn emit path is active. A file-level allow
+// keeps every feature combination compiling without per-line noise.
+#![allow(unused_imports)]
+
 use crate::emit::common::{find_arg_bool, find_arg_expr, find_arg_string};
 use crate::render_ast::Element;
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use super::{bindings::next_extract_id, emit_node, generic::emit_html_tag_inner, handler::wrap_event_handler};
+use super::{
+    bindings::next_extract_id, emit_node, generic::emit_html_tag_inner, handler::wrap_event_handler,
+};
 
-pub(crate) fn emit_button(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
+pub(crate) fn emit_button(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
     #[cfg(feature = "leptos-shadcn")]
     {
         let tooltip_text = find_arg_string(el, "tooltip");

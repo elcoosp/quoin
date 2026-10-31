@@ -1,3 +1,9 @@
+// Emission helpers in this module have `dioxus` and `dioxus-shadcn` variants:
+// some imports and helper variables are only exercised by one of the two
+// code paths. File-level allows keep every feature combination compiling
+// warning-free without per-line noise.
+#![allow(unused_imports, unused_variables)]
+
 use crate::emit::common::find_arg_expr;
 use crate::render_ast::{Element, RenderNode};
 use crate::transpile::{collect_handler_idents, force_move_on_closure};
@@ -25,7 +31,7 @@ pub(crate) fn emit_tabs(el: &Element) -> TokenStream {
                     let index_clone = index.clone();
                     Some(quote! {
                         shadcn_dioxus::tabs::TabsTrigger {
-                            value: "{#index.to_string()}",
+                            value: #index.to_string(),
                             onclick: {
                                 let __tab_on_click = #on_click_with_move;
                                 move |_| { __tab_on_click(#index_clone); }
@@ -41,7 +47,7 @@ pub(crate) fn emit_tabs(el: &Element) -> TokenStream {
 
         quote! {
             shadcn_dioxus::tabs::Tabs {
-                value: "{#active_expr.to_string()}",
+                value: #active_expr.to_string(),
                 shadcn_dioxus::tabs::TabsList {
                     #(#tab_triggers)*
                 }

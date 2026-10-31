@@ -1,8 +1,7 @@
 #![allow(unused_variables)]
 
 use crate::emit::cfg::wrap_with_cfg;
-use crate::emit::common::{find_arg_bool, find_arg_expr, find_arg_f32, find_arg_string};
-use crate::render_ast::{Element, ForNode, IfNode, RenderNode};
+use crate::render_ast::{Element, RenderNode};
 use proc_macro2::TokenStream;
 use quote::quote;
 
@@ -43,7 +42,11 @@ pub fn emit_render(node: &RenderNode) -> TokenStream {
     wrap_with_cfg(node.attrs(), tokens)
 }
 
-pub(crate) fn emit_node(node: &RenderNode, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
+pub(crate) fn emit_node(
+    node: &RenderNode,
+    bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
     match node {
         RenderNode::Element(el) => emit_element(el, bindings, inside_for),
         RenderNode::Text(t) => quote! { #t },
@@ -75,7 +78,11 @@ fn emit_element(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool)
     wrap_with_cfg(&el.attrs, inner)
 }
 
-fn emit_element_inner(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
+fn emit_element_inner(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
     let name_str = el.name.to_string();
     match name_str.as_str() {
         "separator" => separator::emit_separator(el, bindings, inside_for),

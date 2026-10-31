@@ -1,11 +1,26 @@
-use crate::emit::common::{find_arg_bool, find_arg_expr, find_arg_string};
+// Imports in this module vary with the `leptos-shadcn`/`dioxus-shadcn` feature:
+// some are only used when the shadcn emit path is active. A file-level allow
+// keeps every feature combination compiling without per-line noise.
+#![allow(unused_imports)]
+
 use crate::render_ast::Element;
 use proc_macro2::TokenStream;
+
+use super::generic::emit_html_tag_inner;
+
+// The following imports are only exercised by the `leptos-shadcn` code path,
+// which is why they may appear unused when only the `leptos` feature is
+// enabled. They are kept unconditionally so every feature combination
+// compiles.
+use super::{bindings::next_extract_id, handler::wrap_event_handler};
+use crate::emit::common::{find_arg_bool, find_arg_expr, find_arg_string};
 use quote::quote;
 
-use super::{bindings::next_extract_id, generic::emit_html_tag_inner, handler::wrap_event_handler};
-
-pub(crate) fn emit_input(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
+pub(crate) fn emit_input(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
     #[cfg(feature = "leptos-shadcn")]
     {
         let placeholder = find_arg_string(el, "placeholder").unwrap_or_default();

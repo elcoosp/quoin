@@ -5,7 +5,11 @@ use quote::quote;
 
 use super::bindings::next_extract_id;
 
-pub(crate) fn emit_progress(el: &Element, bindings: &mut Vec<TokenStream>, _inside_for: bool) -> TokenStream {
+pub(crate) fn emit_progress(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    _inside_for: bool,
+) -> TokenStream {
     let value_expr = find_arg_expr(el, "value");
     let max_expr = find_arg_expr(el, "max");
     let user_class = find_arg_string(el, "class").unwrap_or_default();

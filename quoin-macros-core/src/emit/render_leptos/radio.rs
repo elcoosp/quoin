@@ -1,5 +1,5 @@
 use crate::emit::common::{find_arg_bool, find_arg_expr, find_arg_string};
-use crate::render_ast::{Element, RenderNode};
+use crate::render_ast::Element;
 use proc_macro2::TokenStream;
 use quote::quote;
 
@@ -43,7 +43,11 @@ pub(crate) fn emit_radio_group(
     }
 }
 
-pub(crate) fn emit_radio(el: &Element, bindings: &mut Vec<TokenStream>, _inside_for: bool) -> TokenStream {
+pub(crate) fn emit_radio(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    _inside_for: bool,
+) -> TokenStream {
     let value_expr = find_arg_expr(el, "value");
     let name_expr = find_arg_expr(el, "name");
     let checked_expr = find_arg_expr(el, "checked");

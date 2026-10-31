@@ -1,3 +1,8 @@
+// Imports in this module vary with the `leptos-shadcn`/`dioxus-shadcn` feature:
+// some are only used when the shadcn emit path is active. A file-level allow
+// keeps every feature combination compiling without per-line noise.
+#![allow(unused_imports)]
+
 use crate::emit::common::{find_arg_expr, find_arg_string};
 use crate::render_ast::Element;
 use proc_macro2::TokenStream;
@@ -5,7 +10,11 @@ use quote::quote;
 
 use super::{bindings::next_extract_id, emit_node};
 
-pub(crate) fn emit_badge(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
+pub(crate) fn emit_badge(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
     let color_expr = find_arg_expr(el, "color");
     let mut children: Vec<TokenStream> = Vec::new();
     for child in &el.children {

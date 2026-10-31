@@ -1,3 +1,8 @@
+// Imports in this module vary with the `leptos-shadcn`/`dioxus-shadcn` feature:
+// some are only used when the shadcn emit path is active. A file-level allow
+// keeps every feature combination compiling without per-line noise.
+#![allow(unused_imports)]
+
 use crate::emit::common::{find_arg_bool, find_arg_expr, find_arg_string};
 use crate::render_ast::Element;
 use proc_macro2::TokenStream;

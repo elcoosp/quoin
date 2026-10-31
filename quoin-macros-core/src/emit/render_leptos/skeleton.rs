@@ -5,7 +5,11 @@ use quote::quote;
 
 use super::bindings::import_shadcn_or_html_tag;
 
-pub(crate) fn emit_skeleton(el: &Element, bindings: &mut Vec<TokenStream>, _inside_for: bool) -> TokenStream {
+pub(crate) fn emit_skeleton(
+    el: &Element,
+    bindings: &mut Vec<TokenStream>,
+    _inside_for: bool,
+) -> TokenStream {
     let tag = import_shadcn_or_html_tag(bindings, "Skeleton", "div");
     let base = "animate-pulse rounded-md bg-muted";
     let user_class = find_arg_string(el, "class").unwrap_or_default();

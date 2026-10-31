@@ -9,7 +9,11 @@ use super::emit_node;
 // If nodes
 // ---------------------------------------------------------------------------
 
-pub(crate) fn emit_if(if_node: &IfNode, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
+pub(crate) fn emit_if(
+    if_node: &IfNode,
+    bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
     let inner = emit_if_reactive(if_node, bindings, inside_for);
     wrap_with_cfg(&if_node.attrs, inner)
 }
@@ -41,17 +45,17 @@ pub(crate) fn build_if_body(
 
     match &if_node.else_branch {
         Some(else_branch) => {
-            if else_branch.len() == 1 {
-                if let RenderNode::If(nested_if) = &else_branch[0] {
-                    let nested_body = build_if_body(nested_if, bindings, inside_for);
-                    return quote! {
-                        if #cond_expr {
-                            { leptos::view! { #then_view } }.into_any()
-                        } else {
-                            #nested_body
-                        }
-                    };
-                }
+            if else_branch.len() == 1
+                && let RenderNode::If(nested_if) = &else_branch[0]
+            {
+                let nested_body = build_if_body(nested_if, bindings, inside_for);
+                return quote! {
+                    if #cond_expr {
+                        { leptos::view! { #then_view } }.into_any()
+                    } else {
+                        #nested_body
+                    }
+                };
             }
             let else_tokens: Vec<TokenStream> = else_branch
                 .iter()

@@ -1,6 +1,14 @@
+// Imports in this module vary with the `leptos-shadcn`/`dioxus-shadcn` feature:
+// some are only used when the shadcn emit path is active. A file-level allow
+// keeps every feature combination compiling without per-line noise.
+#![allow(unused_imports)]
+
 use proc_macro2::TokenStream;
-use quote::quote;
 use std::sync::atomic::{AtomicUsize, Ordering};
+
+// Only exercised by the `leptos-shadcn` code path; kept unconditionally so
+// every feature combination compiles.
+use quote::quote;
 
 static EXTRACT_COUNTER: AtomicUsize = AtomicUsize::new(0);
 

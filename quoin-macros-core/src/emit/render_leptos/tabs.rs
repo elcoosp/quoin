@@ -1,3 +1,8 @@
+// Imports in this module vary with the `leptos-shadcn`/`dioxus-shadcn` feature:
+// some are only used when the shadcn emit path is active. A file-level allow
+// keeps every feature combination compiling without per-line noise.
+#![allow(unused_imports)]
+
 use crate::emit::common::{find_arg_expr, find_arg_string};
 use crate::render_ast::{Element, RenderNode};
 use crate::transpile::force_move_on_closure;
@@ -6,7 +11,14 @@ use quote::quote;
 
 use super::{bindings::next_extract_id, handler::wrap_event_handler};
 
-pub(crate) fn emit_tabs(el: &Element, bindings: &mut Vec<TokenStream>, inside_for: bool) -> TokenStream {
+pub(crate) fn emit_tabs(
+    el: &Element,
+    // `&mut Vec` is required under the `leptos-shadcn` feature, where this
+    // function pushes component bindings; clippy sees only the non-shadcn
+    // cfg branch, so the lint is silenced deliberately.
+    #[allow(clippy::ptr_arg)] bindings: &mut Vec<TokenStream>,
+    inside_for: bool,
+) -> TokenStream {
     #[cfg(feature = "leptos-shadcn")]
     {
         let active_expr = find_arg_expr(el, "active").expect("tabs require 'active' argument");
