@@ -286,8 +286,9 @@ impl Executor for GpuiExecutor {
         };
 
         GpuiJoinHandle {
-            task: Some(task),
-            rx: Some(rx),
+            task: Mutex::new(Some(task)),
+            rx: Mutex::new(Some(rx)),
+            detached: std::sync::atomic::AtomicBool::new(false),
         }
     }
 }
@@ -311,93 +312,68 @@ impl GpuiExecutor {
 }
 
 pub struct GpuiJoinHandle<T> {
-    task: Option<Task<()>>,
-    rx: Option<futures::channel::oneshot::Receiver<T>>,
+    /// The underlying GPUI task. Dropping a GPUI `Task` cancels it, so the
+    /// task is kept in an `Option` behind a mutex so `abort(&self)` can take
+    /// and drop it.
+    task: Mutex<Option<Task<()>>>,
+    rx: Mutex<Option<futures::channel::oneshot::Receiver<T>>>,
+    detached: std::sync::atomic::AtomicBool,
 }
 
 impl<T: Send + 'static> JoinHandle<T> for GpuiJoinHandle<T> {
     /// Abort the spawned task.
     ///
-    /// # Limitations
-    ///
-    /// This is currently a **no-op**. The spawned thread runs to completion
-    /// regardless of whether `abort()` is called. This is because:
-    ///
-    /// - The task runs on a dedicated `std::thread` with no cancellation token.
-    /// - There is no built-in mechanism to interrupt a blocked `futures::executor::block_on`.
-    ///
-    /// If you need cancellation support, consider:
-    /// - Using a `CancellationToken` pattern inside your future.
-    /// - Switching to a tokio-based executor with proper task cancellation.
-    ///
-    /// This limitation will be addressed in a future version.
-    /// Abort the spawned task.
-    ///
-    /// # Limitations
-    ///
-    /// This is currently a **no-op**. The spawned thread runs to completion
-    /// regardless of whether `abort()` is called. This is because:
-    ///
-    /// - The task runs on a dedicated `std::thread` with no cancellation token.
-    /// - There is no built-in mechanism to interrupt a blocked `futures::executor::block_on`.
-    ///
-    /// If you need cancellation support, consider:
-    /// - Using a `CancellationToken` pattern inside your future.
-    /// - Switching to a tokio-based executor with proper task cancellation.
-    ///
-    /// This limitation will be addressed in a future version.
-    /// Abort the spawned task.
-    ///
-    /// # Limitations
-    ///
-    /// This is currently a **no-op**. The spawned thread runs to completion
-    /// regardless of whether `abort()` is called. This is because:
-    ///
-    /// - The task runs on a dedicated `std::thread` with no cancellation token.
-    /// - There is no built-in mechanism to interrupt a blocked `futures::executor::block_on`.
-    ///
-    /// If you need cancellation support, consider:
-    /// - Using a `CancellationToken` pattern inside your future.
-    /// - Switching to a tokio-based executor with proper task cancellation.
-    ///
-    /// This limitation will be addressed in a future version.
-    /// Abort the spawned task.
-    ///
-    /// # Limitations
-    ///
-    /// This is currently a **no-op**. The spawned thread runs to completion
-    /// regardless of whether `abort()` is called. This is because:
-    ///
-    /// - The task runs on a dedicated `std::thread` with no cancellation token.
-    /// - There is no built-in mechanism to interrupt a blocked `futures::executor::block_on`.
-    ///
-    /// If you need cancellation support, consider:
-    /// - Using a `CancellationToken` pattern inside your future.
-    /// - Switching to a tokio-based executor with proper task cancellation.
-    ///
-    /// This limitation will be addressed in a future version.
-    fn abort(&self) {}
+    /// GPUI tasks are cancelled eagerly when their `Task` handle is dropped,
+    /// so this takes the handle out and drops it. Any future awaiting this
+    /// join handle then resolves with `Err(Canceled)`.
+    fn abort(&self) {
+        // Dropping the `Task` cancels it immediately (see GPUI docs).
+        drop(self.task.lock().unwrap().take());
+    }
+
+    /// Detach the task so it runs to completion even if this handle is
+    /// dropped. The task's result is discarded.
+    fn detach(self) {
+        // In GPUI the `Task` handle *owns* the task: dropping it cancels the
+        // task. `Task::detach` releases that ownership into the scheduler so
+        // the future keeps running.
+        if let Some(task) = self.task.lock().unwrap().take() {
+            task.detach();
+        }
+        self.detached
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+    }
 }
 
 impl<T: Send + 'static> std::future::IntoFuture for GpuiJoinHandle<T> {
     type Output = Result<T, futures::channel::oneshot::Canceled>;
     type IntoFuture = Pin<Box<dyn Future<Output = Self::Output> + Send>>;
 
-    fn into_future(mut self) -> Self::IntoFuture {
+    fn into_future(self) -> Self::IntoFuture {
         Box::pin(async move {
-            if let Some(rx) = self.rx.take() {
-                rx.await
-            } else {
-                unreachable!("Receiver should be set")
-            }
+            // Keep the task handle alive until the await completes so the
+            // task is not cancelled mid-flight. Marking the handle as
+            // detached prevents the final drop from aborting a task that
+            // already finished.
+            self.detached
+                .store(true, std::sync::atomic::Ordering::SeqCst);
+            let rx = self.rx.lock().unwrap().take();
+            let result = match rx {
+                Some(rx) => rx.await,
+                None => Err(futures::channel::oneshot::Canceled),
+            };
+            drop(self);
+            result
         })
     }
 }
 
 impl<T> Drop for GpuiJoinHandle<T> {
     fn drop(&mut self) {
-        if let Some(task) = self.task.take() {
-            drop(task);
+        // Structured concurrency: dropping the handle without awaiting or
+        // detaching cancels the underlying GPUI task.
+        if !self.detached.load(std::sync::atomic::Ordering::SeqCst) {
+            drop(self.task.get_mut().unwrap().take());
         }
     }
 }
