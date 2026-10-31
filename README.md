@@ -11,7 +11,8 @@
     <img src="https://img.shields.io/badge/Architecture-10%2B%20Crates-6F4E37?style=flat-square" alt="Crates"/>
     <img src="https://img.shields.io/badge/Reactivity-Signals%20%2B%20Effects-6A0DAD?style=flat-square" alt="Reactivity"/>
     <img src="https://img.shields.io/badge/Macros-Tailwind%20Transpilation-007ACC?style=flat-square" alt="Macros"/>
-    <img src="https://img.shields.io/badge/Testing-Conformance%20%2B%20Snapshot-00BFFF?style=flat-square" alt="Testing"/>
+    <img src="https://img.shields.io/badge/Testing-Conformance%20%2B%20Testkit-00BFFF?style=flat-square" alt="Testing"/>
+    <img src="https://img.shields.io/badge/Devtools-Signal%20Tracing-FF6B6B?style=flat-square" alt="Devtools"/>
   </p>
 </div>
 
@@ -42,12 +43,18 @@ Building cross‑platform Rust UI applications often means choosing a framework 
 
 ## Features
 - **Unified Reactive API** — `Signal<T>`, `ReactiveContext`, and `Executor` traits that abstract over framework‑specific implementations.
+- **Derived Signals** — `derived(&source, |v| …)`, `.map()`, and `zip()` computed views that work identically on every adapter.
+- **Resources** — `cx.create_resource(fetch)` gives every framework the Leptos/Dioxus async-data lifecycle (`Loading → Ready | Failed`) with race-free reloads and cooperative cancellation.
+- **Batched Updates** — `cx.batch(|| …)` collapses N signal writes into one re-render request on GPUI/Xilem.
+- **`spawn_local` Everywhere** — `LocalExecutor` runs `!Send` futures: platform-driven on WASM, deterministic thread-local queue on native.
+- **Rich Cancellation** — `CancellationToken` with `child_token()`, `guard()`, `into_cancelled()`, and `run_until_cancelled()`.
 - **Declarative Macros** — `component!`, `quoin_render!`, `effect!`, and `run_app!` for cross‑framework UI definitions.
 - **Tailwind Class Transpilation** — Write Tailwind utility classes in `quoin_render!` and they are automatically converted to GPUI method chains.
 - **Universal Component Protocol (UCP)** — Abstract traits for data tables, virtual lists, dropdowns, clipboard, and more via `quoin-ui`.
-- **Cooperative Cancellation** — `CancellationToken` for gracefully stopping long‑running async tasks.
-- **Global State** — Provide and consume application‑wide reactive values with `provide_global`/`use_global`.
-- **Conformance Testing** — A shared test suite ensures all framework adapters behave identically.
+- **Global State (Shared)** — `provide_global`/`use_global` with unified *shared* semantics on all five adapters; `update_global` and `use_global_or_init` helpers.
+- **Testkit** — `quoin-testkit` runs framework-agnostic logic headlessly with deterministic executors and update-count assertions.
+- **Devtools** — `quoin-devtools` records every signal mutation, update request, and task spawn into an inspectable log (`QUOIN_TRACE=1`).
+- **Conformance Testing** — A shared suite (30+ checks per adapter) ensures all framework adapters behave identically.
 
 ## Supported Frameworks
 | Framework | Adapter Crate | Status |
@@ -319,6 +326,64 @@ executor.spawn({
 token.cancel();
 ```
 
+## Beyond the Basics
+
+The full API surface every adapter shares (import with `use quoin_core::prelude::*;` or `use quoin::prelude::*;`):
+
+### Derived signals (computed views)
+```rust
+let count = cx.create_signal(2u32);
+let label = count.map(|n| format!("count = {n}"));   // recomputed on read
+assert_eq!(label.get(), "count = 2");
+let both = quoin_core::zip(&a, &b);                  // tuple of two signals
+```
+
+### Resources (async data loading)
+```rust
+let user = cx.create_resource(|token| async move {
+    // real fetch here; check `token.is_cancelled()` between awaits
+    Ok::<User, FetchError>(fetch_user().await?)
+});
+// UI reads: user.state().get() -> Loading | Ready(User) | Failed(err)
+// Reloads cancel the in-flight request and can never be overwritten by it.
+```
+
+### Batched updates
+```rust
+cx.batch(|| {
+    a.set(1);
+    b.set(2);
+});  // GPUI/Xilem: one re-render request instead of two
+```
+
+### `spawn_local` for `!Send` futures
+```rust
+use quoin_core::LocalExecutor;
+// wasm: runs on the browser main thread. native: deterministic thread-local
+// queue driven by `quoin_core::local::run_local_tasks()`.
+cx.executor().spawn_local(async { update_dom().await });
+```
+
+### Cancellation toolkit
+```rust
+let parent = CancellationToken::new();
+let per_request = parent.child_token();     // cancels with the parent
+let _guard = parent.guard();                // RAII: cancels on drop
+let value = parent.run_until_cancelled(work()).await;  // race work vs cancel
+```
+
+### Signal extras
+```rust
+signal.set_eq(new_value);   // writes only when changed (fewer renders)
+let old = signal.replace(v); signal.take();  // Default backfill
+```
+
+### Global state helpers
+```rust
+cx.update_global::<Settings, ()>(|s| s.theme = Dark);
+let settings = cx.use_global_or_init(Settings::default);
+```
+
 ## Universal Component Protocol (UCP)
 The `quoin-ui` crate defines abstract traits for complex, framework‑independent UI components. Adapter crates like `quoin-ui-gpui` provide concrete implementations.
 
@@ -350,7 +415,7 @@ let button = adapter.render(Some("Click Me".into()), ButtonVariant {
 ## Crate Overview
 ```text
 quoin/                       # Facade — re‑exports everything
-├── quoin-core/              # Core traits (Signal, ReactiveContext, Executor)
+├── quoin-core/              # Core traits + derived/resource/batch/local/pool
 ├── quoin-macros/            # Proc macro entry points
 ├── quoin-macros-core/       # Macro parsing and code generation
 ├── quoin-gpui/              # GPUI adapter
@@ -360,7 +425,9 @@ quoin/                       # Facade — re‑exports everything
 ├── quoin-floem/             # Floem adapter
 ├── quoin-ui/                # UCP traits
 ├── quoin-ui-gpui/           # GPUI UCP implementation
-└── quoin-conformance/       # Shared conformance test suite
+├── quoin-testkit/           # Headless testing: TestContext + executors
+├── quoin-devtools/          # Signal tracing + update logging
+└── quoin-conformance/       # Shared conformance test suite (30+ per adapter)
 ```
 
 ## Examples
@@ -376,6 +443,9 @@ The `examples/` directory contains runnable demos for each framework:
 | ucp-demo-gpui | UCP components in GPUI | `just run-ucp-gpui` |
 | ucp-demo-dioxus | UCP components in Dioxus | `just run-ucp-dioxus` |
 | mini-devtools-gpui | Debug panel with tabs, tables, virtual lists | `just run-mini-devtools` |
+| **todo-core** | Framework-agnostic todo store, e2e tested | `cargo test -p todo-core` |
+| **fetch-core** | Resource-driven async search, e2e tested | `cargo test -p fetch-core` |
+| **devtools-demo** | Headless signal-tracing session | `just trace-demo` |
 
 ## Development
 
@@ -394,6 +464,8 @@ just test-quoin-macros   # Test macro parsing
 just check               # Format check + clippy (framework-free crates)
 just check-all           # Format check + clippy (everything, incl. GPUI)
 just fix                 # Auto‑fix clippy warnings
+just bench-core          # Micro-benchmarks for the core primitives (release)
+just trace-demo          # Headless devtools session with QUOIN_TRACE=1
 ```
 *`just check` only lints the framework-free crates, so it runs without any GPUI system libraries. `just check-all` additionally lints the GPUI crates and needs `libxkbcommon-dev`, `libx11-dev`, `libxcb1-dev`, `libwayland-dev` and `libfontconfig1-dev` on Linux.*
 
@@ -410,7 +482,34 @@ just test-conformance-dioxus
 just test-conformance-floem
 just test-conformance-xilem
 just test-macros-ui-all      # All macro UI tests (trybuild)
+just test-testkit            # quoin-testkit suite
+just test-devtools           # quoin-devtools suite
+just test-headless-examples  # todo-core + fetch-core + devtools-demo e2e
 ```
+
+### Testing Your Own Code (quoin-testkit)
+Test framework-agnostic hooks and stores headlessly — no window manager, no
+browser, fully deterministic:
+
+```rust
+use quoin_core::prelude::*;
+use quoin_testkit::{ImmediateExecutor, TestContext};
+
+fn use_counter<C: ReactiveContext>(cx: &C) -> C::Signal<u32> {
+    cx.create_signal(0u32)
+}
+
+let cx = TestContext::with_executor(ImmediateExecutor);
+let count = use_counter(&cx);
+count.set(41);
+count.update(|v| *v += 1);
+assert_eq!(count.get(), 42);
+assert_eq!(cx.updates().count(), 2);  // exact re-render churn
+```
+
+Pick `ImmediateExecutor` for deterministic state machines,
+`ThreadedExecutor` for real concurrency and abort semantics, or
+`TokioExecutor` (feature `tokio`) inside `#[tokio::test]`.
 
 ### Watch Mode
 ```bash
@@ -427,12 +526,36 @@ To inspect the generated code for a particular component:
 just expand component="ucp-lib" feature="gpui"
 ```
 
+### Debugging the Dev Loop (quoin-devtools)
+Wrap **any** adapter context and see what your app is doing — signal
+creations, mutations, update requests, task spawns/completions/aborts:
+
+```rust,ignore
+use quoin_devtools::Instrumented;
+let ctx = Instrumented::wrap(raw_ctx, "app");   // drop-in wrapper
+```
+
+```bash
+QUOIN_TRACE=1 ./myapp          # enables recording from the environment
+```
+
+Then inspect (from a debug hotkey, a drop-down panel, or on exit):
+```rust,ignore
+quoin_devtools::global_log().dump();                 // stderr table
+quoin_devtools::global_log().hot_signals();          // ranked mutation counts
+quoin_devtools::global_log().events();               // raw snapshot
+```
+
+The zero-cost gate means shipping this wiring is safe: with tracing disabled
+each call is one relaxed atomic load and nothing is allocated. The optional
+`tracing` feature forwards events into the `tracing` ecosystem.
+
 ### CI / CD & Releases
 CI runs on GitHub Actions with the latest action versions (`actions/checkout@v7`, `Swatinem/rust-cache@v2`, `taiki-e/install-action@v2`):
 
 | Workflow | Trigger | What it does |
 | --- | --- | --- |
-| `ci.yml` | push / PR to `main` | Format check, clippy (`-D warnings`), core + adapter tests, trybuild macro UI tests (Leptos, Dioxus, GPUI), full example build |
+| `ci.yml` | push / PR to `main` | Format check, clippy (`-D warnings`), core + testkit + devtools tests, adapter conformance tests, trybuild macro UI tests (Leptos, Dioxus, GPUI), headless example e2e, full example build |
 | `release.yml` | tag `v*.*.*` | Version-tag sanity check, full test suite, `git-cliff` changelog generation, GitHub Release with generated notes |
 
 #### Changelog (`git-cliff`)
