@@ -76,6 +76,18 @@ impl ReactiveContext for TestHarness {
     }
 }
 
+impl quoin_core::LocalExecutor for TestExecutor {
+    type JoinHandle<T: 'static> = quoin_core::LocalTask<T>;
+
+    fn spawn_local<F>(&self, future: F) -> Self::JoinHandle<F::Output>
+    where
+        F: std::future::Future + 'static,
+        F::Output: 'static,
+    {
+        quoin_core::spawn_local_task(future)
+    }
+}
+
 impl TestContextProvider for TestHarness {
     fn setup_context() -> Self {
         Self::new()
