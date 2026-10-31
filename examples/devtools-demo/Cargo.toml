@@ -1,0 +1,20 @@
+[package]
+name = "devtools-demo"
+version = "0.1.0"
+edition.workspace = true
+publish = false
+description = "Headless demo of quoin-devtools tracing: runs a simulated UI session and prints the event log"
+
+[[bin]]
+name = "devtools-demo"
+path = "src/main.rs"
+
+[dependencies]
+quoin-core = { path = "../../quoin-core" }
+quoin-devtools = { path = "../../quoin-devtools" }
+quoin-testkit = { path = "../../quoin-testkit" }
+futures = "0.3"
+futures-channel = "0.3"
+
+[dev-dependencies]
+# none: the demo asserts on its own log in tests
