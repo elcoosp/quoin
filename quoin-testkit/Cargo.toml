@@ -1,0 +1,30 @@
+[package]
+name = "quoin-testkit"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Deterministic testing toolkit for framework-agnostic quoin reactive code"
+license.workspace = true
+repository.workspace = true
+readme = "README.md"
+keywords = ["reactive", "testing", "mock", "signals"]
+categories = ["development-tools", "testing"]
+
+[dependencies]
+quoin-core = { path = "../quoin-core" }
+futures = "0.3"
+futures-timer = "3.0"
+send_wrapper = "0.6"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt", "macros", "time"] }
+
+[features]
+default = []
+# Adds a `TokioExecutor` that can run on the ambient or a dedicated runtime.
+tokio = ["dep:tokio"]
+
+[dependencies.tokio]
+version = "1"
+features = ["rt", "sync", "time"]
+optional = true
