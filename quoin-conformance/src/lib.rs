@@ -198,6 +198,67 @@ pub mod tests {
         assert!(flag.load(Ordering::SeqCst));
     }
 
+    /// Verify `JoinHandle::abort` cancels the spawned task and that awaiting
+    /// an aborted task yields `Err(Canceled)` instead of a result.
+    pub async fn executor_abort_cancels_task<C>(cx: &C)
+    where
+        C: ReactiveContext,
+        C::Executor: SleepExt + Clone,
+        <<C as ReactiveContext>::Executor as Executor>::JoinHandle<()>:
+            std::future::IntoFuture<Output = Result<(), futures::channel::oneshot::Canceled>>,
+    {
+        let executor = cx.executor();
+        let flag = Arc::new(AtomicBool::new(false));
+        let flag_clone = flag.clone();
+        let task_executor = executor.clone();
+
+        let handle = executor.spawn(async move {
+            task_executor.sleep(Duration::from_secs(60)).await;
+            flag_clone.store(true, Ordering::SeqCst);
+        });
+
+        // Give the task a moment to start, then abort it.
+        executor.sleep(Duration::from_millis(50)).await;
+        handle.abort();
+
+        let result = handle.await;
+        assert!(
+            result.is_err(),
+            "awaiting an aborted task must resolve with Err(Canceled)"
+        );
+        assert!(
+            !flag.load(Ordering::SeqCst),
+            "aborted task body must not have run to completion"
+        );
+    }
+
+    /// Verify `JoinHandle::detach` lets a task run to completion even though
+    /// the handle is gone.
+    pub async fn executor_detach_lets_task_finish<C>(cx: &C)
+    where
+        C: ReactiveContext,
+        C::Executor: SleepExt + Clone,
+        <<C as ReactiveContext>::Executor as Executor>::JoinHandle<()>:
+            std::future::IntoFuture<Output = Result<(), futures::channel::oneshot::Canceled>>,
+    {
+        let executor = cx.executor();
+        let flag = Arc::new(AtomicBool::new(false));
+        let flag_clone = flag.clone();
+        let task_executor = executor.clone();
+
+        let handle = executor.spawn(async move {
+            task_executor.sleep(Duration::from_millis(30)).await;
+            flag_clone.store(true, Ordering::SeqCst);
+        });
+
+        handle.detach();
+        executor.sleep(Duration::from_millis(300)).await;
+        assert!(
+            flag.load(Ordering::SeqCst),
+            "detached task must run to completion"
+        );
+    }
+
     pub async fn reactive_context_is_clone_send_sync<C>(_cx: &C)
     where
         C: ReactiveContext + Clone + Send + Sync,
@@ -331,6 +392,18 @@ macro_rules! define_conformance_tests {
         }
 
         #[test]
+        fn test_executor_abort_cancels_task() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(executor_abort_cancels_task(&cx));
+        }
+
+        #[test]
+        fn test_executor_detach_lets_task_finish() {
+            let cx = <$cx_type>::setup_context();
+            <$cx_type>::block_on(executor_detach_lets_task_finish(&cx));
+        }
+
+        #[test]
         fn test_reactive_context_is_clone_send_sync() {
             let cx = <$cx_type>::setup_context();
             <$cx_type>::block_on(reactive_context_is_clone_send_sync(&cx));
@@ -436,6 +509,18 @@ macro_rules! define_conformance_tests {
         async fn test_cancellation_token_cooperative(cx: &mut TestAppContext) {
             let harness = <$cx_type>::new(cx);
             cancellation_token_cooperative(&harness).await;
+        }
+
+        #[gpui::test]
+        async fn test_executor_abort_cancels_task(cx: &mut TestAppContext) {
+            let harness = <$cx_type>::new(cx);
+            executor_abort_cancels_task(&harness).await;
+        }
+
+        #[gpui::test]
+        async fn test_executor_detach_lets_task_finish(cx: &mut TestAppContext) {
+            let harness = <$cx_type>::new(cx);
+            executor_detach_lets_task_finish(&harness).await;
         }
 
         #[gpui::test]
