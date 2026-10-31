@@ -37,12 +37,15 @@
 //!   within the same expression.
 //! - Signals are **not** thread-safe. Do not send `DioxusSignal` across threads.
 //!
-//! # Executor Limitations
+//! # Async Executor
 //!
-//! Like the Leptos adapter, `DioxusExecutor` uses `std::thread` + `block_on`.
-//! Dioxus has its own async runtime (`dioxus::prelude::spawn`), but it is not
-//! exposed as a standalone spawner. For background I/O, spawn via Dioxus's
-//! mechanisms and store results in signals.
+//! `DioxusExecutor` runs futures on dedicated worker threads on native
+//! targets (desktop) and on the main thread via `wasm_bindgen_futures` on
+//! `wasm32` (web). Every spawned future is wrapped in
+//! `futures::future::Abortable`, so `JoinHandle::abort` stops it at its
+//! next suspension point and dropping the handle cancels it. For UI-bound
+//! work that must mutate signals directly, prefer spawning through Dioxus's
+//! own `spawn` inside components.
 //!
 //! # Global State (Scope-Based)
 //!
@@ -125,7 +128,13 @@ impl<T: Clone + 'static> QuoinSignal<T> for DioxusSignal<T> {
     }
 }
 
-// Executor (unchanged)
+/// Dioxus async executor.
+///
+/// On native targets futures run on dedicated worker threads via
+/// `futures::executor::block_on`; on `wasm32` they run on the browser's main
+/// thread via `wasm_bindgen_futures::spawn_local`. In both cases the future is
+/// wrapped in `futures::future::Abortable`, so `JoinHandle::abort` stops it at
+/// its next suspension point.
 #[derive(Clone)]
 pub struct DioxusExecutor;
 
@@ -138,82 +147,73 @@ impl Executor for DioxusExecutor {
         F::Output: Send + 'static,
     {
         let (tx, rx) = futures::channel::oneshot::channel();
+        let (abort_handle, abort_registration) = futures::future::AbortHandle::new_pair();
 
-        std::thread::spawn(move || {
-            let result = futures::executor::block_on(future);
-            let _ = tx.send(result);
-        });
+        #[cfg(target_arch = "wasm32")]
+        {
+            wasm_bindgen_futures::spawn_local(async move {
+                if let Ok(result) =
+                    futures::future::Abortable::new(future, abort_registration).await
+                {
+                    let _ = tx.send(result);
+                }
+            });
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            std::thread::spawn(move || {
+                if let Ok(result) = futures::executor::block_on(futures::future::Abortable::new(
+                    future,
+                    abort_registration,
+                )) {
+                    let _ = tx.send(result);
+                }
+            });
+        }
 
-        DioxusJoinHandle { rx: Some(rx) }
+        DioxusJoinHandle {
+            abort: abort_handle,
+            rx: Some(rx),
+            detached: std::sync::atomic::AtomicBool::new(false),
+        }
     }
 }
 
+/// A handle to a task spawned by [`DioxusExecutor`].
+///
+/// Awaiting resolves with the task's result, or `Err(Canceled)` if the task
+/// was aborted. Dropping the handle without detaching cancels the task.
 pub struct DioxusJoinHandle<T> {
+    abort: futures::future::AbortHandle,
     rx: Option<futures::channel::oneshot::Receiver<T>>,
+    detached: std::sync::atomic::AtomicBool,
 }
 
 impl<T: Send + 'static> JoinHandle<T> for DioxusJoinHandle<T> {
     /// Abort the spawned task.
     ///
-    /// # Limitations
-    ///
-    /// This is currently a **no-op**. The spawned thread runs to completion
-    /// regardless of whether `abort()` is called. This is because:
-    ///
-    /// - The task runs on a dedicated `std::thread` with no cancellation token.
-    /// - There is no built-in mechanism to interrupt a blocked `futures::executor::block_on`.
-    ///
-    /// If you need cancellation support, consider:
-    /// - Using a `CancellationToken` pattern inside your future.
-    /// - Switching to a tokio-based executor with proper task cancellation.
-    ///
-    /// This limitation will be addressed in a future version.
-    /// Abort the spawned task.
-    ///
-    /// # Limitations
-    ///
-    /// This is currently a **no-op**. The spawned thread runs to completion
-    /// regardless of whether `abort()` is called. This is because:
-    ///
-    /// - The task runs on a dedicated `std::thread` with no cancellation token.
-    /// - There is no built-in mechanism to interrupt a blocked `futures::executor::block_on`.
-    ///
-    /// If you need cancellation support, consider:
-    /// - Using a `CancellationToken` pattern inside your future.
-    /// - Switching to a tokio-based executor with proper task cancellation.
-    ///
-    /// This limitation will be addressed in a future version.
-    /// Abort the spawned task.
-    ///
-    /// # Limitations
-    ///
-    /// This is currently a **no-op**. The spawned thread runs to completion
-    /// regardless of whether `abort()` is called. This is because:
-    ///
-    /// - The task runs on a dedicated `std::thread` with no cancellation token.
-    /// - There is no built-in mechanism to interrupt a blocked `futures::executor::block_on`.
-    ///
-    /// If you need cancellation support, consider:
-    /// - Using a `CancellationToken` pattern inside your future.
-    /// - Switching to a tokio-based executor with proper task cancellation.
-    ///
-    /// This limitation will be addressed in a future version.
-    /// Abort the spawned task.
-    ///
-    /// # Limitations
-    ///
-    /// This is currently a **no-op**. The spawned thread runs to completion
-    /// regardless of whether `abort()` is called. This is because:
-    ///
-    /// - The task runs on a dedicated `std::thread` with no cancellation token.
-    /// - There is no built-in mechanism to interrupt a blocked `futures::executor::block_on`.
-    ///
-    /// If you need cancellation support, consider:
-    /// - Using a `CancellationToken` pattern inside your future.
-    /// - Switching to a tokio-based executor with proper task cancellation.
-    ///
-    /// This limitation will be addressed in a future version.
-    fn abort(&self) {}
+    /// Cancellation is cooperative: the wrapped future stops at its next
+    /// suspension point.
+    fn abort(&self) {
+        self.abort.abort();
+    }
+
+    /// Detach the task so it runs to completion even if this handle is
+    /// dropped. The task's result is discarded.
+    fn detach(self) {
+        self.detached
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+impl<T> Drop for DioxusJoinHandle<T> {
+    fn drop(&mut self) {
+        // Structured concurrency: dropping the handle without awaiting or
+        // detaching cancels the task.
+        if !self.detached.load(std::sync::atomic::Ordering::SeqCst) {
+            self.abort.abort();
+        }
+    }
 }
 
 impl<T: Send + 'static> std::future::IntoFuture for DioxusJoinHandle<T> {
@@ -223,26 +223,14 @@ impl<T: Send + 'static> std::future::IntoFuture for DioxusJoinHandle<T> {
     fn into_future(mut self) -> Self::IntoFuture {
         Box::pin(async move {
             if let Some(rx) = self.rx.take() {
+                // drop-after-await must not abort the task.
+                self.detached
+                    .store(true, std::sync::atomic::Ordering::SeqCst);
                 rx.await
             } else {
-                unreachable!("Receiver should be set")
+                Err(futures::channel::oneshot::Canceled)
             }
         })
-    }
-}
-
-/// Write text to the system clipboard (Web/WASM only).
-///
-/// Falls back silently if the clipboard API is unavailable (e.g., desktop mode).
-/// This function is called by the `clipboard_button` element in `quoin_render!`.
-pub fn clipboard_write_text(text: &str) {
-    #[cfg(target_arch = "wasm32")]
-    {
-        let _ = web_sys::window().and_then(|w| w.navigator().clipboard().write_text(text).ok());
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        let _ = text;
     }
 }
 
