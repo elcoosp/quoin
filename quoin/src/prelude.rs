@@ -8,7 +8,11 @@
 //! and the declarative macros — all in one line.
 
 // Core traits — always available
-pub use quoin_core::{CancellationToken, Executor, ReactiveContext, Signal};
+pub use quoin_core::{
+    CancelGuard, CancellationToken, Cancelled, CancelledFuture, Derived, Executor, ExecutorExt,
+    JoinHandle, LocalExecutor, LocalJoinHandle, ReactiveContext, ReactiveContextExt, Resource,
+    ResourceState, RunUntilCancelled, Signal, SignalExt, batch, derived,
+};
 
 // Active framework adapter — exactly one at a time
 #[cfg(feature = "gpui")]
