@@ -28,6 +28,10 @@ quoin-macros    = { path = "../quoin-macros",    optional = true }
 quoin-ui        = { path = "../quoin-ui",        optional = true }
 quoin-ui-gpui   = { path = "../quoin-ui-gpui",   optional = true }
 
+# Testing & devtools (optional)
+quoin-testkit   = { path = "../quoin-testkit",   optional = true }
+quoin-devtools  = { path = "../quoin-devtools",  optional = true }
+
 gpui = { git = "https://github.com/zed-industries/zed", optional = true }
 [features]
 default = []
@@ -38,6 +42,9 @@ xilem  = ["dep:quoin-xilem"]
 floem  = ["dep:quoin-floem"]
 macros = ["dep:quoin-macros"]
 ui     = ["dep:quoin-ui"]
+# Testing & devtools re-exports
+testkit   = ["dep:quoin-testkit"]
+devtools  = ["dep:quoin-devtools"]
 
 # shadcn component backing — use together with the framework feature.
 # e.g. features = ["leptos", "leptos-shadcn"]
