@@ -38,17 +38,13 @@
 //!   `LeptosExecutor` spawns work on background threads that communicate results
 //!   back via channels (not via signal mutations).
 //!
-//! # Executor Limitations
+//! # Async Executor
 //!
-//! The current `LeptosExecutor` spawns futures on `std::thread` with
-//! `futures::executor::block_on`. This is a **blocking** executor — it does not
-//! use Leptos's `spawn_local` or `tokio` runtime. For production use with async
-//! I/O, you should:
-//!
-//! 1. Create your own tokio/runtime and spawn via `leptos::task::spawn_local`.
-//! 2. Use the signal only for storing the final result.
-//!
-//! This will be improved in a future version.
+//! `LeptosExecutor` runs futures on dedicated worker threads on native
+//! targets (SSR) and on the main thread via `wasm_bindgen_futures` on
+//! `wasm32` (CSR). Every spawned future is wrapped in
+//! `futures::future::Abortable`, so `JoinHandle::abort` stops it at its
+//! next suspension point and dropping the handle cancels it.
 //!
 //! # Global State (Reactive Owner Tree)
 //!
@@ -136,6 +132,13 @@ impl<T: Clone + 'static> QuoinSignal<T> for LeptosSignal<T> {
 }
 
 #[derive(Clone)]
+/// Leptos async executor.
+///
+/// On native targets (SSR) futures run on dedicated worker threads via
+/// `futures::executor::block_on`; on `wasm32` they run on the browser's main
+/// thread via `wasm_bindgen_futures::spawn_local`. In both cases the future is
+/// wrapped in [`futures::future::Abortable`], so [`abort`](JoinHandle::abort)
+/// stops it at its next suspension point.
 pub struct LeptosExecutor;
 
 impl Executor for LeptosExecutor {
@@ -147,37 +150,74 @@ impl Executor for LeptosExecutor {
         F::Output: Send + 'static,
     {
         let (tx, rx) = futures::channel::oneshot::channel();
+        let (abort_handle, abort_registration) = futures::future::AbortHandle::new_pair();
 
-        std::thread::spawn(move || {
-            let result = futures::executor::block_on(future);
-            let _ = tx.send(result);
-        });
+        #[cfg(target_arch = "wasm32")]
+        {
+            wasm_bindgen_futures::spawn_local(async move {
+                if let Ok(result) =
+                    futures::future::Abortable::new(future, abort_registration).await
+                {
+                    let _ = tx.send(result);
+                }
+            });
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            std::thread::spawn(move || {
+                if let Ok(result) = futures::executor::block_on(futures::future::Abortable::new(
+                    future,
+                    abort_registration,
+                )) {
+                    let _ = tx.send(result);
+                }
+            });
+        }
 
-        LeptosJoinHandle { rx: Some(rx) }
+        LeptosJoinHandle {
+            abort: abort_handle,
+            rx: Some(rx),
+            detached: std::sync::atomic::AtomicBool::new(false),
+        }
     }
 }
 
+/// A handle to a task spawned by [`LeptosExecutor`].
+///
+/// Awaiting resolves with the task's result, or `Err(Canceled)` if the task
+/// was aborted. Dropping the handle without detaching cancels the task.
 pub struct LeptosJoinHandle<T> {
+    abort: futures::future::AbortHandle,
     rx: Option<futures::channel::oneshot::Receiver<T>>,
+    detached: std::sync::atomic::AtomicBool,
 }
 
 impl<T: Send + 'static> JoinHandle<T> for LeptosJoinHandle<T> {
     /// Abort the spawned task.
     ///
-    /// # Limitations
-    ///
-    /// This is currently a **no-op**. The spawned thread runs to completion
-    /// regardless of whether `abort()` is called. This is because:
-    ///
-    /// - The task runs on a dedicated `std::thread` with no cancellation token.
-    /// - There is no built-in mechanism to interrupt a blocked `futures::executor::block_on`.
-    ///
-    /// If you need cancellation support, consider:
-    /// - Using a `CancellationToken` pattern inside your future.
-    /// - Switching to a tokio-based executor with proper task cancellation.
-    ///
-    /// This limitation will be addressed in a future version.
-    fn abort(&self) {}
+    /// Cancellation is cooperative: the wrapped future stops at its next
+    /// suspension point. The worker thread (native) or the spawned local task
+    /// (wasm) then completes without producing a result.
+    fn abort(&self) {
+        self.abort.abort();
+    }
+
+    /// Detach the task so it runs to completion even if this handle is
+    /// dropped. The task's result is discarded.
+    fn detach(self) {
+        self.detached
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+impl<T> Drop for LeptosJoinHandle<T> {
+    fn drop(&mut self) {
+        // Structured concurrency: dropping the handle without awaiting or
+        // detaching cancels the task.
+        if !self.detached.load(std::sync::atomic::Ordering::SeqCst) {
+            self.abort.abort();
+        }
+    }
 }
 
 impl<T: Send + 'static> std::future::IntoFuture for LeptosJoinHandle<T> {
@@ -187,9 +227,12 @@ impl<T: Send + 'static> std::future::IntoFuture for LeptosJoinHandle<T> {
     fn into_future(mut self) -> Self::IntoFuture {
         Box::pin(async move {
             if let Some(rx) = self.rx.take() {
+                // drop-after-await must not abort the task.
+                self.detached
+                    .store(true, std::sync::atomic::Ordering::SeqCst);
                 rx.await
             } else {
-                unreachable!("Receiver should be set")
+                Err(futures::channel::oneshot::Canceled)
             }
         })
     }
