@@ -44,6 +44,9 @@ impl WaiterNode {
 struct Inner {
     cancelled: std::sync::atomic::AtomicBool,
     waiters: Mutex<Vec<Weak<WaiterNode>>>,
+    /// Child tokens created via [`CancellationToken::child_token`]. Cancelled
+    /// transitively when this token is cancelled.
+    children: Mutex<Vec<Weak<Inner>>>,
 }
 
 impl Inner {
@@ -51,22 +54,36 @@ impl Inner {
         Self {
             cancelled: std::sync::atomic::AtomicBool::new(false),
             waiters: Mutex::new(Vec::new()),
+            children: Mutex::new(Vec::new()),
         }
     }
 
-    fn cancel(&self) {
-        self.cancelled
-            .store(true, std::sync::atomic::Ordering::SeqCst);
+    fn cancel(self: &Arc<Self>) {
+        if self
+            .cancelled
+            .swap(true, std::sync::atomic::Ordering::AcqRel)
+        {
+            // Already cancelled: avoid double-waking and cascading twice.
+            return;
+        }
+        // Wake local waiters.
         let waiters = std::mem::take(&mut *self.waiters.lock().unwrap());
         for waiter in waiters {
             if let Some(node) = waiter.upgrade() {
                 node.wake();
             }
         }
+        // Cascade to children (each child.cancel propagates further down).
+        let children = std::mem::take(&mut *self.children.lock().unwrap());
+        for child in children {
+            if let Some(child) = child.upgrade() {
+                child.cancel();
+            }
+        }
     }
 
     fn is_cancelled(&self) -> bool {
-        self.cancelled.load(std::sync::atomic::Ordering::SeqCst)
+        self.cancelled.load(std::sync::atomic::Ordering::Acquire)
     }
 
     /// Registers a new waiter node, pruning entries of futures that were
@@ -75,6 +92,13 @@ impl Inner {
         let mut waiters = self.waiters.lock().unwrap();
         waiters.retain(|weak| weak.strong_count() > 0);
         waiters.push(Arc::downgrade(node));
+    }
+
+    /// Registers a child token, pruning dropped children.
+    fn register_child(self: &Arc<Self>, child: &Arc<Inner>) {
+        let mut children = self.children.lock().unwrap();
+        children.retain(|weak| weak.strong_count() > 0);
+        children.push(Arc::downgrade(child));
     }
 }
 
@@ -174,6 +198,118 @@ impl CancellationToken {
         self.inner.is_cancelled()
     }
 
+    /// Creates a child token that is cancelled either on its own or when
+    /// `self` is cancelled.
+    ///
+    /// Children form a tree: cancelling a parent cancels all descendants
+    /// transitively, while a child (or any of its own children) can still be
+    /// cancelled independently. Dropped children are pruned from the parent,
+    /// so creating per-request child tokens does not leak.
+    ///
+    /// This is the standard pattern for scoped async work — e.g. one child
+    /// per in-flight network request, all cancelled together when the view
+    /// unmounts.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use quoin_core::CancellationToken;
+    ///
+    /// let parent = CancellationToken::new();
+    /// let child = parent.child_token();
+    /// assert!(!child.is_cancelled());
+    ///
+    /// parent.cancel();
+    /// assert!(child.is_cancelled(), "cancelling the parent cascades");
+    /// ```
+    #[must_use]
+    pub fn child_token(&self) -> Self {
+        let child_inner = Arc::new(Inner::new());
+        self.inner.register_child(&child_inner);
+        Self { inner: child_inner }
+    }
+
+    /// Returns a future that resolves when the token is cancelled,
+    /// **consuming** the token so the future is `'static`.
+    ///
+    /// Use this when the waiting task needs to own its cancellation future
+    /// (e.g. `tokio::select!` branches, or storing the future in a struct).
+    /// The borrowed variant [`cancelled`](Self::cancelled) remains available
+    /// for `&self` usage.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use quoin_core::CancellationToken;
+    ///
+    /// # futures::executor::block_on(async {
+    /// let token = CancellationToken::new();
+    /// token.cancel();
+    /// token.into_cancelled().await; // resolves immediately
+    /// # });
+    /// ```
+    #[must_use]
+    pub fn into_cancelled(self) -> CancelledFuture {
+        CancelledFuture {
+            token: self,
+            waiter: None,
+        }
+    }
+
+    /// Returns an RAII guard that cancels the token when dropped.
+    ///
+    /// Useful for scope-bound cleanup: whatever the guard protects is torn
+    /// down at the end of the block, even on early return or panic.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use quoin_core::CancellationToken;
+    ///
+    /// let token = CancellationToken::new();
+    /// {
+    ///     let _guard = token.guard();
+    ///     assert!(!token.is_cancelled());
+    /// }
+    /// assert!(token.is_cancelled(), "guard cancelled the token on drop");
+    /// ```
+    #[must_use]
+    pub fn guard(&self) -> CancelGuard {
+        CancelGuard {
+            token: self.clone(),
+        }
+    }
+
+    /// Races `future` against cancellation.
+    ///
+    /// Resolves with `Some(output)` when the future completes first, or
+    /// `None` when the token is cancelled first. The future is dropped
+    /// (and thus stopped) if it loses the race.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use quoin_core::CancellationToken;
+    /// # futures::executor::block_on(async {
+    /// let token = CancellationToken::new();
+    /// let value = token.run_until_cancelled(async { 21 * 2 }).await;
+    /// assert_eq!(value, Some(42));
+    ///
+    /// token.cancel();
+    /// let aborted: Option<std::convert::Infallible> =
+    ///     token.run_until_cancelled(std::future::pending()).await;
+    /// assert_eq!(aborted, None);
+    /// # });
+    /// ```
+    #[must_use]
+    pub fn run_until_cancelled<F: Future>(&self, future: F) -> RunUntilCancelled<'_, F> {
+        RunUntilCancelled {
+            token: self,
+            future: Box::pin(future),
+            cancelled: None,
+        }
+    }
+
     /// Returns a future that resolves when the token is cancelled.
     ///
     /// If the token is already cancelled, the future resolves immediately.
@@ -238,6 +374,88 @@ impl Future for Cancelled<'_> {
     }
 }
 
+/// Owned variant of [`Cancelled`]: resolves when the token is cancelled and
+/// holds the token itself, so it is `'static`.
+///
+/// Created by [`CancellationToken::into_cancelled`].
+pub struct CancelledFuture {
+    token: CancellationToken,
+    waiter: Option<Arc<WaiterNode>>,
+}
+
+impl Future for CancelledFuture {
+    type Output = ();
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        if self.token.is_cancelled() {
+            self.waiter = None;
+            return Poll::Ready(());
+        }
+        if let Some(node) = &self.waiter {
+            node.update_waker(cx.waker());
+        } else {
+            let node = Arc::new(WaiterNode::new(cx.waker()));
+            self.token.inner.register(&node);
+            self.waiter = Some(node);
+        }
+        Poll::Pending
+    }
+}
+
+/// RAII guard created by [`CancellationToken::guard`]: cancels the token when
+/// dropped.
+pub struct CancelGuard {
+    token: CancellationToken,
+}
+
+impl std::fmt::Debug for CancelGuard {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CancelGuard").finish_non_exhaustive()
+    }
+}
+
+impl Drop for CancelGuard {
+    fn drop(&mut self) {
+        self.token.cancel();
+    }
+}
+
+/// Future returned by [`CancellationToken::run_until_cancelled`].
+///
+/// Resolves with `Some(output)` when the wrapped future finishes first, or
+/// `None` when cancellation wins.
+pub struct RunUntilCancelled<'a, F> {
+    token: &'a CancellationToken,
+    /// Boxed so the combinator works with `!Unpin` futures (compiler
+    /// `async` blocks, timers, …) without requiring `unsafe` projection.
+    future: Pin<Box<F>>,
+    /// Lazily created on first poll so an already-cancelled token never
+    /// allocates a waiter.
+    cancelled: Option<Cancelled<'a>>,
+}
+
+impl<F: Future> Future for RunUntilCancelled<'_, F> {
+    type Output = Option<F::Output>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = &mut *self;
+        match this.future.as_mut().poll(cx) {
+            Poll::Ready(output) => return Poll::Ready(Some(output)),
+            Poll::Pending => {}
+        }
+        if this.token.is_cancelled() {
+            return Poll::Ready(None);
+        }
+        if this.cancelled.is_none() {
+            this.cancelled = Some(this.token.cancelled());
+        }
+        if let Poll::Ready(()) = Pin::new(this.cancelled.as_mut().expect("just set")).poll(cx) {
+            return Poll::Ready(None);
+        }
+        Poll::Pending
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -281,6 +499,117 @@ mod tests {
 
         token.cancelled().await;
         handle.await.unwrap();
+        assert!(token.is_cancelled());
+    }
+
+    #[test]
+    fn child_token_cancels_with_parent() {
+        let parent = CancellationToken::new();
+        let child = parent.child_token();
+        let grandchild = child.child_token();
+
+        assert!(!parent.is_cancelled());
+        assert!(!child.is_cancelled());
+        assert!(!grandchild.is_cancelled());
+
+        child.cancel();
+        assert!(child.is_cancelled());
+        assert!(grandchild.is_cancelled(), "cancel cascades downward");
+        assert!(!parent.is_cancelled(), "cancel must not propagate upward");
+
+        parent.cancel();
+        assert!(parent.is_cancelled());
+    }
+
+    #[test]
+    fn parent_cancel_cascades_to_all_children() {
+        let parent = CancellationToken::new();
+        let children: Vec<_> = (0..5).map(|_| parent.child_token()).collect();
+        parent.cancel();
+        for child in &children {
+            assert!(child.is_cancelled());
+        }
+    }
+
+    #[test]
+    fn dropped_children_are_pruned() {
+        let parent = CancellationToken::new();
+        {
+            let _child = parent.child_token();
+        }
+        // Creating one more child triggers the prune of the dropped one; the
+        // registry must not grow unboundedly.
+        for _ in 0..10 {
+            let _ = parent.child_token();
+        }
+        assert_eq!(parent.inner.children.lock().unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn into_cancelled_resolves_when_cancelled() {
+        let token = CancellationToken::new();
+        let clone = token.clone();
+        let fut = token.into_cancelled();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+            clone.cancel();
+        });
+        fut.await;
+    }
+
+    #[tokio::test]
+    async fn into_cancelled_immediate() {
+        let token = CancellationToken::new();
+        token.cancel();
+        token.into_cancelled().await;
+    }
+
+    #[test]
+    fn cancel_guard_cancels_on_drop() {
+        let token = CancellationToken::new();
+        {
+            let _guard = token.guard();
+            assert!(!token.is_cancelled());
+        }
+        assert!(token.is_cancelled());
+    }
+
+    #[tokio::test]
+    async fn run_until_cancelled_completes_first() {
+        let token = CancellationToken::new();
+        let value = token.run_until_cancelled(async { 42u32 }).await;
+        assert_eq!(value, Some(42));
+    }
+
+    #[tokio::test]
+    async fn run_until_cancelled_loses_to_cancellation() {
+        let token = CancellationToken::new();
+        let clone = token.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+            clone.cancel();
+        });
+        let result: Option<std::convert::Infallible> =
+            token.run_until_cancelled(std::future::pending()).await;
+        assert_eq!(result, None);
+    }
+
+    #[tokio::test]
+    async fn run_until_cancelled_with_already_cancelled_token() {
+        let token = CancellationToken::new();
+        token.cancel();
+        let result: Option<std::convert::Infallible> =
+            token.run_until_cancelled(std::future::pending()).await;
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn double_cancel_is_idempotent() {
+        let token = CancellationToken::new();
+        let child = token.child_token();
+        token.cancel();
+        token.cancel();
+        assert!(child.is_cancelled());
         assert!(token.is_cancelled());
     }
 
