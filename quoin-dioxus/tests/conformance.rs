@@ -32,7 +32,7 @@ impl Executor for TestExecutor {
 
 thread_local! {
     static TEST_VDOM: std::cell::RefCell<Option<&'static VirtualDom>> =
-        std::cell::RefCell::new(None);
+        const { std::cell::RefCell::new(None) };
 }
 
 struct TestHarness {
