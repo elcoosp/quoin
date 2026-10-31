@@ -25,6 +25,25 @@ test-quoin:
 test-quoin-macros:
     cargo nextest run -p quoin-macros-core --no-tests pass
 
+# Testing & devtools crates
+test-quoin-testkit:
+    cargo nextest run -p quoin-testkit
+
+test-quoin-devtools:
+    cargo nextest run -p quoin-devtools
+
+# Headless e2e examples (todo store, async resource flows, devtools session)
+test-headless-examples:
+    cargo nextest run -p todo-core -p fetch-core -p devtools-demo
+
+# Micro-benchmarks for the core primitives (release profile)
+bench-core:
+    cargo run --release -p quoin-core --example bench
+
+# Headless devtools demo with tracing enabled
+trace-demo:
+    QUOIN_TRACE=1 cargo run -p devtools-demo
+
 # Run UI macro expansion tests (trybuild) for quoin-macros-tests
 test-quoin-macros-gpui:
     cargo nextest run -p quoin-macros-tests --features gpui
@@ -133,7 +152,7 @@ fmt:
 
 # Clippy for the framework-free crates (no GPUI system deps needed).
 lint-core:
-    cargo clippy --all-targets -p quoin-core -p quoin-macros-core -p quoin-macros -p quoin-ui -p quoin-conformance -- -D warnings
+    cargo clippy --all-targets -p quoin-core -p quoin-macros-core -p quoin-macros -p quoin-ui -p quoin-conformance -p quoin-testkit -p quoin-devtools -- -D warnings
 
 # Clippy for the GPUI adapter crates (requires GPUI system libraries).
 lint-gpui:
@@ -223,6 +242,7 @@ build-examples:
     cargo build --manifest-path examples/ucp-lib/Cargo.toml --features gpui
     cargo build --manifest-path examples/ucp-lib/Cargo.toml --features leptos
     cargo build --manifest-path examples/ucp-lib/Cargo.toml --features dioxus
+    cargo build -p todo-core -p fetch-core -p devtools-demo --all-targets
     @echo "Note: ucp-demo-leptos-shadcn requires shadcn deps — check crate availability"
     @echo "All examples build OK"
 
