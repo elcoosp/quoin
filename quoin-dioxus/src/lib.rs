@@ -47,15 +47,24 @@
 //! work that must mutate signals directly, prefer spawning through Dioxus's
 //! own `spawn` inside components.
 //!
-//! # Global State (Scope-Based)
+//! # Global State (Scope-Based, Shared)
 //!
-//! `provide_global` calls Dioxus's `provide_context`. `use_global` calls
-//! `try_consume_context`.
+//! `provide_global` provides a Dioxus `Signal<T>` (not the raw value);
+//! `use_global` consumes it via `try_consume_context` and wraps it in a
+//! `DioxusSignal`. Consequences:
 //!
 //! - Globals are scoped to the Dioxus component scope (`ScopeId`).
+//! - **Shared semantics**: mutations through any consumer's signal are
+//!   visible to all consumers and trigger Dioxus re-renders — matching the
+//!   Leptos adapter (and the rest of the workspace since the globals were
+//!   unified).
 //! - `try_consume_context` is used (rather than `consume_context`) to avoid
 //!   removing the context on first access, allowing multiple consumers.
 //! - Cleaned up when the scope is released.
+//!
+//! The adapter also implements [`quoin_core::LocalExecutor`]: `spawn_local`
+//! runs `!Send` futures on the browser main thread (wasm) or queues them on
+//! the current thread (native).
 
 use dioxus::prelude::*;
 use quoin_core::{Executor, JoinHandle, ReactiveContext, Signal as QuoinSignal};
@@ -94,12 +103,18 @@ impl ReactiveContext for DioxusContext {
     }
 
     fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T) {
-        dioxus::prelude::provide_context(value);
+        // Provide a Dioxus signal (not the raw value) so every consumer
+        // shares the same reactive cell: mutations through one consumer's
+        // `use_global` signal are visible to all of them. This matches the
+        // Leptos adapter's semantics (globals are shared, never copied).
+        dioxus::prelude::provide_context(dioxus::prelude::Signal::new(value));
     }
 
     fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>> {
-        dioxus::prelude::try_consume_context::<T>().map(|v| DioxusSignal {
-            inner: RefCell::new(Signal::new(v)),
+        dioxus::prelude::try_consume_context::<dioxus::prelude::Signal<T>>().map(|sig| {
+            DioxusSignal {
+                inner: RefCell::new(sig),
+            }
         })
     }
 }
@@ -161,11 +176,11 @@ impl Executor for DioxusExecutor {
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
-            std::thread::spawn(move || {
-                if let Ok(result) = futures::executor::block_on(futures::future::Abortable::new(
-                    future,
-                    abort_registration,
-                )) {
+            // Shared growable worker pool instead of one OS thread per task.
+            quoin_core::pool::spawn_pooled(async move {
+                if let Ok(result) =
+                    futures::future::Abortable::new(future, abort_registration).await
+                {
                     let _ = tx.send(result);
                 }
             });
@@ -231,6 +246,21 @@ impl<T: Send + 'static> std::future::IntoFuture for DioxusJoinHandle<T> {
                 Err(futures::channel::oneshot::Canceled)
             }
         })
+    }
+}
+
+impl quoin_core::LocalExecutor for DioxusExecutor {
+    type JoinHandle<T: 'static> = quoin_core::LocalTask<T>;
+
+    fn spawn_local<F>(&self, future: F) -> Self::JoinHandle<F::Output>
+    where
+        F: std::future::Future + 'static,
+        F::Output: 'static,
+    {
+        // On wasm the task runs on the browser main thread; on native it is
+        // queued on the current thread (drive with
+        // `quoin_core::local::run_local_tasks()`).
+        quoin_core::spawn_local_task(future)
     }
 }
 
