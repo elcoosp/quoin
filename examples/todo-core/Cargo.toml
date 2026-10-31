@@ -1,0 +1,12 @@
+[package]
+name = "todo-core"
+version = "0.1.0"
+edition.workspace = true
+publish = false
+description = "Framework-agnostic todo app store: a complete, e2e-tested quoin example"
+
+[dependencies]
+quoin-core = { path = "../../quoin-core" }
+
+[dev-dependencies]
+quoin-testkit = { path = "../../quoin-testkit" }
