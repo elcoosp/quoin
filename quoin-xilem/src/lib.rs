@@ -105,7 +105,8 @@ impl XilemContext {
         *self.update_notifier.lock().unwrap() = Some(Arc::new(notifier));
     }
 
-    fn request_update(&self) {
+    /// Invoke the update notifier, if one is registered.
+    fn notify_update(&self) {
         if let Some(notifier) = self.update_notifier.lock().unwrap().as_ref() {
             notifier();
         }
@@ -130,7 +131,10 @@ impl ReactiveContext for XilemContext {
     }
 
     fn request_update(&self) {
-        self.request_update();
+        // Explicitly call the inherent method: a bare `self.request_update()`
+        // would recurse into this trait method if the inherent one were ever
+        // removed, and method resolution silently prefers the inherent method.
+        Self::notify_update(self);
     }
 
     fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T) {
@@ -207,6 +211,7 @@ impl Executor for XilemExecutor {
         XilemJoinHandle {
             handle: Some(handle),
             rx: Some(rx),
+            detached: std::sync::atomic::AtomicBool::new(false),
         }
     }
 }
@@ -214,13 +219,26 @@ impl Executor for XilemExecutor {
 pub struct XilemJoinHandle<T> {
     handle: Option<tokio::task::JoinHandle<()>>,
     rx: Option<futures::channel::oneshot::Receiver<T>>,
+    detached: std::sync::atomic::AtomicBool,
 }
 
 impl<T: Send + 'static> JoinHandle<T> for XilemJoinHandle<T> {
+    /// Abort the spawned task.
+    ///
+    /// Uses tokio's native task cancellation: the future stops at its next
+    /// suspension point. Any await of this handle then resolves with
+    /// `Err(Canceled)`.
     fn abort(&self) {
         if let Some(handle) = &self.handle {
             handle.abort();
         }
+    }
+
+    /// Detach the task so it runs to completion even if this handle is
+    /// dropped. The task's result is discarded.
+    fn detach(self) {
+        self.detached
+            .store(true, std::sync::atomic::Ordering::SeqCst);
     }
 }
 
@@ -231,9 +249,12 @@ impl<T: Send + 'static> std::future::IntoFuture for XilemJoinHandle<T> {
     fn into_future(mut self) -> Self::IntoFuture {
         Box::pin(async move {
             if let Some(rx) = self.rx.take() {
+                // drop-after-await must not abort the task.
+                self.detached
+                    .store(true, std::sync::atomic::Ordering::SeqCst);
                 rx.await
             } else {
-                unreachable!("Receiver should be set")
+                Err(futures::channel::oneshot::Canceled)
             }
         })
     }
@@ -241,7 +262,11 @@ impl<T: Send + 'static> std::future::IntoFuture for XilemJoinHandle<T> {
 
 impl<T> Drop for XilemJoinHandle<T> {
     fn drop(&mut self) {
-        if let Some(handle) = self.handle.take() {
+        // Structured concurrency: dropping the handle without awaiting or
+        // detaching cancels the underlying tokio task.
+        if !self.detached.load(std::sync::atomic::Ordering::SeqCst)
+            && let Some(handle) = self.handle.take()
+        {
             handle.abort();
         }
     }
