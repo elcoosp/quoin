@@ -1,10 +1,11 @@
 [package]
 name = "quoin-dioxus"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
 description = "Dioxus adapter for quoin reactive abstraction"
-license = "MIT"
-repository = "https://github.com/username/quoin"
+license.workspace = true
+repository.workspace = true
 
 [dependencies]
 quoin-core = { path = "../quoin-core" }
@@ -13,6 +14,9 @@ dioxus-core = "0.7"
 futures = "0.3"
 send_wrapper = "0.6"
 web-sys = { version = "0.3", features = ["Window", "Navigator", "Clipboard"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen-futures = "0.4"
 
 # shadcn-dioxus — not published on crates.io, use git.
 # The crate name inside the repo is "ui", so we rename it.
