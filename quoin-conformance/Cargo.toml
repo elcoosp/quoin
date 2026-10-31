@@ -1,10 +1,11 @@
 [package]
 name = "quoin-conformance"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
 description = "Conformance test suite for quoin reactive framework adapters"
-license = "MIT"
-repository = "https://github.com/username/quoin"
+license.workspace = true
+repository.workspace = true
 readme = "README.md"
 
 [dependencies]
