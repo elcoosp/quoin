@@ -41,7 +41,8 @@ jobs:
       - name: Clippy (framework-free crates)
         run: |
           cargo clippy --all-targets -p quoin-core -p quoin-macros-core \
-            -p quoin-macros -p quoin-ui -p quoin-conformance -- -D warnings
+            -p quoin-macros -p quoin-ui -p quoin-conformance \
+            -p quoin-testkit -p quoin-devtools -- -D warnings
 
   # -----------------------------------------------------------------------
   # Core + facade tests (fast, no framework dependencies)
@@ -64,14 +65,19 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
-      - name: Run core tests
-        run: cargo nextest run -p quoin-core -p quoin-macros-core -p quoin-conformance
+      - name: Run core + tooling tests
+        run: |
+          cargo nextest run -p quoin-core -p quoin-macros-core -p quoin-conformance \
+            -p quoin-testkit -p quoin-devtools
 
       - name: Run facade tests
         run: cargo nextest run -p quoin
 
+      - name: Run headless e2e examples
+        run: cargo nextest run -p todo-core -p fetch-core -p devtools-demo
+
       - name: Run doctests
-        run: cargo test --doc -p quoin-core
+        run: cargo test --doc -p quoin-core -p quoin-testkit -p quoin-devtools
 
   # -----------------------------------------------------------------------
   # Adapter tests (one job per framework — heavy crates compile in parallel)
