@@ -1,11 +1,11 @@
 <div align="center">
   <img src="docs/logo.png" alt="Quoin Logo" width="300"/>
   <p>
-    <strong>One Reactive Core, Many Frameworks.</strong><br/>
+    <strong>One Reactive Core, Many Frameworks.</strong> <br/>
     A framework-agnostic reactive abstraction layer for Rust. Write your reactive business logic once using signals, effects, and async tasks—then run it with GPUI, Dioxus, Leptos, Xilem, or Floem.
   </p>
   <p>
-    <img src="https://img.shields.io/badge/Rust-1.80%2B-orange?style=flat-square&logo=rust" alt="Rust"/>
+    <img src="https://img.shields.io/badge/Rust-1.88%2B-orange?style=flat-square&logo=rust" alt="Rust"/>
     <img src="https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue?style=flat-square" alt="License"/>
     <img src="https://img.shields.io/badge/Frameworks-GPUI%20%7C%20Leptos%20%7C%20Dioxus%20%7C%20Xilem%20%7C%20Floem-262D3A?style=flat-square" alt="Frameworks"/>
     <img src="https://img.shields.io/badge/Architecture-10%2B%20Crates-6F4E37?style=flat-square" alt="Crates"/>
@@ -15,53 +15,60 @@
   </p>
 </div>
 
----
+## Table of Contents
+- [Why Quoin?](#why-quoin)
+- [Features](#features)
+- [Supported Frameworks](#supported-frameworks)
+- [Quick Start](#quick-start)
+- [Declarative Macros](#declarative-macros)
+  - [`component!`](#component)
+  - [`quoin_render!`](#quoin_render)
+  - [`effect!`](#effect)
+  - [`run_app!`](#run_app)
+- [Core Traits](#core-traits)
+- [Universal Component Protocol (UCP)](#universal-component-protocol-ucp)
+- [Crate Overview](#crate-overview)
+- [Examples](#examples)
+- [Development](#development)
+- [Contributing](#contributing)
+- [License](#license)
 
-## Overview
-
-Building cross-platform Rust UI applications often means choosing a framework and being locked into its reactivity model. Quoin decouples your business logic from the view layer, allowing you to:
-
-- **Write once, run anywhere**: The same reactive hooks work in GPUI, Leptos, Dioxus, and more.
-- **Test in isolation**: Mock a `ReactiveContext` and test your logic without spinning up a UI.
-- **Switch frameworks easily**: Change a feature flag and recompile—your hooks stay unchanged.
-- **Share libraries**: Publish framework-agnostic crates that work with any Quoin-supported UI.
+## Why Quoin?
+Building cross‑platform Rust UI applications often means choosing a framework and being locked into its reactivity model. Quoin decouples your business logic from the view layer, allowing you to:
+- **Write once, run anywhere** – The same reactive hooks work in GPUI, Leptos, Dioxus, and more.
+- **Test in isolation** – Mock a `ReactiveContext` and test your logic without spinning up a UI.
+- **Switch frameworks easily** – Change a feature flag and recompile—your hooks stay unchanged.
+- **Share libraries** – Publish framework‑agnostic crates that work with any Quoin‑supported UI.
 
 ## Features
-
-- **Unified Reactive API**: `Signal<T>`, `ReactiveContext`, and `Executor` traits abstract over framework-specific implementations.
-- **Declarative Macros**: `component!`, `quoin_render!`, `effect!`, and `run_app!` enable cross-framework UI definitions.
-- **Tailwind Class Transpilation**: Write Tailwind utility classes in `quoin_render!` and have them automatically converted to framework-specific method chains (e.g., GPUI).
-- **Universal Component Protocol (UCP)**: Abstract traits for data tables, virtual lists, dropdowns, clipboard, and more via `quoin-ui`.
-- **Cooperative Cancellation**: `CancellationToken` for gracefully stopping long-running async tasks.
-- **Global State**: Provide and consume application-wide reactive values with `provide_global` / `use_global`.
-- **Conformance Testing**: A shared test suite ensures all framework adapters behave identically.
+- **Unified Reactive API** — `Signal<T>`, `ReactiveContext`, and `Executor` traits that abstract over framework‑specific implementations.
+- **Declarative Macros** — `component!`, `quoin_render!`, `effect!`, and `run_app!` for cross‑framework UI definitions.
+- **Tailwind Class Transpilation** — Write Tailwind utility classes in `quoin_render!` and they are automatically converted to GPUI method chains.
+- **Universal Component Protocol (UCP)** — Abstract traits for data tables, virtual lists, dropdowns, clipboard, and more via `quoin-ui`.
+- **Cooperative Cancellation** — `CancellationToken` for gracefully stopping long‑running async tasks.
+- **Global State** — Provide and consume application‑wide reactive values with `provide_global`/`use_global`.
+- **Conformance Testing** — A shared test suite ensures all framework adapters behave identically.
 
 ## Supported Frameworks
-
 | Framework | Adapter Crate | Status |
-|-----------|---------------|--------|
-| [GPUI](https://github.com/zed-industries/zed) | `quoin-gpui` | ✅ Full support |
-| [Leptos](https://leptos.dev/) | `quoin-leptos` | ✅ Full support |
-| [Dioxus](https://dioxuslabs.com/) | `quoin-dioxus` | ✅ Full support |
-| [Xilem](https://github.com/linebender/xilem) | `quoin-xilem` | ✅ Full support |
-| [Floem](https://github.com/lapce/floem) | `quoin-floem` | ✅ Full support |
+| --- | --- | --- |
+| [GPUI](https://github.com/zed-industries/zed) | quoin-gpui | ✅ Full support |
+| [Leptos](https://leptos.dev/) | quoin-leptos | ✅ Full support |
+| [Dioxus](https://dioxuslabs.com/) | quoin-dioxus | ✅ Full support |
+| [Xilem](https://github.com/linebender/xilem) | quoin-xilem | ✅ Full support |
+| [Floem](https://github.com/lapce/floem) | quoin-floem | ✅ Full support |
 
-> [!IMPORTANT]
-> You must enable **exactly one** framework feature in your `Cargo.toml`. Quoin uses compile-time checks to enforce this.
+> **Important:** You must enable exactly one framework feature in your `Cargo.toml`. Quoin uses compile‑time checks to enforce this.
 
 ## Quick Start
-
 Add `quoin` to your `Cargo.toml` with the feature flag for your chosen framework:
-
 ```toml
 [dependencies]
 quoin = { path = "quoin", features = ["gpui"] }  # or "leptos", "dioxus", etc.
 ```
 
-### 1. Define Framework-Agnostic Logic
-
+### Framework-Agnostic Counter Hook
 Create a library crate that defines a reusable counter hook:
-
 ```rust
 // counter-lib/src/lib.rs
 use quoin_core::prelude::*;
@@ -82,8 +89,7 @@ pub fn use_counter<C: ReactiveContext>(cx: &C) -> Counter<C::Signal<u32>> {
 }
 ```
 
-### 2. Use in a Framework (e.g., GPUI)
-
+### Use in GPUI
 ```rust
 // counter-gpui/src/main.rs
 use quoin::prelude::*;
@@ -112,31 +118,63 @@ impl Render for CounterView {
 run_app!(CounterView);
 ```
 
-## Declarative Macros
+### Use in Leptos
+```rust
+// counter-leptos/src/lib.rs
+use quoin::prelude::*;
 
-Quoin provides powerful macros that generate framework-specific code from a single, familiar syntax.
+#[component]
+pub fn App() -> impl IntoView {
+    let ctx = LeptosContext::new();
+    let counter = use_counter(&ctx);
+    view! {
+        <div>
+            <p>"Count: " {move || counter.count.get()}</p>
+            <button on:click=move |_| (counter.increment)()>"Increment"</button>
+        </div>
+    }
+}
+```
+
+## Declarative Macros
+Quoin provides powerful macros that generate framework‑specific code from a single, familiar syntax.
 
 ### `component!`
 Define a reactive component with state, props, actions, and lifecycle hooks.
-
 ```rust
 component! {
     pub DemoApp {
-        props { initial_count: u32 = 0 }
-        state { count: u32 = initial_count }
-        globals { theme: Theme, router: RouterState observe }
-
-        on_mount { log::info!("Component mounted"); }
-        on_unmount { log::info!("Component unmounted"); }
-
-        fn increment() { count.update(|c| *c += 1); }
-
+        props {
+            initial_count: u32 = 0,
+        }
+        state {
+            count: u32 = initial_count,
+            selected: String = "Option A".to_string(),
+        }
+        globals {
+            theme: Theme,           // automatically retrieved from context
+            router: RouterState observe,  // observe = track changes
+        }
+        on_mount {
+            log::info!("Component mounted");
+        }
+        on_unmount {
+            log::info!("Component unmounted");
+        }
+        fn increment() {
+            count.update(|c| *c += 1);
+        }
+        fn select_option(opt: String) {
+            selected.set(opt);
+        }
         render {
+            let count_text = format!("Count: {}", count.get());
             quoin_render! {
                 div(class: "flex flex-col gap-4 p-4 bg-gray-900 text-white") {
                     div(class: "text-2xl font-bold") { "Quoin Render Demo" }
-                    div { format!("Count: {}", count.get()) }
-                    button(class: "px-4 py-2 bg-blue-600 rounded-md", on_click: move |_| increment()) {
+                    div { count_text }
+                    button(class: "px-4 py-2 bg-blue-600 rounded-md",
+                        on_click: move |_| increment()) {
                         "Increment"
                     }
                 }
@@ -145,51 +183,70 @@ component! {
     }
 }
 ```
+**Framework Output:**
+- **GPUI:** Generates a `struct DemoApp` with a `Render` impl.
+- **Leptos:** Generates a `#[component] fn DemoApp() -> impl IntoView`.
+- **Dioxus:** Generates a `#[component] fn DemoApp() -> Element`.
 
 ### `quoin_render!`
-A JSX-like declarative UI syntax with automatic Tailwind class transpilation.
-
+A JSX‑like declarative UI syntax with Tailwind class transpilation.
 ```rust
 quoin_render! {
     div(class: "flex flex-col gap-4 p-4 bg-gray-900 text-white h-full") {
         div(class: "text-2xl font-bold hover:text-blue-400") { "Hello" }
-        
+        // Conditional rendering
         if[show_details] {
             div(class: "p-2 bg-gray-800 rounded-md") { details }
         }
-
+        // Loops
         for[item in items] {
             div(class: "text-sm") { item.name.clone() }
         }
-
+        // Special components
+        tabs(active: active_tab, on_click: move |i| set_active(i)) {
+            tab(index: 0, label: "Tab 1")
+            tab(index: 1, label: "Tab 2")
+        }
         data_table(rows: people, striped: true) {
             column(key: "name", label: "Name", render: |p: &Person| p.name.clone())
             column(key: "age",  label: "Age",  render: |p: &Person| p.age.to_string())
         }
+        clipboard_button(copy_text: "Copied!") { "Copy" }
     }
 }
 ```
-
-> [!NOTE]
-> Classes like `flex`, `p-4`, `bg-gray-900`, and `hover:text-blue-400` are automatically converted to framework-specific method chains (e.g., `.flex().flex_col().p(px(16.0)).bg(rgb(0x111827))` in GPUI).
+**Tailwind → GPUI Transpilation**  
+Classes like `flex`, `p-4`, `bg-gray-900`, `hover:text-blue-400` are automatically converted to GPUI method chains:
+```rust
+.flex().flex_col().gap(px(16.0)).p(px(16.0)).bg(rgb(0x111827))
+.hover(|s| s.text_color(rgb(0x60a5fa)))
+```
 
 ### `effect!`
 Run side effects reactively, with optional cleanup.
-
 ```rust
+// Legacy syntax
+effect! { watch: [count], || println!("Count changed: {}", count.get()) }
+
+// Structured syntax
 effect! {
     deps: [query],
     run: || {
         let data = fetch_data(&query.get());
         results.set(data);
     },
-    cleanup: || { cancel_pending_request(); }
+    cleanup: || {
+        cancel_pending_request();
+    }
 }
 ```
+**Framework Expansions:**
+- **Leptos:** `create_effect` + `on_cleanup`
+- **Dioxus:** `use_effect` + `use_drop`
+- **GPUI:** The `run` closure is executed, and cleanup is called on drop.
 
 ### `run_app!`
 Bootstrap your application with a single line.
-
 ```rust
 run_app!(MyComponent);                         // GPUI with default window options
 run_app!(MyComponent, window_opts: custom_opts); // GPUI custom window
@@ -198,30 +255,101 @@ run_app!(MyComponent);                         // Leptos/Dioxus mounts to body
 
 ## Core Traits
 
-| Trait | Purpose |
-|-------|---------|
-| `Signal<T>` | A readable and writable reactive value (`get`, `set`, `update`, `with`). |
-| `ReactiveContext` | Entry point for creating signals, accessing framework services, and global state (`provide_global`, `use_global`). |
-| `Executor` | Spawn asynchronous tasks that run on the framework's native runtime. |
-| `CancellationToken` | Cooperatively cancel long-running async operations. |
+### `Signal<T>`
+A readable and writable reactive value.
+```rust
+let signal = cx.create_signal(42u32);
+assert_eq!(signal.get(), 42);
+signal.with(|v| println!("{v}"));  // Borrow without cloning
+signal.set(100);
+signal.update(|v| *v += 1);
+```
+
+### `ReactiveContext`
+The entry point for creating signals and accessing framework services.
+```rust
+let signal = cx.create_signal(0);               // Create reactive state
+let executor = cx.executor();                   // Async task spawner
+cx.request_update();                            // Mark UI as dirty
+
+// Global state
+cx.provide_global(Theme::Dark);
+if let Some(theme) = cx.use_global::<Theme>() {
+    // ...
+}
+```
+
+### `Executor`
+Spawn asynchronous tasks that run on the framework's native runtime.
+```rust
+let handle = executor.spawn(async {
+    let data = fetch_from_api().await;
+    signal.set(data);
+});
+
+// Await the result (Err(Canceled) if the task was aborted)
+let result = handle.await?;
+```
+Every `JoinHandle` implements the same lifecycle semantics on all five adapters:
+
+| Operation | Effect |
+| --- | --- |
+| `handle.await` | Waits for the result. The task runs to completion. |
+| `handle.abort()` | Cancels the task at its next suspension point. Later awaits resolve with `Err(Canceled)`. |
+| `handle.detach()` | Fire-and-forget: the task runs to completion, its result is discarded. |
+| `drop(handle)` | Cancels the task (structured concurrency — no orphaned tasks mutating UI state). Use `detach()` when you explicitly want fire-and-forget. |
+
+*Cancellation is cooperative on the thread-based adapters (Leptos, Dioxus, Floem): the future stops at its next `.await` point. GPUI and Xilem cancel natively (dropping a GPUI `Task` / aborting a tokio task). On `wasm32` targets, the Leptos and Dioxus executors run futures on the main thread via `wasm_bindgen_futures` instead of spawning threads.*
+
+### `CancellationToken`
+Cooperatively cancel long‑running async operations.
+```rust
+let token = CancellationToken::new();
+executor.spawn({
+    let token = token.clone();
+    async move {
+        while !token.is_cancelled() {
+            do_work().await;
+        }
+        cleanup().await;
+    }
+});
+
+// Later, from another task or UI event
+token.cancel();
+```
 
 ## Universal Component Protocol (UCP)
+The `quoin-ui` crate defines abstract traits for complex, framework‑independent UI components. Adapter crates like `quoin-ui-gpui` provide concrete implementations.
 
-The `quoin-ui` crate defines abstract traits for complex, framework-independent UI components. Adapter crates (e.g., `quoin-ui-gpui`) provide concrete implementations.
+**Available traits:**
 
-- **`VirtualListAdapter`**: Efficiently render large, scrollable lists.
-- **`TableAdapter`**: Sortable, striped data tables.
-- **`TextInputAdapter`**: Two-way bound text inputs.
-- **`ButtonAdapter`**: Styled buttons (primary, ghost, destructive).
-- **`DropdownMenuAdapter`**: Dropdown menus with items.
-- **`TabBarAdapter`**: Tab navigation.
-- **`Clipboard`**: Read/write system clipboard.
-- **`QuoinTheme`**: Theme token resolution.
+| Trait | Purpose |
+| --- | --- |
+| `VirtualListAdapter` | Efficiently render large, scrollable lists |
+| `TableAdapter` | Sortable, striped data tables |
+| `TextInputAdapter` | Two‑way bound text inputs |
+| `ButtonAdapter` | Styled buttons (primary, ghost, destructive) |
+| `DropdownMenuAdapter` | Dropdown menus with items |
+| `TabBarAdapter` | Tab navigation |
+| `Clipboard` | Read/write system clipboard |
+| `QuoinTheme` | Theme token resolution |
+
+**Example: Using a UCP button**
+```rust
+use quoin_ui::{ButtonAdapter, ButtonVariant};
+
+let adapter = GpuiButtonAdapter::default();
+let button = adapter.render(Some("Click Me".into()), ButtonVariant {
+    primary: true,
+    size: ComponentSize::Medium,
+    ..Default::default()
+});
+```
 
 ## Crate Overview
-
 ```text
-quoin/                       # Facade — re-exports everything
+quoin/                       # Facade — re‑exports everything
 ├── quoin-core/              # Core traits (Signal, ReactiveContext, Executor)
 ├── quoin-macros/            # Proc macro entry points
 ├── quoin-macros-core/       # Macro parsing and code generation
@@ -235,33 +363,62 @@ quoin/                       # Facade — re-exports everything
 └── quoin-conformance/       # Shared conformance test suite
 ```
 
+## Examples
+The `examples/` directory contains runnable demos for each framework:
+
+| Example | Description | Command |
+| --- | --- | --- |
+| counter-gpui | Simple counter with GPUI | `just run-gpui` |
+| counter-leptos | SSR counter with Leptos | `just run-leptos` |
+| counter-dioxus | Desktop counter with Dioxus | `just run-dioxus` |
+| counter-floem | Counter with Floem | `just run-floem` |
+| counter-xilem | Counter with Xilem | `just run-xilem` |
+| ucp-demo-gpui | UCP components in GPUI | `just run-ucp-gpui` |
+| ucp-demo-dioxus | UCP components in Dioxus | `just run-ucp-dioxus` |
+| mini-devtools-gpui | Debug panel with tabs, tables, virtual lists | `just run-mini-devtools` |
+
 ## Development
 
 ### Prerequisites
-- Rust stable (1.80+)
+- Rust stable (1.88+; declared as `rust-version = "1.88"` in the workspace)
 - [`cargo-nextest`](https://nexte.st/) for faster testing
 - [`just`](https://github.com/casey/just) for task automation
+- [`cargo-watch`](https://crates.io/crates/cargo-watch) for hot‑reload (optional)
 
-### Common Tasks
+### Build & Test
 ```bash
 just build               # Build the entire workspace
 just test                # Run all tests (nextest)
-just check               # Format check + clippy
-just fix                 # Auto-fix clippy warnings
+just test-quoin          # Test the facade crate
+just test-quoin-macros   # Test macro parsing
+just check               # Format check + clippy (framework-free crates)
+just check-all           # Format check + clippy (everything, incl. GPUI)
+just fix                 # Auto‑fix clippy warnings
 ```
+*`just check` only lints the framework-free crates, so it runs without any GPUI system libraries. `just check-all` additionally lints the GPUI crates and needs `libxkbcommon-dev`, `libx11-dev`, `libxcb1-dev`, `libwayland-dev` and `libfontconfig1-dev` on Linux.*
 
-### Framework-Specific Tests
+### Framework‑Specific Tests
 ```bash
 just test-quoin-gpui         # GPUI adapter + conformance
 just test-quoin-leptos       # Leptos adapter + conformance
+just test-quoin-dioxus       # Dioxus adapter + conformance
+just test-quoin-floem        # Floem adapter + conformance
+just test-quoin-xilem        # Xilem adapter + conformance
 just test-conformance-gpui   # GPUI conformance only
+just test-conformance-leptos
+just test-conformance-dioxus
+just test-conformance-floem
+just test-conformance-xilem
 just test-macros-ui-all      # All macro UI tests (trybuild)
 ```
 
 ### Watch Mode
 ```bash
-just watch-gpui      # Auto-rebuild GPUI counter on changes
+just watch-gpui      # Auto‑rebuild GPUI counter on changes
 just watch-dioxus
+just watch-floem
+just watch-xilem
+just watch-ucp-gpui
 ```
 
 ### Macro Expansion
@@ -270,14 +427,43 @@ To inspect the generated code for a particular component:
 just expand component="ucp-lib" feature="gpui"
 ```
 
-## Examples
+### CI / CD & Releases
+CI runs on GitHub Actions with the latest action versions (`actions/checkout@v7`, `Swatinem/rust-cache@v2`, `taiki-e/install-action@v2`):
 
-The `examples/` directory contains runnable demos for each framework:
+| Workflow | Trigger | What it does |
+| --- | --- | --- |
+| `ci.yml` | push / PR to `main` | Format check, clippy (`-D warnings`), core + adapter tests, trybuild macro UI tests (Leptos, Dioxus, GPUI), full example build |
+| `release.yml` | tag `v*.*.*` | Version-tag sanity check, full test suite, `git-cliff` changelog generation, GitHub Release with generated notes |
 
-| Example | Description | Command |
-|---------|-------------|---------|
-| `counter-gpui` | Simple counter with GPUI | `just run-gpui` |
-| `counter-leptos` | SSR counter with Leptos | `just run-leptos` |
-| `counter-dioxus` | Desktop counter with Dioxus | `just run-dioxus` |
-| `ucp-demo-gpui` | UCP components in GPUI | `just run-ucp-gpui` |
-| `mini-devtools-gpui` | Debug panel with tabs, tables, virtual lists | `just run-mini-devtools` |
+#### Changelog (`git-cliff`)
+`CHANGELOG.md` is generated with [git-cliff](https://git-cliff.org) from [Conventional Commits](https://www.conventionalcommits.org/):
+- `feat:` → 🚀 Added
+- `fix:` → 🔧 Fixed
+- `perf:` → ⚡ Performance
+- `doc:` → 📚 Documentation
+- `chore:` → 🧹 Cleanup
+- breaking changes (`!:`) are always preserved
+
+Regenerate the changelog locally with:
+```bash
+just changelog        # rewrite CHANGELOG.md from the commit history
+just release-notes    # print the notes for the latest version only
+```
+To cut a release, bump the crate versions, tag `vX.Y.Z`, and push the tag — the `release.yml` workflow verifies tag/version consistency, runs the full suite, and publishes the release with git-cliff notes.
+
+## Contributing
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on:
+- Setting up the development environment
+- Adding a new framework adapter
+- Extending the macro syntax
+- Running and writing tests
+
+Before submitting a pull request, ensure:
+- All tests pass: `just test`
+- Code is formatted: `just fmt`
+- No clippy warnings: `just check`
+- Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `doc:`, …) — they drive the git-cliff changelog.
+
+## License
+Quoin is licensed under the terms of the MIT License.  
+See [LICENSE.md](LICENSE.md) for details.
