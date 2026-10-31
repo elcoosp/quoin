@@ -2,6 +2,9 @@
 resolver = "2"
 members = [
     "examples/counter",
+    "examples/todo-core",
+    "examples/fetch-core",
+    "examples/devtools-demo",
     "quoin-leptos",
     "quoin-dioxus",
     "quoin-gpui",
@@ -15,6 +18,8 @@ members = [
     "quoin-macros-tests",
     "quoin-ui",
     "quoin-ui-gpui",
+    "quoin-testkit",
+    "quoin-devtools",
 ]
 exclude = [
     "examples/counter-dioxus",
