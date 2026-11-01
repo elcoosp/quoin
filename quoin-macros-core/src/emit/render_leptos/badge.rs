@@ -50,30 +50,30 @@ pub(crate) fn emit_badge(
     }
     #[cfg(not(feature = "leptos-shadcn"))]
     {
-        match color_expr {
-            Some(color) => {
-                let bg_class = crate::transpile::theme_tokens::try_resolve_bg_class(color);
-                match bg_class {
-                    Some(cls) => quote! {
-                        <span class={concat!("inline-flex items-center px-1.5 rounded text-xs font-medium text-white ", #cls)}>
-                            #(#children)*
-                        </span>
-                    },
-                    None => quote! {
-                        <span
-                            class="inline-flex items-center px-1.5 rounded text-xs font-medium text-white"
-                            style=format!("background-color: {}", #color)
-                        >
-                            #(#children)*
-                        </span>
-                    },
+        if let Some(color) = color_expr {
+            let bg_class = crate::transpile::theme_tokens::try_resolve_bg_class(color);
+            if let Some(cls) = bg_class {
+                quote! {
+                    <span class={concat!("inline-flex items-center px-1.5 rounded text-xs font-medium text-white ", #cls)}>
+                        #(#children)*
+                    </span>
+                }
+            } else {
+                quote! {
+                    <span
+                        class="inline-flex items-center px-1.5 rounded text-xs font-medium text-white"
+                        style=format!("background-color: {}", #color)
+                    >
+                        #(#children)*
+                    </span>
                 }
             }
-            None => quote! {
+        } else {
+            quote! {
                 <span class="inline-flex items-center px-1.5 rounded text-xs font-medium bg-gray-600 text-white">
                     #(#children)*
                 </span>
-            },
+            }
         }
     }
 }
