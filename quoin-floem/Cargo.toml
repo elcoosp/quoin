@@ -17,3 +17,6 @@ send_wrapper = "0.6"
 
 [dev-dependencies]
 quoin-conformance = { path = "../quoin-conformance", features = ["floem"] }
+
+[lints]
+workspace = true
