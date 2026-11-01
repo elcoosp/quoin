@@ -65,4 +65,31 @@ pub trait Signal<T: Clone + 'static>: Clone {
     /// signal.update(|value| *value += 1);
     /// ```
     fn update(&self, f: impl FnOnce(&mut T));
+
+    /// Sets the value only when it differs from the current one, returning
+    /// `true` when the value was written.
+    ///
+    /// The default implementation reads and then writes (two interior lock
+    /// acquisitions). Implementations with a single interior lock override
+    /// this to compare under the write lock, which is measurably cheaper on
+    /// equal writes (the common case for idempotent UI state).
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// if signal.set_if_eq("new".to_string()) {
+    ///     println!("value changed");
+    /// }
+    /// ```
+    fn set_if_eq(&self, value: T) -> bool
+    where
+        T: PartialEq,
+    {
+        if self.with(|current| *current == value) {
+            false
+        } else {
+            self.set(value);
+            true
+        }
+    }
 }
