@@ -58,50 +58,50 @@ pub(crate) fn emit_button(
             children.push(emit_node(child, bindings, inside_for));
         }
 
-        let button = if children.is_empty() {
-            let props = match on_click_prop {
-                Some(oc) => quote! { variant=#variant #class_prop #oc disabled={#disabled} },
-                None => quote! { variant=#variant #class_prop disabled={#disabled} },
+        let button = {
+            let props = if let Some(oc) = on_click_prop {
+                quote! { variant=#variant #class_prop #oc disabled={#disabled} }
+            } else {
+                quote! { variant=#variant #class_prop disabled={#disabled} }
             };
-            quote! { <#btn_alias #props /> }
-        } else {
-            let props = match on_click_prop {
-                Some(oc) => quote! { variant=#variant #class_prop #oc disabled={#disabled} },
-                None => quote! { variant=#variant #class_prop disabled={#disabled} },
-            };
-            quote! { <#btn_alias #props> #(#children)* </#btn_alias> }
+            if children.is_empty() {
+                quote! { <#btn_alias #props /> }
+            } else {
+                quote! { <#btn_alias #props> #(#children)* </#btn_alias> }
+            }
         };
 
-        let wrapped = if let Some(text) = tooltip_text {
-            let tp_alias = quote::format_ident!("TooltipProvider_{}", next_extract_id());
-            let tt_alias = quote::format_ident!("Tooltip_{}", next_extract_id());
-            let ttr_alias = quote::format_ident!("TooltipTrigger_{}", next_extract_id());
-            let ttc_alias = quote::format_ident!("TooltipContent_{}", next_extract_id());
+        if let Some(text) = tooltip_text {
+            let tooltip_provider_alias =
+                quote::format_ident!("TooltipProvider_{}", next_extract_id());
+            let tooltip_alias = quote::format_ident!("Tooltip_{}", next_extract_id());
+            let tooltip_trigger_alias =
+                quote::format_ident!("TooltipTrigger_{}", next_extract_id());
+            let tooltip_content_alias =
+                quote::format_ident!("TooltipContent_{}", next_extract_id());
 
             bindings.push(quote! {
-                let #tp_alias = leptos_shadcn_ui::TooltipProvider;
-                let #tt_alias = leptos_shadcn_ui::Tooltip;
-                let #ttr_alias = leptos_shadcn_ui::TooltipTrigger;
-                let #ttc_alias = leptos_shadcn_ui::TooltipContent;
+                let #tooltip_provider_alias = leptos_shadcn_ui::TooltipProvider;
+                let #tooltip_alias = leptos_shadcn_ui::Tooltip;
+                let #tooltip_trigger_alias = leptos_shadcn_ui::TooltipTrigger;
+                let #tooltip_content_alias = leptos_shadcn_ui::TooltipContent;
             });
 
             quote! {
-                <#tp_alias>
-                    <#tt_alias>
-                        <#ttr_alias>
+                <#tooltip_provider_alias>
+                    <#tooltip_alias>
+                        <#tooltip_trigger_alias>
                             #button
-                        </#ttr_alias>
-                        <#ttc_alias>
+                        </#tooltip_trigger_alias>
+                        <#tooltip_content_alias>
                             {#text}
-                        </#ttc_alias>
-                    </#tt_alias>
-                </#tp_alias>
+                        </#tooltip_content_alias>
+                    </#tooltip_alias>
+                </#tooltip_provider_alias>
             }
         } else {
             button
-        };
-
-        wrapped
+        }
     }
     #[cfg(not(feature = "leptos-shadcn"))]
     {
