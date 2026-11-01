@@ -5,9 +5,8 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 pub(crate) fn emit_dropdown_menu(el: &Element) -> TokenStream {
-    let trigger_expr = match &el.trigger_expr {
-        Some(e) => e,
-        None => return quote! { ::gpui::div().child("dropdown: missing trigger") },
+    let Some(trigger_expr) = &el.trigger_expr else {
+        return quote! { ::gpui::div().child("dropdown: missing trigger") };
     };
 
     let menu_items: Vec<MenuItemDef> = el
