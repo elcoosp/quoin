@@ -38,3 +38,6 @@ dioxus = [
 
 [dev-dependencies]
 trybuild = "1.0"
+
+[lints]
+workspace = true
