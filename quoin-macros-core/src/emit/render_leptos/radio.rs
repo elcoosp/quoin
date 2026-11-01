@@ -59,7 +59,7 @@ pub(crate) fn emit_radio(
     let full_class = if user_class.is_empty() {
         base.to_string()
     } else {
-        format!("{} {}", base, user_class)
+        format!("{base} {user_class}")
     };
 
     #[cfg(feature = "leptos-shadcn")]
