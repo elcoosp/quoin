@@ -18,3 +18,6 @@ futures-channel = "0.3"
 
 [dev-dependencies]
 # none: the demo asserts on its own log in tests
+
+[lints]
+workspace = true
