@@ -52,21 +52,21 @@ split_commits = false
 topo_order = false
 # Order commits by date instead of topological order.
 commit_parsers = [
-    { message = "^feat", group = "🚀 Added – New features and capabilities" },
-    { message = "^fix", group = "🔧 Fixed – Bug fixes and corrections" },
-    { message = "^perf", group = "⚡ Performance – Optimizations and improvements" },
-    { message = "^refactor", group = "♻️ Changed – Refactoring" },
-    { message = "^doc", group = "📚 Documentation – Documentation changes" },
-    { message = "^test", group = "🧪 Tests – Test additions and changes" },
+    { message = "^feat", group = "Added - New features and capabilities" },
+    { message = "^fix", group = "Fixed - Bug fixes and corrections" },
+    { message = "^perf", group = "Performance - Optimizations and improvements" },
+    { message = "^refactor", group = "Changed - Refactoring" },
+    { message = "^doc", group = "Documentation - Documentation changes" },
+    { message = "^test", group = "Tests - Test additions and changes" },
     { message = "^chore\\(release\\)", skip = true },
     { message = "^chore\\(deps\\)", skip = true },
     { message = "^chore\\(pr\\)", skip = true },
     { message = "^chore\\(pull\\)", skip = true },
-    { message = "^chore", group = "🧹 Cleanup – Code maintenance and housekeeping" },
-    { message = "^style", group = "🎨 Style – Code style changes" },
-    { message = "^revert", group = "↩️ Reverted – Reverted changes" },
-    { message = "^ci", group = "👷 CI – Continuous integration" },
-    { message = "^build", group = "📦 Build – Build system and dependencies" },
+    { message = "^chore", group = "Cleanup - Code maintenance and housekeeping" },
+    { message = "^style", group = "Style - Code style changes" },
+    { message = "^revert", group = "Reverted - Reverted changes" },
+    { message = "^ci", group = "CI - Continuous integration" },
+    { message = "^build", group = "Build - Build system and dependencies" },
 ]
 # Protect breaking changes from being skipped by commit parsers.
 protect_breaking_commits = true
