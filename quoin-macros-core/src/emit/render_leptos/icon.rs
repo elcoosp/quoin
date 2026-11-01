@@ -13,9 +13,10 @@ pub(crate) fn emit_icon(
     let name = find_arg_string(el, "icon_name");
 
     let size_class = find_arg_expr(el, "class");
-    let class_str = match size_class {
-        Some(c) => quote! { format!("{} w-4 h-4 inline-block", #c) },
-        None => quote! { "w-4 h-4 inline-block" },
+    let class_str = if let Some(c) = size_class {
+        quote! { format!("{} w-4 h-4 inline-block", #c) }
+    } else {
+        quote! { "w-4 h-4 inline-block" }
     };
     let children: Vec<TokenStream> = el
         .children
