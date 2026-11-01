@@ -6,3 +6,9 @@ publish = false
 
 [dependencies]
 quoin-core = { path = "../../quoin-core" }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+quoin-testkit = { path = "../../quoin-testkit" }
