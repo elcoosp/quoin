@@ -44,14 +44,14 @@ fn e2e_full_user_session() {
 
     // 4. Completes the last one from the Active tab — the list empties.
     assert!(store.toggle(3));
-    assert!(store.visible().is_empty());
+    assert_eq!(store.visible(), [] as [todo_core::Todo; 0]);
     assert_eq!(store.footer_text().get(), "All done!");
     assert!(store.all_completed());
 
     // 5. Clear-completed wipes everything.
     store.set_filter(Filter::All);
     store.clear_completed();
-    assert!(store.visible().is_empty());
+    assert_eq!(store.visible(), [] as [todo_core::Todo; 0]);
 }
 
 #[test]
@@ -71,7 +71,7 @@ fn e2e_no_op_interactions_produce_zero_renders() {
     // Writing the same draft text:
     store.set_draft(store.draft.get());
     // Committing an empty draft:
-    store.set_draft("".into());
+    store.set_draft(String::new());
     store.commit_draft();
 
     assert_eq!(
@@ -138,5 +138,5 @@ fn e2e_threaded_executor_stress() {
     }
     assert_eq!(store.active_count(), 0);
     store.clear_completed();
-    assert!(store.visible().is_empty());
+    assert_eq!(store.visible(), [] as [todo_core::Todo; 0]);
 }
