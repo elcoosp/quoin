@@ -18,8 +18,7 @@ pub(crate) fn emit_badge(el: &Element) -> TokenStream {
             let bg_class = crate::transpile::theme_tokens::try_resolve_bg_class(color);
             match bg_class {
                 Some(cls) => format!(
-                    "inline-flex items-center px-1.5 rounded text-xs font-medium text-white {}",
-                    cls
+                    "inline-flex items-center px-1.5 rounded text-xs font-medium text-white {cls}"
                 ),
                 None => {
                     "inline-flex items-center px-1.5 rounded text-xs font-medium text-white bg-gray-600"
@@ -39,27 +38,27 @@ pub(crate) fn emit_badge(el: &Element) -> TokenStream {
     }
     #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
     {
-        match color_expr {
-            Some(color) => {
-                let bg_class = crate::transpile::theme_tokens::try_resolve_bg_class(color);
-                match bg_class {
-                    Some(cls) => quote! {
-                        span {
-                            class: format!("inline-flex items-center px-1.5 rounded text-xs font-medium text-white {}", #cls),
-                            #(#children)*
-                        }
-                    },
-                    None => quote! {
-                        span {
-                            class: "inline-flex items-center px-1.5 rounded text-xs font-medium text-white bg-gray-600",
-                            #(#children)*
-                        }
-                    },
+        if let Some(color) = color_expr {
+            let bg_class = crate::transpile::theme_tokens::try_resolve_bg_class(color);
+            if let Some(cls) = bg_class {
+                quote! {
+                    span {
+                        class: format!("inline-flex items-center px-1.5 rounded text-xs font-medium text-white {}", #cls),
+                        #(#children)*
+                    }
+                }
+            } else {
+                quote! {
+                    span {
+                        class: "inline-flex items-center px-1.5 rounded text-xs font-medium text-white bg-gray-600",
+                        #(#children)*
+                    }
                 }
             }
-            None => quote! {
+        } else {
+            quote! {
                 span { class: "inline-flex items-center px-1.5 rounded text-xs font-medium bg-gray-600 text-white", #(#children)* }
-            },
+            }
         }
     }
 }
@@ -80,21 +79,18 @@ pub(crate) fn emit_scroll_area(el: &Element) -> TokenStream {
     for arg in &el.args {
         let key_str = arg.key.to_string();
         let value = &arg.value;
-        match key_str.as_str() {
-            "class" => {
-                if let syn::Expr::Lit(syn::ExprLit {
-                    lit: syn::Lit::Str(s),
-                    ..
-                }) = value
-                {
-                    attrs.push(quote! { class: format!("{} {}", #s, #overflow_class), });
-                } else {
-                    attrs.push(quote! { class: format!("{} {}", #value, #overflow_class), });
-                }
+        if key_str == "class" {
+            if let syn::Expr::Lit(syn::ExprLit {
+                lit: syn::Lit::Str(s),
+                ..
+            }) = value
+            {
+                attrs.push(quote! { class: format!("{} {}", #s, #overflow_class), });
+            } else {
+                attrs.push(quote! { class: format!("{} {}", #value, #overflow_class), });
             }
-            "direction" => {}
-            _ => {}
         }
+        // `direction` was consumed above; remaining attributes are ignored.
     }
     if attrs.is_empty() {
         attrs.push(quote! { class: #overflow_class, });
@@ -107,31 +103,28 @@ pub(crate) fn emit_scroll_area(el: &Element) -> TokenStream {
 // Clipboard button
 // ---------------------------------------------------------------------------
 pub(crate) fn emit_clipboard_button(el: &Element) -> TokenStream {
-    let copy_text = match find_arg_expr(el, "copy_text") {
-        Some(ct) => ct,
-        None => return emit_html_el(el, "button"),
+    let Some(copy_text) = find_arg_expr(el, "copy_text") else {
+        return emit_html_el(el, "button");
     };
 
     let mut attrs: Vec<TokenStream> = Vec::new();
     for arg in &el.args {
         let key_str = arg.key.to_string();
         let value = &arg.value;
-        match key_str.as_str() {
-            "class" => {
-                if let syn::Expr::Lit(syn::ExprLit {
-                    lit: syn::Lit::Str(s),
-                    ..
-                }) = value
-                {
-                    attrs.push(quote! { class: #s, });
-                } else {
-                    attrs.push(quote! { class: {#value}, });
-                }
+        if key_str == "class" {
+            if let syn::Expr::Lit(syn::ExprLit {
+                lit: syn::Lit::Str(s),
+                ..
+            }) = value
+            {
+                attrs.push(quote! { class: #s, });
+            } else {
+                attrs.push(quote! { class: {#value}, });
             }
-            "disabled" => attrs.push(quote! { disabled: #value, }),
-            "copy_text" => {}
-            _ => {}
+        } else if key_str == "disabled" {
+            attrs.push(quote! { disabled: #value, });
         }
+        // `copy_text` was consumed above; remaining attributes are ignored.
     }
 
     let mut children: Vec<TokenStream> = el.children.iter().map(emit_render_inner).collect();
@@ -203,9 +196,10 @@ pub(crate) fn emit_icon(el: &Element) -> TokenStream {
     let name = find_arg_string(el, "icon_name");
     let size_class = find_arg_expr(el, "class");
 
-    let class_str = match size_class {
-        Some(c) => quote! { format!("{} w-4 h-4 inline-block", #c) },
-        None => quote! { "w-4 h-4 inline-block" },
+    let class_str = if let Some(c) = size_class {
+        quote! { format!("{} w-4 h-4 inline-block", #c) }
+    } else {
+        quote! { "w-4 h-4 inline-block" }
     };
 
     let children: Vec<TokenStream> = el.children.iter().map(emit_render_inner).collect();
