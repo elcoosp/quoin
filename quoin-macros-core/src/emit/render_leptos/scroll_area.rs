@@ -50,11 +50,10 @@ pub(crate) fn emit_scroll_area(
         for arg in &el.args {
             let key_str = arg.key.to_string();
             let value = &arg.value;
-            match key_str.as_str() {
-                "class" => attrs.push(quote! { class=format!("{} {}", #value, #overflow_class) }),
-                "direction" => {}
-                _ => {}
+            if key_str == "class" {
+                attrs.push(quote! { class=format!("{} {}", #value, #overflow_class) });
             }
+            // `direction` was consumed above; remaining attributes are ignored.
         }
         if attrs.is_empty() {
             attrs.push(quote! { class=#overflow_class });
