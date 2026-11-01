@@ -11,7 +11,6 @@ pub(crate) fn emit_html_el(el: &Element, name_str: &str) -> TokenStream {
 
 pub(crate) fn emit_html_el_inner(el: &Element, name_str: &str) -> TokenStream {
     let tag = match name_str {
-        "div" => "div",
         "h1" => "h1",
         "h2" => "h2",
         "h3" => "h3",
@@ -39,69 +38,7 @@ pub(crate) fn emit_html_el_inner(el: &Element, name_str: &str) -> TokenStream {
 
     let mut attrs: Vec<TokenStream> = Vec::new();
     let mut children: Vec<TokenStream> = Vec::new();
-    let mut children_attr_expr: Option<&syn::Expr> = None;
-
-    for arg in &el.args {
-        let key_str = arg.key.to_string();
-        let key_ident = arg.key.clone();
-        let value = &arg.value;
-        match key_str.as_str() {
-            "children" => {
-                children_attr_expr = Some(value);
-            }
-            "on_click" => {
-                let handler = wrap_dioxus_handler(value);
-                attrs.push(quote! { onclick: {#handler}, })
-            }
-            "on_mouse_down" => {
-                let handler = wrap_dioxus_handler(value);
-                attrs.push(quote! { onmousedown: {#handler}, })
-            }
-            "on_mouse_up" => {
-                let handler = wrap_dioxus_handler(value);
-                attrs.push(quote! { onmouseup: {#handler}, })
-            }
-            "on_mouse_enter" => {
-                let handler = wrap_dioxus_handler(value);
-                attrs.push(quote! { onmouseenter: {#handler}, })
-            }
-            "on_mouse_leave" => {
-                let handler = wrap_dioxus_handler(value);
-                attrs.push(quote! { onmouseleave: {#handler}, })
-            }
-            "on_input" => {
-                let handler = wrap_dioxus_handler(value);
-                attrs.push(quote! { oninput: {#handler}, })
-            }
-            "on_change" => {
-                let handler = wrap_dioxus_handler(value);
-                attrs.push(quote! { onchange: {#handler}, })
-            }
-            "value" => {
-                if tag == "input" {
-                    attrs.push(quote! { value: {#value.get()}, });
-                } else {
-                    attrs.push(quote! { value: {#value}, });
-                }
-            }
-            "primary" | "ghost" | "destructive" | "active" | "trigger" | "rows" | "striped"
-            | "items" | "estimated_height" | "copy_text" | "sortable" | "width" | "resizable"
-            | "selectable" | "on_sort" | "bordered" | "size" | "navigate_to" | "cfg" | "label"
-            | "render" | "key" | "index" | "text" | "query" | "color" | "direction" | "tooltip"
-            | "icon_name" => {}
-            _ => {
-                if let syn::Expr::Lit(syn::ExprLit {
-                    lit: syn::Lit::Str(s),
-                    ..
-                }) = value
-                {
-                    attrs.push(quote! { #key_ident: #s, });
-                } else {
-                    attrs.push(quote! { #key_ident: {#value}, });
-                }
-            }
-        }
-    }
+    let children_attr_expr = collect_html_attrs(el, tag, &mut attrs);
 
     if auto_bind_input {
         let value_expr = find_arg_expr(el, "value").unwrap();
@@ -135,4 +72,82 @@ pub(crate) fn emit_html_el_inner(el: &Element, name_str: &str) -> TokenStream {
     } else {
         quote! { #tag_ident { #(#attrs)* #(#children)* } }
     }
+}
+
+/// Collects the RSX attribute tokens for a plain HTML element into `attrs`.
+///
+/// Recognized event keys are translated to their Dioxus handler form, `value`
+/// becomes a live signal read on `input` elements, and internal-only keys are
+/// skipped. Returns the expression of a `children` attribute (if any) so the
+/// caller can emit it as a child iterator.
+fn collect_html_attrs<'a>(
+    el: &'a Element,
+    tag: &str,
+    attrs: &mut Vec<TokenStream>,
+) -> Option<&'a syn::Expr> {
+    let mut children_attr_expr: Option<&syn::Expr> = None;
+
+    for arg in &el.args {
+        let key_str = arg.key.to_string();
+        let key_ident = arg.key.clone();
+        let value = &arg.value;
+        match key_str.as_str() {
+            "children" => {
+                children_attr_expr = Some(value);
+            }
+            "on_click" => {
+                let handler = wrap_dioxus_handler(value);
+                attrs.push(quote! { onclick: {#handler}, });
+            }
+            "on_mouse_down" => {
+                let handler = wrap_dioxus_handler(value);
+                attrs.push(quote! { onmousedown: {#handler}, });
+            }
+            "on_mouse_up" => {
+                let handler = wrap_dioxus_handler(value);
+                attrs.push(quote! { onmouseup: {#handler}, });
+            }
+            "on_mouse_enter" => {
+                let handler = wrap_dioxus_handler(value);
+                attrs.push(quote! { onmouseenter: {#handler}, });
+            }
+            "on_mouse_leave" => {
+                let handler = wrap_dioxus_handler(value);
+                attrs.push(quote! { onmouseleave: {#handler}, });
+            }
+            "on_input" => {
+                let handler = wrap_dioxus_handler(value);
+                attrs.push(quote! { oninput: {#handler}, });
+            }
+            "on_change" => {
+                let handler = wrap_dioxus_handler(value);
+                attrs.push(quote! { onchange: {#handler}, });
+            }
+            "value" => {
+                if tag == "input" {
+                    attrs.push(quote! { value: {#value.get()}, });
+                } else {
+                    attrs.push(quote! { value: {#value}, });
+                }
+            }
+            "primary" | "ghost" | "destructive" | "active" | "trigger" | "rows" | "striped"
+            | "items" | "estimated_height" | "copy_text" | "sortable" | "width" | "resizable"
+            | "selectable" | "on_sort" | "bordered" | "size" | "navigate_to" | "cfg" | "label"
+            | "render" | "key" | "index" | "text" | "query" | "color" | "direction" | "tooltip"
+            | "icon_name" => {}
+            _ => {
+                if let syn::Expr::Lit(syn::ExprLit {
+                    lit: syn::Lit::Str(s),
+                    ..
+                }) = value
+                {
+                    attrs.push(quote! { #key_ident: #s, });
+                } else {
+                    attrs.push(quote! { #key_ident: {#value}, });
+                }
+            }
+        }
+    }
+
+    children_attr_expr
 }
