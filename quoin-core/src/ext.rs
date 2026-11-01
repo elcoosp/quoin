@@ -31,6 +31,9 @@ pub trait SignalExt<T: Clone + 'static>: Signal<T> {
     /// a re-render request; skipping equal writes removes that wasted work.
     /// Returns `true` when the value was written.
     ///
+    /// Delegates to [`Signal::set_if_eq`], which single-lock implementations
+    /// override for a cheaper compare-and-write.
+    ///
     /// # Example
     ///
     /// ```
@@ -45,12 +48,7 @@ pub trait SignalExt<T: Clone + 'static>: Signal<T> {
     where
         T: PartialEq,
     {
-        if self.with(|current| *current == value) {
-            false
-        } else {
-            self.set(value);
-            true
-        }
+        self.set_if_eq(value)
     }
 
     /// Replaces the value and returns the previous one.
@@ -226,14 +224,67 @@ pub trait ReactiveContextExt: ReactiveContext {
     where
         T: Clone + Send + Sync + 'static,
     {
-        if let Some(signal) = self.use_global::<T>() {
-            signal
-        } else {
+        let existing = self.use_global::<T>();
+        if existing.is_none() {
             self.provide_global(init());
-            self.use_global::<T>()
-                .expect("global was just provided by provide_global")
         }
+        // After the possible `provide_global`, the global must be present.
+        existing
+            .or_else(|| self.use_global::<T>())
+            .expect("global present after provide_global")
     }
 }
 
 impl<C: ReactiveContext> ReactiveContextExt for C {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_support::static_signal;
+
+    #[test]
+    fn set_eq_reports_whether_it_wrote() {
+        let signal = static_signal(String::from("a"));
+        assert!(!signal.set_eq("a".to_string()), "equal write skipped");
+        assert_eq!(signal.get(), "a");
+        assert!(signal.set_eq("b".to_string()), "changed write lands");
+        assert_eq!(signal.get(), "b");
+    }
+
+    #[test]
+    fn set_eq_matches_set_if_eq_default_semantics() {
+        // The generic default (read-then-write) must agree with the
+        // single-lock override in `StaticSignal`.
+        let overridden = static_signal(0u32);
+        let default_impl = static_signal(0u32);
+        assert_eq!(overridden.set_eq(0), default_impl.set_if_eq(0));
+        assert_eq!(overridden.get(), default_impl.get());
+        assert_eq!(overridden.set_eq(1), default_impl.set_if_eq(1));
+        assert_eq!(overridden.get(), default_impl.get());
+        assert_eq!(overridden.set_eq(1), default_impl.set_if_eq(1));
+        assert_eq!(overridden.get(), default_impl.get());
+    }
+
+    #[test]
+    fn replace_returns_previous_value() {
+        let signal = static_signal(10u32);
+        assert_eq!(signal.replace(20), 10);
+        assert_eq!(signal.get(), 20);
+    }
+
+    #[test]
+    fn take_leaves_default_behind() {
+        let signal = static_signal(String::from("payload"));
+        assert_eq!(signal.take(), "payload");
+        assert_eq!(signal.get(), "");
+    }
+
+    #[test]
+    fn map_derives_a_view_of_the_signal() {
+        let count = static_signal(2u32);
+        let label = count.map(|n| format!("count = {n}"));
+        assert_eq!(label.get(), "count = 2");
+        count.set(3);
+        assert_eq!(label.get(), "count = 3", "derived re-reads its source");
+    }
+}
