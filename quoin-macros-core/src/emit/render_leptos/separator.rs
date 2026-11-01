@@ -29,11 +29,11 @@ pub(crate) fn emit_separator(
     for arg in &el.args {
         let key_str = arg.key.to_string();
         let value = &arg.value;
-        match key_str.as_str() {
-            "class" => attrs.push(quote! { class=#value }),
-            "orientation" => {}
-            _ => {}
+        if key_str == "class" {
+            attrs.push(quote! { class=#value });
         }
+        // `orientation` was consumed in `resolve_separator_element`; the
+        // remaining attributes are ignored.
     }
     if attrs.is_empty() {
         quote! { <#tag /> }
