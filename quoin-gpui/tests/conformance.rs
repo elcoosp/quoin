@@ -1,3 +1,4 @@
+//! Conformance tests for the quoin-gpui adapter.
 use gpui::TestAppContext;
 use quoin_conformance::{SleepExt, define_conformance_tests};
 use quoin_core::{Executor, ReactiveContext};
@@ -32,9 +33,9 @@ struct TestHarness {
 }
 
 impl TestHarness {
-    fn new(cx: &mut TestAppContext) -> Self {
+    fn new(cx: &TestAppContext) -> Self {
         let foreground = cx.update(|cx| cx.foreground_executor().clone());
-        let background = cx.executor().clone();
+        let background = cx.executor();
         Self {
             context: GpuiContext::for_test(foreground, background),
         }
@@ -54,7 +55,7 @@ impl ReactiveContext for TestHarness {
     }
 
     fn request_update(&self) {
-        self.context.request_update()
+        self.context.request_update();
     }
 
     fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T) {
