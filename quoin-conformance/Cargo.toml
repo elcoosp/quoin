@@ -15,6 +15,9 @@ futures = "0.3"
 # Optional dependencies for specific adapters
 gpui = { git = "https://github.com/zed-industries/zed", optional = true }
 
+[dev-dependencies]
+quoin-testkit = { path = "../quoin-testkit" }
+
 [features]
 leptos = []
 gpui   = ["dep:gpui"]
@@ -24,3 +27,6 @@ floem  = []
 [lib]
 name = "quoin_conformance"
 path = "src/lib.rs"
+
+[lints]
+workspace = true
