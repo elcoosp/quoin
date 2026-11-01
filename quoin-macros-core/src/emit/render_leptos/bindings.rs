@@ -32,7 +32,6 @@ pub(crate) fn import_shadcn_or_html_tag(
 }
 
 #[cfg(not(feature = "leptos-shadcn"))]
-#[allow(dead_code)]
 pub(crate) fn import_shadcn_or_html_tag(
     _bindings: &mut Vec<TokenStream>,
     _shadcn_comp: &str,
