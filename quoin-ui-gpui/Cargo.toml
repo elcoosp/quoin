@@ -9,3 +9,6 @@ license = "MIT"
 quoin-ui = { path = "../quoin-ui" }
 gpui = { git = "https://github.com/zed-industries/zed" }
 gpui-component = { git = "https://github.com/longbridge/gpui-component" }
+
+[lints]
+workspace = true
