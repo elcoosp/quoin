@@ -17,11 +17,13 @@
 //! - **Dioxus** ([`generate_dioxus_rich_text`]): Emits `rsx!` nested spans with
 //!   inline styles.
 
-#[allow(unused)]
+#[cfg(any(feature = "gpui", feature = "leptos", feature = "dioxus"))]
 use proc_macro2::TokenStream;
-#[allow(unused)]
+#[cfg(any(feature = "gpui", feature = "leptos", feature = "dioxus"))]
 use quote::quote;
 #[cfg(feature = "gpui")]
+#[must_use]
+/// Generates GPUI rich-text (styled span list) rendering.
 pub fn generate_gpui_rich_text(
     text_expr: &syn::Expr,
     base_color: Option<&syn::Expr>,
@@ -59,13 +61,16 @@ pub fn generate_gpui_rich_text(
 }
 
 #[cfg(feature = "leptos")]
+#[must_use]
+/// Generates Leptos rich-text rendering: nested `<span>` elements with inline
+/// `style` attributes for per-run color and background.
 pub fn generate_leptos_rich_text(
     text_expr: &syn::Expr,
     base_color: Option<&syn::Expr>,
     font_size: f32,
     runs_expr: Option<&syn::Expr>,
 ) -> TokenStream {
-    let style = format!("font-size: {}px;", font_size);
+    let style = format!("font-size: {font_size}px;");
     if let Some(runs) = runs_expr {
         quote! {
             <span style=#style>
@@ -93,13 +98,16 @@ pub fn generate_leptos_rich_text(
 }
 
 #[cfg(feature = "dioxus")]
+#[must_use]
+/// Generates Dioxus rich-text rendering: `rsx!` nested spans with inline
+/// styles for per-run color and background.
 pub fn generate_dioxus_rich_text(
     _text_expr: &syn::Expr, // Prefixed with _ to avoid unused variable warning when runs_expr is Some
     base_color: Option<&syn::Expr>,
     font_size: f32,
     runs_expr: Option<&syn::Expr>,
 ) -> TokenStream {
-    let style = format!("font-size: {}px;", font_size);
+    let style = format!("font-size: {font_size}px;");
     if let Some(runs) = runs_expr {
         quote! {
             span { style: #style,
