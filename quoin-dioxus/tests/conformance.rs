@@ -1,3 +1,4 @@
+//! Conformance tests for the quoin-dioxus adapter.
 use dioxus_core::{Element, ScopeId, VNode, VirtualDom};
 use quoin_conformance::{SleepExt, define_conformance_tests};
 use quoin_core::{Executor, ReactiveContext};
@@ -61,7 +62,7 @@ impl TestHarness {
         }
     }
 
-    fn with_vdom<F, R>(&self, f: F) -> R
+    fn with_vdom<F, R>(f: F) -> R
     where
         F: FnOnce() -> R,
     {
@@ -77,23 +78,23 @@ impl ReactiveContext for TestHarness {
     type Executor = TestExecutor;
 
     fn create_signal<T: Clone + 'static>(&self, initial: T) -> Self::Signal<T> {
-        self.with_vdom(|| self.context.create_signal(initial))
+        Self::with_vdom(|| self.context.create_signal(initial))
     }
 
     fn executor(&self) -> Self::Executor {
-        self.with_vdom(|| TestExecutor(self.context.executor()))
+        Self::with_vdom(|| TestExecutor(self.context.executor()))
     }
 
     fn request_update(&self) {
-        self.with_vdom(|| self.context.request_update())
+        Self::with_vdom(|| self.context.request_update());
     }
 
     fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T) {
-        self.with_vdom(|| self.context.provide_global(value));
+        Self::with_vdom(|| self.context.provide_global(value));
     }
 
     fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>> {
-        self.with_vdom(|| self.context.use_global())
+        Self::with_vdom(|| self.context.use_global())
     }
 }
 
