@@ -11,7 +11,7 @@
 //! | [`LeptosContext`] | A zero-sized context. Creates signals via Leptos's `RwSignal`. |
 //! | [`LeptosSignal<T>`] | A `Clone` signal backed by `RwSignal<SendWrapper<T>>`. |
 //! | [`LeptosExecutor`] | Spawns tasks on a blocking `std::thread` (see notes below). |
-//! | [`LeptosJoinHandle<T>`] | A `JoinHandle` wrapping a oneshot channel for result retrieval. |
+//! | [`LeptosJoinHandle<T>`] | Shared oneshot handle (abort / detach / abort-on-drop) from `quoin-core`. |
 //!
 //! # Creating a Context
 //!
@@ -67,10 +67,9 @@
 //! copy text, used internally by the `clipboard_button` element in `quoin_render!`.
 
 use leptos::prelude::*;
-use quoin_core::{Executor, JoinHandle, ReactiveContext, Signal as QuoinSignal};
+use quoin_core::{Executor, ReactiveContext, Signal as QuoinSignal};
 use send_wrapper::SendWrapper;
 use std::future::Future;
-use std::pin::Pin;
 
 #[derive(Clone, Default)]
 /// Leptos reactive context.
@@ -79,7 +78,10 @@ use std::pin::Pin;
 pub struct LeptosContext;
 
 impl LeptosContext {
-    pub fn new() -> Self {
+    /// Creates a fresh context. Call inside a Leptos reactive owner so the
+    /// provided globals scope to the current owner tree.
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -153,37 +155,10 @@ impl Executor for LeptosExecutor {
         F: Future + Send + 'static,
         F::Output: Send + 'static,
     {
-        let (tx, rx) = futures::channel::oneshot::channel();
-        let (abort_handle, abort_registration) = futures::future::AbortHandle::new_pair();
-
-        #[cfg(target_arch = "wasm32")]
-        {
-            wasm_bindgen_futures::spawn_local(async move {
-                if let Ok(result) =
-                    futures::future::Abortable::new(future, abort_registration).await
-                {
-                    let _ = tx.send(result);
-                }
-            });
-        }
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            // Shared growable worker pool instead of one OS thread per task:
-            // short-lived tasks (searches, timers, polls) reuse idle workers.
-            quoin_core::pool::spawn_pooled(async move {
-                if let Ok(result) =
-                    futures::future::Abortable::new(future, abort_registration).await
-                {
-                    let _ = tx.send(result);
-                }
-            });
-        }
-
-        LeptosJoinHandle {
-            abort: abort_handle,
-            rx: Some(rx),
-            detached: std::sync::atomic::AtomicBool::new(false),
-        }
+        // Shared implementation: the future is wrapped in an `Abortable` and
+        // runs on the shared worker pool (native) or the browser main thread
+        // (wasm). See `quoin_core::spawn_abortable`.
+        quoin_core::spawn_abortable(future)
     }
 }
 
@@ -191,57 +166,11 @@ impl Executor for LeptosExecutor {
 ///
 /// Awaiting resolves with the task's result, or `Err(Canceled)` if the task
 /// was aborted. Dropping the handle without detaching cancels the task.
-pub struct LeptosJoinHandle<T> {
-    abort: futures::future::AbortHandle,
-    rx: Option<futures::channel::oneshot::Receiver<T>>,
-    detached: std::sync::atomic::AtomicBool,
-}
-
-impl<T: Send + 'static> JoinHandle<T> for LeptosJoinHandle<T> {
-    /// Abort the spawned task.
-    ///
-    /// Cancellation is cooperative: the wrapped future stops at its next
-    /// suspension point. The worker thread (native) or the spawned local task
-    /// (wasm) then completes without producing a result.
-    fn abort(&self) {
-        self.abort.abort();
-    }
-
-    /// Detach the task so it runs to completion even if this handle is
-    /// dropped. The task's result is discarded.
-    fn detach(self) {
-        self.detached
-            .store(true, std::sync::atomic::Ordering::SeqCst);
-    }
-}
-
-impl<T> Drop for LeptosJoinHandle<T> {
-    fn drop(&mut self) {
-        // Structured concurrency: dropping the handle without awaiting or
-        // detaching cancels the task.
-        if !self.detached.load(std::sync::atomic::Ordering::SeqCst) {
-            self.abort.abort();
-        }
-    }
-}
-
-impl<T: Send + 'static> std::future::IntoFuture for LeptosJoinHandle<T> {
-    type Output = Result<T, futures::channel::oneshot::Canceled>;
-    type IntoFuture = Pin<Box<dyn Future<Output = Self::Output> + Send>>;
-
-    fn into_future(mut self) -> Self::IntoFuture {
-        Box::pin(async move {
-            if let Some(rx) = self.rx.take() {
-                // drop-after-await must not abort the task.
-                self.detached
-                    .store(true, std::sync::atomic::Ordering::SeqCst);
-                rx.await
-            } else {
-                Err(futures::channel::oneshot::Canceled)
-            }
-        })
-    }
-}
+///
+/// This is [`quoin_core::AbortJoinHandle`] under a historical name: the
+/// handle lifecycle (await / abort / detach / abort-on-drop) is implemented
+/// once in `quoin-core` and shared with the Dioxus and Floem adapters.
+pub type LeptosJoinHandle<T> = quoin_core::AbortJoinHandle<T>;
 
 impl<T: Clone + std::fmt::Debug + 'static> std::fmt::Debug for LeptosSignal<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -270,7 +199,7 @@ impl quoin_core::LocalExecutor for LeptosExecutor {
 ///
 /// Falls back silently if the clipboard API is unavailable (e.g., SSR context).
 /// This function is called by the `clipboard_button` element in `quoin_render!`.
-pub fn clipboard_write_text(text: &str) {
+pub const fn clipboard_write_text(text: &str) {
     #[cfg(target_arch = "wasm32")]
     {
         if let Some(window) = web_sys::window() {
