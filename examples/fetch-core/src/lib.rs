@@ -14,7 +14,9 @@ use std::sync::Arc;
 /// What the backend returns.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SearchResult {
+    /// The query this result belongs to (normalized by the pipeline).
     pub query: String,
+    /// Matching entries.
     pub items: Vec<String>,
 }
 
@@ -53,7 +55,6 @@ where
 
 impl<C: ReactiveContext> SearchPage<C>
 where
-    C: ReactiveContext,
     C::Executor: Executor<JoinHandle<()>: JoinHandle<()> + 'static>,
     C::Signal<ResourceState<SearchResult, FetchError>>: Send,
 {
@@ -188,7 +189,7 @@ mod tests {
     fn unknown_queries_fail_with_network_error() {
         let cx = TestContext::with_executor(ImmediateExecutor);
         let page = SearchPage::new(&cx, "nope", memory_backend(vec![]));
-        assert!(page.items().is_empty());
+        assert_eq!(page.items(), [] as [std::string::String; 0]);
         assert_eq!(
             page.error(),
             Some(FetchError::Network("no results for 'nope'".into()))
