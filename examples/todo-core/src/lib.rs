@@ -32,11 +32,11 @@ pub enum Filter {
 impl Filter {
     /// Machine-friendly name (used by view layers as tab ids).
     #[must_use]
-    pub fn as_str(self) -> &'static str {
+    pub const fn as_str(self) -> &'static str {
         match self {
-            Filter::All => "all",
-            Filter::Active => "active",
-            Filter::Completed => "completed",
+            Self::All => "all",
+            Self::Active => "active",
+            Self::Completed => "completed",
         }
     }
 }
@@ -44,8 +44,11 @@ impl Filter {
 /// One todo item.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Todo {
+    /// Unique, monotonically increasing identifier.
     pub id: u64,
+    /// User-facing text.
     pub title: String,
+    /// Whether the item is checked off.
     pub completed: bool,
 }
 
@@ -103,7 +106,7 @@ impl<C: ReactiveContext> TodoStore<C> {
                     id,
                     title,
                     completed: false,
-                })
+                });
             });
             self.draft.set(String::new());
         });
@@ -237,6 +240,7 @@ impl<C: ReactiveContext> TodoStore<C> {
 /// A spawned "item saved" indicator driven by a cancellation token — shows
 /// how per-item async work is scoped in quoin apps.
 pub struct SaveIndicator {
+    /// Cancels the indicator's work when the owning scope goes away.
     pub token: CancellationToken,
 }
 
@@ -265,7 +269,7 @@ mod tests {
     fn store_starts_empty() {
         let cx = TestContext::with_executor(ImmediateExecutor);
         let store = TodoStore::new(&cx);
-        assert!(store.visible().is_empty());
+        assert_eq!(store.visible(), [] as [Todo; 0]);
         assert_eq!(store.active_count(), 0);
         assert_eq!(store.footer_text().get(), "All done!");
     }
@@ -276,7 +280,7 @@ mod tests {
         let store = TodoStore::new(&cx);
         store.set_draft("   ".to_string());
         store.commit_draft();
-        assert!(store.visible().is_empty());
+        assert_eq!(store.visible(), [] as [Todo; 0]);
         // Draft was preserved for editing (not cleared on blank commit).
         assert_eq!(store.draft.get(), "   ");
     }
@@ -327,7 +331,7 @@ mod tests {
         assert_eq!(store.visible().len(), 1);
         assert!(store.remove(2));
         assert!(!store.remove(2), "double remove returns false");
-        assert!(store.visible().is_empty());
+        assert_eq!(store.visible(), [] as [Todo; 0]);
     }
 
     #[test]
