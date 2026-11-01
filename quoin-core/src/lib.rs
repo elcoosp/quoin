@@ -83,16 +83,20 @@
 //!
 //! For complete usage examples, see the `examples/` directory in the repository.
 
-#![forbid(unsafe_code)]
-#![warn(missing_docs, clippy::all, clippy::pedantic)]
+// Lint policy (missing_docs, clippy::pedantic, forbid(unsafe_code),
+// deny(clippy::allow_attributes)) is defined once in the workspace root
+// `Cargo.toml` under `[workspace.lints]` and inherited via `[lints]`.
 
 pub mod batch;
 pub mod cancellation;
 pub mod derived;
 pub mod executor;
 pub mod ext;
+pub mod globals;
+pub mod join;
 pub mod local;
 pub mod macros;
+pub mod notify_signal;
 pub mod pool;
 pub mod reactive;
 pub mod resource;
@@ -102,10 +106,12 @@ pub mod test_support;
 pub use cancellation::{
     CancelGuard, CancellationToken, Cancelled, CancelledFuture, RunUntilCancelled,
 };
-pub use derived::{Derived, Zipped, derived, zip};
+pub use derived::{Derived, Memo, Zipped, derived, memo, zip};
 pub use executor::{Executor, JoinHandle};
 pub use ext::{ExecutorExt, ReactiveContextExt, SignalExt};
+pub use join::{AbortJoinHandle, AbortTask, RawTask, SharedJoinHandle, spawn_abortable};
 pub use local::{LocalExecutor, LocalJoinHandle, LocalTask, spawn_local_task};
+pub use notify_signal::NotifierSignal;
 pub use reactive::ReactiveContext;
 pub use resource::{Resource, ResourceState};
 pub use signal::Signal;
