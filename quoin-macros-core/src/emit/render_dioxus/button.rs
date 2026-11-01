@@ -38,11 +38,10 @@ pub(crate) fn emit_button(el: &Element) -> TokenStream {
             ""
         };
 
-        let full_class = match class_expr {
-            Some(cls) => {
-                quote! { format!("{} {}{} {}", #base_class, #variant_class, #disabled_class, #cls) }
-            }
-            None => quote! { format!("{} {}{}", #base_class, #variant_class, #disabled_class) },
+        let full_class = if let Some(cls) = class_expr {
+            quote! { format!("{} {}{} {}", #base_class, #variant_class, #disabled_class, #cls) }
+        } else {
+            quote! { format!("{} {}{}", #base_class, #variant_class, #disabled_class) }
         };
 
         let on_click_attr = find_arg_expr(el, "on_click").map(|handler_expr| {
