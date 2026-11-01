@@ -60,3 +60,6 @@ dioxus-shadcn = [
     "quoin-dioxus?/shadcn",
     "quoin-macros?/dioxus-shadcn",
 ]
+
+[lints]
+workspace = true
