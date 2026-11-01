@@ -26,3 +26,6 @@ futures-timer = "3.0"
 shadcn = [
     "dep:leptos-shadcn-ui",
 ]
+
+[lints]
+workspace = true
