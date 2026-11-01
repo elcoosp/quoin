@@ -1,3 +1,4 @@
+//! Conformance tests for the quoin-xilem adapter.
 use quoin_conformance::{SleepExt, define_conformance_tests};
 use quoin_core::{Executor, JoinHandle, ReactiveContext};
 use quoin_xilem::{XilemContext, XilemExecutor};
@@ -61,7 +62,7 @@ impl ReactiveContext for TestHarness {
     }
 
     fn request_update(&self) {
-        self.context.request_update()
+        self.context.request_update();
     }
 
     fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T) {
@@ -121,7 +122,6 @@ fn test_join_handle_abort_cancels_task() {
     let result = futures::executor::block_on(handle.into_future());
     assert!(
         matches!(result, Err(futures::channel::oneshot::Canceled)),
-        "Expected JoinHandle to be cancelled after abort, but got: {:?}",
-        result
+        "Expected JoinHandle to be cancelled after abort, but got: {result:?}"
     );
 }
