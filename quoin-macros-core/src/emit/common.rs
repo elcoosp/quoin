@@ -1,14 +1,18 @@
 //! Shared utilities for render emitters.
 //!
-//! These functions reduce duplication across the GPUI, Leptos, and Dioxus
-//! render backends. Currently used in `render_gpui.rs` and planned for use in
-//! the other emitters during the ongoing deduplication refactor.
+//! These helpers reduce duplication across the GPUI, Leptos, and Dioxus
+//! render backends: every backend reads the same declarative-UI AST, so the
+//! argument-extraction logic lives here exactly once.
 
-use crate::render_ast::{Element, RenderNode};
+use crate::parse::ComponentAst;
+use crate::render_ast::Element;
+use crate::transpile::collect_block_idents;
+use proc_macro2::TokenStream;
+use quote::quote;
 use syn::Expr;
 
 /// Extract a boolean argument from an element's argument list.
-#[allow(dead_code)]
+#[must_use]
 pub fn find_arg_bool(el: &Element, key: &str) -> bool {
     el.args.iter().any(|a| {
         a.key == key
@@ -19,7 +23,7 @@ pub fn find_arg_bool(el: &Element, key: &str) -> bool {
 }
 
 /// Extract a string argument from an element's argument list.
-#[allow(dead_code)]
+#[must_use]
 pub fn find_arg_string(el: &Element, key: &str) -> Option<String> {
     el.args.iter().find(|a| a.key == key).and_then(|a| {
         if let Expr::Lit(expr_lit) = &a.value
@@ -32,7 +36,7 @@ pub fn find_arg_string(el: &Element, key: &str) -> Option<String> {
 }
 
 /// Extract a floating‑point argument from an element's argument list.
-#[allow(dead_code)]
+#[must_use]
 pub fn find_arg_f32(el: &Element, key: &str) -> Option<f32> {
     el.args.iter().find(|a| a.key == key).and_then(|a| {
         if let Expr::Lit(syn::ExprLit { lit, .. }) = &a.value {
@@ -48,36 +52,89 @@ pub fn find_arg_f32(el: &Element, key: &str) -> Option<f32> {
 }
 
 /// Extract a generic expression argument.
-#[allow(dead_code)]
+#[must_use]
 pub fn find_arg_expr<'a>(el: &'a Element, key: &str) -> Option<&'a Expr> {
     el.args.iter().find(|a| a.key == key).map(|a| &a.value)
 }
 
-/// Extract tab definitions from children of a `tabs` element.
-#[allow(dead_code)]
-pub fn extract_tab_children(el: &Element) -> Vec<TabDefinition> {
-    el.children
+/// Expands `component!` action methods into closure declarations that
+/// shadow-clone the state signals and globals they reference.
+///
+/// Idents referenced from an action body that match a state-signal or global
+/// name (and are not shadowed by an action parameter) are cloned into the
+/// closure before it is moved into place. Zero-parameter actions become
+/// `move ||` closures; the others keep their declared typed parameters.
+#[must_use]
+pub fn action_closure_tokens(ast: &ComponentAst) -> Vec<TokenStream> {
+    let state_global_names: std::collections::HashSet<String> = ast
+        .state
         .iter()
-        .filter_map(|c| {
-            if let RenderNode::Element(e) = c
-                && e.name == "tab"
-            {
-                let index = find_arg_expr(e, "index")?;
-                let label = find_arg_string(e, "label")?;
-                Some(TabDefinition {
-                    index: index.clone(),
-                    label,
+        .map(|s| s.name.to_string())
+        .chain(ast.globals.iter().map(|g| g.name.to_string()))
+        .collect();
+
+    ast.actions
+        .iter()
+        .map(|func| {
+            let sig = &func.sig;
+            let name = &sig.ident;
+            let block = &func.block;
+
+            let param_names: std::collections::HashSet<String> = sig
+                .inputs
+                .iter()
+                .filter_map(|arg| {
+                    if let syn::FnArg::Typed(pat_type) = arg
+                        && let syn::Pat::Ident(pat_ident) = &*pat_type.pat
+                    {
+                        return Some(pat_ident.ident.to_string());
+                    }
+                    None
                 })
+                .collect();
+
+            let params: Vec<(proc_macro2::Ident, &syn::Type)> = sig
+                .inputs
+                .iter()
+                .filter_map(|arg| {
+                    if let syn::FnArg::Typed(pat_type) = arg
+                        && let syn::Pat::Ident(pat_ident) = &*pat_type.pat
+                    {
+                        return Some((pat_ident.ident.clone(), &*pat_type.ty));
+                    }
+                    None
+                })
+                .collect();
+
+            let referenced = collect_block_idents(block);
+            let shadows: Vec<_> = referenced
+                .iter()
+                .filter(|id| {
+                    let name_str = id.to_string();
+                    state_global_names.contains(&name_str) && !param_names.contains(&name_str)
+                })
+                .map(|id| {
+                    quote! { let #id = #id.clone(); }
+                })
+                .collect();
+
+            if params.is_empty() {
+                quote! {
+                    let #name = {
+                        #(#shadows)*
+                        move || #block
+                    };
+                }
             } else {
-                None
+                let param_idents: Vec<_> = params.iter().map(|(id, _)| id).collect();
+                let param_types: Vec<_> = params.iter().map(|(_, ty)| ty).collect();
+                quote! {
+                    let #name = {
+                        #(#shadows)*
+                        move |#(#param_idents: #param_types),*| #block
+                    };
+                }
             }
         })
         .collect()
-}
-
-/// Description of a single tab inside a `tabs` container.
-#[derive(Debug, Clone)]
-pub struct TabDefinition {
-    pub index: Expr,
-    pub label: String,
 }
