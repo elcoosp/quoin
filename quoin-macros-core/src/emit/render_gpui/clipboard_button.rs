@@ -6,9 +6,8 @@ use quote::quote;
 use super::{emit_render, try_transpile_class};
 
 pub(crate) fn emit_clipboard_button(el: &Element) -> TokenStream {
-    let copy_text = match find_arg_expr(el, "copy_text") {
-        Some(e) => e,
-        None => return quote! { ::gpui::div().child("clipboard_button: missing copy_text") },
+    let Some(copy_text) = find_arg_expr(el, "copy_text") else {
+        return quote! { ::gpui::div().child("clipboard_button: missing copy_text") };
     };
 
     let mut chain = quote! {
