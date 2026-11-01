@@ -1,7 +1,13 @@
+//! Procedural macros for the quoin ecosystem.
+//!
+//! All parsing and code generation lives in [`quoin_macros_core`]; this crate
+//! is the `proc_macro` boundary that exports the public macros:
+//! `component!`, `quoin_render!`, `quoin_element!`, `effect!`, and `run_app!`.
+
 use proc_macro::TokenStream;
 use quoin_macros_core::emit::FrameworkEmitter;
 
-fn emitter() -> quoin_macros_core::emit::Emitter {
+const fn emitter() -> quoin_macros_core::emit::Emitter {
     quoin_macros_core::emit::Emitter
 }
 
@@ -57,6 +63,13 @@ pub fn quoin_render(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro]
+/// Define a custom element with typed props and a render closure.
+///
+/// # Example
+///
+/// ```ignore
+/// quoin_element!("my-widget", { width: u32 }, |props| quoin_render! { div { "w" } });
+/// ```
 pub fn quoin_element(input: TokenStream) -> TokenStream {
     let def = match syn::parse::<quoin_macros_core::custom_element::CustomElementDef>(input) {
         Ok(def) => def,
