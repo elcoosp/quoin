@@ -18,6 +18,8 @@ mod virtual_list;
 
 pub use self::emit_render as emit_component;
 
+#[must_use]
+/// Expands a `quoin_render!` AST into a GPUI element chain.
 pub fn emit_render(node: &RenderNode) -> TokenStream {
     let inner = emit_render_inner(node);
     wrap_with_cfg(node.attrs(), inner)
