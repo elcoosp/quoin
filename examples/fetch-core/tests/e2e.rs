@@ -35,10 +35,10 @@ fn e2e_validation_and_error_mapping() {
     let page = SearchPage::new(&cx, "", memory_backend(vec![]));
     assert_eq!(
         page.error(),
-        Some(FetchError::InvalidQuery("".into())),
+        Some(FetchError::InvalidQuery(String::new())),
         "empty initial query must surface the validation error"
     );
-    assert!(page.items().is_empty());
+    assert_eq!(page.items(), [] as [std::string::String; 0]);
 }
 
 #[test]
@@ -69,7 +69,7 @@ fn e2e_cancel_moves_resource_to_idle() {
     assert!(page.results.read().is_some());
     page.results.cancel();
     assert!(matches!(page.results.snapshot(), ResourceState::Idle));
-    assert!(page.items().is_empty());
+    assert_eq!(page.items(), [] as [std::string::String; 0]);
 }
 
 #[test]
