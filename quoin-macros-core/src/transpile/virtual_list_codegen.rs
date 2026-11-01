@@ -10,14 +10,17 @@
 //!   `Entity<V>`, which cannot be created in a `Render` impl. Falls back to
 //!   `div().size_full().overflow_y_scroll()`.
 //! - **Leptos / Dioxus**: Emit scrollable divs. True windowing can be added
-//!   later via `leptos-virtual-scroll` or `dioxus-primitives` RecycleList.
+//!   later via `leptos-virtual-scroll` or `dioxus-primitives` `RecycleList`.
 
-#[allow(unused)]
+#[cfg(any(feature = "gpui", feature = "leptos", feature = "dioxus"))]
 use proc_macro2::TokenStream;
-#[allow(unused)]
+#[cfg(any(feature = "gpui", feature = "leptos", feature = "dioxus"))]
 use quote::quote;
 
 #[cfg(feature = "gpui")]
+#[must_use]
+/// Generates a scrollable virtual list for GPUI (currently falls back to a
+/// plain scrollable div; arguments are reserved for windowing support).
 pub fn generate_gpui_virtual_list(
     _items_expr: &syn::Expr,
     _estimated_height: f32,
@@ -34,6 +37,9 @@ pub fn generate_gpui_virtual_list(
 }
 
 #[cfg(feature = "leptos")]
+#[must_use]
+/// Generates a scrollable virtual list for Leptos (currently falls back to a
+/// plain scrollable div; arguments are reserved for windowing support).
 pub fn generate_leptos_virtual_list(
     _items_expr: &syn::Expr,
     _estimated_height: f32,
@@ -47,6 +53,9 @@ pub fn generate_leptos_virtual_list(
 }
 
 #[cfg(feature = "dioxus")]
+#[must_use]
+/// Generates a scrollable virtual list for Dioxus (currently falls back to a
+/// plain scrollable div; arguments are reserved for windowing support).
 pub fn generate_dioxus_virtual_list(
     _items_expr: &syn::Expr,
     _estimated_height: f32,
