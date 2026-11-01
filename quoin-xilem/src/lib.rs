@@ -63,27 +63,20 @@
 //!
 //! # Global State (Thread-Local Store, Shared Values)
 //!
-//! Uses a thread-local type-map (same pattern as GPUI/Floem). Globals are only
-//! visible on the registering thread. The stored value is the `XilemSignal`
-//! itself, so every `use_global` consumer shares one `Arc<RwLock>` cell and
-//! mutations propagate between consumers (unified with the other adapters).
+//! Uses the shared thread-local type-map from `quoin_core::globals` (same
+//! pattern as GPUI/Floem, implemented once). Globals are only visible on the
+//! registering thread. The stored value is the `XilemSignal` itself, so every
+//! `use_global` consumer shares one `Arc<RwLock>` cell and mutations
+//! propagate between consumers (unified with the other adapters).
 //!
 //! The adapter also implements [`quoin_core::LocalExecutor`]: `spawn_local`
 //! queues `!Send` futures on the current thread, driven by
 //! `quoin_core::local::run_local_tasks()`.
 
-use quoin_core::{Executor, JoinHandle, ReactiveContext, Signal as QuoinSignal};
-use std::any::TypeId;
-use std::collections::HashMap;
+use quoin_core::{Executor, ReactiveContext};
 use std::future::Future;
-use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use xilem::tokio::runtime::Runtime;
-
-thread_local! {
-    static GLOBAL_STORE: std::cell::RefCell<HashMap<TypeId, Box<dyn std::any::Any + Send + Sync>>> =
-        std::cell::RefCell::new(HashMap::new());
-}
 
 type UpdateNotifier = Arc<dyn Fn() + Send + Sync>;
 
@@ -107,6 +100,9 @@ impl XilemContext {
     /// is mutated. This is typically used to request a UI rebuild.
     ///
     /// The closure must be `Send + Sync` because the context may be shared across threads.
+    ///
+    /// # Panics
+    /// Panics if the notifier mutex is poisoned (a prior panic while holding it).
     pub fn set_update_notifier(&self, notifier: impl Fn() + Send + Sync + 'static) {
         *self.update_notifier.lock().unwrap() = Some(Arc::new(notifier));
     }
@@ -117,6 +113,14 @@ impl XilemContext {
             notifier();
         }
     }
+
+    /// Builds a signal whose notifier routes through this context. The
+    /// shared `NotifierSignal` cell-plus-notifier implementation (batch
+    /// suppression, single-lock `set_if_eq`) lives in `quoin-core`.
+    fn make_signal<T: Clone + 'static>(&self, initial: T) -> XilemSignal<T> {
+        let context = self.clone();
+        quoin_core::NotifierSignal::new(initial, move || context.notify_update())
+    }
 }
 
 impl ReactiveContext for XilemContext {
@@ -124,10 +128,7 @@ impl ReactiveContext for XilemContext {
     type Executor = XilemExecutor;
 
     fn create_signal<T: Clone + 'static>(&self, initial: T) -> Self::Signal<T> {
-        XilemSignal {
-            inner: Arc::new(std::sync::RwLock::new(initial)),
-            context: self.clone(),
-        }
+        self.make_signal(initial)
     }
 
     fn executor(&self) -> Self::Executor {
@@ -148,62 +149,21 @@ impl ReactiveContext for XilemContext {
         // consumer shares the same `Arc<RwLock>`: mutations propagate between
         // consumers (matching the other adapters; previously each use_global
         // returned an independent copy).
-        GLOBAL_STORE.with(|store| {
-            store.borrow_mut().insert(
-                TypeId::of::<T>(),
-                Box::new(XilemSignal {
-                    inner: Arc::new(std::sync::RwLock::new(value)),
-                    context: self.clone(),
-                }),
-            );
-        });
+        quoin_core::globals::insert::<Self, XilemSignal<T>>(self.make_signal(value));
     }
 
     fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>> {
-        GLOBAL_STORE.with(|store| {
-            store
-                .borrow()
-                .get(&TypeId::of::<T>())
-                .and_then(|v| v.downcast_ref::<XilemSignal<T>>())
-                .cloned()
-        })
+        quoin_core::globals::get::<Self, XilemSignal<T>>()
     }
 }
 
 /// A thread‑safe reactive signal.
-#[derive(Clone)]
-/// Xilem-backed reactive signal.
-pub struct XilemSignal<T: Clone + 'static> {
-    inner: Arc<std::sync::RwLock<T>>,
-    context: XilemContext,
-}
-
-impl<T: Clone + 'static> QuoinSignal<T> for XilemSignal<T> {
-    fn get(&self) -> T {
-        self.inner.read().unwrap().clone()
-    }
-
-    fn with<U>(&self, f: impl FnOnce(&T) -> U) -> U {
-        f(&self.inner.read().unwrap())
-    }
-
-    fn set(&self, value: T) {
-        *self.inner.write().unwrap() = value;
-        // Inside `quoin_core::batch` the final `request_update` is issued by
-        // the batch itself; per-write notifies would be redundant work.
-        if quoin_core::batch::should_notify() {
-            self.context.request_update();
-        }
-    }
-
-    fn update(&self, f: impl FnOnce(&mut T)) {
-        let mut guard = self.inner.write().unwrap();
-        f(&mut guard);
-        if quoin_core::batch::should_notify() {
-            self.context.request_update();
-        }
-    }
-}
+///
+/// This is [`quoin_core::NotifierSignal`] under a historical name: the
+/// `Arc<RwLock<T>>` cell plus update-notifier implementation (including
+/// batch-aware notification and the single-lock `set_if_eq` fast path) is
+/// implemented once in `quoin-core` and shared with the GPUI adapter.
+pub type XilemSignal<T> = quoin_core::NotifierSignal<T>;
 
 /// Executor that spawns futures onto the tokio runtime.
 #[derive(Clone)]
@@ -224,69 +184,40 @@ impl Executor for XilemExecutor {
             let result = future.await;
             let _ = tx.send(result);
         });
-        XilemJoinHandle {
-            handle: Some(handle),
-            rx: Some(rx),
-            detached: std::sync::atomic::AtomicBool::new(false),
-        }
+        quoin_core::SharedJoinHandle::new(XilemTask(Mutex::new(Some(handle))), rx)
     }
 }
 
-pub struct XilemJoinHandle<T> {
-    handle: Option<tokio::task::JoinHandle<()>>,
-    rx: Option<futures::channel::oneshot::Receiver<T>>,
-    detached: std::sync::atomic::AtomicBool,
-}
+/// The tokio task wrapped for the shared handle.
+///
+/// Tokio tasks are independent of their handles: `abort` takes the handle
+/// out and calls tokio's abort; `detach` is a no-op because dropping a tokio
+/// `JoinHandle` never cancels the task.
+pub struct XilemTask(Mutex<Option<tokio::task::JoinHandle<()>>>);
 
-impl<T: Send + 'static> JoinHandle<T> for XilemJoinHandle<T> {
-    /// Abort the spawned task.
-    ///
-    /// Uses tokio's native task cancellation: the future stops at its next
-    /// suspension point. Any await of this handle then resolves with
-    /// `Err(Canceled)`.
+impl quoin_core::RawTask for XilemTask {
     fn abort(&self) {
-        if let Some(handle) = &self.handle {
+        // Take the handle while holding the lock, abort after the guard is
+        // gone: tokio's abort may synchronously interact with the task.
+        let handle = self.0.lock().unwrap().take();
+        if let Some(handle) = handle {
             handle.abort();
         }
     }
 
-    /// Detach the task so it runs to completion even if this handle is
-    /// dropped. The task's result is discarded.
-    fn detach(self) {
-        self.detached
-            .store(true, std::sync::atomic::Ordering::SeqCst);
-    }
+    fn detach(&self) {}
 }
 
-impl<T: Send + 'static> std::future::IntoFuture for XilemJoinHandle<T> {
-    type Output = Result<T, futures::channel::oneshot::Canceled>;
-    type IntoFuture = Pin<Box<dyn Future<Output = Self::Output> + Send>>;
-
-    fn into_future(mut self) -> Self::IntoFuture {
-        Box::pin(async move {
-            if let Some(rx) = self.rx.take() {
-                // drop-after-await must not abort the task.
-                self.detached
-                    .store(true, std::sync::atomic::Ordering::SeqCst);
-                rx.await
-            } else {
-                Err(futures::channel::oneshot::Canceled)
-            }
-        })
-    }
-}
-
-impl<T> Drop for XilemJoinHandle<T> {
-    fn drop(&mut self) {
-        // Structured concurrency: dropping the handle without awaiting or
-        // detaching cancels the underlying tokio task.
-        if !self.detached.load(std::sync::atomic::Ordering::SeqCst)
-            && let Some(handle) = self.handle.take()
-        {
-            handle.abort();
-        }
-    }
-}
+/// Handle for a task spawned on the tokio runtime backing `XilemContext`.
+///
+/// Dropping it without awaiting or detaching cancels the task (structured
+/// concurrency); `abort` and `detach` map to the tokio equivalents.
+///
+/// This is [`quoin_core::SharedJoinHandle`] over [`XilemTask`] under a
+/// historical name: the await / abort / detach / abort-on-drop lifecycle is
+/// implemented once in `quoin-core` and shared with the GPUI adapter (and
+/// with the pooled `Abortable` adapters via `AbortJoinHandle`).
+pub type XilemJoinHandle<T> = quoin_core::SharedJoinHandle<T, XilemTask>;
 
 impl quoin_core::LocalExecutor for XilemExecutor {
     type JoinHandle<T: 'static> = quoin_core::LocalTask<T>;
@@ -299,16 +230,5 @@ impl quoin_core::LocalExecutor for XilemExecutor {
         // Queued on the current thread; drive with
         // `quoin_core::local::run_local_tasks()`.
         quoin_core::spawn_local_task(future)
-    }
-}
-
-impl<T: Clone + std::fmt::Debug + 'static> std::fmt::Debug for XilemSignal<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("XilemSignal")
-            .field(
-                "value",
-                &self.inner.read().unwrap_or_else(|e| e.into_inner()),
-            )
-            .finish()
     }
 }
