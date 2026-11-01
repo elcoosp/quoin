@@ -9,8 +9,12 @@ use syn::{Expr, Ident, Token};
 ///
 /// **Structured:** `effect! { deps: [dep1, dep2], run: || body, cleanup: || cleanup }`
 pub struct Effect {
+    /// Reactive dependencies the effect tracks.
     pub deps: Vec<Ident>,
+    /// The effect body.
     pub body: Expr,
+    /// Optional cleanup closure run when dependencies change or the owner
+    /// unmounts.
     pub cleanup: Option<Expr>,
 }
 
@@ -41,8 +45,7 @@ impl Parse for Effect {
                         input.parse::<Token![:]>()?;
                         let body: Expr = input.parse()?;
 
-                        let mut cleanup = None;
-                        if input.peek(Token![,]) {
+                        let cleanup = if input.peek(Token![,]) {
                             input.parse::<Token![,]>()?;
                             let cleanup_kw: Ident = input.parse()?;
                             if cleanup_kw != "cleanup" {
@@ -52,17 +55,19 @@ impl Parse for Effect {
                                 ));
                             }
                             input.parse::<Token![:]>()?;
-                            cleanup = Some(input.parse()?);
-                        }
+                            Some(input.parse()?)
+                        } else {
+                            None
+                        };
 
-                        Ok(Effect {
+                        Ok(Self {
                             deps,
                             body,
                             cleanup,
                         })
                     } else {
                         let body: Expr = input.parse()?;
-                        Ok(Effect {
+                        Ok(Self {
                             deps,
                             body,
                             cleanup: None,
@@ -70,7 +75,7 @@ impl Parse for Effect {
                     }
                 } else {
                     let body: Expr = input.parse()?;
-                    Ok(Effect {
+                    Ok(Self {
                         deps,
                         body,
                         cleanup: None,
