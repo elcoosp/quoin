@@ -10,8 +10,11 @@
 use syn::parse::{Parse, ParseStream};
 use syn::{Ident, Result, Token};
 
+/// The AST of a `run_app!` invocation.
 pub struct RunAppInput {
+    /// The component type to bootstrap.
     pub component: Ident,
+    /// Optional `window_opts: <expr>` override for window construction.
     pub window_opts: Option<syn::Expr>,
 }
 
@@ -32,7 +35,7 @@ impl Parse for RunAppInput {
             None
         };
 
-        Ok(RunAppInput {
+        Ok(Self {
             component,
             window_opts,
         })
