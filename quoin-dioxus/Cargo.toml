@@ -29,3 +29,6 @@ futures-timer = "3.0"
 
 [features]
 shadcn = ["dep:shadcn-dioxus"]
+
+[lints]
+workspace = true
