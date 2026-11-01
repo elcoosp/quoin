@@ -1,0 +1,87 @@
+name: Bug report
+description: Report a problem with a quoin crate or adapter
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug! Please fill in the details
+        below so the issue can be reproduced quickly.
+
+        For questions about usage, consider opening a Discussion instead.
+  - type: dropdown
+    id: crate
+    attributes:
+      label: Affected crate
+      options:
+        - quoin-core
+        - quoin (facade)
+        - quoin-gpui
+        - quoin-leptos
+        - quoin-dioxus
+        - quoin-xilem
+        - quoin-floem
+        - quoin-macros / quoin-macros-core
+        - quoin-testkit
+        - quoin-devtools
+        - quoin-ui / quoin-ui-gpui
+        - examples
+        - other / not sure
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Also tell us what you expected to happen instead.
+      placeholder: A clear and concise description of the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps / minimal example
+      description: Code or steps that reliably reproduce the issue.
+      placeholder: |
+        ```rust
+        // minimal snippet
+        ```
+      render: rust
+    validations:
+      required: true
+  - type: dropdown
+    id: adapter
+    attributes:
+      label: Which framework adapter (if any)?
+      options:
+        - "not applicable"
+        - GPUI
+        - Leptos
+        - Dioxus
+        - Xilem
+        - Floem
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Versions
+      description: Rust version (`rustc -V`) and quoin commit/version.
+      placeholder: rustc 1.99.0, quoin @ main (abc1234)
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Compiler errors, panics, or devtools traces (`QUOIN_TRACE=1`).
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues for a duplicate.
+          required: true
+        - label: The problem reproduces on the latest `main`.
+          required: true
