@@ -16,7 +16,7 @@ pub(crate) fn emit_skeleton(
     let full_class = if user_class.is_empty() {
         base.to_string()
     } else {
-        format!("{} {}", base, user_class)
+        format!("{base} {user_class}")
     };
     quote! { <#tag class=#full_class /> }
 }
@@ -32,7 +32,7 @@ pub(crate) fn emit_skeleton_text(
     let full_class = if user_class.is_empty() {
         base.to_string()
     } else {
-        format!("{} {}", base, user_class)
+        format!("{base} {user_class}")
     };
     quote! { <#tag class=#full_class /> }
 }
@@ -48,7 +48,7 @@ pub(crate) fn emit_skeleton_avatar(
     let full_class = if user_class.is_empty() {
         base.to_string()
     } else {
-        format!("{} {}", base, user_class)
+        format!("{base} {user_class}")
     };
     quote! { <#tag class=#full_class /> }
 }
