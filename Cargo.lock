@@ -1788,6 +1788,7 @@ name = "counter-lib"
 version = "0.1.0"
 dependencies = [
  "quoin-core",
+ "quoin-testkit",
 ]
 
 [[package]]
@@ -8118,6 +8119,7 @@ dependencies = [
  "futures",
  "gpui",
  "quoin-core",
+ "quoin-testkit",
 ]
 
 [[package]]
@@ -8214,9 +8216,6 @@ dependencies = [
 name = "quoin-macros-core"
 version = "0.1.0"
 dependencies = [
- "dioxus",
- "gpui",
- "leptos",
  "proc-macro2",
  "quote",
  "syn 3.0.9",
