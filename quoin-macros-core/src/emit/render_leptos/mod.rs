@@ -29,6 +29,9 @@ mod tabs;
 mod tooltip;
 mod virtual_list;
 
+#[must_use]
+/// Expands a `quoin_render!` AST into a Leptos `view!` block, hoisting any
+/// extracted handler/signal bindings ahead of the markup.
 pub fn emit_render(node: &RenderNode) -> TokenStream {
     let mut bindings = Vec::new();
     let inner = emit_node(node, &mut bindings, false);
@@ -110,7 +113,6 @@ fn emit_element_inner(
         _ => generic::emit_html_tag(
             el,
             match name_str.as_str() {
-                "div" => "div",
                 "h1" => "h1",
                 "h2" => "h2",
                 "h3" => "h3",
