@@ -59,13 +59,13 @@ pub enum ResourceState<T, E> {
 impl<T, E> ResourceState<T, E> {
     /// Returns `true` while a request is in flight.
     #[must_use]
-    pub fn is_loading(&self) -> bool {
+    pub const fn is_loading(&self) -> bool {
         matches!(self, Self::Loading)
     }
 
     /// Returns the ready value, if any.
     #[must_use]
-    pub fn as_ready(&self) -> Option<&T> {
+    pub const fn as_ready(&self) -> Option<&T> {
         match self {
             Self::Ready(t) => Some(t),
             _ => None,
@@ -164,7 +164,10 @@ where
         Fut: Future<Output = Result<T, E>> + Send + 'static,
     {
         // Cancel whatever is running.
-        if let Some(abort) = self.inner.abort_current.lock().unwrap().take() {
+        // Take the closure while holding the lock, then call it after the
+        // guard is gone (the closure may touch the resource again).
+        let abort = self.inner.abort_current.lock().unwrap().take();
+        if let Some(abort) = abort {
             abort();
         }
 
@@ -212,7 +215,10 @@ where
     /// Panics if the abort-closure mutex is poisoned (a prior panic while
     /// publishing a result).
     pub fn cancel(&self) {
-        if let Some(abort) = self.inner.abort_current.lock().unwrap().take() {
+        // Take the closure while holding the lock, then call it after the
+        // guard is gone (the closure may touch the resource again).
+        let abort = self.inner.abort_current.lock().unwrap().take();
+        if let Some(abort) = abort {
             abort();
         }
         self.inner.generation.fetch_add(1, Ordering::AcqRel);
