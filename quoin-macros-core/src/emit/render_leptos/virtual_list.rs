@@ -19,7 +19,7 @@ pub(crate) fn emit_virtual_list(
         .collect();
 
     let style = match estimated_height {
-        Some(h) => format!("overflow-y: auto; height: {}px", h),
+        Some(h) => format!("overflow-y: auto; height: {h}px"),
         None => "overflow-y: auto".to_string(),
     };
     quote! { <div style=#style> #(#children_tokens)* </div> }
