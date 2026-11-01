@@ -1,3 +1,6 @@
+//! Build script: records the enabled framework features into `features.txt`
+//! so the trybuild tests can assert on (or skip per) the active backend.
+
 use std::env;
 use std::fs;
 use std::path::Path;
