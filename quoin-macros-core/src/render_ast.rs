@@ -37,30 +37,43 @@ use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::{Attribute, Expr, Ident, LitStr, Result, Token, braced, bracketed, parenthesized};
 
+/// A node of the declarative-UI tree parsed from `quoin_render!` input.
 #[derive(Debug)]
 pub enum RenderNode {
+    /// An HTML-like element with arguments and children.
     Element(Box<Element>),
+    /// A string literal child.
     Text(LitStr),
+    /// A braced Rust expression.
     Expr(Expr),
+    /// A conditional branch (`if[cond] { .. } else { .. }`).
     If(IfNode),
+    /// A loop (`for[item in list] { .. }`).
     For(ForNode),
-    Root(Vec<RenderNode>),
+    /// A sequence of nodes (top-level macro body or block children).
+    Root(Vec<Self>),
 }
 
 impl RenderNode {
+    /// The outer attributes attached to this node (empty for text/expression
+    /// nodes, which cannot carry attributes).
+    #[must_use]
     pub fn attrs(&self) -> &[Attribute] {
         match self {
-            RenderNode::Element(el) => &el.attrs,
-            RenderNode::If(if_node) => &if_node.attrs,
-            RenderNode::For(for_node) => &for_node.attrs,
-            RenderNode::Text(_) | RenderNode::Expr(_) | RenderNode::Root(_) => &[],
+            Self::Element(el) => &el.attrs,
+            Self::If(if_node) => &if_node.attrs,
+            Self::For(for_node) => &for_node.attrs,
+            Self::Text(_) | Self::Expr(_) | Self::Root(_) => &[],
         }
     }
 }
 
 #[derive(Debug)]
+/// One `key: value` argument of an element.
 pub struct ArgPair {
+    /// Argument name.
     pub key: Ident,
+    /// Argument value expression (collected greedily until `,` or `)`).
     pub value: Expr,
 }
 
@@ -69,17 +82,25 @@ impl Parse for ArgPair {
         let key: Ident = input.call(Ident::parse_any)?;
         input.parse::<Token![:]>()?;
         let value = collect_arg_value(input)?;
-        Ok(ArgPair { key, value })
+        Ok(Self { key, value })
     }
 }
 
+/// An HTML-like element: `name(key: value, ..) { children }`.
 #[derive(Debug)]
 pub struct Element {
+    /// Outer attributes (`#[cfg(..)]` and friends).
     pub attrs: Vec<Attribute>,
+    /// Element name (e.g. `div`, `button`, `tabs`).
     pub name: Ident,
+    /// Parenthesized `key: value` arguments.
     pub args: Vec<ArgPair>,
+    /// Brace-delimited children, parsed recursively.
     pub children: Vec<RenderNode>,
+    /// When the children block is a single braced Rust expression instead of
+    /// DSL nodes, it lands here (e.g. dynamic children).
     pub children_expr: Option<Expr>,
+    /// Optional `trigger(...)` expression (e.g. dropdown trigger).
     pub trigger_expr: Option<Expr>,
 }
 
@@ -150,7 +171,7 @@ impl Parse for Element {
             }
         }
 
-        Ok(Element {
+        Ok(Self {
             attrs,
             name,
             args,
@@ -161,11 +182,16 @@ impl Parse for Element {
     }
 }
 
+/// A conditional branch parsed from `if[condition] { .. } else { .. }`.
 #[derive(Debug)]
 pub struct IfNode {
+    /// Outer attributes (`#[cfg(..)]` and friends) attached to the `if`.
     pub attrs: Vec<Attribute>,
+    /// The bracketed condition expression.
     pub condition: Expr,
+    /// Nodes of the `then` block.
     pub then_branch: Vec<RenderNode>,
+    /// Nodes of the `else`/`else if` block, when present.
     pub else_branch: Option<Vec<RenderNode>>,
 }
 
@@ -185,7 +211,7 @@ impl Parse for IfNode {
                 let fork = input.fork();
                 fork.parse::<Token![if]>()?;
                 if fork.peek(syn::token::Bracket) {
-                    let nested_if = input.parse::<IfNode>()?;
+                    let nested_if = input.parse::<Self>()?;
                     Some(vec![RenderNode::If(nested_if)])
                 } else {
                     let else_content;
@@ -200,7 +226,7 @@ impl Parse for IfNode {
         } else {
             None
         };
-        Ok(IfNode {
+        Ok(Self {
             attrs,
             condition,
             then_branch,
@@ -209,11 +235,16 @@ impl Parse for IfNode {
     }
 }
 
+/// A loop parsed from `for[item in iterable] { .. }`.
 #[derive(Debug)]
 pub struct ForNode {
+    /// Outer attributes attached to the `for`.
     pub attrs: Vec<Attribute>,
+    /// Loop variable pattern (a plain identifier).
     pub pat: Ident,
+    /// The iterable expression.
     pub iterable: Expr,
+    /// Nodes of the loop body.
     pub body: Vec<RenderNode>,
 }
 
@@ -229,7 +260,7 @@ impl Parse for ForNode {
         let body_content;
         braced!(body_content in input);
         let body = parse_nodes(&body_content)?;
-        Ok(ForNode {
+        Ok(Self {
             attrs,
             pat,
             iterable,
@@ -296,18 +327,18 @@ impl Parse for RenderNode {
                     let fork2 = fork.fork();
                     fork2.parse::<Token![if]>()?;
                     if fork2.peek(syn::token::Bracket) {
-                        return Ok(RenderNode::If(input.parse()?));
+                        return Ok(Self::If(input.parse()?));
                     }
                 }
                 if fork.peek(Token![for]) {
                     let fork2 = fork.fork();
                     fork2.parse::<Token![for]>()?;
                     if fork2.peek(syn::token::Bracket) {
-                        return Ok(RenderNode::For(input.parse()?));
+                        return Ok(Self::For(input.parse()?));
                     }
                 }
                 if fork.peek(Ident) || fork.peek(Ident::peek_any) {
-                    return Ok(RenderNode::Element(input.parse()?));
+                    return Ok(Self::Element(input.parse()?));
                 }
             }
         }
@@ -316,7 +347,7 @@ impl Parse for RenderNode {
             let fork = input.fork();
             fork.parse::<Token![if]>()?;
             if fork.peek(syn::token::Bracket) {
-                return Ok(RenderNode::If(input.parse()?));
+                return Ok(Self::If(input.parse()?));
             }
         }
 
@@ -324,12 +355,12 @@ impl Parse for RenderNode {
             let fork = input.fork();
             fork.parse::<Token![for]>()?;
             if fork.peek(syn::token::Bracket) {
-                return Ok(RenderNode::For(input.parse()?));
+                return Ok(Self::For(input.parse()?));
             }
         }
 
         if input.peek(LitStr) {
-            return Ok(RenderNode::Text(input.parse()?));
+            return Ok(Self::Text(input.parse()?));
         }
 
         if input.peek(Ident) || input.peek(Ident::peek_any) {
@@ -340,31 +371,34 @@ impl Parse for RenderNode {
                 if fork.peek(syn::token::Paren) {
                     if !KNOWN_ELEMENTS.contains(&ident_str.as_str()) {
                         let suggestion = crate::render_ast_diag::suggest_element(&ident_str);
-                        let msg = if let Some(sug) = suggestion {
-                            format!(
-                                "unknown element `{}`. Did you mean `{}`? Known elements: {}",
-                                ident_str,
-                                sug,
-                                KNOWN_ELEMENTS.join(", ")
-                            )
-                        } else {
-                            format!(
-                                "unknown element `{}`. Known elements: {}. If this is a function call, wrap it in braces: `{{ expr }}`",
-                                ident_str,
-                                KNOWN_ELEMENTS.join(", ")
-                            )
-                        };
+                        let msg = suggestion.map_or_else(
+                            || {
+                                format!(
+                                    "unknown element `{}`. Known elements: {}. If this is a function call, wrap it in braces: `{{ expr }}`",
+                                    ident_str,
+                                    KNOWN_ELEMENTS.join(", ")
+                                )
+                            },
+                            |sug| {
+                                format!(
+                                    "unknown element `{}`. Did you mean `{}`? Known elements: {}",
+                                    ident_str,
+                                    sug,
+                                    KNOWN_ELEMENTS.join(", ")
+                                )
+                            },
+                        );
                         return Err(syn::Error::new_spanned(ident, msg));
                     }
-                    return Ok(RenderNode::Element(input.parse()?));
+                    return Ok(Self::Element(input.parse()?));
                 }
 
                 let result = input.parse::<Expr>();
-                return Ok(RenderNode::Expr(result?));
+                return Ok(Self::Expr(result?));
             }
         }
 
-        Ok(RenderNode::Expr(input.parse()?))
+        Ok(Self::Expr(input.parse()?))
     }
 }
 
