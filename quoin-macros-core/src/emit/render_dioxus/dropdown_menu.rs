@@ -11,115 +11,134 @@ use quote::quote;
 
 use super::{emit_render_inner, handler::wrap_dioxus_handler};
 
+/// Expands a `dropdown_menu` element into Dioxus view tokens.
+///
+/// Under the `dioxus-shadcn` feature this emits the `shadcn_dioxus` dropdown
+/// components; otherwise self-contained `rsx` markup driven by a local open
+/// signal.
 pub(crate) fn emit_dropdown_menu(el: &Element) -> TokenStream {
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
     {
-        let trigger_expr = match &el.trigger_expr {
-            Some(e) => e,
-            None => return quote! { div { "dropdown: missing trigger" } },
-        };
-
-        let item_tokens: Vec<TokenStream> = el
-            .children
-            .iter()
-            .filter_map(|c| {
-                if let RenderNode::Element(e) = c
-                    && e.name == "item"
-                {
-                    let label = find_arg_expr(e, "label")?;
-                    let on_click = find_arg_expr(e, "on_click")?;
-                    let handler = wrap_dioxus_handler(on_click);
-                    Some(quote! {
-                        shadcn_dioxus::dropdown_menu::DropdownMenuItem {
-                            onclick: {#handler},
-                            #label
-                        }
-                    })
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        let trigger_inner = emit_render_inner(&RenderNode::Expr(trigger_expr.clone()));
-
-        quote! {
-            shadcn_dioxus::dropdown_menu::DropdownMenu {
-                shadcn_dioxus::dropdown_menu::DropdownMenuTrigger {
-                    #trigger_inner
-                }
-                shadcn_dioxus::dropdown_menu::DropdownMenuContent {
-                    #(#item_tokens)*
-                }
-            }
-        }
+        emit_dropdown_menu_shadcn(el)
     }
     #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
     {
-        let trigger_expr = match &el.trigger_expr {
-            Some(e) => e,
-            None => return quote! { div { "dropdown: missing trigger" } },
-        };
+        emit_dropdown_menu_html(el)
+    }
+}
 
-        let item_tokens: Vec<TokenStream> = el
-            .children
-            .iter()
-            .filter_map(|c| {
-                if let RenderNode::Element(e) = c
-                    && e.name == "item"
-                {
-                    let label = find_arg_expr(e, "label")?;
-                    let on_click = find_arg_expr(e, "on_click")?;
+/// Expands a `dropdown_menu` element into the `shadcn_dioxus` dropdown
+/// component tree with one item per `item` child (`dioxus-shadcn` builds
+/// only).
+#[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
+fn emit_dropdown_menu_shadcn(el: &Element) -> TokenStream {
+    let Some(trigger_expr) = &el.trigger_expr else {
+        return quote! { div { "dropdown: missing trigger" } };
+    };
 
-                    let checked = find_arg_bool(e, "checked");
-
-                    let handler = wrap_dioxus_handler(on_click);
-                    let check_mark = if checked { "\u{2713} " } else { "" };
-                    Some(quote! {
-                        div {
-                            class: "px-3 py-2 cursor-pointer text-white hover:bg-gray-600 flex items-center",
-                            onclick: {
-                                let __item_handler = #handler;
-                                move |ev: dioxus::prelude::Event<dioxus::prelude::MouseData>| {
-                                    ev.stop_propagation();
-                                    __open.set(false);
-                                    __item_handler(ev);
-                                }
-                            },
-                            #check_mark
-                            #label
-                        }
-                    })
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        let trigger_inner = emit_render_inner(&RenderNode::Expr(trigger_expr.clone()));
-
-        quote! {
+    let item_tokens: Vec<TokenStream> = el
+        .children
+        .iter()
+        .filter_map(|c| {
+            if let RenderNode::Element(e) = c
+                && e.name == "item"
             {
-                let mut __open = dioxus::prelude::use_signal(|| false);
-                dioxus::prelude::rsx! {
+                let label = find_arg_expr(e, "label")?;
+                let on_click = find_arg_expr(e, "on_click")?;
+                let handler = wrap_dioxus_handler(on_click);
+                Some(quote! {
+                    shadcn_dioxus::dropdown_menu::DropdownMenuItem {
+                        onclick: {#handler},
+                        #label
+                    }
+                })
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let trigger_inner = emit_render_inner(&RenderNode::Expr(trigger_expr.clone()));
+
+    quote! {
+        shadcn_dioxus::dropdown_menu::DropdownMenu {
+            shadcn_dioxus::dropdown_menu::DropdownMenuTrigger {
+                #trigger_inner
+            }
+            shadcn_dioxus::dropdown_menu::DropdownMenuContent {
+                #(#item_tokens)*
+            }
+        }
+    }
+}
+
+/// Expands a `dropdown_menu` element into self-contained `rsx` markup whose
+/// open state lives in a locally created signal (builds without
+/// `dioxus-shadcn`).
+#[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
+fn emit_dropdown_menu_html(el: &Element) -> TokenStream {
+    let Some(trigger_expr) = &el.trigger_expr else {
+        return quote! { div { "dropdown: missing trigger" } };
+    };
+
+    let item_tokens: Vec<TokenStream> = el
+        .children
+        .iter()
+        .filter_map(|c| {
+            if let RenderNode::Element(e) = c
+                && e.name == "item"
+            {
+                let label = find_arg_expr(e, "label")?;
+                let on_click = find_arg_expr(e, "on_click")?;
+
+                let checked = find_arg_bool(e, "checked");
+
+                let handler = wrap_dioxus_handler(on_click);
+                let check_mark = if checked { "\u{2713} " } else { "" };
+                Some(quote! {
                     div {
-                        class: "relative inline-block",
-                        onclick: move |ev: dioxus::prelude::Event<dioxus::prelude::MouseData>| {
-                            ev.stop_propagation();
-                            __open.toggle();
-                        },
-                        #trigger_inner,
-                        if *__open.read() {
-                            div {
-                                class: "absolute top-full left-0 z-50 min-w-32 rounded-md border border-gray-700 bg-gray-800 py-1 shadow-lg",
-                                onclick: move |ev: dioxus::prelude::Event<dioxus::prelude::MouseData>| {
-                                    ev.stop_propagation();
-                                },
-                                onmousedown: move |ev: dioxus::prelude::Event<dioxus::prelude::MouseData>| {
-                                    ev.prevent_default();
-                                },
-                                #(#item_tokens)*
+                        class: "px-3 py-2 cursor-pointer text-white hover:bg-gray-600 flex items-center",
+                        onclick: {
+                            let __item_handler = #handler;
+                            move |ev: dioxus::prelude::Event<dioxus::prelude::MouseData>| {
+                                ev.stop_propagation();
+                                __open.set(false);
+                                __item_handler(ev);
                             }
+                        },
+                        #check_mark
+                        #label
+                    }
+                })
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let trigger_inner = emit_render_inner(&RenderNode::Expr(trigger_expr.clone()));
+
+    quote! {
+        {
+            let mut __open = dioxus::prelude::use_signal(|| false);
+            dioxus::prelude::rsx! {
+                div {
+                    class: "relative inline-block",
+                    onclick: move |ev: dioxus::prelude::Event<dioxus::prelude::MouseData>| {
+                        ev.stop_propagation();
+                        __open.toggle();
+                    },
+                    #trigger_inner,
+                    if *__open.read() {
+                        div {
+                            class: "absolute top-full left-0 z-50 min-w-32 rounded-md border border-gray-700 bg-gray-800 py-1 shadow-lg",
+                            onclick: move |ev: dioxus::prelude::Event<dioxus::prelude::MouseData>| {
+                                ev.stop_propagation();
+                            },
+                            onmousedown: move |ev: dioxus::prelude::Event<dioxus::prelude::MouseData>| {
+                                ev.prevent_default();
+                            },
+                            #(#item_tokens)*
                         }
                     }
                 }
