@@ -30,28 +30,28 @@ pub(crate) fn emit_tooltip(
 
     #[cfg(feature = "leptos-shadcn")]
     {
-        let tp_alias = quote::format_ident!("TooltipProvider_{}", next_extract_id());
-        let tt_alias = quote::format_ident!("Tooltip_{}", next_extract_id());
-        let ttr_alias = quote::format_ident!("TooltipTrigger_{}", next_extract_id());
-        let ttc_alias = quote::format_ident!("TooltipContent_{}", next_extract_id());
+        let tooltip_provider_alias = quote::format_ident!("TooltipProvider_{}", next_extract_id());
+        let tooltip_alias = quote::format_ident!("Tooltip_{}", next_extract_id());
+        let tooltip_trigger_alias = quote::format_ident!("TooltipTrigger_{}", next_extract_id());
+        let tooltip_content_alias = quote::format_ident!("TooltipContent_{}", next_extract_id());
 
         bindings.push(quote! {
-            let #tp_alias = leptos_shadcn_ui::TooltipProvider;
-            let #tt_alias = leptos_shadcn_ui::Tooltip;
-            let #ttr_alias = leptos_shadcn_ui::TooltipTrigger;
-            let #ttc_alias = leptos_shadcn_ui::TooltipContent;
+            let #tooltip_provider_alias = leptos_shadcn_ui::TooltipProvider;
+            let #tooltip_alias = leptos_shadcn_ui::Tooltip;
+            let #tooltip_trigger_alias = leptos_shadcn_ui::TooltipTrigger;
+            let #tooltip_content_alias = leptos_shadcn_ui::TooltipContent;
         });
         quote! {
-            <#tp_alias>
-                <#tt_alias>
-                    <#ttr_alias>
+            <#tooltip_provider_alias>
+                <#tooltip_alias>
+                    <#tooltip_trigger_alias>
                         {#trigger_inner}
-                    </#ttr_alias>
-                    <#ttc_alias>
+                    </#tooltip_trigger_alias>
+                    <#tooltip_content_alias>
                         {#text}
-                    </#ttc_alias>
-                </#tt_alias>
-            </#tp_alias>
+                    </#tooltip_content_alias>
+                </#tooltip_alias>
+            </#tooltip_provider_alias>
         }
     }
     #[cfg(not(feature = "leptos-shadcn"))]
