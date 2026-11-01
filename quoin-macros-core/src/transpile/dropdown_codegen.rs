@@ -1,6 +1,6 @@
 //! Dropdown menu code generation.
 //!
-//! Defines [`MenuItemDef`] as a shared descriptor for dropdown items (label + on_click).
+//! Defines [`MenuItemDef`] as a shared descriptor for dropdown items (label + `on_click`).
 //! Per-framework generators:
 //!
 //! - **GPUI** ([`generate_gpui_dropdown`]): Emits an absolutely-positioned overlay
@@ -9,17 +9,17 @@
 //! - **Leptos / Dioxus**: Dropdown rendering is handled inline in their respective
 //!   `render_leptos.rs` and `render_dioxus.rs` emitters.
 
-#[allow(unused)]
-use proc_macro2::TokenStream;
-#[allow(unused)]
-use quote::quote;
-
+/// One `item` child of a `dropdown_menu` element.
 pub struct MenuItemDef {
+    /// Label expression for the item.
     pub label: syn::Expr,
+    /// Click-handler expression for the item.
     pub on_click: syn::Expr,
 }
 
 #[cfg(feature = "gpui")]
+#[must_use]
+/// Generates the absolutely-positioned dropdown overlay for GPUI.
 pub fn generate_gpui_dropdown(
     trigger_expr: &syn::Expr,
     menu_items: &[MenuItemDef],
