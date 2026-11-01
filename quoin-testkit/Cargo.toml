@@ -28,3 +28,6 @@ tokio = ["dep:tokio"]
 version = "1"
 features = ["rt", "sync", "time"]
 optional = true
+
+[lints]
+workspace = true
