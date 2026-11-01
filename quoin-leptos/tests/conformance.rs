@@ -1,3 +1,4 @@
+//! Conformance tests for the quoin-leptos adapter.
 use leptos::prelude::*;
 use quoin_conformance::{SleepExt, define_conformance_tests};
 use quoin_core::{Executor, ReactiveContext};
@@ -28,14 +29,15 @@ impl Executor for TestExecutor {
 
 struct TestHarness {
     context: LeptosContext,
-    _owner: Owner,
+    /// Keeps the reactive ownership root alive for this harness's signals.
+    owner: Owner,
 }
 
 impl Clone for TestHarness {
     fn clone(&self) -> Self {
         Self {
             context: self.context.clone(),
-            _owner: self._owner.clone(),
+            owner: self.owner.clone(),
         }
     }
 }
@@ -46,7 +48,7 @@ impl TestHarness {
         owner.set();
         Self {
             context: LeptosContext::new(),
-            _owner: owner,
+            owner,
         }
     }
 }
@@ -64,7 +66,7 @@ impl ReactiveContext for TestHarness {
     }
 
     fn request_update(&self) {
-        self.context.request_update()
+        self.context.request_update();
     }
 
     fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T) {
