@@ -2,11 +2,14 @@ use crate::run_app::RunAppInput;
 use proc_macro2::TokenStream;
 use quote::quote;
 
+#[must_use]
+/// Expands `run_app!` into the GPUI application bootstrap (`main`).
 pub fn emit_run_app(input: &RunAppInput) -> TokenStream {
     let component = &input.component;
-    let window_opts = match &input.window_opts {
-        Some(expr) => quote! { #expr },
-        None => quote! { gpui::WindowOptions::default() },
+    let window_opts = if let Some(expr) = &input.window_opts {
+        quote! { #expr }
+    } else {
+        quote! { gpui::WindowOptions::default() }
     };
 
     quote! {
