@@ -416,6 +416,9 @@ let button = adapter.render(Some("Click Me".into()), ButtonVariant {
 ```text
 quoin/                       # Facade — re‑exports everything
 ├── quoin-core/              # Core traits + derived/resource/batch/local/pool
+│                          #   + shared adapter machinery: join (JoinHandle
+│                          #   lifecycle), globals (thread-local store),
+│                          #   NotifierSignal (cell + batch-aware notifier)
 ├── quoin-macros/            # Proc macro entry points
 ├── quoin-macros-core/       # Macro parsing and code generation
 ├── quoin-gpui/              # GPUI adapter
@@ -439,7 +442,7 @@ The `examples/` directory contains runnable demos for each framework:
 | counter-leptos | SSR counter with Leptos | `just run-leptos` |
 | counter-dioxus | Desktop counter with Dioxus | `just run-dioxus` |
 | counter-floem | Counter with Floem | `just run-floem` |
-| counter-xilem | Counter with Xilem | `just run-xilem` |
+| counter-xilem | Counter with Xilem + **live devtools trace panel** | `cargo run --manifest-path examples/counter-xilem/Cargo.toml` |
 | ucp-demo-gpui | UCP components in GPUI | `just run-ucp-gpui` |
 | ucp-demo-dioxus | UCP components in Dioxus | `just run-ucp-dioxus` |
 | mini-devtools-gpui | Debug panel with tabs, tables, virtual lists | `just run-mini-devtools` |
@@ -528,7 +531,9 @@ just expand component="ucp-lib" feature="gpui"
 
 ### Debugging the Dev Loop (quoin-devtools)
 Wrap **any** adapter context and see what your app is doing — signal
-creations, mutations, update requests, task spawns/completions/aborts:
+creations, mutations, update requests, task spawns/completions/aborts.
+See it live in a real window: the `counter-xilem` demo renders the trace
+counts next to the counter and dumps the session when the window closes.
 
 ```rust,ignore
 use quoin_devtools::Instrumented;
@@ -550,6 +555,13 @@ The zero-cost gate means shipping this wiring is safe: with tracing disabled
 each call is one relaxed atomic load and nothing is allocated. The optional
 `tracing` feature forwards events into the `tracing` ecosystem.
 
+### Community & contribution files
+`.github/` ships the usual contribution plumbing: issue templates
+(`bug_report.yml`, `feature_request.yml`), a pull-request template,
+`dependabot.yml` (workspace + standalone example manifests + Actions),
+`CODEOWNERS`, and `FUNDING.yml`. The changelog is generated from Conventional
+Commits by [git-cliff](https://git-cliff.org) (`just changelog`).
+
 ### CI / CD & Releases
 CI runs on GitHub Actions with the latest action versions (`actions/checkout@v7`, `Swatinem/rust-cache@v2`, `taiki-e/install-action@v2`):
 
@@ -558,13 +570,42 @@ CI runs on GitHub Actions with the latest action versions (`actions/checkout@v7`
 | `ci.yml` | push / PR to `main` | Format check, clippy (`-D warnings`), core + testkit + devtools tests, adapter conformance tests, trybuild macro UI tests (Leptos, Dioxus, GPUI), headless example e2e, full example build |
 | `release.yml` | tag `v*.*.*` | Version-tag sanity check, full test suite, `git-cliff` changelog generation, GitHub Release with generated notes |
 
+### Lint policy: pedantic, zero suppressions
+The workspace defines its lint policy **once** in the root `Cargo.toml`
+(`[workspace.lints]`, inherited by every crate via `[lints] workspace = true`):
+
+- `clippy::pedantic` + `clippy::all` + `missing_docs` — all warnings, and CI
+  runs with `-D warnings` so they are hard errors.
+- `unsafe_code = "forbid"` everywhere.
+- `clippy::allow_attributes = "deny"` — `#[allow(...)]` attributes are banned
+  outright. Issues are fixed at the source (or gated with `#[cfg]`), never
+  suppressed.
+
+### Benchmarks
+Micro-benchmarks run with a plain `std::time::Instant` harness (no external
+benchmark framework), so they work everywhere:
+
+```bash
+just bench-core                                        # signals, derived, memo, cancellation, pool
+just bench-devtools                                    # event log recording + aggregate views
+```
+
+Numbers are machine-relative regression baselines — compare across commits on
+the same machine, not across hardware. Reference numbers and methodology live
+in [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md).
+
 #### Changelog (`git-cliff`)
-`CHANGELOG.md` is generated with [git-cliff](https://git-cliff.org) from [Conventional Commits](https://www.conventionalcommits.org/):
-- `feat:` → 🚀 Added
-- `fix:` → 🔧 Fixed
-- `perf:` → ⚡ Performance
-- `doc:` → 📚 Documentation
-- `chore:` → 🧹 Cleanup
+`CHANGELOG.md` is generated with [git-cliff](https://git-cliff.org) from [Conventional Commits](https://www.conventionalcommits.org/).
+The config (`cliff.toml`) is deliberately emoji-free; commit prefixes map to
+plain-text groups:
+- `feat:` → Added - New features and capabilities
+- `fix:` → Fixed - Bug fixes and corrections
+- `perf:` → Performance - Optimizations and improvements
+- `refactor:` → Changed - Refactoring
+- `doc:` → Documentation - Documentation changes
+- `test:` → Tests - Test additions and changes
+- `chore:` → Cleanup - Code maintenance and housekeeping
+- `ci:` / `build:` / `style:` / `revert:` → their own named groups
 - breaking changes (`!:`) are always preserved
 
 Regenerate the changelog locally with:
