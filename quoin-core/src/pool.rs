@@ -83,32 +83,53 @@ fn spawn_worker(shared: &Arc<Shared>) {
     }
 }
 
-fn worker_loop(shared: &Arc<Shared>) {
+/// Waits for the next job, holding the queue lock only for the decisions it
+/// influences: the guard is local to this function, so no lock is carried
+/// across job execution or worker exit.
+///
+/// Returns `None` when the worker should exit: the idle timeout elapsed, no
+/// job appeared on the final re-check, and at least one other worker remains.
+fn next_job(shared: &Arc<Shared>) -> Option<Job> {
     let mut guard = shared.queue.lock().unwrap();
     loop {
-        let job = if let Some(job) = guard.pop_front() {
-            job
-        } else {
-            let (g, _timeout) = shared.signal.wait_timeout(guard, IDLE_TIMEOUT).unwrap();
+        if let Some(job) = guard.pop_front() {
+            drop(guard);
+            return Some(job);
+        }
+        let (g, _timeout) = shared.signal.wait_timeout(guard, IDLE_TIMEOUT).unwrap();
+        guard = g;
+        if let Some(job) = guard.pop_front() {
+            drop(guard);
+            return Some(job);
+        }
+        if shared.workers.fetch_sub(1, Ordering::AcqRel) == 1 {
+            // Last worker: stay alive so the pool never becomes empty
+            // and has to cold-start again.
+            shared.workers.fetch_add(1, Ordering::AcqRel);
+            let (g, _t) = shared.signal.wait_timeout(guard, IDLE_TIMEOUT).unwrap();
             guard = g;
-            if let Some(job) = guard.pop_front() {
-                job
-            } else if shared.workers.fetch_sub(1, Ordering::AcqRel) == 1 {
-                // Last worker: stay alive so the pool never becomes empty
-                // and has to cold-start again.
-                shared.workers.fetch_add(1, Ordering::AcqRel);
-                let (g, _t) = shared.signal.wait_timeout(guard, IDLE_TIMEOUT).unwrap();
-                guard = g;
-                continue;
-            } else {
-                return;
-            }
-        };
-
-        shared.busy.fetch_add(1, Ordering::AcqRel);
+            continue;
+        }
+        // Exit decision was made while still holding the queue lock.
+        // One final re-check closes the lost-wakeup race: a producer
+        // may have pushed a job between our timeout and the counter
+        // decrement. If a job appeared, restore the counter and take
+        // it; otherwise the lock is released on return and any later
+        // producer sees the reduced worker count and grows the pool.
+        if let Some(job) = guard.pop_front() {
+            shared.workers.fetch_add(1, Ordering::AcqRel);
+            drop(guard);
+            return Some(job);
+        }
         drop(guard);
+        return None;
+    }
+}
+
+fn worker_loop(shared: &Arc<Shared>) {
+    while let Some(job) = next_job(shared) {
+        shared.busy.fetch_add(1, Ordering::AcqRel);
         job();
-        guard = shared.queue.lock().unwrap();
         shared.busy.fetch_sub(1, Ordering::AcqRel);
     }
 }
@@ -164,6 +185,9 @@ pub fn block_on<F: Future>(future: F) -> F::Output {
         fn wake(self: Arc<Self>) {
             let mut woken = self.0.woken.lock().unwrap();
             *woken = true;
+            // Drop the mutex guard before notifying: waiters re-lock this
+            // mutex on wake-up, so releasing first avoids a lock hand-off.
+            drop(woken);
             self.0.signal.notify_all();
         }
     }
@@ -208,15 +232,12 @@ mod tests {
             let _ = tx.send(7);
         });
         let value = block_on(async move {
-            let mut slot: Option<u32> = None;
             std::future::poll_fn(|cx| {
                 if let Ok(v) = rx.try_recv() {
-                    slot = Some(v);
-                    Poll::Ready(slot.unwrap())
-                } else {
-                    cx.waker().wake_by_ref();
-                    Poll::Pending
+                    return Poll::Ready(v);
                 }
+                cx.waker().wake_by_ref();
+                Poll::Pending
             })
             .await
         });
