@@ -21,3 +21,6 @@ tracing = ["dep:tracing"]
 
 [dev-dependencies]
 quoin-testkit = { path = "../quoin-testkit" }
+
+[lints]
+workspace = true
