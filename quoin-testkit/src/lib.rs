@@ -22,7 +22,7 @@
 //!   derived pipelines): tests are synchronous and deterministic.
 //! - Use [`ThreadedExecutor`] (or the tokio one) when the logic under test
 //!   awaits timers/channels or when you exercise abort/detach semantics —
-//!   ImmediateExecutor cannot model mid-flight cancellation because futures
+//!   `ImmediateExecutor` cannot model mid-flight cancellation because futures
 //!   finish before the handle exists.
 //!
 //! ## Example
@@ -92,9 +92,11 @@ impl<T> TestSignal<T> {
 
 impl<T: std::fmt::Debug + Clone + 'static> std::fmt::Debug for TestSignal<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // The update counter is context-shared bookkeeping, not part of the
+        // value; expose it as non-exhaustive instead of a field.
         f.debug_struct("TestSignal")
             .field("value", &self.cell.read().unwrap())
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
@@ -132,6 +134,7 @@ pub struct UpdateRecorder {
 
 impl UpdateRecorder {
     /// Creates a zeroed recorder.
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -148,6 +151,10 @@ impl UpdateRecorder {
     }
 
     /// Asserts the counter equals `expected` (panics with a helpful message).
+    ///
+    /// # Panics
+    ///
+    /// Panics when the observed count differs from `expected`.
     #[track_caller]
     pub fn assert_count(&self, expected: usize) {
         let actual = self.count();
@@ -197,10 +204,10 @@ impl<T: Send + 'static> Future for ThreadedJoinHandle<T> {
         mut self: Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Self::Output> {
-        match self.rx.as_mut() {
-            Some(rx) => Pin::new(rx).poll(cx),
-            None => std::task::Poll::Ready(Err(futures::channel::oneshot::Canceled)),
-        }
+        self.rx.as_mut().map_or_else(
+            || std::task::Poll::Ready(Err(futures::channel::oneshot::Canceled)),
+            |rx| Pin::new(rx).poll(cx),
+        )
     }
 }
 
@@ -215,7 +222,6 @@ impl Executor for ThreadedExecutor {
         let (tx, rx) = futures::channel::oneshot::channel();
         let (abort, registration) = futures::future::AbortHandle::new_pair();
         let detached = Arc::new(AtomicBool::new(false));
-        let detached_clone = detached.clone();
         std::thread::spawn(move || {
             let task = async move {
                 let value = future.await;
@@ -223,7 +229,6 @@ impl Executor for ThreadedExecutor {
             };
             let _ =
                 futures::executor::block_on(futures::future::Abortable::new(task, registration));
-            let _ = detached_clone; // keep alive until task ends
         });
         ThreadedJoinHandle {
             abort,
@@ -259,6 +264,11 @@ pub struct ImmediateJoinHandle<T> {
 
 impl<T> ImmediateJoinHandle<T> {
     /// Takes the result, panicking if it was already taken.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal mutex is poisoned (a prior panic while
+    /// running the spawned future inline).
     pub fn take_result(&self) -> Option<T> {
         self.result.lock().unwrap().take()
     }
@@ -521,13 +531,13 @@ impl<E: Executor> TestContext<E> {
 
     /// The update recorder: inspect and assert on re-render requests.
     #[must_use]
-    pub fn updates(&self) -> &UpdateRecorder {
+    pub const fn updates(&self) -> &UpdateRecorder {
         &self.updates
     }
 
     /// The executor instance used by this context.
     #[must_use]
-    pub fn executor_handle(&self) -> &E {
+    pub const fn executor_handle(&self) -> &E {
         &self.executor
     }
 }
@@ -698,5 +708,112 @@ mod tests {
         assert_eq!(sig.get(), 7);
         cx.update_global::<u32, ()>(|v| *v += 1);
         assert_eq!(sig.get(), 8, "update_global mutates the shared value");
+    }
+
+    #[test]
+    fn globals_of_different_types_are_independent() {
+        let cx = TestContext::new();
+        cx.provide_global(1u32);
+        cx.provide_global(String::from("one"));
+        let n = cx.use_global::<u32>().expect("u32 global");
+        let s = cx.use_global::<String>().expect("String global");
+        n.set(2);
+        s.update(|value| value.push_str("-x"));
+        assert_eq!(cx.use_global::<u32>().unwrap().get(), 2);
+        assert_eq!(cx.use_global::<String>().unwrap().get(), "one-x");
+    }
+
+    #[test]
+    fn recorder_clone_shares_counter() {
+        let cx = TestContext::new();
+        let recorder = cx.updates().clone();
+        recorder.reset();
+        cx.request_update();
+        assert_eq!(recorder.count(), 1, "clone shares the underlying counter");
+        let sig = cx.create_signal(0u32);
+        sig.set(1);
+        assert_eq!(recorder.count(), 2);
+    }
+
+    #[test]
+    fn test_signal_debug_shows_value() {
+        let cx = TestContext::with_executor(ImmediateExecutor);
+        let s = cx.create_signal(3u32);
+        let debug = format!("{s:?}");
+        assert!(debug.contains("value: 3"), "got: {debug}");
+        assert!(debug.contains("TestSignal"));
+        assert!(
+            debug.contains(".."),
+            "hidden bookkeeping fields are non-exhaustive"
+        );
+    }
+
+    #[test]
+    fn batch_suppression_is_scoped_to_calling_thread() {
+        use quoin_core::batch::in_batch;
+        assert!(!in_batch());
+        let cx = TestContext::new();
+        let s = cx.create_signal(0u32);
+        cx.batch(|| {
+            assert!(in_batch());
+            s.set(1);
+        });
+        assert!(!in_batch(), "batch ends after with() returns");
+        cx.updates().assert_count(1);
+    }
+
+    #[test]
+    fn local_executor_queues_on_current_thread() {
+        use quoin_core::local::{pending_local_tasks, run_local_tasks};
+        let executor = ThreadedExecutor;
+        let handle = quoin_core::LocalExecutor::spawn_local(&executor, async { 6 * 7 });
+        // Deterministic: nothing runs until the queue is drained.
+        assert_eq!(
+            pending_local_tasks(),
+            1,
+            "task waits in the thread-local queue"
+        );
+        assert_eq!(run_local_tasks(), 1, "drain runs the queued task");
+        let value = futures::executor::block_on(handle);
+        assert_eq!(value, Ok(42));
+    }
+
+    #[test]
+    fn threaded_executor_detach_runs_to_completion() {
+        let executor = ThreadedExecutor;
+        let flag = Arc::new(AtomicBool::new(false));
+        let flag2 = flag.clone();
+        let handle = executor.spawn(async move {
+            std::thread::sleep(std::time::Duration::from_millis(20));
+            flag2.store(true, Ordering::SeqCst);
+        });
+        handle.detach();
+        for _ in 0..100 {
+            if flag.load(Ordering::SeqCst) {
+                return;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        panic!("detached task must run to completion");
+    }
+
+    #[test]
+    fn dropping_threaded_handle_cancels_task() {
+        let executor = ThreadedExecutor;
+        let flag = Arc::new(AtomicBool::new(false));
+        let flag2 = flag.clone();
+        {
+            let handle = executor.spawn(async move {
+                // A real suspension point so the abort can interrupt it.
+                futures_timer::Delay::new(std::time::Duration::from_millis(50)).await;
+                flag2.store(true, Ordering::SeqCst);
+            });
+            drop(handle);
+        }
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        assert!(
+            !flag.load(Ordering::SeqCst),
+            "dropping the handle without detaching cancels the task"
+        );
     }
 }
