@@ -10,12 +10,11 @@
 //! compare across commits on the same machine, not absolute truth.
 
 use quoin_core::prelude::*;
-use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 
-fn bench<F: FnMut()>(name: &str, iterations: usize, mut f: F) {
+fn bench<F: FnMut()>(name: &str, iterations: u32, mut f: F) {
     // Warmup.
     f();
     let start = Instant::now();
@@ -23,10 +22,8 @@ fn bench<F: FnMut()>(name: &str, iterations: usize, mut f: F) {
         f();
     }
     let elapsed = start.elapsed();
-    println!(
-        "{name:<46} {iterations:>9} ops in {elapsed:>10.2?}  ({:>9.0} ns/op)",
-        elapsed.as_nanos() as f64 / iterations as f64
-    );
+    let ns_per_op = elapsed.as_secs_f64() * 1e9 / f64::from(iterations);
+    println!("{name:<46} {iterations:>9} ops in {elapsed:>10.2?}  ({ns_per_op:>9.0} ns/op)");
 }
 
 fn main() {
@@ -45,7 +42,7 @@ fn main() {
             for _ in 0..10 {
                 signal.set(1);
             }
-        })
+        });
     });
 
     let signal = cx.create_signal(1u32);
@@ -62,6 +59,18 @@ fn main() {
     bench("signal.set_eq (equal: skipped)", 1_000_000, || {
         let _ = signal.set_eq("same".to_string());
     });
+    // The changed path is where the single-lock `set_if_eq` override pays
+    // off: one write-lock acquisition instead of a read lock plus a write
+    // lock (see docs/BENCHMARKS.md).
+    let mut flip = 0u32;
+    bench("signal.set_eq (changed: written)", 1_000_000, || {
+        flip += 1;
+        let _ = signal.set_eq(if flip.is_multiple_of(2) {
+            "same".to_string()
+        } else {
+            "other".to_string()
+        });
+    });
 
     // --- Derived -----------------------------------------------------------
     let source = cx.create_signal(41u32);
@@ -74,6 +83,19 @@ fn main() {
     let len = derived(&source, |v: &Vec<u64>| v.len());
     bench("derived.get (vec len)", 1_000_000, || {
         let _ = len.get();
+    });
+
+    // --- Memoized derived (cached) -----------------------------------------
+    let source = cx.create_signal(vec![7u64; 64]);
+    let sum = memo(&source, |values: &Vec<u64>| values.iter().sum::<u64>());
+    bench("memo.get (cached, 64-elem sum)", 1_000_000, || {
+        let _ = sum.get();
+    });
+
+    source.set(vec![8u64; 64]);
+    bench("memo.get (uncached after change)", 1_000_000, || {
+        source.set(vec![9u64; 64]);
+        let _ = sum.get();
     });
 
     // --- Cancellation ------------------------------------------------------
@@ -100,10 +122,6 @@ fn main() {
     });
 
     // --- Pooled executor ---------------------------------------------------
-    let rc = Rc::new(());
-    let rc2 = rc.clone();
-    drop(rc2);
-    drop(rc);
     bench("pool.spawn_pooled (trivial fut)", 10_000, || {
         quoin_core::pool::spawn_pooled(async { 1u32 });
     });
