@@ -27,6 +27,11 @@ impl<T> StaticSignal<T> {
             cell: Arc::new(RwLock::new(initial)),
         }
     }
+
+    /// Creates a signal sharing an existing cell (used for globals).
+    const fn from_cell(cell: Arc<RwLock<T>>) -> Self {
+        Self { cell }
+    }
 }
 
 /// Creates a [`StaticSignal`] (convenience for doctests).
@@ -50,6 +55,19 @@ impl<T: Clone + 'static> Signal<T> for StaticSignal<T> {
     fn update(&self, f: impl FnOnce(&mut T)) {
         f(&mut self.cell.write().unwrap());
     }
+
+    fn set_if_eq(&self, value: T) -> bool
+    where
+        T: PartialEq,
+    {
+        // Single write-lock acquisition instead of read-then-write.
+        let mut guard = self.cell.write().unwrap();
+        if *guard == value {
+            return false;
+        }
+        *guard = value;
+        true
+    }
 }
 
 /// A standalone executor that runs every future **inline, to completion**,
@@ -72,7 +90,7 @@ pub struct StaticJoinHandle<T> {
 }
 
 impl<T> StaticJoinHandle<T> {
-    fn ready(result: T) -> Self {
+    const fn ready(result: T) -> Self {
         Self {
             result: Mutex::new(Some(result)),
         }
@@ -127,6 +145,10 @@ impl Executor for StaticExecutor {
 
 /// A zero-sized [`ReactiveContext`] built from [`StaticSignal`] and
 /// [`StaticExecutor`], for doctests and framework-free unit tests.
+///
+/// Globals (`provide_global` / `use_global`) live in a thread-local type-map
+/// shared by every context on the calling thread, so the full
+/// `provide → use → mutate` flow works without a UI framework.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct StaticContext;
 
@@ -146,19 +168,23 @@ impl ReactiveContext for StaticContext {
         // No UI to update.
     }
 
-    fn provide_global<T: Clone + Send + Sync + 'static>(&self, _value: T) {
-        // Intentionally stateless; the testkit provides a full-featured
-        // implementation with a shared global store.
+    fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T) {
+        // Store the value inside a shared cell so every `use_global`
+        // consumer observes the same mutations (matching the unified
+        // production-adapter semantics). The cell type is the map key, so
+        // the shared `globals` store namespaces by context automatically.
+        crate::globals::insert::<Self, Arc<RwLock<T>>>(Arc::new(RwLock::new(value)));
     }
 
     fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>> {
-        None
+        crate::globals::get::<Self, Arc<RwLock<T>>>().map(StaticSignal::from_cell)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ext::ReactiveContextExt;
 
     #[test]
     fn static_signal_roundtrip() {
@@ -174,9 +200,46 @@ mod tests {
     }
 
     #[test]
+    fn static_signal_set_if_eq_writes_once() {
+        let s = static_signal(String::from("same"));
+        assert!(!s.set_if_eq(String::from("same")), "equal write skipped");
+        assert_eq!(s.get(), "same");
+        assert!(s.set_if_eq(String::from("new")), "changed write lands");
+        assert_eq!(s.get(), "new");
+    }
+
+    #[test]
     fn static_executor_runs_inline() {
         let handle = StaticExecutor.spawn(async { "done".to_string() });
         assert_eq!(handle.get_result(), "done");
+    }
+
+    #[test]
+    fn static_context_globals_roundtrip() {
+        let cx = StaticContext;
+        assert!(cx.use_global::<u32>().is_none());
+        cx.provide_global(10u32);
+        let sig = cx.use_global::<u32>().expect("global provided");
+        assert_eq!(sig.get(), 10);
+        sig.set(11);
+        // A fresh handle observes the mutation (shared store).
+        let sig2 = cx.use_global::<u32>().expect("global still present");
+        assert_eq!(sig2.get(), 11);
+    }
+
+    #[test]
+    fn static_context_use_global_or_init_works() {
+        let cx = StaticContext;
+        let sig = cx.use_global_or_init(|| 7u32);
+        assert_eq!(sig.get(), 7);
+    }
+
+    #[test]
+    fn static_context_globals_are_typed() {
+        let cx = StaticContext;
+        cx.provide_global("text".to_string());
+        assert!(cx.use_global::<u32>().is_none());
+        assert_eq!(cx.use_global::<String>().unwrap().get(), "text");
     }
 
     impl<T> StaticJoinHandle<T> {
