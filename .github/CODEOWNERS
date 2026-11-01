@@ -1,0 +1,7 @@
+# Default ownership: the repository owner reviews everything.
+* @elcoosp
+
+# Tooling and CI changes also need the owner's review.
+/.github/ @elcoosp
+/justfile @elcoosp
+/cliff.toml @elcoosp
