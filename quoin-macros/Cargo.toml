@@ -25,3 +25,6 @@ dioxus = ["quoin-macros-core/dioxus"]
 leptos = ["quoin-macros-core/leptos"]
 leptos-shadcn = ["quoin-macros-core/leptos-shadcn"]
 dioxus-shadcn = ["quoin-macros-core/dioxus-shadcn"]
+
+[lints]
+workspace = true
