@@ -66,19 +66,13 @@
 //! Breaking changes in GPUI may propagate here without a semver bump.
 
 use gpui::{AsyncWindowContext, BackgroundExecutor, Context, ForegroundExecutor, Task, WeakEntity};
-use quoin_core::{Executor, JoinHandle, ReactiveContext, Signal as QuoinSignal};
+use quoin_core::join::SharedJoinHandle;
+use quoin_core::{Executor, RawTask, ReactiveContext};
 use send_wrapper::SendWrapper;
-use std::any::TypeId;
-use std::collections::HashMap;
 use std::future::Future;
 use std::ops::Deref;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
-
-thread_local! {
-    static GLOBAL_STORE: std::cell::RefCell<HashMap<TypeId, Box<dyn std::any::Any + Send + Sync>>> =
-        std::cell::RefCell::new(HashMap::new());
-}
 
 /// Type alias for the update notifier callback stored in `GpuiContext`.
 type UpdateNotifier = Arc<dyn Fn() + Send + Sync>;
@@ -99,7 +93,10 @@ type UpdateNotifier = Arc<dyn Fn() + Send + Sync>;
 /// let signal = ctx.create_signal(0);
 /// ```
 pub struct GpuiContext {
+    /// GPUI foreground (UI-thread) executor, wrapped for `Send`.
     pub foreground: SendWrapper<ForegroundExecutor>,
+    /// Optional background executor; `None` when created from a context
+    /// that has no background pool available.
     pub background: Option<SendWrapper<BackgroundExecutor>>,
     /// Callback invoked when any signal created from this context is mutated.
     /// Stored as Arc<Mutex<...>> to satisfy Send + Sync bounds.
@@ -116,6 +113,11 @@ impl GpuiContext {
     /// e.g., `move || cx.notify()`.
     ///
     /// The closure must be `Send + Sync` because `GpuiContext` may be shared across threads.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the notifier mutex is poisoned (a prior panic while
+    /// notifying).
     pub fn set_update_notifier(&self, notifier: impl Fn() + Send + Sync + 'static) {
         *self.update_notifier.lock().unwrap() = Some(Arc::new(notifier));
     }
@@ -145,6 +147,7 @@ impl GpuiContext {
     }
 
     /// Create a context from an existing foreground executor (useful for tests).
+    #[must_use]
     pub fn from_executor(foreground: ForegroundExecutor) -> Self {
         Self {
             foreground: SendWrapper::new(foreground),
@@ -154,6 +157,7 @@ impl GpuiContext {
     }
 
     /// Create a context with both foreground and background executors (useful for tests).
+    #[must_use]
     pub fn for_test(foreground: ForegroundExecutor, background: BackgroundExecutor) -> Self {
         Self {
             foreground: SendWrapper::new(foreground),
@@ -166,6 +170,18 @@ impl GpuiContext {
         if let Some(notifier) = self.update_notifier.lock().unwrap().as_ref() {
             notifier();
         }
+    }
+
+    /// Builds a signal wired to this context's notifier slot. The signal
+    /// stores only the shared slot (not the whole context), which keeps it
+    /// `Send + Sync`.
+    fn make_signal<T: Clone + 'static>(&self, initial: T) -> GpuiSignal<T> {
+        let notifier_slot = Arc::clone(&self.update_notifier);
+        quoin_core::NotifierSignal::new(initial, move || {
+            if let Some(notifier) = notifier_slot.lock().unwrap().as_ref() {
+                notifier();
+            }
+        })
     }
 }
 
@@ -185,10 +201,7 @@ impl ReactiveContext for GpuiContext {
     type Executor = GpuiExecutor;
 
     fn create_signal<T: Clone + 'static>(&self, initial: T) -> Self::Signal<T> {
-        GpuiSignal {
-            inner: Arc::new(std::sync::RwLock::new(initial)),
-            notifier: self.update_notifier.clone(),
-        }
+        self.make_signal(initial)
     }
 
     fn executor(&self) -> Self::Executor {
@@ -207,73 +220,26 @@ impl ReactiveContext for GpuiContext {
         // an Arc<RwLock<T>> and the notifier arc) so every consumer shares
         // the same cell: mutations propagate between consumers and notify the
         // view (unified with the other adapters).
-        GLOBAL_STORE.with(|store| {
-            store.borrow_mut().insert(
-                TypeId::of::<T>(),
-                Box::new(GpuiSignal {
-                    inner: Arc::new(std::sync::RwLock::new(value)),
-                    notifier: self.update_notifier.clone(),
-                }),
-            );
-        });
+        quoin_core::globals::insert::<Self, GpuiSignal<T>>(self.make_signal(value));
     }
 
     fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>> {
-        GLOBAL_STORE.with(|store| {
-            store
-                .borrow()
-                .get(&TypeId::of::<T>())
-                .and_then(|v| v.downcast_ref::<GpuiSignal<T>>())
-                .cloned()
-        })
+        quoin_core::globals::get::<Self, GpuiSignal<T>>()
     }
 }
 
-#[derive(Clone)]
 /// A GPUI-backed reactive signal.
 ///
 /// Wraps an `Arc<RwLock<T>>` and notifies the context's update callback on
 /// mutation. The signal deliberately stores only the notifier handle (not the
 /// whole [`GpuiContext`]), which keeps it `Send + Sync` — required for the
 /// shared global store.
-pub struct GpuiSignal<T: Clone + 'static> {
-    inner: Arc<std::sync::RwLock<T>>,
-    notifier: Arc<Mutex<Option<UpdateNotifier>>>,
-}
-
-impl<T: Clone + 'static> GpuiSignal<T> {
-    /// Invokes the update notifier, unless a `quoin_core::batch` is active
-    /// (the batch issues a single update at the end).
-    fn notify(&self) {
-        if quoin_core::batch::should_notify()
-            && let Some(notifier) = self.notifier.lock().unwrap().as_ref()
-        {
-            notifier();
-        }
-    }
-}
-
-impl<T: Clone + 'static> QuoinSignal<T> for GpuiSignal<T> {
-    fn get(&self) -> T {
-        self.inner.read().unwrap().clone()
-    }
-
-    fn with<U>(&self, f: impl FnOnce(&T) -> U) -> U {
-        f(&self.inner.read().unwrap())
-    }
-
-    fn set(&self, value: T) {
-        *self.inner.write().unwrap() = value;
-        self.notify();
-    }
-
-    fn update(&self, f: impl FnOnce(&mut T)) {
-        let mut guard = self.inner.write().unwrap();
-        f(&mut guard);
-        drop(guard);
-        self.notify();
-    }
-}
+///
+/// This is [`quoin_core::NotifierSignal`] under a historical name: the
+/// cell-plus-notifier implementation (including the batch-aware notification
+/// and the single-lock `set_if_eq` fast path) is implemented once in
+/// `quoin-core` and shared with the Xilem adapter.
+pub type GpuiSignal<T> = quoin_core::NotifierSignal<T>;
 
 #[derive(Clone)]
 /// GPUI async executor.
@@ -306,11 +272,7 @@ impl Executor for GpuiExecutor {
             })
         };
 
-        GpuiJoinHandle {
-            task: Mutex::new(Some(task)),
-            rx: Mutex::new(Some(rx)),
-            detached: std::sync::atomic::AtomicBool::new(false),
-        }
+        SharedJoinHandle::new(GpuiTask(Mutex::new(Some(task))), rx)
     }
 }
 
@@ -332,72 +294,42 @@ impl GpuiExecutor {
     }
 }
 
-pub struct GpuiJoinHandle<T> {
-    /// The underlying GPUI task. Dropping a GPUI `Task` cancels it, so the
-    /// task is kept in an `Option` behind a mutex so `abort(&self)` can take
-    /// and drop it.
-    task: Mutex<Option<Task<()>>>,
-    rx: Mutex<Option<futures::channel::oneshot::Receiver<T>>>,
-    detached: std::sync::atomic::AtomicBool,
-}
+/// The GPUI task wrapped for the shared handle.
+///
+/// Dropping the `Task` cancels it, so `abort` (and the handle's abort-on-drop
+/// rule) takes the task out of the slot and drops it; `detach` releases
+/// ownership via `Task::detach`.
+pub struct GpuiTask(Mutex<Option<Task<()>>>);
 
-impl<T: Send + 'static> JoinHandle<T> for GpuiJoinHandle<T> {
-    /// Abort the spawned task.
-    ///
-    /// GPUI tasks are cancelled eagerly when their `Task` handle is dropped,
-    /// so this takes the handle out and drops it. Any future awaiting this
-    /// join handle then resolves with `Err(Canceled)`.
+impl RawTask for GpuiTask {
     fn abort(&self) {
         // Dropping the `Task` cancels it immediately (see GPUI docs).
-        drop(self.task.lock().unwrap().take());
+        drop(self.0.lock().unwrap().take());
     }
 
-    /// Detach the task so it runs to completion even if this handle is
-    /// dropped. The task's result is discarded.
-    fn detach(self) {
+    fn detach(&self) {
         // In GPUI the `Task` handle *owns* the task: dropping it cancels the
         // task. `Task::detach` releases that ownership into the scheduler so
-        // the future keeps running.
-        if let Some(task) = self.task.lock().unwrap().take() {
+        // the future keeps running. Take the task while holding the lock,
+        // then detach after the guard is gone.
+        let task = self.0.lock().unwrap().take();
+        if let Some(task) = task {
             task.detach();
         }
-        self.detached
-            .store(true, std::sync::atomic::Ordering::SeqCst);
     }
 }
 
-impl<T: Send + 'static> std::future::IntoFuture for GpuiJoinHandle<T> {
-    type Output = Result<T, futures::channel::oneshot::Canceled>;
-    type IntoFuture = Pin<Box<dyn Future<Output = Self::Output> + Send>>;
-
-    fn into_future(self) -> Self::IntoFuture {
-        Box::pin(async move {
-            // Keep the task handle alive until the await completes so the
-            // task is not cancelled mid-flight. Marking the handle as
-            // detached prevents the final drop from aborting a task that
-            // already finished.
-            self.detached
-                .store(true, std::sync::atomic::Ordering::SeqCst);
-            let rx = self.rx.lock().unwrap().take();
-            let result = match rx {
-                Some(rx) => rx.await,
-                None => Err(futures::channel::oneshot::Canceled),
-            };
-            drop(self);
-            result
-        })
-    }
-}
-
-impl<T> Drop for GpuiJoinHandle<T> {
-    fn drop(&mut self) {
-        // Structured concurrency: dropping the handle without awaiting or
-        // detaching cancels the underlying GPUI task.
-        if !self.detached.load(std::sync::atomic::Ordering::SeqCst) {
-            drop(self.task.get_mut().unwrap().take());
-        }
-    }
-}
+/// Handle for a task spawned on GPUI's foreground or background executor.
+///
+/// Awaiting resolves with the task's result, or `Err(Canceled)` if the task
+/// was aborted. Dropping the handle without detaching cancels the task
+/// (structured concurrency).
+///
+/// This is [`quoin_core::SharedJoinHandle`] over [`GpuiTask`] under a
+/// historical name: the await / abort / detach / abort-on-drop lifecycle is
+/// implemented once in `quoin-core` and shared with the Xilem adapter (and
+/// with the pooled `Abortable` adapters via `AbortJoinHandle`).
+pub type GpuiJoinHandle<T> = SharedJoinHandle<T, GpuiTask>;
 
 /// Launch a GPUI application.
 ///
@@ -420,12 +352,4 @@ where
     F: FnOnce(&mut gpui::App) + 'static,
 {
     gpui_platform::application().run(f);
-}
-
-impl<T: Clone + std::fmt::Debug + 'static> std::fmt::Debug for GpuiSignal<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("GpuiSignal")
-            .field("value", &self.inner.read().map_err(|_| std::fmt::Error)?)
-            .finish()
-    }
 }
