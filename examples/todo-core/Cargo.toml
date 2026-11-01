@@ -10,3 +10,6 @@ quoin-core = { path = "../../quoin-core" }
 
 [dev-dependencies]
 quoin-testkit = { path = "../../quoin-testkit" }
+
+[lints]
+workspace = true
