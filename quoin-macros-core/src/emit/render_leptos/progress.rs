@@ -24,9 +24,10 @@ pub(crate) fn emit_progress(
         };
         let value_prop = match value_expr {
             Some(val) => {
-                let max = match max_expr {
-                    Some(m) => quote! { (#val as f64) / (#m as f64) },
-                    None => quote! { (#val as f64) / 100.0 },
+                let max = if let Some(m) = max_expr {
+                    quote! { (#val as f64) / (#m as f64) }
+                } else {
+                    quote! { (#val as f64) / 100.0 }
                 };
                 quote! { value={leptos::prelude::Signal::derive(move || #max)} }
             }
@@ -45,36 +46,30 @@ pub(crate) fn emit_progress(
         let outer_cls = if user_class.is_empty() {
             "relative h-4 w-full overflow-hidden rounded-full bg-secondary".to_string()
         } else {
-            format!(
-                "relative h-4 w-full overflow-hidden rounded-full bg-secondary {}",
-                user_class
-            )
+            format!("relative h-4 w-full overflow-hidden rounded-full bg-secondary {user_class}")
         };
         let bar_cls = "h-full rounded-full bg-primary transition-all duration-300";
 
-        match value_expr {
-            Some(val) => {
-                let max = match max_expr {
-                    Some(m) => quote! { (#val as f64) / (#m as f64) * 100.0 },
-                    None => quote! { (#val as f64) },
-                };
-                let val_id = next_extract_id();
-                let val_name = quote::format_ident!("__quoin_prog_val_{}", val_id);
-                bindings.push(quote! { let #val_name = #max; });
-                quote! {
-                    <div class=#outer_cls>
-                        <div class=#bar_cls style={leptos::prelude::Signal::derive(move || format!("width: {}%", #val_name))} />
-                    </div>
-                }
+        if let Some(val) = value_expr {
+            let max = if let Some(m) = max_expr {
+                quote! { (#val as f64) / (#m as f64) * 100.0 }
+            } else {
+                quote! { (#val as f64) }
+            };
+            let val_id = next_extract_id();
+            let val_name = quote::format_ident!("__quoin_prog_val_{}", val_id);
+            bindings.push(quote! { let #val_name = #max; });
+            quote! {
+                <div class=#outer_cls>
+                    <div class=#bar_cls style={leptos::prelude::Signal::derive(move || format!("width: {}%", #val_name))} />
+                </div>
             }
-            None => {
-                let indeterminate_cls =
-                    "h-full w-1/3 rounded-full bg-primary animate-indeterminate";
-                quote! {
-                    <div class=#outer_cls>
-                        <div class=#indeterminate_cls />
-                    </div>
-                }
+        } else {
+            let indeterminate_cls = "h-full w-1/3 rounded-full bg-primary animate-indeterminate";
+            quote! {
+                <div class=#outer_cls>
+                    <div class=#indeterminate_cls />
+                </div>
             }
         }
     }
