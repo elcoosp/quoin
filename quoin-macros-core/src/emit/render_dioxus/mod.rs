@@ -20,6 +20,9 @@ mod virtual_list;
 // ---------------------------------------------------------------------------
 // Top-level render entry point
 // ---------------------------------------------------------------------------
+#[must_use]
+/// Expands a `quoin_render!` AST into a Dioxus `rsx!` block wrapped in a
+/// scope that imports the Dioxus prelude.
 pub fn emit_render(node: &RenderNode) -> TokenStream {
     let inner = emit_render_inner(node);
     let tokens = quote! {
