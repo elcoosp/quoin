@@ -5,7 +5,16 @@
 //! the `define_conformance_tests!` macro to generate the actual test functions
 //! with the appropriate test runner.
 //!
-//! # Usage for non‑GPUI adapters
+//! Tests come in two flavours, and the macro picks the right wiring for each:
+//!
+//! - **Sync tests** (plain `fn`) cover purely reactive behaviour — signals,
+//!   globals, derived values, batching. They run directly on the calling
+//!   thread, no executor round-trip.
+//! - **Async tests** (`async fn`) cover executor-backed behaviour — spawn,
+//!   abort, detach, timed cancellation. They are wrapped in the harness's
+//!   `block_on` (sync adapters) or an `#[gpui::test]` async body (GPUI).
+//!
+//! # Usage for non-GPUI adapters
 //!
 //! ```rust,ignore
 //! use quoin_core::ReactiveContext;
@@ -15,7 +24,6 @@
 //! impl ReactiveContext for MyTestHarness { ... }
 //! impl TestContextProvider for MyTestHarness {
 //!     fn setup_context() -> Self { ... }
-//!     fn block_on<F: Future>(future: F) -> F::Output { ... }
 //! }
 //!
 //! define_conformance_tests!(sync, MyTestHarness);
@@ -42,45 +50,84 @@
 
 use quoin_core::prelude::*;
 use std::future::Future;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 // -----------------------------------------------------------------------------
 // Helper traits
 // -----------------------------------------------------------------------------
 
+/// How the conformance suite obtains a context and drives futures for a
+/// given adapter.
+///
+/// Implement this for your test harness, then call
+/// [`define_conformance_tests!`] to generate the suite.
 pub trait TestContextProvider: ReactiveContext + Sized {
+    /// Creates a fresh harness context for one test.
     fn setup_context() -> Self;
+
+    /// Blocks the calling thread until `future` resolves.
+    ///
+    /// Defaults to `futures::executor::block_on`; override when the adapter
+    /// needs a specific runtime (e.g. a tokio handle).
     fn block_on<F: Future>(future: F) -> F::Output {
         futures::executor::block_on(future)
     }
 }
 
+/// Timer capability required by the async conformance tests.
+///
+/// Adapter executors implement this with their native timer (or a
+/// `futures_timer::Delay`-style helper) so the suite can test timed
+/// cancellation without a concrete async runtime dependency.
 pub trait SleepExt {
+    /// Resolves after `duration` of wall-clock time.
     fn sleep(&self, duration: Duration) -> impl Future<Output = ()> + Send;
 }
 
 // -----------------------------------------------------------------------------
-// Core async test functions
+// Core sync test functions
 // -----------------------------------------------------------------------------
 
+/// The conformance test functions.
+///
+/// Sync functions cover purely reactive behaviour; async functions exercise
+/// the executor. [`define_conformance_tests!`] wires both flavours into the
+/// right harness automatically — call it instead of using this module by hand.
 pub mod tests {
-    use super::*;
+    use super::SleepExt;
+    use quoin_core::{
+        CancellationToken, Executor, JoinHandle, LocalExecutor, LocalJoinHandle, ReactiveContext,
+        ReactiveContextExt, Signal, SignalExt,
+    };
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::time::Duration;
 
-    pub async fn create_signal_initial_value<C: ReactiveContext>(cx: &C) {
+    /// A freshly created signal returns its initial value.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn create_signal_initial_value<C: ReactiveContext>(cx: &C) {
         let signal = cx.create_signal(42u32);
         assert_eq!(signal.get(), 42);
     }
 
-    pub async fn signal_with_borrowing<C: ReactiveContext>(cx: &C) {
+    /// `with` lends a reference to the current value.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn signal_with_borrowing<C: ReactiveContext>(cx: &C) {
         let signal = cx.create_signal("hello".to_string());
         signal.with(|value| {
             assert_eq!(value, "hello");
         });
     }
 
-    pub async fn signal_clone_and_copy<C: ReactiveContext>(cx: &C) {
+    /// Signals are `Clone`; the copy observes the same state.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn signal_clone_and_copy<C: ReactiveContext>(cx: &C) {
         let signal = cx.create_signal(100u32);
         let copy = signal;
         assert_eq!(copy.get(), 100);
@@ -88,29 +135,45 @@ pub mod tests {
 
     // --- Mutation tests ---
 
-    pub async fn signal_set_updates_value<C: ReactiveContext>(cx: &C) {
+    /// `set` writes the value through to the signal.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn signal_set_updates_value<C: ReactiveContext>(cx: &C) {
         let signal = cx.create_signal(0u32);
         signal.set(42);
         assert_eq!(signal.get(), 42);
     }
 
-    pub async fn signal_update_modifies_value<C: ReactiveContext>(cx: &C) {
+    /// `update` applies in-place mutations sequentially.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn signal_update_modifies_value<C: ReactiveContext>(cx: &C) {
         let signal = cx.create_signal(0u32);
         signal.update(|v| *v += 5);
         signal.update(|v| *v *= 2);
         assert_eq!(signal.get(), 10);
     }
 
-    pub async fn signal_mutation_observable_via_with<C: ReactiveContext>(cx: &C) {
+    /// Mutations are observable through later `with` reads.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn signal_mutation_observable_via_with<C: ReactiveContext>(cx: &C) {
         let signal = cx.create_signal(String::from("hello"));
         signal.update(|s| s.push_str(" world"));
         signal.with(|s| assert_eq!(s, "hello world"));
     }
 
-    // --- Edge‑case tests ---
+    // --- Edge-case tests ---
 
     /// Verify that a clone of a signal shares the same state
-    pub async fn signal_clone_then_mutate<C: ReactiveContext>(cx: &C) {
+    /// Clones share state: a write via the clone is visible in the original.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn signal_clone_then_mutate<C: ReactiveContext>(cx: &C) {
         let signal = cx.create_signal(42u32);
         let clone = signal.clone();
         clone.set(99);
@@ -118,7 +181,11 @@ pub mod tests {
     }
 
     /// Ensure nested `with` calls do not deadlock or panic
-    pub async fn signal_nested_with<C: ReactiveContext>(cx: &C) {
+    /// Nested `with` borrows neither deadlock nor panic.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn signal_nested_with<C: ReactiveContext>(cx: &C) {
         let signal = cx.create_signal(42u32);
         signal.with(|outer| {
             signal.with(|inner| {
@@ -128,24 +195,220 @@ pub mod tests {
     }
 
     /// Stress test with a large value (10k elements)
-    pub async fn signal_large_value<C: ReactiveContext>(cx: &C) {
+    /// Large payloads (10k elements) round-trip intact.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn signal_large_value<C: ReactiveContext>(cx: &C) {
         let large: Vec<u32> = (0..10_000).collect();
         let signal = cx.create_signal(large.clone());
         assert_eq!(signal.get(), large);
-        signal.set(large.clone().into_iter().rev().collect());
+        signal.set(large.into_iter().rev().collect());
         assert_eq!(signal.get().len(), 10_000);
         let mut acc = 0u64;
         signal.with(|v| {
             for (i, item) in v.iter().enumerate() {
-                acc += (i as u64) * (*item as u64);
+                acc += (i as u64) * u64::from(*item);
             }
         });
-        // arbitrary sanity: acc non‑zero for non‑trivial input
+        // arbitrary sanity: acc non-zero for non-trivial input
         assert!(acc > 0);
     }
 
-    // --- Executor and cancellation tests ---
+    // --- Cancellation (sync parts) ---
 
+    /// A token flips to cancelled on `cancel`.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn cancellation_token_basic<C: ReactiveContext>(_cx: &C) {
+        let token = CancellationToken::new();
+        assert!(!token.is_cancelled());
+        token.cancel();
+        assert!(token.is_cancelled());
+    }
+
+    /// Contexts are `Clone + Send + Sync`, per the trait contract.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub const fn reactive_context_is_clone_send_sync<C>(_cx: &C)
+    where
+        C: ReactiveContext + Clone + Send + Sync,
+    {
+        const fn assert_clone_send_sync<T: Clone + Send + Sync>() {}
+        assert_clone_send_sync::<C>();
+    }
+
+    /// `request_update` is always safe to call.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn request_update_does_not_panic<C: ReactiveContext>(cx: &C) {
+        cx.request_update();
+    }
+
+    /// Several signals coexist independently.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn create_multiple_signals<C: ReactiveContext>(cx: &C) {
+        let signal1 = cx.create_signal(1u32);
+        let signal2 = cx.create_signal(2u32);
+        assert_eq!(signal1.get(), 1);
+        assert_eq!(signal2.get(), 2);
+    }
+
+    // --- use_global tests ---
+
+    /// `use_global` on a missing global returns `None`, not a panic.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn use_global_does_not_panic<C: ReactiveContext>(cx: &C) {
+        // Should not panic even if no global is registered.
+        let _result: Option<<C as ReactiveContext>::Signal<String>> = cx.use_global();
+    }
+
+    // -----------------------------------------------------------------------------
+    // Shared-globals semantics (unified across adapters)
+    // -----------------------------------------------------------------------------
+
+    /// Globals must be **shared**: mutations through one `use_global` signal
+    /// are visible through another.
+    ///
+    /// This test pins the unified semantics introduced across all adapters
+    /// (previously GPUI/Xilem/Floem/Dioxus returned independent copies while
+    /// Leptos shared). All `use_global` consumers see the same cell.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn global_is_shared<C: ReactiveContext>(cx: &C) {
+        cx.provide_global(10u32);
+        let sig1 = cx.use_global::<u32>().expect("global must exist");
+        let sig2 = cx.use_global::<u32>().expect("global must exist");
+        sig1.set(55);
+        assert_eq!(sig2.get(), 55, "use_global consumers must share state");
+        assert_eq!(sig1.get(), 55);
+    }
+
+    // -----------------------------------------------------------------------------
+    // Derived signals
+    // -----------------------------------------------------------------------------
+
+    /// Derived signals recompute after their source changes.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn derived_computes_and_tracks<C: ReactiveContext>(cx: &C) {
+        let source = cx.create_signal(10u32);
+        let doubled = quoin_core::derived(&source, |v| v * 2);
+        assert_eq!(doubled.get(), 20);
+        source.set(5);
+        assert_eq!(doubled.get(), 10, "derived recomputes after source change");
+    }
+
+    /// Derived signals chain (`.map` of a derived).
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn derived_chains<C: ReactiveContext>(cx: &C) {
+        let source = cx.create_signal(2i32);
+        let chained = quoin_core::derived(&source, |v| v * 10).map(|v| v + 1);
+        assert_eq!(chained.get(), 21);
+        source.set(0);
+        assert_eq!(chained.get(), 1);
+    }
+
+    // -----------------------------------------------------------------------------
+    // Batched updates
+    // -----------------------------------------------------------------------------
+
+    /// `batch` runs the closure, returns its value, and collapses updates.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn batch_runs_and_returns<C: ReactiveContext>(cx: &C) {
+        let a = cx.create_signal(0u32);
+        let b = cx.create_signal(0u32);
+        let result = cx.batch(|| {
+            a.set(7);
+            b.set(8);
+            a.get() + b.get()
+        });
+        assert_eq!(result, 15);
+        assert_eq!(a.get(), 7);
+        assert_eq!(b.get(), 8);
+    }
+
+    // -----------------------------------------------------------------------------
+    // SignalExt helpers
+    // -----------------------------------------------------------------------------
+
+    /// `set_eq` skips equal writes and applies changed ones.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn set_eq_skips_equal_writes<C: ReactiveContext>(cx: &C) {
+        let signal = cx.create_signal("x".to_string());
+        assert!(
+            !signal.set_eq("x".to_string()),
+            "equal write must be skipped"
+        );
+        assert_eq!(signal.get(), "x");
+        assert!(signal.set_eq("y".to_string()), "changed write must apply");
+        assert_eq!(signal.get(), "y");
+    }
+
+    /// `replace` returns the previous value; `take` leaves `Default`.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn replace_and_take<C: ReactiveContext>(cx: &C) {
+        let signal = cx.create_signal(1u32);
+        assert_eq!(signal.replace(2), 1);
+        assert_eq!(signal.get(), 2);
+        assert_eq!(signal.take(), 2);
+        assert_eq!(signal.get(), 0);
+    }
+
+    // -----------------------------------------------------------------------------
+    // CancellationToken (sync parts)
+    // -----------------------------------------------------------------------------
+
+    /// Cancelling a parent token cancels its children.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn child_token_cascades<C: ReactiveContext>(_cx: &C) {
+        let parent = CancellationToken::new();
+        let child = parent.child_token();
+        assert!(!child.is_cancelled());
+        parent.cancel();
+        assert!(child.is_cancelled(), "parent cancel cascades to children");
+    }
+
+    /// The RAII cancel guard cancels when dropped.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn cancel_guard_on_drop<C: ReactiveContext>(_cx: &C) {
+        let token = CancellationToken::new();
+        {
+            let _guard = token.guard();
+            assert!(!token.is_cancelled());
+        }
+        assert!(token.is_cancelled());
+    }
+
+    // -----------------------------------------------------------------------------
+    // Executor tests (async: they await real task handles / timers)
+    // -----------------------------------------------------------------------------
+
+    /// A spawned task runs to completion and its side effects are visible.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
     pub async fn executor_spawn_success<C: ReactiveContext>(cx: &C)
     where
         <<C as ReactiveContext>::Executor as Executor>::JoinHandle<()>: std::future::IntoFuture,
@@ -162,13 +425,10 @@ pub mod tests {
         assert!(flag.load(Ordering::SeqCst));
     }
 
-    pub async fn cancellation_token_basic<C: ReactiveContext>(_cx: &C) {
-        let token = CancellationToken::new();
-        assert!(!token.is_cancelled());
-        token.cancel();
-        assert!(token.is_cancelled());
-    }
-
+    /// A task polling the token observes cancellation between steps.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
     pub async fn cancellation_token_cooperative<C>(cx: &C)
     where
         C: ReactiveContext,
@@ -200,6 +460,10 @@ pub mod tests {
 
     /// Verify `JoinHandle::abort` cancels the spawned task and that awaiting
     /// an aborted task yields `Err(Canceled)` instead of a result.
+    /// `abort` cancels the task; awaiting resolves with `Err(Canceled)`.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
     pub async fn executor_abort_cancels_task<C>(cx: &C)
     where
         C: ReactiveContext,
@@ -234,6 +498,10 @@ pub mod tests {
 
     /// Verify `JoinHandle::detach` lets a task run to completion even though
     /// the handle is gone.
+    /// `detach` lets the task finish even though the handle is gone.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
     pub async fn executor_detach_lets_task_finish<C>(cx: &C)
     where
         C: ReactiveContext,
@@ -259,112 +527,10 @@ pub mod tests {
         );
     }
 
-    pub async fn reactive_context_is_clone_send_sync<C>(_cx: &C)
-    where
-        C: ReactiveContext + Clone + Send + Sync,
-    {
-        fn assert_clone_send_sync<T: Clone + Send + Sync>() {}
-        assert_clone_send_sync::<C>();
-    }
-
-    pub async fn request_update_does_not_panic<C: ReactiveContext>(cx: &C) {
-        cx.request_update();
-    }
-
-    pub async fn create_multiple_signals<C: ReactiveContext>(cx: &C) {
-        let signal1 = cx.create_signal(1u32);
-        let signal2 = cx.create_signal(2u32);
-        assert_eq!(signal1.get(), 1);
-        assert_eq!(signal2.get(), 2);
-    }
-
-    // --- use_global test ---
-
-    pub async fn use_global_does_not_panic<C: ReactiveContext>(cx: &C) {
-        // Should not panic even if no global is registered.
-        let _result: Option<<C as ReactiveContext>::Signal<String>> = cx.use_global();
-    }
-    // -----------------------------------------------------------------------------
-    // Shared-globals semantics (unified across adapters)
-    // -----------------------------------------------------------------------------
-
-    /// Globals must be **shared**: mutations through one `use_global` signal are
-    /// visible through another. This test pins the unified semantics introduced
-    /// across all adapters (previously GPUI/Xilem/Floem/Dioxus returned
-    /// independent copies while Leptos shared).
-    pub async fn global_is_shared<C: ReactiveContext>(cx: &C) {
-        cx.provide_global(10u32);
-        let sig1 = cx.use_global::<u32>().expect("global must exist");
-        let sig2 = cx.use_global::<u32>().expect("global must exist");
-        sig1.set(55);
-        assert_eq!(sig2.get(), 55, "use_global consumers must share state");
-        assert_eq!(sig1.get(), 55);
-    }
-
-    // -----------------------------------------------------------------------------
-    // Derived signals
-    // -----------------------------------------------------------------------------
-
-    pub async fn derived_computes_and_tracks<C: ReactiveContext>(cx: &C) {
-        let source = cx.create_signal(10u32);
-        let doubled = quoin_core::derived(&source, |v| v * 2);
-        assert_eq!(doubled.get(), 20);
-        source.set(5);
-        assert_eq!(doubled.get(), 10, "derived recomputes after source change");
-    }
-
-    pub async fn derived_chains<C: ReactiveContext>(cx: &C) {
-        let source = cx.create_signal(2i32);
-        let chained = quoin_core::derived(&source, |v| v * 10).map(|v| v + 1);
-        assert_eq!(chained.get(), 21);
-        source.set(0);
-        assert_eq!(chained.get(), 1);
-    }
-
-    // -----------------------------------------------------------------------------
-    // Batched updates
-    // -----------------------------------------------------------------------------
-
-    pub async fn batch_runs_and_returns<C: ReactiveContext>(cx: &C) {
-        let a = cx.create_signal(0u32);
-        let b = cx.create_signal(0u32);
-        let result = cx.batch(|| {
-            a.set(7);
-            b.set(8);
-            a.get() + b.get()
-        });
-        assert_eq!(result, 15);
-        assert_eq!(a.get(), 7);
-        assert_eq!(b.get(), 8);
-    }
-
-    // -----------------------------------------------------------------------------
-    // SignalExt helpers
-    // -----------------------------------------------------------------------------
-
-    pub async fn set_eq_skips_equal_writes<C: ReactiveContext>(cx: &C) {
-        let signal = cx.create_signal("x".to_string());
-        assert!(
-            !signal.set_eq("x".to_string()),
-            "equal write must be skipped"
-        );
-        assert_eq!(signal.get(), "x");
-        assert!(signal.set_eq("y".to_string()), "changed write must apply");
-        assert_eq!(signal.get(), "y");
-    }
-
-    pub async fn replace_and_take<C: ReactiveContext>(cx: &C) {
-        let signal = cx.create_signal(1u32);
-        assert_eq!(signal.replace(2), 1);
-        assert_eq!(signal.get(), 2);
-        assert_eq!(signal.take(), 2);
-        assert_eq!(signal.get(), 0);
-    }
-
-    // -----------------------------------------------------------------------------
-    // ExecutorExt / spawn_with_token
-    // -----------------------------------------------------------------------------
-
+    /// `spawn_with_token` pairs a task with a cancellation token.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
     pub async fn spawn_with_token<C>(cx: &C)
     where
         C: ReactiveContext,
@@ -389,27 +555,10 @@ pub mod tests {
         assert_eq!(result.ok(), Some(1));
     }
 
-    // -----------------------------------------------------------------------------
-    // CancellationToken upgrades
-    // -----------------------------------------------------------------------------
-
-    pub async fn child_token_cascades<C: ReactiveContext>(_cx: &C) {
-        let parent = CancellationToken::new();
-        let child = parent.child_token();
-        assert!(!child.is_cancelled());
-        parent.cancel();
-        assert!(child.is_cancelled(), "parent cancel cascades to children");
-    }
-
-    pub async fn cancel_guard_on_drop<C: ReactiveContext>(_cx: &C) {
-        let token = CancellationToken::new();
-        {
-            let _guard = token.guard();
-            assert!(!token.is_cancelled());
-        }
-        assert!(token.is_cancelled());
-    }
-
+    /// `run_until_cancelled` returns `Some` when the future wins the race.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
     pub async fn run_until_cancelled_completes<C: ReactiveContext>(_cx: &C) {
         let token = CancellationToken::new();
         let value = token.run_until_cancelled(async { 42u32 }).await;
@@ -421,9 +570,15 @@ pub mod tests {
     // -----------------------------------------------------------------------------
 
     /// Local tasks are queued on the current thread (native) and must run when
-    /// `run_local_tasks` drains the queue. On wasm they are platform-driven, so
-    /// this test only asserts queue accounting consistency there.
-    pub async fn local_task_lifecycle<C>(cx: &C)
+    /// `run_local_tasks` drains the queue.
+    ///
+    /// On wasm they are platform-driven, so this test only asserts queue
+    /// accounting consistency there. Detached local tasks run when the
+    /// thread-local queue is drained.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn local_task_lifecycle<C>(cx: &C)
     where
         C: ReactiveContext,
         C::Executor: quoin_core::LocalExecutor,
@@ -441,8 +596,12 @@ pub mod tests {
     }
 }
 
-/// Verify provide_global / use_global round-trip.
-pub async fn provide_and_use_global<C: ReactiveContext>(cx: &C) {
+/// Verify `provide_global` / `use_global` round-trip (crate-level: also used
+/// standalone by adapters that only need the global-state check).
+///
+/// # Panics
+/// Panics when an assertion in this conformance check fails.
+pub fn provide_and_use_global<C: ReactiveContext>(cx: &C) {
     cx.provide_global(99u32);
     let sig = cx
         .use_global::<u32>()
@@ -456,203 +615,112 @@ pub async fn provide_and_use_global<C: ReactiveContext>(cx: &C) {
 // Test generation macros
 // -----------------------------------------------------------------------------
 
-#[macro_export]
 /// Generates conformance tests for a framework adapter.
 ///
 /// Two forms:
-/// - `sync` for non‑GPUI adapters that use `block_on`.
+/// - `sync` for non-GPUI adapters that use `block_on` for the async subset.
 /// - `gpui` for GPUI async tests.
+///
+/// Within each form, sync test functions run directly on the test thread and
+/// async ones are wrapped in the harness's `block_on` (sync form) or emitted
+/// as `async` test bodies (gpui form).
 ///
 /// # Example
 ///
 /// ```ignore
 /// define_conformance_tests!(sync, MyTestHarness);
 /// ```
+#[macro_export]
 macro_rules! define_conformance_tests {
     (sync, $cx_type:ty) => {
         use $crate::TestContextProvider;
         use $crate::provide_and_use_global;
         use $crate::tests::*;
 
-        #[test]
-        fn test_create_signal_initial_value() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(create_signal_initial_value(&cx));
+        // Helpers defined inside the expansion so `$cx_type` is baked in
+        // once, instead of being repeated in every generated test (DRY).
+        macro_rules! __quoin_sync_test {
+            ($test_name:ident, $fn_name:ident) => {
+                #[test]
+                fn $test_name() {
+                    let cx = <$cx_type>::setup_context();
+                    $fn_name(&cx);
+                }
+            };
+        }
+        macro_rules! __quoin_async_test {
+            ($test_name:ident, $fn_name:ident) => {
+                #[test]
+                fn $test_name() {
+                    let cx = <$cx_type>::setup_context();
+                    <$cx_type>::block_on($fn_name(&cx));
+                }
+            };
         }
 
-        #[test]
-        fn test_signal_with_borrowing() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(signal_with_borrowing(&cx));
-        }
+        // --- Sync (no executor round-trip required) ---
+        __quoin_sync_test!(
+            test_create_signal_initial_value,
+            create_signal_initial_value
+        );
+        __quoin_sync_test!(test_signal_with_borrowing, signal_with_borrowing);
+        __quoin_sync_test!(test_signal_clone_and_copy, signal_clone_and_copy);
+        __quoin_sync_test!(test_signal_set_updates_value, signal_set_updates_value);
+        __quoin_sync_test!(
+            test_signal_update_modifies_value,
+            signal_update_modifies_value
+        );
+        __quoin_sync_test!(
+            test_signal_mutation_observable_via_with,
+            signal_mutation_observable_via_with
+        );
+        __quoin_sync_test!(test_signal_clone_then_mutate, signal_clone_then_mutate);
+        __quoin_sync_test!(test_signal_nested_with, signal_nested_with);
+        __quoin_sync_test!(test_signal_large_value, signal_large_value);
+        __quoin_sync_test!(test_cancellation_token_basic, cancellation_token_basic);
+        __quoin_sync_test!(
+            test_reactive_context_is_clone_send_sync,
+            reactive_context_is_clone_send_sync
+        );
+        __quoin_sync_test!(
+            test_request_update_does_not_panic,
+            request_update_does_not_panic
+        );
+        __quoin_sync_test!(test_create_multiple_signals, create_multiple_signals);
+        __quoin_sync_test!(test_use_global_does_not_panic, use_global_does_not_panic);
+        __quoin_sync_test!(test_global_is_shared, global_is_shared);
+        __quoin_sync_test!(test_provide_and_use_global, provide_and_use_global);
+        __quoin_sync_test!(
+            test_derived_computes_and_tracks,
+            derived_computes_and_tracks
+        );
+        __quoin_sync_test!(test_derived_chains, derived_chains);
+        __quoin_sync_test!(test_batch_runs_and_returns, batch_runs_and_returns);
+        __quoin_sync_test!(test_set_eq_skips_equal_writes, set_eq_skips_equal_writes);
+        __quoin_sync_test!(test_replace_and_take, replace_and_take);
+        __quoin_sync_test!(test_child_token_cascades, child_token_cascades);
+        __quoin_sync_test!(test_cancel_guard_on_drop, cancel_guard_on_drop);
+        __quoin_sync_test!(test_local_task_lifecycle, local_task_lifecycle);
 
-        #[test]
-        fn test_signal_clone_and_copy() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(signal_clone_and_copy(&cx));
-        }
-
-        #[test]
-        fn test_signal_set_updates_value() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(signal_set_updates_value(&cx));
-        }
-
-        #[test]
-        fn test_signal_update_modifies_value() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(signal_update_modifies_value(&cx));
-        }
-
-        #[test]
-        fn test_signal_mutation_observable_via_with() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(signal_mutation_observable_via_with(&cx));
-        }
-
-        #[test]
-        fn test_signal_clone_then_mutate() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(signal_clone_then_mutate(&cx));
-        }
-
-        #[test]
-        fn test_signal_nested_with() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(signal_nested_with(&cx));
-        }
-
-        #[test]
-        fn test_signal_large_value() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(signal_large_value(&cx));
-        }
-
-        #[test]
-        fn test_executor_spawn_success() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(executor_spawn_success(&cx));
-        }
-
-        #[test]
-        fn test_cancellation_token_basic() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(cancellation_token_basic(&cx));
-        }
-
-        #[test]
-        fn test_cancellation_token_cooperative() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(cancellation_token_cooperative(&cx));
-        }
-
-        #[test]
-        fn test_executor_abort_cancels_task() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(executor_abort_cancels_task(&cx));
-        }
-
-        #[test]
-        fn test_executor_detach_lets_task_finish() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(executor_detach_lets_task_finish(&cx));
-        }
-
-        #[test]
-        fn test_reactive_context_is_clone_send_sync() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(reactive_context_is_clone_send_sync(&cx));
-        }
-
-        #[test]
-        fn test_request_update_does_not_panic() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(request_update_does_not_panic(&cx));
-        }
-
-        #[test]
-        fn test_create_multiple_signals() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(create_multiple_signals(&cx));
-        }
-
-        #[test]
-        fn test_use_global_does_not_panic() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(use_global_does_not_panic(&cx));
-        }
-
-        #[test]
-        fn test_provide_and_use_global() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(provide_and_use_global(&cx));
-        }
-
-        #[test]
-        fn test_global_is_shared() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(global_is_shared(&cx));
-        }
-
-        #[test]
-        fn test_derived_computes_and_tracks() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(derived_computes_and_tracks(&cx));
-        }
-
-        #[test]
-        fn test_derived_chains() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(derived_chains(&cx));
-        }
-
-        #[test]
-        fn test_batch_runs_and_returns() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(batch_runs_and_returns(&cx));
-        }
-
-        #[test]
-        fn test_set_eq_skips_equal_writes() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(set_eq_skips_equal_writes(&cx));
-        }
-
-        #[test]
-        fn test_replace_and_take() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(replace_and_take(&cx));
-        }
-
-        #[test]
-        fn test_spawn_with_token() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(spawn_with_token(&cx));
-        }
-
-        #[test]
-        fn test_child_token_cascades() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(child_token_cascades(&cx));
-        }
-
-        #[test]
-        fn test_cancel_guard_on_drop() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(cancel_guard_on_drop(&cx));
-        }
-
-        #[test]
-        fn test_run_until_cancelled_completes() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(run_until_cancelled_completes(&cx));
-        }
-
-        #[test]
-        fn test_local_task_lifecycle() {
-            let cx = <$cx_type>::setup_context();
-            <$cx_type>::block_on(local_task_lifecycle(&cx));
-        }
+        // --- Async (executor-backed) ---
+        __quoin_async_test!(test_executor_spawn_success, executor_spawn_success);
+        __quoin_async_test!(
+            test_cancellation_token_cooperative,
+            cancellation_token_cooperative
+        );
+        __quoin_async_test!(
+            test_executor_abort_cancels_task,
+            executor_abort_cancels_task
+        );
+        __quoin_async_test!(
+            test_executor_detach_lets_task_finish,
+            executor_detach_lets_task_finish
+        );
+        __quoin_async_test!(test_spawn_with_token, spawn_with_token);
+        __quoin_async_test!(
+            test_run_until_cancelled_completes,
+            run_until_cancelled_completes
+        );
     };
 
     (gpui, $cx_type:ty) => {
@@ -660,118 +728,80 @@ macro_rules! define_conformance_tests {
         use $crate::tests::*;
         // Expect `gpui::TestAppContext` to be in scope.
 
-        #[gpui::test]
-        async fn test_create_signal_initial_value(cx: &mut TestAppContext) {
-            let harness = <$cx_type>::new(cx);
-            create_signal_initial_value(&harness).await;
+        macro_rules! __quoin_gpui_sync_test {
+            ($test_name:ident, $fn_name:ident) => {
+                #[gpui::test]
+                fn $test_name(cx: &mut TestAppContext) {
+                    let harness = <$cx_type>::new(cx);
+                    $fn_name(&harness);
+                }
+            };
+        }
+        macro_rules! __quoin_gpui_async_test {
+            ($test_name:ident, $fn_name:ident) => {
+                // The conformance future is driven by `block_test` on the test
+                // scheduler — exactly how `#[gpui::test]` async bodies run
+                // (including virtual-timer advancement). Keeping the test
+                // function synchronous avoids a `!Send` future: `TestAppContext`
+                // is `Rc`-backed and deliberately `!Send`, so an `async fn`
+                // parameter would trip `clippy::future_not_send` even though
+                // the harness is single-threaded by design.
+                #[gpui::test]
+                fn $test_name(cx: &mut TestAppContext) {
+                    let harness = <$cx_type>::new(cx);
+                    let foreground = cx.update(|cx| cx.foreground_executor().clone());
+                    foreground.block_test(async move {
+                        $fn_name(&harness).await;
+                    });
+                }
+            };
         }
 
-        #[gpui::test]
-        async fn test_signal_with_borrowing(cx: &mut TestAppContext) {
-            let harness = <$cx_type>::new(cx);
-            signal_with_borrowing(&harness).await;
-        }
+        // --- Sync (no await needed) ---
+        __quoin_gpui_sync_test!(
+            test_create_signal_initial_value,
+            create_signal_initial_value
+        );
+        __quoin_gpui_sync_test!(test_signal_with_borrowing, signal_with_borrowing);
+        __quoin_gpui_sync_test!(test_signal_clone_and_copy, signal_clone_and_copy);
+        __quoin_gpui_sync_test!(test_signal_set_updates_value, signal_set_updates_value);
+        __quoin_gpui_sync_test!(
+            test_signal_update_modifies_value,
+            signal_update_modifies_value
+        );
+        __quoin_gpui_sync_test!(
+            test_signal_mutation_observable_via_with,
+            signal_mutation_observable_via_with
+        );
+        __quoin_gpui_sync_test!(test_signal_clone_then_mutate, signal_clone_then_mutate);
+        __quoin_gpui_sync_test!(test_signal_nested_with, signal_nested_with);
+        __quoin_gpui_sync_test!(test_signal_large_value, signal_large_value);
+        __quoin_gpui_sync_test!(test_cancellation_token_basic, cancellation_token_basic);
+        __quoin_gpui_sync_test!(
+            test_reactive_context_is_clone_send_sync,
+            reactive_context_is_clone_send_sync
+        );
+        __quoin_gpui_sync_test!(
+            test_request_update_does_not_panic,
+            request_update_does_not_panic
+        );
+        __quoin_gpui_sync_test!(test_create_multiple_signals, create_multiple_signals);
+        __quoin_gpui_sync_test!(test_use_global_does_not_panic, use_global_does_not_panic);
+        __quoin_gpui_sync_test!(test_provide_and_use_global, provide_and_use_global);
 
-        #[gpui::test]
-        async fn test_signal_clone_and_copy(cx: &mut TestAppContext) {
-            let harness = <$cx_type>::new(cx);
-            signal_clone_and_copy(&harness).await;
-        }
-
-        #[gpui::test]
-        async fn test_signal_set_updates_value(cx: &mut TestAppContext) {
-            let harness = <$cx_type>::new(cx);
-            signal_set_updates_value(&harness).await;
-        }
-
-        #[gpui::test]
-        async fn test_signal_update_modifies_value(cx: &mut TestAppContext) {
-            let harness = <$cx_type>::new(cx);
-            signal_update_modifies_value(&harness).await;
-        }
-
-        #[gpui::test]
-        async fn test_signal_mutation_observable_via_with(cx: &mut TestAppContext) {
-            let harness = <$cx_type>::new(cx);
-            signal_mutation_observable_via_with(&harness).await;
-        }
-
-        #[gpui::test]
-        async fn test_signal_clone_then_mutate(cx: &mut TestAppContext) {
-            let harness = <$cx_type>::new(cx);
-            signal_clone_then_mutate(&harness).await;
-        }
-
-        #[gpui::test]
-        async fn test_signal_nested_with(cx: &mut TestAppContext) {
-            let harness = <$cx_type>::new(cx);
-            signal_nested_with(&harness).await;
-        }
-
-        #[gpui::test]
-        async fn test_signal_large_value(cx: &mut TestAppContext) {
-            let harness = <$cx_type>::new(cx);
-            signal_large_value(&harness).await;
-        }
-
-        #[gpui::test]
-        async fn test_executor_spawn_success(cx: &mut TestAppContext) {
-            let harness = <$cx_type>::new(cx);
-            executor_spawn_success(&harness).await;
-        }
-
-        #[gpui::test]
-        async fn test_cancellation_token_basic(cx: &mut TestAppContext) {
-            let harness = <$cx_type>::new(cx);
-            cancellation_token_basic(&harness).await;
-        }
-
-        #[gpui::test]
-        async fn test_cancellation_token_cooperative(cx: &mut TestAppContext) {
-            let harness = <$cx_type>::new(cx);
-            cancellation_token_cooperative(&harness).await;
-        }
-
-        #[gpui::test]
-        async fn test_executor_abort_cancels_task(cx: &mut TestAppContext) {
-            let harness = <$cx_type>::new(cx);
-            executor_abort_cancels_task(&harness).await;
-        }
-
-        #[gpui::test]
-        async fn test_executor_detach_lets_task_finish(cx: &mut TestAppContext) {
-            let harness = <$cx_type>::new(cx);
-            executor_detach_lets_task_finish(&harness).await;
-        }
-
-        #[gpui::test]
-        async fn test_reactive_context_is_clone_send_sync(cx: &mut TestAppContext) {
-            let harness = <$cx_type>::new(cx);
-            reactive_context_is_clone_send_sync(&harness).await;
-        }
-
-        #[gpui::test]
-        async fn test_request_update_does_not_panic(cx: &mut TestAppContext) {
-            let harness = <$cx_type>::new(cx);
-            request_update_does_not_panic(&harness).await;
-        }
-
-        #[gpui::test]
-        async fn test_create_multiple_signals(cx: &mut TestAppContext) {
-            let harness = <$cx_type>::new(cx);
-            create_multiple_signals(&harness).await;
-        }
-
-        #[gpui::test]
-        async fn test_use_global_does_not_panic(cx: &mut TestAppContext) {
-            let harness = <$cx_type>::new(cx);
-            use_global_does_not_panic(&harness).await;
-        }
-
-        #[gpui::test]
-        async fn test_provide_and_use_global(cx: &mut TestAppContext) {
-            let harness = <$cx_type>::new(cx);
-            provide_and_use_global(&harness).await;
-        }
+        // --- Async (executor-backed) ---
+        __quoin_gpui_async_test!(test_executor_spawn_success, executor_spawn_success);
+        __quoin_gpui_async_test!(
+            test_cancellation_token_cooperative,
+            cancellation_token_cooperative
+        );
+        __quoin_gpui_async_test!(
+            test_executor_abort_cancels_task,
+            executor_abort_cancels_task
+        );
+        __quoin_gpui_async_test!(
+            test_executor_detach_lets_task_finish,
+            executor_detach_lets_task_finish
+        );
     };
 }
