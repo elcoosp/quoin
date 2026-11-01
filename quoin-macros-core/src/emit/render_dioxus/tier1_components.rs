@@ -37,21 +37,19 @@ pub(crate) fn emit_separator(el: &Element) -> TokenStream {
     for arg in &el.args {
         let key_str = arg.key.to_string();
         let value = &arg.value;
-        match key_str.as_str() {
-            "class" => {
-                if let syn::Expr::Lit(syn::ExprLit {
-                    lit: syn::Lit::Str(s),
-                    ..
-                }) = value
-                {
-                    attrs.push(quote! { class: #s, });
-                } else {
-                    attrs.push(quote! { class: {#value}, });
-                }
+        if key_str == "class" {
+            if let syn::Expr::Lit(syn::ExprLit {
+                lit: syn::Lit::Str(s),
+                ..
+            }) = value
+            {
+                attrs.push(quote! { class: #s, });
+            } else {
+                attrs.push(quote! { class: {#value}, });
             }
-            "orientation" => {}
-            _ => {}
         }
+        // `orientation` was consumed in `resolve_separator_tag`; the remaining
+        // attributes are ignored.
     }
     if attrs.is_empty() {
         quote! { #tag { } }
@@ -131,10 +129,13 @@ pub(crate) fn emit_progress(el: &Element) -> TokenStream {
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
     {
         let value_prop = match value_expr {
-            Some(val) => match max_expr {
-                Some(m) => quote! { value={format!("{}", (#val as f64) / (#m as f64))} },
-                None => quote! { value={format!("{}", (#val as f64) / 100.0)} },
-            },
+            Some(val) => {
+                if let Some(m) = max_expr {
+                    quote! { value={format!("{}", (#val as f64) / (#m as f64))} }
+                } else {
+                    quote! { value={format!("{}", (#val as f64) / 100.0)} }
+                }
+            }
             None => quote! {},
         };
         quote! { shadcn_dioxus::progress::Progress { #value_prop } }
@@ -143,35 +144,32 @@ pub(crate) fn emit_progress(el: &Element) -> TokenStream {
     #[cfg(not(all(feature = "dioxus", feature = "dioxus-shadcn")))]
     {
         let bar_cls = "h-full rounded-full bg-primary transition-all duration-300";
-        match value_expr {
-            Some(val) => {
-                let _max = match max_expr {
-                    Some(m) => quote! { (#val as f64) / (#m as f64) * 100.0 },
-                    None => quote! { (#val as f64) },
-                };
-                let full_cls = if user_class.is_empty() {
-                    outer_cls
-                } else {
-                    &user_class
-                };
-                quote! {
-                    div { class: #full_cls,
-                        div { class: #bar_cls, style: "width: {#max}%" }
-                    }
+        if let Some(val) = value_expr {
+            let _max = if let Some(m) = max_expr {
+                quote! { (#val as f64) / (#m as f64) * 100.0 }
+            } else {
+                quote! { (#val as f64) }
+            };
+            let full_cls = if user_class.is_empty() {
+                outer_cls
+            } else {
+                &user_class
+            };
+            quote! {
+                div { class: #full_cls,
+                    div { class: #bar_cls, style: "width: {#max}%" }
                 }
             }
-            None => {
-                let indeterminate_cls =
-                    "h-full w-1/3 rounded-full bg-primary animate-indeterminate";
-                let full_cls = if user_class.is_empty() {
-                    outer_cls
-                } else {
-                    &user_class
-                };
-                quote! {
-                    div { class: #full_cls,
-                        div { class: #indeterminate_cls }
-                    }
+        } else {
+            let indeterminate_cls = "h-full w-1/3 rounded-full bg-primary animate-indeterminate";
+            let full_cls = if user_class.is_empty() {
+                outer_cls
+            } else {
+                &user_class
+            };
+            quote! {
+                div { class: #full_cls,
+                    div { class: #indeterminate_cls }
                 }
             }
         }
