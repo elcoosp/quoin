@@ -10,16 +10,18 @@ quote = "1.0"
 proc-macro2 = "1.0"
 thiserror = "2.0"
 
-# Framework crates – optional, behind the corresponding feature flags
-gpui   = { git = "https://github.com/zed-industries/zed", optional = true }
-leptos = { version = "0.8", optional = true }
-dioxus = { version = "0.7", optional = true }
-
+# The framework features are pure `cfg` switches: the emitters *generate*
+# framework code as token streams, they never link against the frameworks
+# themselves. Keeping them dependency-free makes feature-gated clippy runs
+# cheap and avoids pointless rebuilds of GPUI/Leptos/Dioxus.
 [features]
 default = []
-gpui   = ["dep:gpui"]
-dioxus = ["dep:dioxus"]
-leptos = ["dep:leptos"]
+gpui   = []
+dioxus = []
+leptos = []
 # When enabled, emitters produce shadcn component calls instead of plain HTML.
 leptos-shadcn = []
 dioxus-shadcn = []
+
+[lints]
+workspace = true
