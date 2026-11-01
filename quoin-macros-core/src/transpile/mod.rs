@@ -44,7 +44,7 @@ pub fn collect_handler_idents(expr: &syn::Expr) -> Vec<proc_macro2::Ident> {
 
     let mut collector = PathIdentCollectorSkipClosures(vec![]);
     collector.visit_expr(body_expr);
-    collector.0.sort_by_key(|id| id.to_string());
+    collector.0.sort_by_key(std::string::ToString::to_string);
     collector.0.dedup_by(|a, b| *a == *b);
     collector.0
 }
@@ -53,12 +53,13 @@ pub fn collect_handler_idents(expr: &syn::Expr) -> Vec<proc_macro2::Ident> {
 pub fn collect_block_idents(block: &syn::Block) -> Vec<proc_macro2::Ident> {
     let mut collector = PathIdentCollectorAll(vec![]);
     collector.visit_block(block);
-    collector.0.sort_by_key(|id| id.to_string());
+    collector.0.sort_by_key(std::string::ToString::to_string);
     collector.0.dedup_by(|a, b| *a == *b);
     collector.0
 }
 
 /// Ensure the outermost closure has `move`. Non-closure exprs are returned unchanged.
+#[must_use]
 pub fn force_move_on_closure(expr: &syn::Expr) -> syn::Expr {
     struct ForceMove;
     impl VisitMut for ForceMove {
@@ -71,6 +72,9 @@ pub fn force_move_on_closure(expr: &syn::Expr) -> syn::Expr {
     expr
 }
 
+#[must_use]
+/// Collects identifiers used inside `expr` that are *not* closure params —
+/// used to detect which reactive signals a handler touches.
 pub fn collect_handler_idents_excluding_params(expr: &syn::Expr) -> Vec<proc_macro2::Ident> {
     let param_idents: std::collections::HashSet<String> = match expr {
         syn::Expr::Closure(c) => c
