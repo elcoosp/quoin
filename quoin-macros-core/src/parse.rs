@@ -4,34 +4,111 @@ use syn::parse::{Parse, ParseStream};
 use syn::{Block, Expr, ItemFn, Result, Token, Type, Visibility, braced};
 
 #[derive(Debug, Clone)]
+/// A `globals { name: Type observe? }` entry.
 pub struct GlobalField {
+    /// Global name as written.
     pub name: Ident,
+    /// Declared type of the global.
     pub ty: Type,
+    /// Whether the `observe` keyword requests reactivity on changes.
     pub observe: bool,
 }
 
+/// The full AST of a `component!` invocation.
 pub struct ComponentAst {
+    /// Component visibility (`pub` or empty).
     pub vis: Visibility,
+    /// Component name.
     pub name: Ident,
+    /// `props { .. }` entries.
     pub props: Vec<PropField>,
+    /// `state { .. }` entries.
     pub state: Vec<StateField>,
+    /// `globals { .. }` entries.
     pub globals: Vec<GlobalField>,
+    /// Free `fn` items defined inline in the component.
     pub actions: Vec<ItemFn>,
+    /// `on_mount { .. }` lifecycle block.
     pub on_mount: Option<Block>,
+    /// `on_unmount { .. }` lifecycle block.
     pub on_unmount: Option<Block>,
+    /// The mandatory `render { .. }` block.
     pub render: Block,
 }
 
+/// A `props { name: Type [= default] }` entry.
 pub struct PropField {
+    /// Prop name as written.
     pub name: Ident,
+    /// Declared Rust type.
     pub ty: Type,
+    /// Default expression, when the caller may omit the prop.
     pub default: Option<Expr>,
 }
 
+/// A `state { name: Type = default }` entry (defaults are mandatory).
 pub struct StateField {
+    /// State name as written.
     pub name: Ident,
+    /// Declared Rust type.
     pub ty: Type,
+    /// Initial value expression.
     pub default: Expr,
+}
+
+/// One `name: Type [= default]` entry of a `props`/`state`/`globals` block.
+struct TypedField {
+    name: Ident,
+    ty: Type,
+    default: Option<Expr>,
+    /// `globals` entries accept a trailing `observe` keyword instead of a
+    /// default value.
+    observe: bool,
+}
+
+/// Parses one `name: Type [= default] [,]` entry; `require_default` enforces
+/// the `state` rule that every field must have an initial value.
+fn parse_typed_field(input: ParseStream, require_default: bool) -> Result<TypedField> {
+    let name: Ident = input.parse()?;
+    input.parse::<Token![:]>()?;
+    let ty: Type = input.parse()?;
+    let default = if input.peek(Token![=]) {
+        input.parse::<Token![=]>()?;
+        Some(input.parse()?)
+    } else if require_default {
+        return Err(syn::Error::new(
+            name.span(),
+            "State requires default value (e.g., count: u32 = 0)",
+        ));
+    } else {
+        None
+    };
+    // `globals` fields may be followed by the `observe` keyword.
+    let observe = if !require_default && default.is_none() && input.peek(syn::Ident) {
+        let kw: syn::Ident = input.parse()?;
+        kw == "observe"
+    } else {
+        false
+    };
+    if input.peek(Token![,]) {
+        input.parse::<Token![,]>()?;
+    }
+    Ok(TypedField {
+        name,
+        ty,
+        default,
+        observe,
+    })
+}
+
+fn parse_field_section(input: ParseStream, require_default: bool) -> Result<Vec<TypedField>> {
+    let inner;
+    braced!(inner in input);
+    let mut fields = Vec::new();
+    while !inner.is_empty() {
+        fields.push(parse_typed_field(&inner, require_default)?);
+    }
+    Ok(fields)
 }
 
 impl Parse for ComponentAst {
@@ -62,80 +139,38 @@ impl Parse for ComponentAst {
             }
 
             let key: Ident = content.call(Ident::parse_any)?;
-            let key_str = key.to_string();
-
-            match key_str.as_str() {
+            match key.to_string().as_str() {
                 "props" => {
-                    let inner;
-                    braced!(inner in content);
-                    while !inner.is_empty() {
-                        let fname: Ident = inner.parse()?;
-                        inner.parse::<Token![:]>()?;
-                        let fty: Type = inner.parse()?;
-                        let default = if inner.peek(Token![=]) {
-                            inner.parse::<Token![=]>()?;
-                            Some(inner.parse()?)
-                        } else {
-                            None
-                        };
-                        if inner.peek(Token![,]) {
-                            inner.parse::<Token![,]>()?;
-                        }
-                        props.push(PropField {
-                            name: fname,
-                            ty: fty,
-                            default,
-                        });
-                    }
+                    props = parse_field_section(&content, false)?
+                        .into_iter()
+                        .map(|field| PropField {
+                            name: field.name,
+                            ty: field.ty,
+                            default: field.default,
+                        })
+                        .collect();
                 }
                 "state" => {
-                    let inner;
-                    braced!(inner in content);
-                    while !inner.is_empty() {
-                        let fname: Ident = inner.parse()?;
-                        inner.parse::<Token![:]>()?;
-                        let fty: Type = inner.parse()?;
-                        let default = if inner.peek(Token![=]) {
-                            inner.parse::<Token![=]>()?;
-                            inner.parse()?
-                        } else {
-                            return Err(syn::Error::new(
-                                fname.span(),
-                                "State requires default value (e.g., count: u32 = 0)",
-                            ));
-                        };
-                        if inner.peek(Token![,]) {
-                            inner.parse::<Token![,]>()?;
-                        }
-                        state.push(StateField {
-                            name: fname,
-                            ty: fty,
-                            default,
-                        });
-                    }
+                    state = parse_field_section(&content, true)?
+                        .into_iter()
+                        .map(|field| StateField {
+                            name: field.name,
+                            ty: field.ty,
+                            default: field
+                                .default
+                                .expect("state parser enforces a default value"),
+                        })
+                        .collect();
                 }
                 "globals" => {
-                    let inner;
-                    braced!(inner in content);
-                    while !inner.is_empty() {
-                        let fname: Ident = inner.parse()?;
-                        inner.parse::<Token![:]>()?;
-                        let fty: Type = inner.parse()?;
-                        let observe = if inner.peek(syn::Ident) {
-                            let kw: syn::Ident = inner.parse()?;
-                            kw == "observe"
-                        } else {
-                            false
-                        };
-                        if inner.peek(Token![,]) {
-                            inner.parse::<Token![,]>()?;
-                        }
-                        globals.push(GlobalField {
-                            name: fname,
-                            ty: fty,
-                            observe,
-                        });
-                    }
+                    globals = parse_field_section(&content, false)?
+                        .into_iter()
+                        .map(|field| GlobalField {
+                            name: field.name,
+                            ty: field.ty,
+                            observe: field.observe,
+                        })
+                        .collect();
                 }
                 "on_mount" => {
                     on_mount = Some(content.parse::<Block>()?);
@@ -165,7 +200,7 @@ impl Parse for ComponentAst {
             ));
         }
 
-        Ok(ComponentAst {
+        Ok(Self {
             vis,
             name,
             props,
