@@ -1,3 +1,4 @@
+//! Conformance tests for the quoin-floem adapter.
 use quoin_conformance::{SleepExt, define_conformance_tests};
 use quoin_core::{Executor, ReactiveContext};
 use quoin_floem::{FloemContext, FloemExecutor};
@@ -36,7 +37,7 @@ impl Clone for TestHarness {
 }
 
 impl TestHarness {
-    fn new() -> Self {
+    const fn new() -> Self {
         Self {
             context: FloemContext::new(),
         }
@@ -56,7 +57,7 @@ impl ReactiveContext for TestHarness {
     }
 
     fn request_update(&self) {
-        self.context.request_update()
+        self.context.request_update();
     }
 
     fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T) {
