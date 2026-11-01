@@ -36,19 +36,19 @@ pub(crate) fn emit_html_tag_inner(
             "disabled" => attrs.push(quote! { disabled=#value }),
             "on_click" => {
                 let handler = wrap_event_handler(value);
-                attrs.push(quote! { on:click=#handler })
+                attrs.push(quote! { on:click=#handler });
             }
             "on_mouse_down" => {
                 let handler = wrap_event_handler(value);
-                attrs.push(quote! { on:mousedown=#handler })
+                attrs.push(quote! { on:mousedown=#handler });
             }
             "on_input" => {
                 let handler = wrap_event_handler(value);
-                attrs.push(quote! { on:input=#handler })
+                attrs.push(quote! { on:input=#handler });
             }
             "on_change" => {
                 let handler = wrap_event_handler(value);
-                attrs.push(quote! { on:change=#handler })
+                attrs.push(quote! { on:change=#handler });
             }
             "value" => {
                 if tag == "input" {
