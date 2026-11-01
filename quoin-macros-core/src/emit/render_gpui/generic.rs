@@ -8,10 +8,9 @@ use super::{emit_render, handler::wrap_handler, try_transpile_class};
 pub(crate) fn emit_generic_element(el: &Element) -> TokenStream {
     let name_str = el.name.to_string();
     let mut chain = match name_str.as_str() {
-        "div" => quote! { ::gpui::div() },
         "h1" => quote! { ::gpui::div().text_xl().font_weight(::gpui::FontWeight::BOLD) },
         "h2" => quote! { ::gpui::div().text_lg().font_weight(::gpui::FontWeight::BOLD) },
-        "p" | "text" => quote! { ::gpui::div() },
+        // `div`, `p`, `text`, and unknown tags all map to a plain div.
         _ => quote! { ::gpui::div() },
     };
 
