@@ -35,7 +35,6 @@ use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::future::Future;
 use std::pin::Pin;
-use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// A handle to a spawned `!Send` (local) task.
@@ -237,15 +236,10 @@ where
     }
 }
 
-// Silence unused-import warnings for imports only used on one target.
-#[allow(unused)]
-fn _imports() {
-    let _ = Rc::new(());
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::rc::Rc;
     use std::sync::atomic::AtomicUsize;
 
     /// A `!Send` future: holds an `Rc`.
