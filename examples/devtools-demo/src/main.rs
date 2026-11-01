@@ -70,11 +70,10 @@ fn main() {
             event.kind,
             event.scope,
             event.type_name.unwrap_or("-"),
-            if let Some(value) = &event.value {
-                format!("value={value}")
-            } else {
-                String::new()
-            }
+            event
+                .value
+                .as_ref()
+                .map_or_else(String::new, |value| format!("value={value}"))
         );
     }
 }
