@@ -6,3 +6,6 @@ description = "Universal Component Protocol traits for quoin"
 license = "MIT"
 
 [dependencies]
+
+[lints]
+workspace = true
