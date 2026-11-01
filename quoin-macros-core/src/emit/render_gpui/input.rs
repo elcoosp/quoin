@@ -9,54 +9,48 @@ use super::try_transpile_class;
 pub(crate) fn emit_input(el: &Element) -> TokenStream {
     let placeholder = find_arg_string(el, "placeholder").unwrap_or_default();
 
-    let value_expr = match find_arg_expr(el, "value") {
-        Some(e) => e,
-        None => {
-            let mut chain = quote! {
-                ::gpui::div().rounded(::gpui::px(6.0)).px(::gpui::px(12.0)).py(::gpui::px(8.0))
-                    .bg(::gpui::rgb(0x1f2937)).border_1().border_color(::gpui::rgb(0x374151))
-                    .text_color(::gpui::rgb(0x9ca3af)).child(#placeholder)
-            };
-            if let Some(class_expr) = find_arg_expr(el, "class")
-                && let Some(styles) = try_transpile_class(class_expr)
-            {
-                for style in styles.normal {
-                    chain = quote! { #chain #style };
-                }
+    let Some(value_expr) = find_arg_expr(el, "value") else {
+        let mut chain = quote! {
+            ::gpui::div().rounded(::gpui::px(6.0)).px(::gpui::px(12.0)).py(::gpui::px(8.0))
+                .bg(::gpui::rgb(0x1f2937)).border_1().border_color(::gpui::rgb(0x374151))
+                .text_color(::gpui::rgb(0x9ca3af)).child(#placeholder)
+        };
+        if let Some(class_expr) = find_arg_expr(el, "class")
+            && let Some(styles) = try_transpile_class(class_expr)
+        {
+            for style in styles.normal {
+                chain = quote! { #chain #style };
             }
-            return chain;
         }
+        return chain;
     };
 
     let value_ident = match value_expr {
         Expr::Path(path) => path.path.segments.last().map(|seg| seg.ident.clone()),
         Expr::Field(field) => match &field.member {
             syn::Member::Named(ident) => Some(ident.clone()),
-            _ => None,
+            syn::Member::Unnamed(_) => None,
         },
         _ => None,
     };
 
-    let value_ident = match value_ident {
-        Some(id) => id,
-        None => {
-            let mut chain = quote! {
-                ::gpui::div().rounded(::gpui::px(6.0)).px(::gpui::px(12.0)).py(::gpui::px(8.0))
-                    .bg(::gpui::rgb(0x1f2937)).border_1().border_color(::gpui::rgb(0x374151))
-                    .text_color(::gpui::rgb(0xffffff)).child(#value_expr)
-            };
-            if let Some(class_expr) = find_arg_expr(el, "class")
-                && let Some(styles) = try_transpile_class(class_expr)
-            {
-                for style in styles.normal {
-                    chain = quote! { #chain #style };
-                }
+    let Some(value_ident) = value_ident else {
+        let mut chain = quote! {
+            ::gpui::div().rounded(::gpui::px(6.0)).px(::gpui::px(12.0)).py(::gpui::px(8.0))
+                .bg(::gpui::rgb(0x1f2937)).border_1().border_color(::gpui::rgb(0x374151))
+                .text_color(::gpui::rgb(0xffffff)).child(#value_expr)
+        };
+        if let Some(class_expr) = find_arg_expr(el, "class")
+            && let Some(styles) = try_transpile_class(class_expr)
+        {
+            for style in styles.normal {
+                chain = quote! { #chain #style };
             }
-            return chain;
         }
+        return chain;
     };
 
-    let input_id_str = format!("__quoin_input_{}", value_ident);
+    let input_id_str = format!("__quoin_input_{value_ident}");
     let has_class = find_arg_expr(el, "class").is_some();
     let mut wrapper_styles = quote! {};
     if let Some(class_expr) = find_arg_expr(el, "class")
