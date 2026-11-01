@@ -7,19 +7,27 @@
 //! > `data_table` element in `render_gpui.rs` (which emits a simpler manual
 //! > layout). It is reserved for future integration with `gpui_component::table`.
 
-#[allow(unused)]
+#[cfg(feature = "gpui")]
 use proc_macro2::TokenStream;
-#[allow(unused)]
+#[cfg(feature = "gpui")]
 use quote::quote;
+/// One `column` child of a `data_table` element.
 pub struct ColumnDef {
+    /// Stable key used for sorting and row access.
     pub key: String,
+    /// Human-readable header label.
     pub label: String,
+    /// Optional column width in pixels.
     pub width: Option<f32>,
+    /// Whether the column supports sorting.
     pub sortable: bool,
+    /// Cell render closure `|row: &T| ..`.
     pub render_closure: syn::Expr,
 }
 
 #[cfg(feature = "gpui")]
+#[must_use]
+/// Generates a `gpui_component::table` delegate for a `data_table` element.
 pub fn generate_gpui_table_delegate(
     delegate_name: &proc_macro2::Ident,
     row_type: &syn::Type,
@@ -32,7 +40,7 @@ pub fn generate_gpui_table_delegate(
         .enumerate()
         .map(|(i, _)| {
             let fname =
-                proc_macro2::Ident::new(&format!("__col_{}", i), proc_macro2::Span::call_site());
+                proc_macro2::Ident::new(&format!("__col_{i}"), proc_macro2::Span::call_site());
             quote! { #fname: std::sync::Arc<dyn Fn(&#row_type) -> gpui::AnyElement + Send + Sync> }
         })
         .collect();
@@ -41,7 +49,7 @@ pub fn generate_gpui_table_delegate(
         .iter()
         .enumerate()
         .map(|(i, _)| {
-            proc_macro2::Ident::new(&format!("__col_{}", i), proc_macro2::Span::call_site())
+            proc_macro2::Ident::new(&format!("__col_{i}"), proc_macro2::Span::call_site())
         })
         .collect();
 
