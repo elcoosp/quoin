@@ -1,0 +1,56 @@
+name: Feature request
+description: Suggest an improvement or new capability for quoin
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Feature ideas that keep quoin's core promise — *one reactive core,
+        many frameworks* — are especially welcome. If your idea only makes
+        sense for a single framework, explain why it cannot live in that
+        framework's adapter alone.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or motivation
+      description: What are you trying to build, and what is missing or awkward today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What should the API or behavior look like? Sketches welcome.
+      placeholder: |
+        ```rust
+        // imagined API
+        ```
+      render: rust
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - quoin-core (signals, executors, cancellation)
+        - quoin (facade / prelude)
+        - an adapter (GPUI / Leptos / Dioxus / Xilem / Floem)
+        - macros
+        - testkit / devtools
+        - docs / examples
+        - CI / tooling
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you weighed, including workarounds you use today.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues and discussions for this idea.
+          required: true
