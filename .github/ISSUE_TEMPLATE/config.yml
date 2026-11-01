@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions & usage help
+    url: https://github.com/elcoosp/quoin/discussions
+    about: Ask how to use quoin or share what you are building.
+  - name: ROADMAP
+    url: https://github.com/elcoosp/quoin/blob/main/ROADMAP.md
+    about: Check whether your idea is already planned before filing a feature request.
