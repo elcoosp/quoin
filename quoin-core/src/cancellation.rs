@@ -34,7 +34,10 @@ impl WaiterNode {
     }
 
     fn wake(self: Arc<Self>) {
-        if let Some(waker) = self.waker.lock().unwrap().take() {
+        // Take the waker while holding the lock, then wake after the guard
+        // is gone: `Waker::wake` may synchronously re-enter this type.
+        let waker = self.waker.lock().unwrap().take();
+        if let Some(waker) = waker {
             waker.wake();
         }
     }
@@ -46,11 +49,11 @@ struct Inner {
     waiters: Mutex<Vec<Weak<WaiterNode>>>,
     /// Child tokens created via [`CancellationToken::child_token`]. Cancelled
     /// transitively when this token is cancelled.
-    children: Mutex<Vec<Weak<Inner>>>,
+    children: Mutex<Vec<Weak<Self>>>,
 }
 
 impl Inner {
-    fn new() -> Self {
+    const fn new() -> Self {
         Self {
             cancelled: std::sync::atomic::AtomicBool::new(false),
             waiters: Mutex::new(Vec::new()),
@@ -95,7 +98,7 @@ impl Inner {
     }
 
     /// Registers a child token, pruning dropped children.
-    fn register_child(self: &Arc<Self>, child: &Arc<Inner>) {
+    fn register_child(self: &Arc<Self>, child: &Arc<Self>) {
         let mut children = self.children.lock().unwrap();
         children.retain(|weak| weak.strong_count() > 0);
         children.push(Arc::downgrade(child));
@@ -249,7 +252,7 @@ impl CancellationToken {
     /// # });
     /// ```
     #[must_use]
-    pub fn into_cancelled(self) -> CancelledFuture {
+    pub const fn into_cancelled(self) -> CancelledFuture {
         CancelledFuture {
             token: self,
             waiter: None,
@@ -332,7 +335,7 @@ impl CancellationToken {
     /// # };
     /// ```
     #[must_use]
-    pub fn cancelled(&self) -> Cancelled<'_> {
+    pub const fn cancelled(&self) -> Cancelled<'_> {
         Cancelled {
             token: self,
             waiter: None,
@@ -449,7 +452,7 @@ impl<F: Future> Future for RunUntilCancelled<'_, F> {
         if this.cancelled.is_none() {
             this.cancelled = Some(this.token.cancelled());
         }
-        if let Poll::Ready(()) = Pin::new(this.cancelled.as_mut().expect("just set")).poll(cx) {
+        if Pin::new(this.cancelled.as_mut().expect("just set")).poll(cx) == Poll::Ready(()) {
             return Poll::Ready(None);
         }
         Poll::Pending
