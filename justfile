@@ -40,9 +40,17 @@ test-headless-examples:
 bench-core:
     cargo run --release -p quoin-core --example bench
 
+# Micro-benchmarks for the devtools event log (release profile)
+bench-devtools:
+    cargo run --release -p quoin-devtools --example bench
+
 # Headless devtools demo with tracing enabled
 trace-demo:
     QUOIN_TRACE=1 cargo run -p devtools-demo
+
+# Visual counter demo with the live devtools trace panel (Xilem window)
+trace-counter-xilem:
+    cargo run --manifest-path examples/counter-xilem/Cargo.toml
 
 # Run UI macro expansion tests (trybuild) for quoin-macros-tests
 test-quoin-macros-gpui:
@@ -158,6 +166,12 @@ lint-core:
 lint-gpui:
     cargo clippy --all-targets -p quoin-gpui -p quoin-ui-gpui -- -D warnings
 
+# Maximum-strictness lint: pedantic + nursery lints on top of the workspace
+# policy. The codebase is held clean at this level with zero `allow`
+# attributes anywhere (enforced by the workspace `allow_attributes = deny`).
+lint-pedantic:
+    cargo clippy --workspace --all-targets -- -D warnings -W clippy::pedantic -W clippy::nursery
+
 lint:
     cargo clippy --all-targets -p quoin-macros-core -- -D warnings
     cargo clippy --all-targets -p quoin-macros-tests --features gpui -- -D warnings
@@ -223,10 +237,6 @@ leptos-clean:
 
 leptos-build:
     cargo leptos build -p counter-leptos
-
-# ---------------------------------------------------------------------
-# Compile-check all examples (no windows opened)
-# ---------------------------------------------------------------------
 
 build-examples:
     cargo build --manifest-path examples/counter-gpui/Cargo.toml
@@ -296,6 +306,3 @@ test-global:
 # Clear trybuild cache (use when tests show stale errors)
 clean-trybuild:
     rm -rf target/tests/trybuild
-
-wr:
-    watchexec -w ./wr.sh --clear -r "sh ./wr.sh"
