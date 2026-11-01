@@ -29,11 +29,17 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 
+/// The GPUI modifier chains produced from one `class=".."` argument.
 pub struct TranspiledStyles {
+    /// Modifiers applied unconditionally.
     pub normal: Vec<TokenStream>,
+    /// Modifiers produced from `hover:`-prefixed classes.
     pub hover: Vec<TokenStream>,
 }
 
+/// Transpiles a Tailwind `class=".."` string into GPUI modifier chains,
+/// splitting `hover:`-prefixed classes into their own list.
+#[must_use]
 pub fn transpile_class(class_str: &str) -> TranspiledStyles {
     let mut normal = Vec::new();
     let mut hover = Vec::new();
@@ -54,8 +60,8 @@ pub fn transpile_class(class_str: &str) -> TranspiledStyles {
     TranspiledStyles { normal, hover }
 }
 
-fn transpile_single_class(class: &str) -> Option<TokenStream> {
-    let token = match class {
+fn transpile_layout_class(class: &str) -> Option<TokenStream> {
+    Some(match class {
         // Display
         "flex" => quote! { .flex() },
         "inline-flex" => quote! { .inline_flex() },
@@ -91,6 +97,29 @@ fn transpile_single_class(class: &str) -> Option<TokenStream> {
         "self-start" => quote! { .self_start() },
         "self-end" => quote! { .self_end() },
         "self-center" => quote! { .self_center() },
+        // Position
+        "absolute" => quote! { .absolute() },
+        "relative" => quote! { .relative() },
+        // Overflow
+        "overflow-hidden" => quote! { .overflow_hidden() },
+        "overflow-auto" => quote! { .overflow_auto() },
+        "overflow-scroll" => quote! { .overflow_scroll() },
+        "overflow-x-hidden" => quote! { .overflow_x_hidden() },
+        "overflow-y-hidden" => quote! { .overflow_y_hidden() },
+        // Size
+        "w-full" => quote! { .w_full() },
+        "w-auto" => quote! { .w_auto() },
+        "h-full" => quote! { .h_full() },
+        "h-auto" => quote! { .h_auto() },
+        "size-full" => quote! { .size_full() },
+        "min-h-0" => quote! { .min_h_0() },
+        "min-w-0" => quote! { .min_w_0() },
+        _ => return None,
+    })
+}
+
+fn transpile_spacing_class(class: &str) -> Option<TokenStream> {
+    Some(match class {
         // Gap
         "gap-0" => quote! { .gap_0() },
         "gap-1" => quote! { .gap(gpui::px(4.0)) },
@@ -137,14 +166,12 @@ fn transpile_single_class(class: &str) -> Option<TokenStream> {
         "my-0" => quote! { .my_0() },
         "my-2" => quote! { .my(gpui::px(8.0)) },
         "my-4" => quote! { .my(gpui::px(16.0)) },
-        // Width / Height
-        "w-full" => quote! { .w_full() },
-        "w-auto" => quote! { .w_auto() },
-        "h-full" => quote! { .h_full() },
-        "h-auto" => quote! { .h_auto() },
-        "size-full" => quote! { .size_full() },
-        "min-h-0" => quote! { .min_h_0() },
-        "min-w-0" => quote! { .min_w_0() },
+        _ => return None,
+    })
+}
+
+fn transpile_color_class(class: &str) -> Option<TokenStream> {
+    Some(match class {
         // Opacity
         "opacity-0" => quote! { .opacity(0.0) },
         "opacity-25" => quote! { .opacity(0.25) },
@@ -190,7 +217,13 @@ fn transpile_single_class(class: &str) -> Option<TokenStream> {
         "text-red-600" => quote! { .text_color(gpui::rgb(0xdc2626)) },
         "text-green-500" => quote! { .text_color(gpui::rgb(0x22c55e)) },
         "text-green-600" => quote! { .text_color(gpui::rgb(0x16a34a)) },
-        // Font size
+        _ => return None,
+    })
+}
+
+fn transpile_typography_class(class: &str) -> Option<TokenStream> {
+    Some(match class {
+        // Font size (text-* colors live in `transpile_color_class`)
         "text-xs" => quote! { .text_xs() },
         "text-sm" => quote! { .text_sm() },
         "text-base" => quote! { .text_base() },
@@ -206,6 +239,40 @@ fn transpile_single_class(class: &str) -> Option<TokenStream> {
         "font-medium" => quote! { .font_weight(gpui::FontWeight::MEDIUM) },
         "font-semibold" => quote! { .font_weight(gpui::FontWeight::SEMIBOLD) },
         "font-bold" => quote! { .font_weight(gpui::FontWeight::BOLD) },
+        // Whitespace / text alignment
+        "whitespace-nowrap" => quote! { .whitespace_nowrap() },
+        "truncate" => quote! { .truncate() },
+        "text-center" => quote! { .text_center() },
+        "text-left" => quote! { .text_left() },
+        "text-right" => quote! { .text_right() },
+        "select-none" => quote! { .select_none() },
+        _ => return None,
+    })
+}
+
+fn transpile_border_class(class: &str) -> Option<TokenStream> {
+    Some(match class {
+        // Border widths
+        "border" => quote! { .border_1() },
+        "border-0" => quote! { .border_0() },
+        "border-2" => quote! { .border_2() },
+        // Border colors
+        "border-gray-200" => quote! { .border_color(gpui::rgb(0xe5e7eb)) },
+        "border-gray-300" => quote! { .border_color(gpui::rgb(0xd1d5db)) },
+        "border-gray-500" => quote! { .border_color(gpui::rgb(0x6b7280)) },
+        "border-gray-700" => quote! { .border_color(gpui::rgb(0x374151)) },
+        "border-blue-500" => quote! { .border_color(gpui::rgb(0x3b82f6)) },
+        "border-red-500" => quote! { .border_color(gpui::rgb(0xef4444)) },
+        "border-white" => quote! { .border_color(gpui::white()) },
+        "border-black" => quote! { .border_color(gpui::black()) },
+        // Per-side borders
+        "border-b" => quote! { .border_b_1() },
+        "border-b-0" => quote! { .border_b_0() },
+        "border-b-2" => quote! { .border_b_2() },
+        "border-t" => quote! { .border_t_1() },
+        "border-t-0" => quote! { .border_t_0() },
+        "border-l" => quote! { .border_l_1() },
+        "border-r" => quote! { .border_r_1() },
         // Border radius
         "rounded-none" => quote! { .rounded(gpui::px(0.0)) },
         "rounded-sm" => quote! { .rounded(gpui::px(2.0)) },
@@ -215,57 +282,39 @@ fn transpile_single_class(class: &str) -> Option<TokenStream> {
         "rounded-xl" => quote! { .rounded(gpui::px(12.0)) },
         "rounded-2xl" => quote! { .rounded(gpui::px(16.0)) },
         "rounded-full" => quote! { .rounded(gpui::px(9999.0)) },
+        _ => return None,
+    })
+}
+
+fn transpile_misc_class(class: &str) -> Option<TokenStream> {
+    Some(match class {
         // Cursor
         "cursor-pointer" => quote! { .cursor_pointer() },
         "cursor-default" => quote! { .cursor_default() },
         "cursor-text" => quote! { .cursor_text() },
-        // Position
-        "absolute" => quote! { .absolute() },
-        "relative" => quote! { .relative() },
-        // Overflow
-        "overflow-hidden" => quote! { .overflow_hidden() },
-        "overflow-auto" => quote! { .overflow_auto() },
-        "overflow-scroll" => quote! { .overflow_scroll() },
-        "overflow-x-hidden" => quote! { .overflow_x_hidden() },
-        "overflow-y-hidden" => quote! { .overflow_y_hidden() },
-        // Whitespace / text
-        "whitespace-nowrap" => quote! { .whitespace_nowrap() },
-        "truncate" => quote! { .truncate() },
-        "text-center" => quote! { .text_center() },
-        "text-left" => quote! { .text_left() },
-        "text-right" => quote! { .text_right() },
-        // Select
-        "select-none" => quote! { .select_none() },
-        // Border
-        "border" => quote! { .border_1() },
-        "border-0" => quote! { .border_0() },
-        "border-2" => quote! { .border_2() },
-        // Border color
-        "border-gray-200" => quote! { .border_color(gpui::rgb(0xe5e7eb)) },
-        "border-gray-300" => quote! { .border_color(gpui::rgb(0xd1d5db)) },
-        "border-gray-500" => quote! { .border_color(gpui::rgb(0x6b7280)) },
-        "border-gray-700" => quote! { .border_color(gpui::rgb(0x374151)) },
-        "border-blue-500" => quote! { .border_color(gpui::rgb(0x3b82f6)) },
-        "border-red-500" => quote! { .border_color(gpui::rgb(0xef4444)) },
-        "border-white" => quote! { .border_color(gpui::white()) },
-        "border-black" => quote! { .border_color(gpui::black()) },
-        // Top/right/bottom/left borders
-        "border-b" => quote! { .border_b_1() },
-        "border-b-0" => quote! { .border_b_0() },
-        "border-b-2" => quote! { .border_b_2() },
-        "border-t" => quote! { .border_t_1() },
-        "border-t-0" => quote! { .border_t_0() },
-        "border-l" => quote! { .border_l_1() },
-        "border-r" => quote! { .border_r_1() },
-        _ => {
-            // Try resolving as a shadcn theme token (e.g. "text-primary", "bg-destructive")
+        _ => return None,
+    })
+}
+
+fn transpile_single_class(class: &str) -> Option<TokenStream> {
+    transpile_layout_class(class)
+        .or_else(|| transpile_spacing_class(class))
+        .or_else(|| transpile_color_class(class))
+        .or_else(|| transpile_typography_class(class))
+        .or_else(|| transpile_border_class(class))
+        .or_else(|| transpile_misc_class(class))
+        // Resolves a shadcn theme token (e.g. "text-primary",
+        // "bg-destructive") as the last try. Inlined as a closure on
+        // purpose: a standalone `fn` here would be suggested as `const` by
+        // clippy, but the `gpui` feature path calls the non-const
+        // `try_resolve_gpui_color`, so `const` would break the build.
+        .or_else(|| {
             #[cfg(feature = "gpui")]
             if let Some(color_token) = crate::transpile::theme_tokens::try_resolve_gpui_color(class)
             {
                 return Some(color_token);
             }
-            return None;
-        }
-    };
-    Some(token)
+            let _ = class;
+            None
+        })
 }
