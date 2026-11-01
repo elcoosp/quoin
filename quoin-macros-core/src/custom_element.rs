@@ -3,14 +3,21 @@ use quote::quote;
 use syn::parse::{Parse, ParseStream};
 use syn::{Ident, LitStr, Token, braced};
 
+/// AST for the `quoin_element!` macro input.
 pub struct CustomElementDef {
+    /// Element tag name (string literal in the macro input).
     pub name: String,
+    /// Declared props.
     pub props: Vec<PropDef>,
+    /// Optional render closure `|props| quoin_render! { .. }`.
     pub render_fn: Option<syn::Expr>,
 }
 
+/// One prop of a custom element (`name: Type`).
 pub struct PropDef {
+    /// Prop name.
     name: Ident,
+    /// Prop type.
     ty: syn::Type,
 }
 
@@ -47,7 +54,7 @@ impl Parse for CustomElementDef {
             None
         };
 
-        Ok(CustomElementDef {
+        Ok(Self {
             name,
             props,
             render_fn,
@@ -55,6 +62,9 @@ impl Parse for CustomElementDef {
     }
 }
 
+#[must_use]
+/// Expands a `quoin_element!` definition into a struct with the declared
+/// props plus a render entry point.
 pub fn expand_custom_element(def: CustomElementDef) -> TokenStream {
     let name_str = def.name;
     let element_ident = Ident::new(&name_str, proc_macro2::Span::call_site());
@@ -162,6 +172,9 @@ pub fn expand_custom_element(def: CustomElementDef) -> TokenStream {
     }
 }
 
-pub fn resolve_custom_element(_name: &str) -> Option<TokenStream> {
+#[must_use]
+/// Registry hook for user-registered custom elements; the built-in registry
+/// is empty, so this always returns `None` for now.
+pub const fn resolve_custom_element(_name: &str) -> Option<TokenStream> {
     None
 }
