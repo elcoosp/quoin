@@ -92,9 +92,9 @@ pub use quoin_ui::*;
 // ── Testing & devtools ─────────────────────────────────────────────────────
 
 #[cfg(feature = "testkit")]
-pub use quoin_testkit;
+pub use quoin_testkit as testkit;
 
 #[cfg(feature = "devtools")]
-pub use quoin_devtools;
+pub use quoin_devtools as devtools;
 
 pub mod prelude;
