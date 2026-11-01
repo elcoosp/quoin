@@ -111,6 +111,9 @@ const KNOWN_ELEMENTS: &[&str] = &[
     "item",
 ];
 
+#[must_use]
+/// Suggests the closest known argument name (edit distance ≤ 2) for a
+/// typo'd argument.
 pub fn suggest_arg(key: &str) -> Option<&'static str> {
     KNOWN_ARGS
         .iter()
@@ -118,6 +121,8 @@ pub fn suggest_arg(key: &str) -> Option<&'static str> {
         .map(|v| v as _)
 }
 
+#[must_use]
+/// Suggests the closest known element name for a typo'd element.
 pub fn suggest_element(name: &str) -> Option<&'static str> {
     KNOWN_ELEMENTS
         .iter()
@@ -139,7 +144,7 @@ fn levenshtein(a: &str, b: &str) -> usize {
 
     for (i, ac) in a.iter().enumerate() {
         for (j, bc) in b.iter().enumerate() {
-            let cost = if ac == bc { 0 } else { 1 };
+            let cost = usize::from(ac != bc);
             matrix[i + 1][j + 1] = (matrix[i][j + 1] + 1)
                 .min(matrix[i + 1][j] + 1)
                 .min(matrix[i][j] + cost);
@@ -149,32 +154,86 @@ fn levenshtein(a: &str, b: &str) -> usize {
     matrix[a.len()][b.len()]
 }
 
+#[must_use]
+/// Validates one element's arguments and returns human-readable warnings:
+/// missing required args, unsupported event handlers, and unknown args with
+/// typo suggestions.
 pub fn check_element_args(element_name: &str, arg_keys: &[&Ident]) -> Vec<String> {
     let mut warnings = Vec::new();
+    check_required_args(element_name, arg_keys, &mut warnings);
+    check_standard_element_events(element_name, arg_keys, &mut warnings);
+    check_unknown_args(element_name, arg_keys, &mut warnings);
+    warnings
+}
 
+/// Arguments that are only valid on the special (non-`KNOWN_ARGS`) elements.
+const ELEMENT_SPECIFIC_ARGS: &[&str] = &[
+    "render",
+    "key",
+    "index",
+    "label",
+    "estimated_height",
+    "items",
+    "copy_text",
+    "sortable",
+    "width",
+    "resizable",
+    "selectable",
+    "on_sort",
+    "bordered",
+    "size",
+    "on_mouse_down",
+    "on_mouse_up",
+    "on_mouse_enter",
+    "on_mouse_leave",
+    "navigate_to",
+    "cfg",
+    "tooltip",
+    "icon_name",
+];
+
+/// Elements whose arguments are validated in [`check_required_args`].
+const SPECIAL_ELEMENTS: &[&str] = &[
+    "data_table",
+    "virtual_list",
+    "column",
+    "clipboard_button",
+    "dropdown_menu",
+    "tabs",
+    "tab",
+    "item",
+    "icon",
+    "badge",
+    "styled_text",
+    "scroll_area",
+    "rich_text",
+];
+
+fn check_required_args(element_name: &str, arg_keys: &[&Ident], warnings: &mut Vec<String>) {
+    let missing = |name: &str| !arg_keys.iter().any(|k| *k == name);
     match element_name {
         "data_table" => {
-            if !arg_keys.iter().any(|k| *k == "rows") {
+            if missing("rows") {
                 warnings.push(
                     "data_table requires a 'rows:' argument (e.g., rows: my_data)".to_string(),
                 );
             }
         }
         "virtual_list" => {
-            if !arg_keys.iter().any(|k| *k == "items") {
+            if missing("items") {
                 warnings.push(
                     "virtual_list requires an 'items:' argument (e.g., items: events)".to_string(),
                 );
             }
-            if !arg_keys.iter().any(|k| *k == "estimated_height") {
+            if missing("estimated_height") {
                 warnings.push("virtual_list requires an 'estimated_height:' argument (e.g., estimated_height: 32.0)".to_string());
             }
         }
         "column" => {
-            if !arg_keys.iter().any(|k| *k == "render") {
+            if missing("render") {
                 warnings.push("column requires a 'render:' closure (e.g., render: |row: &T| row.field.clone())".to_string());
             }
-            if !arg_keys.iter().any(|k| *k == "key") {
+            if missing("key") {
                 warnings.push(
                     "column should have a 'key:' argument for sorting (e.g., key: \"field_name\")"
                         .to_string(),
@@ -182,7 +241,7 @@ pub fn check_element_args(element_name: &str, arg_keys: &[&Ident]) -> Vec<String
             }
         }
         "icon" => {
-            if !arg_keys.iter().any(|k| *k == "icon_name") {
+            if missing("icon_name") {
                 warnings.push(
                     "icon requires an 'icon_name' argument (e.g., icon_name: \"calendar\")"
                         .to_string(),
@@ -190,154 +249,98 @@ pub fn check_element_args(element_name: &str, arg_keys: &[&Ident]) -> Vec<String
             }
         }
         "clipboard_button" => {
-            if !arg_keys.iter().any(|k| *k == "copy_text") {
+            if missing("copy_text") {
                 warnings.push("clipboard_button requires a 'copy_text:' argument (e.g., copy_text: \"hello\")".to_string());
             }
         }
         "tabs" => {
-            if !arg_keys.iter().any(|k| *k == "active") {
+            if missing("active") {
                 warnings.push(
                     "tabs requires an 'active:' argument (e.g., active: current_tab.get())"
                         .to_string(),
                 );
             }
-            if !arg_keys.iter().any(|k| *k == "on_click") {
+            if missing("on_click") {
                 warnings.push("tabs requires an 'on_click:' callback (e.g., on_click: move |i| active.set(i))".to_string());
             }
         }
         "tab" => {
-            if !arg_keys.iter().any(|k| *k == "index") {
+            if missing("index") {
                 warnings.push("tab requires an 'index:' argument (e.g., index: 0)".to_string());
             }
-            if !arg_keys.iter().any(|k| *k == "label") {
+            if missing("label") {
                 warnings.push(
                     "tab requires a 'label:' argument (e.g., label: \"Tab Name\")".to_string(),
                 );
             }
         }
-        "progress" => {
-            // value is optional (indeterminate when missing), no validation needed
-        }
-        "checkbox" => {
-            // checked and on_checked_change are optional
-        }
-        "switch" => {
-            // checked and on_checked_change are optional
-        }
-        "radio_group" => {
-            // wrapper element, no required args
-        }
-        "radio" => {
-            // value is expected for meaningful radio groups
-        }
-        "slider" => {
-            // value is expected, min/max/step are optional
-        }
-        "tooltip" => {
-            // text is optional, trigger is optional
-        }
-        "input" | "button" | "div" => {}
-        _ => {
-            let is_standard = matches!(
-                element_name,
-                "h1" | "h2"
-                    | "h3"
-                    | "p"
-                    | "text"
-                    | "span"
-                    | "a"
-                    | "img"
-                    | "label"
-                    | "ul"
-                    | "ol"
-                    | "li"
-                    | "hr"
-                    | "br"
-                    | "textarea"
-                    | "select"
-                    | "form"
-            );
-
-            if !is_standard {
-                return warnings;
-            }
-
-            let no_event_elements = ["img", "hr", "br"];
-            let has_event = arg_keys.iter().any(|k| {
-                let s = k.to_string();
-                s.starts_with("on_")
-            });
-            if no_event_elements.contains(&element_name) && has_event {
-                warnings.push(format!("<{element_name}> does not support event handlers"));
-            }
-        }
+        // All of these (plus the standard elements below) take only optional
+        // arguments; nothing to validate.
+        _ => {}
     }
+}
 
-    let is_special = matches!(
+/// Standard HTML-ish elements must not attach event handlers where none is
+/// supported (`img`, `hr`, `br`).
+fn check_standard_element_events(
+    element_name: &str,
+    arg_keys: &[&Ident],
+    warnings: &mut Vec<String>,
+) {
+    let is_standard = matches!(
         element_name,
-        "data_table"
-            | "virtual_list"
-            | "column"
-            | "clipboard_button"
-            | "dropdown_menu"
-            | "tabs"
-            | "tab"
-            | "item"
-            | "icon"
-            | "badge"
-            | "styled_text"
-            | "scroll_area"
-            | "rich_text"
+        "h1" | "h2"
+            | "h3"
+            | "p"
+            | "text"
+            | "span"
+            | "a"
+            | "img"
+            | "label"
+            | "ul"
+            | "ol"
+            | "li"
+            | "hr"
+            | "br"
+            | "textarea"
+            | "select"
+            | "form"
+            | "input"
+            | "button"
+            | "div"
     );
-
-    if !is_special {
-        for key_ident in arg_keys {
-            let key_str = key_ident.to_string();
-            if !KNOWN_ARGS.contains(&key_str.as_str()) {
-                if let Some(suggestion) = suggest_arg(&key_str) {
-                    warnings.push(format!(
-                        "unknown argument `{}` on `<{element_name}>`. Did you mean `{}`?",
-                        key_str, suggestion
-                    ));
-                } else {
-                    warnings.push(format!(
-                        "unknown argument `{}` on `<{element_name}>`. Known args: {}",
-                        key_str,
-                        KNOWN_ARGS
-                            .iter()
-                            .filter(|k| !matches!(
-                                **k,
-                                "render"
-                                    | "key"
-                                    | "index"
-                                    | "label"
-                                    | "estimated_height"
-                                    | "items"
-                                    | "copy_text"
-                                    | "sortable"
-                                    | "width"
-                                    | "resizable"
-                                    | "selectable"
-                                    | "on_sort"
-                                    | "bordered"
-                                    | "size"
-                                    | "on_mouse_down"
-                                    | "on_mouse_up"
-                                    | "on_mouse_enter"
-                                    | "on_mouse_leave"
-                                    | "navigate_to"
-                                    | "cfg"
-                                    | "tooltip"
-                                    | "icon_name"
-                            ))
-                            .cloned()
-                            .collect::<Vec<_>>()
-                            .join(", ")
-                    ));
-                }
-            }
-        }
+    if !is_standard {
+        return;
     }
 
-    warnings
+    let no_event_elements = ["img", "hr", "br"];
+    let has_event = arg_keys.iter().any(|k| k.to_string().starts_with("on_"));
+    if no_event_elements.contains(&element_name) && has_event {
+        warnings.push(format!("<{element_name}> does not support event handlers"));
+    }
+}
+
+fn check_unknown_args(element_name: &str, arg_keys: &[&Ident], warnings: &mut Vec<String>) {
+    if SPECIAL_ELEMENTS.contains(&element_name) {
+        return;
+    }
+    for key_ident in arg_keys {
+        let key_str = key_ident.to_string();
+        if KNOWN_ARGS.contains(&key_str.as_str())
+            || ELEMENT_SPECIFIC_ARGS.contains(&key_str.as_str())
+        {
+            continue;
+        }
+        if let Some(suggestion) = suggest_arg(&key_str) {
+            warnings.push(format!(
+                "unknown argument `{key_str}` on `<{element_name}>`. Did you mean `{suggestion}`?"
+            ));
+        } else {
+            warnings.push(format!(
+                "unknown argument `{}` on `<{element_name}>`. Known args: {}",
+                key_str,
+                ELEMENT_SPECIFIC_ARGS.join(", ")
+            ));
+        }
+    }
 }
