@@ -29,6 +29,7 @@ pub struct QuoinInputManager {
 }
 
 impl QuoinInputManager {
+    /// Creates an empty manager.
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -37,15 +38,20 @@ impl QuoinInputManager {
         }
     }
 
+    /// Whether an input with `id` is registered.
+    #[must_use]
     pub fn contains(&self, id: &str) -> bool {
         self.states.contains_key(id)
     }
 
+    /// Registers an input entity (and its change subscription) under `id`.
     pub fn insert(&mut self, id: String, entity: Entity<InputState>, sub: Subscription) {
         self.states.insert(id.clone(), entity);
         self.subs.insert(id, sub);
     }
 
+    /// The registered input entity for `id`, if any.
+    #[must_use]
     pub fn get(&self, id: &str) -> Option<&Entity<InputState>> {
         self.states.get(id)
     }
@@ -61,86 +67,53 @@ impl Default for QuoinInputManager {
 // Theme Resolution
 // -----------------------------------------------------------------------------
 
+/// Light shadcn-style theme resolved onto GPUI `Hsla` colors.
 pub struct GpuiTheme;
 
 impl QuoinTheme for GpuiTheme {
     type Color = Hsla;
 
     fn resolve(token: ThemeToken) -> Self::Color {
-        match token {
-            ThemeToken::Primary => Hsla::from(Rgba {
-                r: 0.23,
-                g: 0.46,
-                b: 0.97,
-                a: 1.0,
-            }),
-            ThemeToken::Secondary => Hsla::from(Rgba {
-                r: 0.42,
-                g: 0.45,
-                b: 0.50,
-                a: 1.0,
-            }),
-            ThemeToken::Background => Hsla::from(Rgba {
-                r: 1.0,
-                g: 1.0,
-                b: 1.0,
-                a: 1.0,
-            }),
-            ThemeToken::Foreground => Hsla::from(Rgba {
-                r: 0.0,
-                g: 0.0,
-                b: 0.0,
-                a: 1.0,
-            }),
-            ThemeToken::Muted => Hsla::from(Rgba {
-                r: 0.96,
-                g: 0.96,
-                b: 0.96,
-                a: 1.0,
-            }),
-            ThemeToken::MutedForeground => Hsla::from(Rgba {
-                r: 0.45,
-                g: 0.45,
-                b: 0.45,
-                a: 1.0,
-            }),
-            ThemeToken::Accent | ThemeToken::Info => Hsla::from(Rgba {
-                r: 0.23,
-                g: 0.46,
-                b: 0.97,
-                a: 1.0,
-            }),
-            ThemeToken::Warning => Hsla::from(Rgba {
-                r: 0.98,
-                g: 0.72,
-                b: 0.18,
-                a: 1.0,
-            }),
-            ThemeToken::Danger => Hsla::from(Rgba {
-                r: 0.94,
-                g: 0.27,
-                b: 0.27,
-                a: 1.0,
-            }),
-            ThemeToken::Border => Hsla::from(Rgba {
-                r: 0.90,
-                g: 0.90,
-                b: 0.90,
-                a: 1.0,
-            }),
-            ThemeToken::Input => Hsla::from(Rgba {
-                r: 1.0,
-                g: 1.0,
-                b: 1.0,
-                a: 1.0,
-            }),
-            ThemeToken::Ring => Hsla::from(Rgba {
-                r: 0.23,
-                g: 0.46,
-                b: 0.97,
-                a: 0.4,
-            }),
+        /// One palette entry: the tokens sharing this rgba value.
+        struct Entry {
+            tokens: &'static [ThemeToken],
+            rgba: [f32; 4],
         }
+
+        const fn entry(tokens: &'static [ThemeToken], rgba: [f32; 4]) -> Entry {
+            Entry { tokens, rgba }
+        }
+
+        use ThemeToken::{
+            Accent, Background, Border, Danger, Foreground, Info, Input, Muted, MutedForeground,
+            Primary, Ring, Secondary, Warning,
+        };
+
+        // The light shadcn palette; tokens sharing a color are grouped.
+        let palette: [Entry; 10] = [
+            entry(&[Primary, Accent, Info], [0.23, 0.46, 0.97, 1.0]),
+            entry(&[Secondary], [0.42, 0.45, 0.50, 1.0]),
+            entry(&[Background, Input], [1.0, 1.0, 1.0, 1.0]),
+            entry(&[Foreground], [0.0, 0.0, 0.0, 1.0]),
+            entry(&[Muted], [0.96, 0.96, 0.96, 1.0]),
+            entry(&[MutedForeground], [0.45, 0.45, 0.45, 1.0]),
+            entry(&[Warning], [0.98, 0.72, 0.18, 1.0]),
+            entry(&[Danger], [0.94, 0.27, 0.27, 1.0]),
+            entry(&[Border], [0.90, 0.90, 0.90, 1.0]),
+            entry(&[Ring], [0.23, 0.46, 0.97, 0.4]),
+        ];
+
+        let rgba = palette
+            .iter()
+            .find(|e| e.tokens.contains(&token))
+            .map_or([0.0, 0.0, 0.0, 1.0], |e| e.rgba);
+
+        Hsla::from(Rgba {
+            r: rgba[0],
+            g: rgba[1],
+            b: rgba[2],
+            a: rgba[3],
+        })
     }
 
     fn resolve_with_opacity(token: ThemeToken, opacity: f32) -> Self::Color {
@@ -150,30 +123,36 @@ impl QuoinTheme for GpuiTheme {
     }
 }
 
-/// Convenience function to resolve a color token from a string name.
+/// Resolves a color token from its kebab-case name (e.g. `"muted-foreground"`).
+///
+/// Unknown names resolve to black.
+#[must_use]
 pub fn resolve_color(name: &str) -> Hsla {
-    match name {
-        "primary" => GpuiTheme::resolve(ThemeToken::Primary),
-        "secondary" => GpuiTheme::resolve(ThemeToken::Secondary),
-        "background" => GpuiTheme::resolve(ThemeToken::Background),
-        "foreground" => GpuiTheme::resolve(ThemeToken::Foreground),
-        "muted" => GpuiTheme::resolve(ThemeToken::Muted),
-        "muted-foreground" => GpuiTheme::resolve(ThemeToken::MutedForeground),
-        "accent" | "info" => GpuiTheme::resolve(ThemeToken::Info),
-        "warning" => GpuiTheme::resolve(ThemeToken::Warning),
-        "danger" => GpuiTheme::resolve(ThemeToken::Danger),
-        "border" => GpuiTheme::resolve(ThemeToken::Border),
-        "input" => GpuiTheme::resolve(ThemeToken::Input),
-        "ring" => GpuiTheme::resolve(ThemeToken::Ring),
-        _ => gpui::black(),
-    }
+    let token = match name {
+        "primary" => ThemeToken::Primary,
+        "secondary" => ThemeToken::Secondary,
+        "background" => ThemeToken::Background,
+        "foreground" => ThemeToken::Foreground,
+        "muted" => ThemeToken::Muted,
+        "muted-foreground" => ThemeToken::MutedForeground,
+        "accent" | "info" => ThemeToken::Accent,
+        "warning" => ThemeToken::Warning,
+        "danger" => ThemeToken::Danger,
+        "border" => ThemeToken::Border,
+        "input" => ThemeToken::Input,
+        "ring" => ThemeToken::Ring,
+        _ => return gpui::black(),
+    };
+    GpuiTheme::resolve(token)
 }
 
 // -----------------------------------------------------------------------------
 // Button
 // -----------------------------------------------------------------------------
 
-pub fn render_button(label: Option<String>, variant: ButtonVariant) -> gpui::Div {
+#[must_use]
+/// Renders a styled button div for the given label and variant.
+pub fn render_button(label: Option<String>, variant: &ButtonVariant) -> gpui::Div {
     let padding = match variant.size {
         ComponentSize::Small => gpui::px(4.0),
         ComponentSize::Medium => gpui::px(8.0),
@@ -191,13 +170,13 @@ pub fn render_button(label: Option<String>, variant: ButtonVariant) -> gpui::Div
         .text_color(gpui::white());
 
     if variant.primary {
-        el = el.bg(gpui::rgb(0x2563eb));
+        el = el.bg(gpui::rgb(0x25_63eb));
     } else if variant.destructive {
-        el = el.bg(gpui::rgb(0xdc2626));
+        el = el.bg(gpui::rgb(0xdc_2626));
     } else if variant.ghost {
         // Ghost: no background
     } else {
-        el = el.bg(gpui::rgb(0x4e4e4e));
+        el = el.bg(gpui::rgb(0x4e_4e4e));
     }
 
     if let Some(label) = label {
@@ -211,6 +190,8 @@ pub fn render_button(label: Option<String>, variant: ButtonVariant) -> gpui::Div
 // Text Input
 // -----------------------------------------------------------------------------
 
+#[must_use]
+/// Renders a static input representation showing `value` (or the placeholder).
 pub fn render_input(placeholder: Option<String>, value: String) -> gpui::Div {
     let display = if value.is_empty() {
         placeholder.unwrap_or_default()
@@ -221,8 +202,8 @@ pub fn render_input(placeholder: Option<String>, value: String) -> gpui::Div {
         .rounded(gpui::px(6.0))
         .px(gpui::px(12.0))
         .py(gpui::px(8.0))
-        .bg(gpui::rgb(0xffffff))
-        .text_color(gpui::rgb(0x111827))
+        .bg(gpui::rgb(0xff_ffff))
+        .text_color(gpui::rgb(0x11_1827))
         .child(display)
 }
 
@@ -230,13 +211,15 @@ pub fn render_input(placeholder: Option<String>, value: String) -> gpui::Div {
 // Dropdown Menu
 // -----------------------------------------------------------------------------
 
+#[must_use]
+/// Renders a dropdown trigger div with the given label.
 pub fn render_dropdown_trigger(label: String) -> gpui::Div {
     gpui::div()
         .cursor_pointer()
         .rounded(gpui::px(6.0))
         .px(gpui::px(12.0))
         .py(gpui::px(8.0))
-        .bg(gpui::rgb(0x4e4e4e))
+        .bg(gpui::rgb(0x4e_4e4e))
         .text_color(gpui::white())
         .child(label)
 }
@@ -245,6 +228,8 @@ pub fn render_dropdown_trigger(label: String) -> gpui::Div {
 // Tab Bar
 // -----------------------------------------------------------------------------
 
+#[must_use]
+/// Renders a horizontal tab bar, highlighting `active_index`.
 pub fn render_tab_bar(tabs: &[String], active_index: usize) -> gpui::Div {
     let tab_elements: Vec<gpui::AnyElement> = tabs
         .iter()
@@ -258,7 +243,7 @@ pub fn render_tab_bar(tabs: &[String], active_index: usize) -> gpui::Div {
             if i == active_index {
                 el = el.text_color(gpui::white());
             } else {
-                el = el.text_color(gpui::rgb(0x9ca3af));
+                el = el.text_color(gpui::rgb(0x9c_a3af));
             }
             el.into_any_element()
         })
@@ -270,6 +255,8 @@ pub fn render_tab_bar(tabs: &[String], active_index: usize) -> gpui::Div {
 // Data Table
 // -----------------------------------------------------------------------------
 
+#[must_use]
+/// Renders a table header row for the given column names.
 pub fn render_table_header(columns: &[String]) -> gpui::Div {
     let header_cells: Vec<gpui::AnyElement> = columns
         .iter()
@@ -277,7 +264,7 @@ pub fn render_table_header(columns: &[String]) -> gpui::Div {
             gpui::div()
                 .px(gpui::px(12.0))
                 .py(gpui::px(8.0))
-                .text_color(gpui::rgb(0x6b7280))
+                .text_color(gpui::rgb(0x6b_7280))
                 .font_weight(gpui::FontWeight::MEDIUM)
                 .child(col.clone())
                 .into_any_element()
@@ -290,6 +277,8 @@ pub fn render_table_header(columns: &[String]) -> gpui::Div {
 // Virtual List
 // -----------------------------------------------------------------------------
 
+#[must_use]
+/// Renders the scrollable container that hosts a virtual list.
 pub fn render_virtual_list_container() -> gpui::Div {
     gpui::div().size_full()
 }
@@ -302,30 +291,36 @@ pub fn render_virtual_list_container() -> gpui::Div {
 // method, so callers get a discoverable, type-checked API while remaining
 // free to call the free functions directly.
 
+/// Virtual-list adapter backed by a scrollable GPUI div.
 #[derive(Default, Clone)]
 pub struct GpuiVirtualListAdapter;
 impl VirtualListAdapter for GpuiVirtualListAdapter {}
 
 impl GpuiVirtualListAdapter {
     /// Render the scrollable container that hosts a virtual list.
+    #[must_use]
     pub fn render(&self) -> gpui::Div {
         render_virtual_list_container()
     }
 }
 
+/// Data-table adapter rendering a styled GPUI header row.
 #[derive(Default, Clone)]
 pub struct GpuiTableAdapter {
+    /// Whether alternating rows should be shaded.
     pub striped: bool,
 }
 impl TableAdapter for GpuiTableAdapter {}
 
 impl GpuiTableAdapter {
     /// Render a table header row for the given column names.
+    #[must_use]
     pub fn render_header(&self, columns: &[String]) -> gpui::Div {
         render_table_header(columns)
     }
 }
 
+/// Text-input adapter rendering a static GPUI representation.
 #[derive(Default, Clone)]
 pub struct GpuiTextInputAdapter;
 impl TextInputAdapter for GpuiTextInputAdapter {}
@@ -334,39 +329,46 @@ impl GpuiTextInputAdapter {
     /// Render a (static) input representation. For a fully interactive,
     /// two-way bound input, use the `input()` element inside `quoin_render!`,
     /// which wires a real `gpui_component::Input` through `QuoinInputManager`.
+    #[must_use]
     pub fn render(&self, placeholder: Option<String>, value: String) -> gpui::Div {
         render_input(placeholder, value)
     }
 }
 
+/// Button adapter rendering styled GPUI button divs.
 #[derive(Default, Clone)]
 pub struct GpuiButtonAdapter;
 impl ButtonAdapter for GpuiButtonAdapter {}
 
 impl GpuiButtonAdapter {
     /// Render a styled button with the given label and variant.
-    pub fn render(&self, label: Option<String>, variant: ButtonVariant) -> gpui::Div {
+    #[must_use]
+    pub fn render(&self, label: Option<String>, variant: &ButtonVariant) -> gpui::Div {
         render_button(label, variant)
     }
 }
 
+/// Dropdown-menu adapter rendering the GPUI trigger.
 #[derive(Default, Clone)]
 pub struct GpuiDropdownMenuAdapter;
 impl DropdownMenuAdapter for GpuiDropdownMenuAdapter {}
 
 impl GpuiDropdownMenuAdapter {
     /// Render a dropdown menu trigger with the given label.
+    #[must_use]
     pub fn render_trigger(&self, label: String) -> gpui::Div {
         render_dropdown_trigger(label)
     }
 }
 
+/// Tab-bar adapter rendering a GPUI tab strip.
 #[derive(Default, Clone)]
 pub struct GpuiTabBarAdapter;
 impl TabBarAdapter for GpuiTabBarAdapter {}
 
 impl GpuiTabBarAdapter {
     /// Render a tab bar with the given labels and the active index.
+    #[must_use]
     pub fn render(&self, tabs: &[String], active_index: usize) -> gpui::Div {
         render_tab_bar(tabs, active_index)
     }
@@ -376,12 +378,15 @@ impl GpuiTabBarAdapter {
 // Clipboard
 // -----------------------------------------------------------------------------
 
+/// GPUI clipboard backed by injectable read/write closures.
 pub struct GpuiClipboard {
     write_fn: Arc<dyn Fn(&str) + Send + Sync>,
     read_fn: Arc<dyn Fn() -> Option<String> + Send + Sync>,
 }
 
 impl GpuiClipboard {
+    /// Creates a clipboard from platform read/write closures (usually
+    /// bound to GPUI's clipboard API in the adapter's app bootstrap).
     pub fn new(
         write_fn: impl Fn(&str) + Send + Sync + 'static,
         read_fn: impl Fn() -> Option<String> + Send + Sync + 'static,
@@ -406,27 +411,56 @@ impl Clipboard for GpuiClipboard {
 // Icon Mapping
 // -----------------------------------------------------------------------------
 
-/// Maps quoin icon name strings to GPUI icon names.
-/// Returns a `&'static str` for known icons, or `"info"` as fallback.
+/// Icon names the GPUI backend can render (checked by [`resolve_icon`]).
+static KNOWN_ICONS: &[&str] = &[
+    "info",
+    "calendar",
+    "folder",
+    "inbox",
+    "settings",
+    "search",
+    "close",
+    "trash",
+    "refresh",
+    "play",
+    "layout",
+    "file",
+    "map",
+    "copy",
+    "check",
+    "chevron-down",
+    "chevron-right",
+];
+
+/// Maps a quoin icon name to the GPUI icon name.
+///
+/// Every quoin icon name is already a valid GPUI icon name, so known names
+/// pass through unchanged; unknown names fall back to `"info"`.
+#[must_use]
 pub fn resolve_icon(name: &str) -> &'static str {
-    match name {
-        "info" => "info",
-        "calendar" => "calendar",
-        "folder" => "folder",
-        "inbox" => "inbox",
-        "settings" => "settings",
-        "search" => "search",
-        "close" => "close",
-        "trash" => "trash",
-        "refresh" => "refresh",
-        "play" => "play",
-        "layout" => "layout",
-        "file" => "file",
-        "map" => "map",
-        "copy" => "copy",
-        "check" => "check",
-        "chevron-down" => "chevron-down",
-        "chevron-right" => "chevron-right",
-        _ => "info",
+    if KNOWN_ICONS.contains(&name) {
+        // Every known icon maps to itself; the `'static` names live in
+        // `KNOWN_ICONS`, so we can return the canonical literal.
+        match name {
+            "calendar" => "calendar",
+            "folder" => "folder",
+            "inbox" => "inbox",
+            "settings" => "settings",
+            "search" => "search",
+            "close" => "close",
+            "trash" => "trash",
+            "refresh" => "refresh",
+            "play" => "play",
+            "layout" => "layout",
+            "file" => "file",
+            "map" => "map",
+            "copy" => "copy",
+            "check" => "check",
+            "chevron-down" => "chevron-down",
+            "chevron-right" => "chevron-right",
+            _ => "info",
+        }
+    } else {
+        "info"
     }
 }
