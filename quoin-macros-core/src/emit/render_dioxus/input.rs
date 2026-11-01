@@ -29,9 +29,10 @@ pub(crate) fn emit_input(el: &Element) -> TokenStream {
 
         let base_class = "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 
-        let full_class = match class_expr {
-            Some(cls) => quote! { format!("{} {}", #base_class, #cls) },
-            None => quote! { #base_class },
+        let full_class = if let Some(cls) = class_expr {
+            quote! { format!("{} {}", #base_class, #cls) }
+        } else {
+            quote! { #base_class }
         };
 
         let placeholder_attr = if placeholder.is_empty() {
