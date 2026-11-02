@@ -1,6 +1,6 @@
 use crate::parse::ComponentAst;
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 
 #[must_use]
 /// Expands a `component!` AST into a GPUI view struct with props/state
@@ -10,12 +10,14 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
     let view_struct = view_struct_tokens(ast);
     let drop_impl = drop_impl_tokens(ast);
     let render_impl = render_impl_tokens(ast);
+    let key_actions = key_action_tokens(ast);
 
     quote! {
         #props_struct
         #view_struct
         #drop_impl
         #render_impl
+        #key_actions
     }
 }
 
@@ -82,30 +84,60 @@ fn view_struct_tokens(ast: &ComponentAst) -> TokenStream {
     let state_names: Vec<_> = ast.state.iter().map(|s| &s.name).collect();
     let global_names: Vec<_> = ast.globals.iter().map(|g| &g.name).collect();
     let action_methods = action_method_tokens(ast);
+    let key_field = if ast.keys.is_empty() {
+        quote! {}
+    } else {
+        quote! { _quoin_focus: gpui::FocusHandle, }
+    };
+    let key_field_init = if ast.keys.is_empty() {
+        quote! {}
+    } else {
+        quote! { _quoin_focus: _quoin_focus.clone(), }
+    };
+    let key_init = if ast.keys.is_empty() {
+        quote! {}
+    } else {
+        quote! { let _quoin_focus = cx.focus_handle(); }
+    };
 
     quote! {
         #vis struct #name {
             props: #props_name,
             #(#state_fields,)*
             #(#global_struct_fields,)*
+            #key_field
             _quoin_inputs: quoin::QuoinInputManager,
+            _quoin_tables: quoin::QuoinTableManager,
+            _quoin_scroll_handles: quoin::QuoinScrollManager,
             _subs: Vec<gpui::Subscription>,
         }
 
         impl #name {
+            #[allow(clippy::too_many_arguments)]
             pub fn new(cx: &mut gpui::Context<Self>, ctx: quoin::GpuiContext, props: #props_name) -> Self {
                 use quoin::ReactiveContext;
                 use quoin::Signal;
                 #(#state_inits)*
                 #(#global_inits)*
+                #key_init
                 #(#on_mount_stmts)*
                 Self {
                     props,
                     #(#state_names,)*
                     #(#global_names,)*
+                    #key_field_init
                     _quoin_inputs: quoin::QuoinInputManager::new(),
+                    _quoin_tables: quoin::QuoinTableManager::new(),
+                    _quoin_scroll_handles: quoin::QuoinScrollManager::new(),
                     _subs: Vec::new(),
                 }
+            }
+
+            /// The focus handle tracking this component when it declares a
+            /// `keys { .. }` section; used by the app glue to keep the
+            /// component's key context in the dispatch path.
+            pub fn quoin_focus_handle(&self) -> gpui::FocusHandle {
+                self._quoin_focus.clone()
             }
 
             #(#action_methods)*
@@ -222,6 +254,9 @@ fn drop_impl_tokens(ast: &ComponentAst) -> TokenStream {
 
 /// Generates the `gpui::Render` implementation, cloning the state/global
 /// signal handles into scope before running the user render statements.
+/// Components with a `keys { .. }` section get their rendered root wrapped
+/// with `.track_focus(..)`, `.key_context(..)` and one `.on_action(..)`
+/// handler per declared keystroke.
 fn render_impl_tokens(ast: &ComponentAst) -> TokenStream {
     let name = &ast.name;
     let render_stmts = &ast.render.stmts;
@@ -244,6 +279,36 @@ fn render_impl_tokens(ast: &ComponentAst) -> TokenStream {
         })
         .collect();
 
+    // With a `keys` section, bind the rendered root to the component's focus
+    // scope and dispatch each keystroke to its handler (which sees `this`,
+    // `window`, `cx` via the listener closure).
+    let render_body = if ast.keys.is_empty() {
+        quote! { #(#render_stmts)* }
+    } else {
+        let key_name = format_ident!("__Quoin{}Key", name);
+        let action_handlers = ast.keys.iter().enumerate().map(|(ix, key)| {
+            let action = format_ident!("{}{}", key_name, ix);
+            let handler = &key.handler;
+            quote! {
+                .on_action(cx.listener(
+                    move |this: &mut Self, _: &#action, window: &mut gpui::Window, cx: &mut gpui::Context<Self>| {
+                        let this = &mut *this;
+                        let _ = window;
+                        #handler
+                    },
+                ))
+            }
+        });
+        quote! {
+            {
+                #(#render_stmts)*
+            }
+            .track_focus(&self._quoin_focus)
+            .key_context(stringify!(#name))
+            #(#action_handlers)*
+        }
+    };
+
     quote! {
         impl gpui::Render for #name {
             fn render(&mut self, window: &mut gpui::Window, cx: &mut gpui::Context<Self>) -> impl gpui::IntoElement {
@@ -251,8 +316,39 @@ fn render_impl_tokens(ast: &ComponentAst) -> TokenStream {
                 use quoin::Signal;
                 #(#state_clones)*
                 #(#global_clones)*
-                #(#render_stmts)*
+                #render_body
             }
+        }
+    }
+}
+
+/// Generates the `actions!` invocation plus the global `KeyBinding` list for
+/// a component's `keys { .. }` section. Actions are emitted at module scope;
+/// bindings are bound once per app by the bootstrap through
+/// `quoin::bind_component_keys`.
+fn key_action_tokens(ast: &ComponentAst) -> TokenStream {
+    if ast.keys.is_empty() {
+        return quote! {};
+    }
+    let name = &ast.name;
+    let key_name = format_ident!("__Quoin{}Keys", name);
+    let action_idents: Vec<_> = (0..ast.keys.len())
+        .map(|ix| format_ident!("__Quoin{}Key{}", name, ix))
+        .collect();
+    let bindings = ast.keys.iter().zip(&action_idents).map(|(key, action)| {
+        let keystroke = &key.keystroke;
+        quote! {
+            gpui::KeyBinding::new(#keystroke, #action, Some(stringify!(#name)))
+        }
+    });
+    quote! {
+        gpui::actions!(quoin_keys, [#(#action_idents),*]);
+
+        /// Keybindings declared by this component's `keys { .. }` section.
+        /// Bound once per app: `quoin::bind_component_keys(cx, __quoin_keys());
+        #[doc(hidden)]
+        pub fn #key_name () -> Vec<gpui::KeyBinding> {
+            vec![#(#bindings),*]
         }
     }
 }
