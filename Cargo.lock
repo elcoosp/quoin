@@ -1367,7 +1367,7 @@ checksum = "fe6d2e5af09e8c8ad56c969f2157a3d4238cebc7c55f0a517728c38f7b200f81"
 dependencies = [
  "serde",
  "termcolor",
- "unicode-width 0.2.3",
+ "unicode-width 0.1.14",
 ]
 
 [[package]]
@@ -1378,7 +1378,7 @@ checksum = "af491d569909a7e4dee0ad7db7f5341fef5c614d5b8ec8cf765732aba3cff681"
 dependencies = [
  "serde",
  "termcolor",
- "unicode-width 0.2.3",
+ "unicode-width 0.1.14",
 ]
 
 [[package]]
@@ -2480,7 +2480,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -2820,7 +2820,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -3862,7 +3862,7 @@ dependencies = [
 [[package]]
 name = "gpui-base"
 version = "0.8.1"
-source = "git+https://github.com/longbridge/gpui-component#944803984cf0ba3111861d6e1aa9d6265c109ff9"
+source = "git+https://github.com/longbridge/gpui-component#56e9153c4e80775cb6e29d5ef6f6b350bbab71b1"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -3902,7 +3902,7 @@ dependencies = [
 [[package]]
 name = "gpui-component"
 version = "0.8.1"
-source = "git+https://github.com/longbridge/gpui-component#944803984cf0ba3111861d6e1aa9d6265c109ff9"
+source = "git+https://github.com/longbridge/gpui-component#56e9153c4e80775cb6e29d5ef6f6b350bbab71b1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3948,7 +3948,7 @@ dependencies = [
 [[package]]
 name = "gpui-component-macros"
 version = "0.8.1"
-source = "git+https://github.com/longbridge/gpui-component#944803984cf0ba3111861d6e1aa9d6265c109ff9"
+source = "git+https://github.com/longbridge/gpui-component#56e9153c4e80775cb6e29d5ef6f6b350bbab71b1"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -3959,7 +3959,7 @@ dependencies = [
 [[package]]
 name = "gpui-kit-assets"
 version = "0.8.1"
-source = "git+https://github.com/longbridge/gpui-component#944803984cf0ba3111861d6e1aa9d6265c109ff9"
+source = "git+https://github.com/longbridge/gpui-component#56e9153c4e80775cb6e29d5ef6f6b350bbab71b1"
 dependencies = [
  "anyhow",
  "gpui-pre",
@@ -6698,7 +6698,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -8090,7 +8090,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -9007,7 +9007,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.12.1",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -10369,7 +10369,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix 1.1.6",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -12210,7 +12210,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -12972,7 +12972,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d6f32a0ff4a9f6f01231eb2059cc85479330739333e0e58cadf03b6af2cca10"
 dependencies = [
  "cfg-if",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
