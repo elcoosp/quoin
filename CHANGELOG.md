@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added - New features and capabilities
+- **quoin-core**: `Executor::sleep` — timers are now part of the executor contract; every adapter gets a portable `sleep` (futures-timer on native, browser timer on wasm) without an ambient async runtime ([timer.rs](quoin-core/src/timer.rs))
+- **quoin-testkit**: `TokioExecutor::sleep` delegates to `tokio::time::sleep` so paused-time tests (`start_paused` + `advance`) drive executor timers deterministically
+- **quoin-dioxus**: implement `LocalExecutor` (`spawn_local` for `!Send` futures) as already documented
+- **quoin-floem**: implement `LocalExecutor` (`spawn_local` for `!Send` futures) as already documented
+- **quoin-conformance**: new checks `executor_sleep_resolves` and `executor_spawned_task_sleeps`; the `gpui` suite now covers the full shared contract (31 checks, previously 19) including shared globals, derived, batch, `set_eq`, cancellation cascade and `spawn_with_token`
+
+### Fixed
+- **quoin-testkit**: the `tokio` feature was unbuildable (missing `rt-multi-thread`; `TokioJoinHandle::detach` called a non-existent tokio method)
+- **quoin-core**: `ReactiveContext::use_global` documentation corrected — every adapter (including GPUI) returns a handle to the **same** shared cell, matching the shipped `global_is_shared` semantics
+
+### Removed
+- **quoin-conformance**: `SleepExt` — superseded by `Executor::sleep` in `quoin-core`; harnesses no longer need a custom timer trait
+
+### Added - New features and capabilities
 - Chunk 1 ([d22dee4](https://github.com/elcoosp/quoin/commit/d22dee4e3fdab5aed6cedbbc690548c1901a98fb))
 - Chunk 2 ([55f37f7](https://github.com/elcoosp/quoin/commit/55f37f7f32db0c2fe8c19cd7753786fa13802df8))
 - **xilem**: Complete ReactiveContext implementation ([0fc2180](https://github.com/elcoosp/quoin/commit/0fc218073da17f60de1fd4df8e8437521ded4675))
