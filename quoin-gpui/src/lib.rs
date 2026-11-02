@@ -146,6 +146,26 @@ impl GpuiContext {
         });
     }
 
+    /// Connects the context to a whole-window refresh: any signal mutation
+    /// (or `request_update()` call) repaints **every** entity in the window,
+    /// mirroring classic "refresh the window on state change" adapters.
+    ///
+    /// This is the notifier multi-entity apps (a root view plus independent
+    /// panel views) need: with [`Self::set_view_update_notifier`] only the
+    /// single wired view repaints.
+    pub fn set_window_refresh_notifier(&self, async_window: AsyncWindowContext) {
+        // Wrap the AsyncWindowContext to make it Send + Sync.
+        let async_window = SendWrapper::new(async_window);
+        self.set_update_notifier(move || {
+            let async_window = async_window.clone();
+            async_window
+                .spawn(async move |cx| {
+                    cx.update(|window, _| window.refresh()).ok();
+                })
+                .detach();
+        });
+    }
+
     /// Create a context from an existing foreground executor (useful for tests).
     #[must_use]
     pub fn from_executor(foreground: ForegroundExecutor) -> Self {
