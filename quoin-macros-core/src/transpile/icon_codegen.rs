@@ -196,6 +196,54 @@ static ICON_TABLE: &[IconDef] = &[
             child("path", &[("d", "M21 3v6h-6")]),
         ],
     },
+    IconDef {
+        names: &["folder-open"],
+        children: &[child(
+            "path",
+            &[(
+                "d",
+                "m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2",
+            )],
+        )],
+    },
+    IconDef {
+        names: &["square-terminal"],
+        children: &[
+            child(
+                "rect",
+                &[
+                    ("width", "18"),
+                    ("height", "18"),
+                    ("x", "3"),
+                    ("y", "3"),
+                    ("rx", "2"),
+                ],
+            ),
+            child("path", &[("d", "m7 11 2-2-2-2")]),
+            child("path", &[("d", "M11 13h4")]),
+        ],
+    },
+    IconDef {
+        names: &["globe"],
+        children: &[
+            child("circle", &[("cx", "12"), ("cy", "12"), ("r", "10")]),
+            child(
+                "path",
+                &[("d", "M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20")],
+            ),
+            child("path", &[("d", "M2 12h20")]),
+        ],
+    },
+    IconDef {
+        names: &["rotate-cw"],
+        children: &[
+            child(
+                "path",
+                &[("d", "M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8")],
+            ),
+            child("path", &[("d", "M21 3v5h-5")]),
+        ],
+    },
 ];
 
 fn lookup(name: &str) -> Option<&'static [SvgChild]> {
@@ -230,6 +278,39 @@ pub fn icon_svg_html(name: &str) -> Option<String> {
 #[must_use]
 pub fn icon_children(name: &str) -> Option<Vec<SvgChild>> {
     lookup(name).map(<[SvgChild]>::to_vec)
+}
+
+/// Resolve a kebab-case icon name (`"chevron-down"`, `"square-terminal"`)
+/// into the `PascalCase` `gpui_component::IconName` variant ident
+/// (`ChevronDown`, `SquareTerminal`). Falls back to `Info` for unknown
+/// names, mirroring the runtime `resolve_icon` behavior of the adapters.
+#[must_use]
+pub fn icon_variant_ident(name: &str) -> proc_macro2::Ident {
+    fn is_alias(name: &str) -> bool {
+        ICON_TABLE.iter().any(|icon| icon.names.contains(&name))
+    }
+    let normalized = match name {
+        // The lucide names differ slightly from the gpui-component asset
+        // names; map the few used aliases here.
+        "trash" => "delete",
+        "refresh" => "rotate-cw",
+        _ => name,
+    };
+    if !is_alias(normalized) {
+        return proc_macro2::Ident::new("Info", proc_macro2::Span::call_site());
+    }
+    let pascal: String = normalized
+        .split('-')
+        .map(|part| {
+            let mut chars = part.chars();
+            chars
+                .next()
+                .map(|first| first.to_ascii_uppercase().to_string())
+                .unwrap_or_default()
+                + chars.as_str()
+        })
+        .collect();
+    proc_macro2::Ident::new(&pascal, proc_macro2::Span::call_site())
 }
 
 #[cfg(test)]
