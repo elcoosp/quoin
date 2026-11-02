@@ -174,6 +174,21 @@ impl Executor for FloemExecutor {
 /// once in `quoin-core` and shared with the Leptos and Dioxus adapters.
 pub type FloemJoinHandle<T> = quoin_core::AbortJoinHandle<T>;
 
+impl quoin_core::LocalExecutor for FloemExecutor {
+    type JoinHandle<T: 'static> = quoin_core::LocalTask<T>;
+
+    fn spawn_local<F>(&self, future: F) -> Self::JoinHandle<F::Output>
+    where
+        F: std::future::Future + 'static,
+        F::Output: 'static,
+    {
+        // On wasm the task runs on the browser main thread; on native it is
+        // queued on the current thread (drive with
+        // `quoin_core::local::run_local_tasks()`).
+        quoin_core::spawn_local_task(future)
+    }
+}
+
 impl<T: Clone + std::fmt::Debug + 'static> std::fmt::Debug for FloemSignal<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("FloemSignal")
