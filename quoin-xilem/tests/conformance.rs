@@ -1,5 +1,5 @@
 //! Conformance tests for the quoin-xilem adapter.
-use quoin_conformance::{SleepExt, define_conformance_tests};
+use quoin_conformance::define_conformance_tests;
 use quoin_core::{Executor, JoinHandle, ReactiveContext};
 use quoin_xilem::{XilemContext, XilemExecutor};
 use std::future::Future;
@@ -9,12 +9,6 @@ use xilem::tokio::runtime::Runtime;
 
 #[derive(Clone)]
 struct TestExecutor(XilemExecutor);
-
-impl SleepExt for TestExecutor {
-    fn sleep(&self, duration: Duration) -> impl Future<Output = ()> + Send {
-        futures_timer::Delay::new(duration)
-    }
-}
 
 impl Executor for TestExecutor {
     type JoinHandle<T: Send + 'static> = <XilemExecutor as Executor>::JoinHandle<T>;
