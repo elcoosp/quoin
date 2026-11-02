@@ -29,18 +29,21 @@ pub type SleepFuture = Pin<Box<dyn Future<Output = ()> + Send>>;
 /// Resolves after `duration` of wall-clock time, without requiring any
 /// ambient async runtime on native targets.
 ///
+/// The returned future is `Send + Sync`, so loaders composing it satisfy
+/// storage seams that require `Sync` futures (e.g. rs-query's `Query`).
+///
 /// # Panics
 /// Never panics. `wasm32` rounds durations above ~49 days down to the
 /// browser's maximum `setTimeout` delay.
 #[must_use = "sleep returns a future that must be awaited"]
-pub fn sleep(duration: Duration) -> SleepFuture {
+pub fn sleep(duration: Duration) -> impl Future<Output = ()> + Send + Sync {
     #[cfg(target_arch = "wasm32")]
     {
         wasm_sleep(duration)
     }
     #[cfg(not(target_arch = "wasm32"))]
     {
-        Box::pin(futures_timer::Delay::new(duration))
+        futures_timer::Delay::new(duration)
     }
 }
 
