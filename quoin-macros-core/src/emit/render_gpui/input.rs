@@ -1,4 +1,4 @@
-use crate::emit::common::{find_arg_expr, find_arg_string};
+use crate::emit::common::{find_arg_bool, find_arg_expr, find_arg_string};
 use crate::render_ast::Element;
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -6,8 +6,37 @@ use syn::Expr;
 
 use super::try_transpile_class;
 
+/// Emits an `input(...)` element as a two-way bound
+/// `gpui_component::Input` wired through the component's
+/// `QuoinInputManager` (field `_quoin_inputs`).
+///
+/// Supported framework-agnostic arguments:
+/// - `value: <signal>` — state signal bound both ways (required for a live input)
+/// - `placeholder: &str`
+/// - `prefix: "icon-name"` — leading icon
+/// - `cleanable: bool` — show the clear button when non-empty
+/// - `small: bool` — small size
+/// - `class: "…"` — wrapper classes (transpiled)
 pub(crate) fn emit_input(el: &Element) -> TokenStream {
     let placeholder = find_arg_string(el, "placeholder").unwrap_or_default();
+    let prefix_icon = find_arg_string(el, "prefix");
+    let cleanable = find_arg_bool(el, "cleanable");
+    let small = find_arg_bool(el, "small");
+
+    let prefix_tokens = prefix_icon.map_or(quote! {}, |icon| {
+        let resolved = crate::transpile::icon_codegen::icon_variant_ident(&icon);
+        quote! { .prefix(::gpui_component::Icon::new(::gpui_component::IconName::#resolved)) }
+    });
+    let cleanable_tokens = if cleanable {
+        quote! { .cleanable(true) }
+    } else {
+        quote! {}
+    };
+    let size_tokens = if small {
+        quote! { .small() }
+    } else {
+        quote! {}
+    };
 
     let Some(value_expr) = find_arg_expr(el, "value") else {
         let mut chain = quote! {
@@ -62,9 +91,9 @@ pub(crate) fn emit_input(el: &Element) -> TokenStream {
     }
 
     let input_construction = if has_class {
-        quote! { ::gpui::div()#wrapper_styles.child(quoin::Input::new(&__entity).appearance(false)) }
+        quote! { ::gpui::div()#wrapper_styles.child(quoin::Input::new(&__entity).appearance(false) #prefix_tokens #cleanable_tokens #size_tokens) }
     } else {
-        quote! { quoin::Input::new(&__entity) }
+        quote! { quoin::Input::new(&__entity) #prefix_tokens #cleanable_tokens #size_tokens }
     };
 
     quote! {
