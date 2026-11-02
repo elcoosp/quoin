@@ -4,7 +4,6 @@ use quoin_conformance::define_conformance_tests;
 use quoin_core::{Executor, ReactiveContext};
 use quoin_dioxus::{DioxusContext, DioxusExecutor};
 use std::future::Future;
-use std::time::Duration;
 
 fn app() -> Element {
     VNode::empty()
