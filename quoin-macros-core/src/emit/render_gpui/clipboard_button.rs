@@ -1,19 +1,32 @@
-use crate::emit::common::find_arg_expr;
+use crate::emit::common::{find_arg_expr, find_arg_string};
 use crate::render_ast::Element;
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use super::{emit_render, try_transpile_class};
+use super::try_transpile_class;
 
+/// Emits a `clipboard_button(...)` element as a real
+/// `gpui_component::clipboard::Clipboard` (icon-only copy widget bound to the
+/// system clipboard).
+///
+/// Supported framework-agnostic arguments:
+/// - `id: &str` — element id (defaults to `clipboard`)
+/// - `value: <expr>` — text to copy when clicked (required)
+/// - `tooltip: &str`
+/// - `class: "…"` — extra classes
 pub(crate) fn emit_clipboard_button(el: &Element) -> TokenStream {
-    let Some(copy_text) = find_arg_expr(el, "copy_text") else {
-        return quote! { ::gpui::div().child("clipboard_button: missing copy_text") };
+    let Some(copy_text) = find_arg_expr(el, "value").or(find_arg_expr(el, "copy_text")) else {
+        return quote! { ::gpui::div().child("clipboard_button: missing value") };
     };
+    let id = find_arg_string(el, "id").unwrap_or_else(|| "clipboard".to_string());
 
     let mut chain = quote! {
-        ::gpui::div().cursor_pointer().rounded(::gpui::px(6.0)).px(::gpui::px(8.0)).py(::gpui::px(8.0))
-            .flex().items_center().justify_center().text_color(::gpui::white()).bg(::gpui::rgb(0x4e4e4e))
+        ::gpui_component::clipboard::Clipboard::new(#id).value(#copy_text)
     };
+
+    if let Some(tooltip) = find_arg_string(el, "tooltip") {
+        chain = quote! { #chain.tooltip(#tooltip) };
+    }
 
     if let Some(class_expr) = find_arg_expr(el, "class")
         && let Some(styles) = try_transpile_class(class_expr)
@@ -23,19 +36,5 @@ pub(crate) fn emit_clipboard_button(el: &Element) -> TokenStream {
         }
     }
 
-    for child in &el.children {
-        let child_tokens = emit_render(child);
-        chain = quote! { #chain.child(#child_tokens) };
-    }
-
-    let copy_text_clone = copy_text.clone();
-    chain = quote! {
-        #chain.on_mouse_down(::gpui::MouseButton::Left,
-            move |_, _, cx| {
-                cx.write_to_clipboard(::gpui::ClipboardItem::new_string(#copy_text_clone.to_string()));
-            }
-        )
-    };
-
-    chain
+    quote! { #chain }
 }
