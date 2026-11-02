@@ -4,7 +4,6 @@ use quoin_conformance::define_conformance_tests;
 use quoin_core::{Executor, ReactiveContext};
 use quoin_leptos::{LeptosContext, LeptosExecutor};
 use std::future::Future;
-use std::time::Duration;
 
 #[derive(Clone)]
 struct TestExecutor(LeptosExecutor);
