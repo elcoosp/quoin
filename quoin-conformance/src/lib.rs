@@ -34,23 +34,18 @@
 //! ```rust,ignore
 //! use gpui::TestAppContext;
 //! use quoin_core::ReactiveContext;
-//! use quoin_conformance::{define_conformance_tests, SleepExt};
+//! use quoin_conformance::define_conformance_tests;
 //!
 //! struct TestHarness { context: GpuiContext }
 //! impl TestHarness {
 //!     fn new(cx: &mut TestAppContext) -> Self { ... }
 //! }
 //! impl ReactiveContext for TestHarness { ... }
-//! impl SleepExt for <GpuiContext as ReactiveContext>::Executor {
-//!     async fn sleep(&self, duration: Duration) { ... }
-//! }
-//!
 //! define_conformance_tests!(gpui, TestHarness);
 //! ```
 
 use quoin_core::prelude::*;
 use std::future::Future;
-use std::time::Duration;
 
 // -----------------------------------------------------------------------------
 // Helper traits
@@ -74,16 +69,6 @@ pub trait TestContextProvider: ReactiveContext + Sized {
     }
 }
 
-/// Timer capability required by the async conformance tests.
-///
-/// Adapter executors implement this with their native timer (or a
-/// `futures_timer::Delay`-style helper) so the suite can test timed
-/// cancellation without a concrete async runtime dependency.
-pub trait SleepExt {
-    /// Resolves after `duration` of wall-clock time.
-    fn sleep(&self, duration: Duration) -> impl Future<Output = ()> + Send;
-}
-
 // -----------------------------------------------------------------------------
 // Core sync test functions
 // -----------------------------------------------------------------------------
@@ -94,7 +79,6 @@ pub trait SleepExt {
 /// the executor. [`define_conformance_tests!`] wires both flavours into the
 /// right harness automatically — call it instead of using this module by hand.
 pub mod tests {
-    use super::SleepExt;
     use quoin_core::{
         CancellationToken, Executor, JoinHandle, LocalExecutor, LocalJoinHandle, ReactiveContext,
         ReactiveContextExt, Signal, SignalExt,
@@ -432,7 +416,7 @@ pub mod tests {
     pub async fn cancellation_token_cooperative<C>(cx: &C)
     where
         C: ReactiveContext,
-        C::Executor: SleepExt + Clone,
+        C::Executor: Clone,
         <<C as ReactiveContext>::Executor as Executor>::JoinHandle<()>: std::future::IntoFuture,
     {
         let token = CancellationToken::new();
@@ -467,7 +451,7 @@ pub mod tests {
     pub async fn executor_abort_cancels_task<C>(cx: &C)
     where
         C: ReactiveContext,
-        C::Executor: SleepExt + Clone,
+        C::Executor: Clone,
         <<C as ReactiveContext>::Executor as Executor>::JoinHandle<()>:
             std::future::IntoFuture<Output = Result<(), futures::channel::oneshot::Canceled>>,
     {
@@ -505,7 +489,7 @@ pub mod tests {
     pub async fn executor_detach_lets_task_finish<C>(cx: &C)
     where
         C: ReactiveContext,
-        C::Executor: SleepExt + Clone,
+        C::Executor: Clone,
         <<C as ReactiveContext>::Executor as Executor>::JoinHandle<()>:
             std::future::IntoFuture<Output = Result<(), futures::channel::oneshot::Canceled>>,
     {
@@ -534,7 +518,7 @@ pub mod tests {
     pub async fn spawn_with_token<C>(cx: &C)
     where
         C: ReactiveContext,
-        C::Executor: SleepExt + Clone,
+        C::Executor: Clone,
         <<C as ReactiveContext>::Executor as Executor>::JoinHandle<u32>:
             std::future::IntoFuture<Output = Result<u32, futures::channel::oneshot::Canceled>>,
     {
@@ -563,6 +547,43 @@ pub mod tests {
         let token = CancellationToken::new();
         let value = token.run_until_cancelled(async { 42u32 }).await;
         assert_eq!(value, Some(42));
+    }
+
+    /// `Executor::sleep` is part of the core contract: awaiting it must
+    /// resolve (immediately or after the requested duration, depending on
+    /// the executor's clock — gpui's test scheduler, for example, advances
+    /// a *virtual* clock, so wall-clock assertions would be wrong here).
+    ///
+    /// # Panics
+    /// Panics when the executor's sleep future never resolves.
+    pub async fn executor_sleep_resolves<C: ReactiveContext>(cx: &C) {
+        cx.executor().sleep(Duration::from_millis(1)).await;
+    }
+
+    /// A spawned task can await `Executor::sleep` internally (timers compose
+    /// with spawned work — the pattern retry/backoff loops rely on).
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub async fn executor_spawned_task_sleeps<C: ReactiveContext>(cx: &C)
+    where
+        <<C as ReactiveContext>::Executor as Executor>::JoinHandle<()>: std::future::IntoFuture,
+    {
+        let executor = cx.executor();
+        let flag = Arc::new(AtomicBool::new(false));
+        let flag_clone = flag.clone();
+        let executor_for_task = executor.clone();
+
+        let handle = executor.spawn(async move {
+            executor_for_task.sleep(Duration::from_millis(10)).await;
+            flag_clone.store(true, Ordering::SeqCst);
+        });
+
+        let _ = handle.await;
+        assert!(
+            flag.load(Ordering::SeqCst),
+            "spawned task must observe its internal sleep"
+        );
     }
 
     // -----------------------------------------------------------------------------
@@ -721,6 +742,11 @@ macro_rules! define_conformance_tests {
             test_run_until_cancelled_completes,
             run_until_cancelled_completes
         );
+        __quoin_async_test!(test_executor_sleep_resolves, executor_sleep_resolves);
+        __quoin_async_test!(
+            test_executor_spawned_task_sleeps,
+            executor_spawned_task_sleeps
+        );
     };
 
     (gpui, $cx_type:ty) => {
@@ -787,7 +813,18 @@ macro_rules! define_conformance_tests {
         );
         __quoin_gpui_sync_test!(test_create_multiple_signals, create_multiple_signals);
         __quoin_gpui_sync_test!(test_use_global_does_not_panic, use_global_does_not_panic);
+        __quoin_gpui_sync_test!(test_global_is_shared, global_is_shared);
         __quoin_gpui_sync_test!(test_provide_and_use_global, provide_and_use_global);
+        __quoin_gpui_sync_test!(
+            test_derived_computes_and_tracks,
+            derived_computes_and_tracks
+        );
+        __quoin_gpui_sync_test!(test_derived_chains, derived_chains);
+        __quoin_gpui_sync_test!(test_batch_runs_and_returns, batch_runs_and_returns);
+        __quoin_gpui_sync_test!(test_set_eq_skips_equal_writes, set_eq_skips_equal_writes);
+        __quoin_gpui_sync_test!(test_replace_and_take, replace_and_take);
+        __quoin_gpui_sync_test!(test_child_token_cascades, child_token_cascades);
+        __quoin_gpui_sync_test!(test_cancel_guard_on_drop, cancel_guard_on_drop);
 
         // --- Async (executor-backed) ---
         __quoin_gpui_async_test!(test_executor_spawn_success, executor_spawn_success);
@@ -802,6 +839,16 @@ macro_rules! define_conformance_tests {
         __quoin_gpui_async_test!(
             test_executor_detach_lets_task_finish,
             executor_detach_lets_task_finish
+        );
+        __quoin_gpui_async_test!(test_spawn_with_token, spawn_with_token);
+        __quoin_gpui_async_test!(
+            test_run_until_cancelled_completes,
+            run_until_cancelled_completes
+        );
+        __quoin_gpui_async_test!(test_executor_sleep_resolves, executor_sleep_resolves);
+        __quoin_gpui_async_test!(
+            test_executor_spawned_task_sleeps,
+            executor_spawned_task_sleeps
         );
     };
 }
