@@ -102,6 +102,7 @@ pub mod reactive;
 pub mod resource;
 pub mod signal;
 pub mod test_support;
+pub mod timer;
 
 pub use cancellation::{
     CancelGuard, CancellationToken, Cancelled, CancelledFuture, RunUntilCancelled,
@@ -115,4 +116,5 @@ pub use notify_signal::NotifierSignal;
 pub use reactive::ReactiveContext;
 pub use resource::{Resource, ResourceState};
 pub use signal::Signal;
+pub use timer::{SleepFuture, sleep};
 pub mod prelude;
