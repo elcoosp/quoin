@@ -354,6 +354,11 @@ impl TokioExecutor {
 }
 
 #[cfg(feature = "tokio")]
+/// Join handle for tasks spawned by [`TokioExecutor`].
+///
+/// Awaiting resolves with the task's output or `Err(Canceled)` when aborted;
+/// dropping the handle without detaching aborts the task (structured
+/// concurrency, matching every other executor in this crate).
 pub struct TokioJoinHandle<T> {
     inner: Option<tokio::task::JoinHandle<()>>,
     rx: Option<futures::channel::oneshot::Receiver<T>>,
@@ -369,9 +374,9 @@ impl<T: Send + 'static> JoinHandle<T> for TokioJoinHandle<T> {
     }
 
     fn detach(self) {
-        if let Some(handle) = self.inner {
-            handle.detach();
-        }
+        // tokio's `JoinHandle` never cancels its task on drop, so there is
+        // nothing to release: just mark this handle as detached so `Drop`
+        // does not abort the task.
         self.detached.store(true, Ordering::SeqCst);
     }
 }
@@ -425,6 +430,13 @@ impl Executor for TokioExecutor {
             rx: Some(rx),
             detached: Arc::new(AtomicBool::new(false)),
         }
+    }
+
+    /// Delegates to `tokio::time::sleep` so paused-time tests
+    /// (`#[tokio::test(start_paused = true)]` + `advance`) control every
+    /// timer deterministically.
+    fn sleep(&self, duration: std::time::Duration) -> quoin_core::SleepFuture {
+        Box::pin(tokio::time::sleep(duration))
     }
 }
 
