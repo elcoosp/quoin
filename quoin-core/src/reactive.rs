@@ -100,11 +100,15 @@ pub trait ReactiveContext: Clone + Send + Sync + 'static {
     ///
     /// # Framework-Specific Behavior
     ///
-    /// - **GPUI**: Stores the value in a **thread-local** `HashMap<TypeId, Box<dyn Any>>`.
-    ///   The global is only visible to code running on the **same thread** that called
-    ///   `provide_global`. If your application opens windows on multiple threads, you
-    ///   must call `provide_global` on each thread. There is no automatic cleanup when
-    ///   a window closes — consider calling a manual cleanup in `on_unmount` if needed.
+    /// - **GPUI**: Stores the value in a **thread-local**, context-namespaced
+    ///   type map (`quoin_core::globals`) holding the signal itself, so every
+    ///   `use_global` on the same thread returns a handle to the **same**
+    ///   shared cell (verified by the conformance check `global_is_shared`).
+    ///   The global is only visible to code running on the **same thread**
+    ///   that called `provide_global`. If your application opens windows on
+    ///   multiple threads, you must call `provide_global` on each thread.
+    ///   There is no automatic cleanup when a window closes — consider
+    ///   calling a manual cleanup in `on_unmount` if needed.
     ///
     /// - **Leptos**: Wraps the value in `RwSignal<SendWrapper<T>>` and calls
     ///   `provide_context`. The global is scoped to the current reactive owner,
@@ -138,11 +142,10 @@ pub trait ReactiveContext: Clone + Send + Sync + 'static {
     ///
     /// - **GPUI**: Looks up the value in the **thread-local** type-map. Returns
     ///   `None` if no value of type `T` has been registered on the **current thread**,
-    ///   even if it was registered on a different thread. The returned signal wraps
-    ///   the value in a new `Arc<RwLock<T>>` — mutations to this signal do **not**
-    ///   propagate back to the stored global (each `use_global` call creates an
-    ///   independent copy). If you need shared mutability, consider providing a
-    ///   signal type directly.
+    ///   even if it was registered on a different thread. Every `use_global` on the
+    ///   same thread returns a handle to the **same** stored cell, so mutations
+    ///   propagate to all holders of the global (verified by the conformance
+    ///   check `global_is_shared`).
     ///
     /// - **Leptos**: Calls `use_context::<RwSignal<SendWrapper<T>>>()`. Returns
     ///   `None` if no matching context exists in the current reactive owner tree.
