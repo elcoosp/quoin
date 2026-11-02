@@ -14,6 +14,17 @@ pub struct GlobalField {
     pub observe: bool,
 }
 
+/// A `keys { "keystroke" => handler }` entry: a framework-agnostic
+/// keyboard shortcut that triggers handler code (which may use `this`,
+/// `window`, and `cx`) whenever the keystroke fires.
+#[derive(Debug, Clone)]
+pub struct KeyEntry {
+    /// Keystroke pattern, e.g. `"ctrl-shift-d"` or `"cmd-1"`.
+    pub keystroke: String,
+    /// Handler expression evaluated when the keystroke is dispatched.
+    pub handler: Expr,
+}
+
 /// The full AST of a `component!` invocation.
 pub struct ComponentAst {
     /// Component visibility (`pub` or empty).
@@ -26,6 +37,8 @@ pub struct ComponentAst {
     pub state: Vec<StateField>,
     /// `globals { .. }` entries.
     pub globals: Vec<GlobalField>,
+    /// `keys { .. }` keyboard shortcuts.
+    pub keys: Vec<KeyEntry>,
     /// Free `fn` items defined inline in the component.
     pub actions: Vec<ItemFn>,
     /// `on_mount { .. }` lifecycle block.
@@ -111,6 +124,26 @@ fn parse_field_section(input: ParseStream, require_default: bool) -> Result<Vec<
     Ok(fields)
 }
 
+/// Parses a `keys { "keystroke" => handler, ... }` block.
+fn parse_keys_section(input: ParseStream) -> Result<Vec<KeyEntry>> {
+    let inner;
+    braced!(inner in input);
+    let mut keys = Vec::new();
+    while !inner.is_empty() {
+        let lit: syn::LitStr = inner.parse()?;
+        inner.parse::<Token![=>]>()?;
+        let handler: Expr = inner.parse()?;
+        if inner.peek(Token![,]) {
+            inner.parse::<Token![,]>()?;
+        }
+        keys.push(KeyEntry {
+            keystroke: lit.value(),
+            handler,
+        });
+    }
+    Ok(keys)
+}
+
 impl Parse for ComponentAst {
     fn parse(input: ParseStream) -> Result<Self> {
         let vis: Visibility = input.parse()?;
@@ -122,6 +155,7 @@ impl Parse for ComponentAst {
         let mut props = Vec::new();
         let mut state = Vec::new();
         let mut globals = Vec::new();
+        let mut keys = Vec::new();
         let mut actions = Vec::new();
         let mut on_mount: Option<Block> = None;
         let mut on_unmount: Option<Block> = None;
@@ -172,6 +206,9 @@ impl Parse for ComponentAst {
                         })
                         .collect();
                 }
+                "keys" => {
+                    keys = parse_keys_section(&content)?;
+                }
                 "on_mount" => {
                     on_mount = Some(content.parse::<Block>()?);
                 }
@@ -206,6 +243,7 @@ impl Parse for ComponentAst {
             props,
             state,
             globals,
+            keys,
             actions,
             on_mount,
             on_unmount,
