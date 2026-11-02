@@ -26,7 +26,7 @@ tokio = ["dep:tokio"]
 
 [dependencies.tokio]
 version = "1"
-features = ["rt", "sync", "time"]
+features = ["rt", "rt-multi-thread", "sync", "time"]
 optional = true
 
 [lints]
