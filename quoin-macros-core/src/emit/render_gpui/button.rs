@@ -1,45 +1,47 @@
-use crate::emit::common::{find_arg_bool, find_arg_expr};
+use crate::emit::common::{find_arg_bool, find_arg_expr, find_arg_string};
 use crate::render_ast::Element;
 use proc_macro2::TokenStream;
 use quote::quote;
 
 use super::{emit_render, handler::wrap_handler, try_transpile_class};
 
+/// Emits a `button(...)` element as a real `gpui_component::Button`.
+///
+/// Supported framework-agnostic arguments:
+/// - `label: &str` / `icon: "icon-name"` / children as the button content
+/// - `primary: bool`, `ghost: bool`, `destructive: bool` variants
+/// - `small: bool`, `xsmall: bool` sizes (default medium)
+/// - `tooltip: &str`
+/// - `on_click: |…| …` handler (wrapped, signals shadow-cloned)
+/// - `class: "…"` tailwind classes applied on top of the widget defaults
 pub(crate) fn emit_button(el: &Element) -> TokenStream {
-    let mut chain = quote! {
-        ::gpui::div()
-            .cursor_pointer()
-            .rounded(::gpui::px(6.0))
-            .px(::gpui::px(8.0))
-            .py(::gpui::px(8.0))
-            .flex()
-            .items_center()
-            .justify_center()
-            .text_color(::gpui::white())
-    };
+    let mut chain = quote! { ::gpui_component::button::Button::new("button") };
 
-    let primary = find_arg_bool(el, "primary");
-    let ghost = find_arg_bool(el, "ghost");
-    let destructive = find_arg_bool(el, "destructive");
-
-    if primary {
-        chain = quote! { #chain.bg(::gpui::rgb(0x2563eb)) };
-    } else if destructive {
-        chain = quote! { #chain.bg(::gpui::rgb(0xdc2626)) };
-    } else if !ghost {
-        chain = quote! { #chain.bg(::gpui::rgb(0x4e4e4e)) };
+    if find_arg_bool(el, "primary") {
+        chain = quote! { #chain.primary() };
+    } else if find_arg_bool(el, "destructive") {
+        chain = quote! { #chain.destructive() };
+    } else if find_arg_bool(el, "ghost") {
+        chain = quote! { #chain.ghost() };
     }
 
-    if let Some(class_expr) = find_arg_expr(el, "class")
-        && let Some(styles) = try_transpile_class(class_expr)
-    {
-        for style in styles.normal {
-            chain = quote! { #chain #style };
-        }
-        if !styles.hover.is_empty() {
-            let hover_tokens = styles.hover;
-            chain = quote! { #chain.hover(|__s| __s #(#hover_tokens)*) };
-        }
+    if find_arg_bool(el, "xsmall") {
+        chain = quote! { #chain.xsmall() };
+    } else if find_arg_bool(el, "small") {
+        chain = quote! { #chain.small() };
+    }
+
+    if let Some(icon) = find_arg_string(el, "icon") {
+        let resolved = crate::transpile::icon_codegen::icon_variant_ident(&icon);
+        chain = quote! { #chain.icon(::gpui_component::Icon::new(::gpui_component::IconName::#resolved)) };
+    }
+
+    if let Some(label) = find_arg_string(el, "label") {
+        chain = quote! { #chain.label(#label) };
+    }
+
+    if let Some(tooltip) = find_arg_string(el, "tooltip") {
+        chain = quote! { #chain.tooltip(#tooltip) };
     }
 
     for child in &el.children {
@@ -49,8 +51,21 @@ pub(crate) fn emit_button(el: &Element) -> TokenStream {
 
     if let Some(handler_expr) = find_arg_expr(el, "on_click") {
         let wrap = wrap_handler(handler_expr);
-        chain = quote! { #chain.on_mouse_down(::gpui::MouseButton::Left, #wrap) };
+        chain = quote! { #chain.on_click(#wrap) };
     }
 
-    chain
+    let mut wrapped = quote! { #chain };
+    if let Some(class_expr) = find_arg_expr(el, "class")
+        && let Some(styles) = try_transpile_class(class_expr)
+    {
+        for style in styles.normal {
+            wrapped = quote! { #wrapped #style };
+        }
+        if !styles.hover.is_empty() {
+            let hover_tokens = styles.hover;
+            wrapped = quote! { #wrapped.hover(|__s| __s #(#hover_tokens)*) };
+        }
+    }
+
+    wrapped
 }
