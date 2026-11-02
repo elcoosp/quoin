@@ -77,10 +77,10 @@ fn transpile_layout_class(class: &str) -> Option<TokenStream> {
         "flex-wrap" => quote! { .flex_wrap() },
         "flex-nowrap" => quote! { .flex_nowrap() },
         // Flex grow/shrink
-        "flex-grow" => quote! { .flex_grow(1.0) },
-        "flex-grow-0" => quote! { .flex_grow(0.0) },
-        "flex-shrink" => quote! { .flex_shrink(1.0) },
-        "flex-shrink-0" => quote! { .flex_shrink(0.0) },
+        "flex-grow" | "grow" => quote! { .flex_grow(1.0) },
+        "flex-grow-0" | "grow-0" => quote! { .flex_grow(0.0) },
+        "flex-shrink" | "shrink" => quote! { .flex_shrink(1.0) },
+        "flex-shrink-0" | "shrink-0" => quote! { .flex_shrink(0.0) },
         // Alignment
         "items-start" => quote! { .items_start() },
         "items-end" => quote! { .items_end() },
@@ -114,6 +114,29 @@ fn transpile_layout_class(class: &str) -> Option<TokenStream> {
         "size-full" => quote! { .size_full() },
         "min-h-0" => quote! { .min_h_0() },
         "min-w-0" => quote! { .min_w_0() },
+        "max-w-full" => quote! { .max_w_full() },
+        "max-h-full" => quote! { .max_h_full() },
+        "flex-1" => quote! { .flex_1() },
+        // Scrollable overflow (gpui scroll containers)
+        "overflow-y-scroll" | "overflow-y-auto" => quote! { .overflow_y_scroll() },
+        "overflow-x-scroll" | "overflow-x-auto" => quote! { .overflow_x_scroll() },
+        // Absolute offsets (tailwind spacing scale, 1 unit = 4 px)
+        "top-0" => quote! { .top(gpui::px(0.0)) },
+        "right-0" => quote! { .right(gpui::px(0.0)) },
+        "bottom-0" => quote! { .bottom(gpui::px(0.0)) },
+        "left-0" => quote! { .left(gpui::px(0.0)) },
+        "top-1" => quote! { .top(gpui::px(4.0)) },
+        "right-1" => quote! { .right(gpui::px(4.0)) },
+        "bottom-1" => quote! { .bottom(gpui::px(4.0)) },
+        "left-1" => quote! { .left(gpui::px(4.0)) },
+        "top-2" => quote! { .top(gpui::px(8.0)) },
+        "right-2" => quote! { .right(gpui::px(8.0)) },
+        "bottom-2" => quote! { .bottom(gpui::px(8.0)) },
+        "left-2" => quote! { .left(gpui::px(8.0)) },
+        "top-3" => quote! { .top(gpui::px(12.0)) },
+        "right-3" => quote! { .right(gpui::px(12.0)) },
+        "bottom-3" => quote! { .bottom(gpui::px(12.0)) },
+        "left-3" => quote! { .left(gpui::px(12.0)) },
         _ => return None,
     })
 }
@@ -161,11 +184,62 @@ fn transpile_spacing_class(class: &str) -> Option<TokenStream> {
         "m-4" => quote! { .m(gpui::px(16.0)) },
         "mx-auto" => quote! { .mx_auto() },
         "mx-0" => quote! { .mx_0() },
+        "mx-1" => quote! { .mx(gpui::px(4.0)) },
         "mx-2" => quote! { .mx(gpui::px(8.0)) },
+        "mx-3" => quote! { .mx(gpui::px(12.0)) },
         "mx-4" => quote! { .mx(gpui::px(16.0)) },
         "my-0" => quote! { .my_0() },
+        "my-1" => quote! { .my(gpui::px(4.0)) },
         "my-2" => quote! { .my(gpui::px(8.0)) },
+        "my-3" => quote! { .my(gpui::px(12.0)) },
         "my-4" => quote! { .my(gpui::px(16.0)) },
+        "mt-0" => quote! { .mt_0() },
+        "mt-1" => quote! { .mt(gpui::px(4.0)) },
+        "mt-2" => quote! { .mt(gpui::px(8.0)) },
+        "mt-3" => quote! { .mt(gpui::px(12.0)) },
+        "mt-4" => quote! { .mt(gpui::px(16.0)) },
+        "mb-0" => quote! { .mb_0() },
+        "mb-1" => quote! { .mb(gpui::px(4.0)) },
+        "mb-2" => quote! { .mb(gpui::px(8.0)) },
+        "mb-3" => quote! { .mb(gpui::px(12.0)) },
+        "mb-4" => quote! { .mb(gpui::px(16.0)) },
+        "ml-0" => quote! { .ml_0() },
+        "ml-1" => quote! { .ml(gpui::px(4.0)) },
+        "ml-2" => quote! { .ml(gpui::px(8.0)) },
+        "ml-3" => quote! { .ml(gpui::px(12.0)) },
+        "ml-auto" => quote! { .ml_auto() },
+        "mr-0" => quote! { .mr_0() },
+        "mr-1" => quote! { .mr(gpui::px(4.0)) },
+        "mr-2" => quote! { .mr(gpui::px(8.0)) },
+        "mr-3" => quote! { .mr(gpui::px(12.0)) },
+        "mr-auto" => quote! { .mr_auto() },
+        // Sub-module padding (per-side)
+        "pl-0" => quote! { .pl_0() },
+        "pl-1" => quote! { .pl(gpui::px(4.0)) },
+        "pl-2" => quote! { .pl(gpui::px(8.0)) },
+        "pl-3" => quote! { .pl(gpui::px(12.0)) },
+        "pl-4" => quote! { .pl(gpui::px(16.0)) },
+        "pr-0" => quote! { .pr_0() },
+        "pr-1" => quote! { .pr(gpui::px(4.0)) },
+        "pr-2" => quote! { .pr(gpui::px(8.0)) },
+        "pr-3" => quote! { .pr(gpui::px(12.0)) },
+        "pr-4" => quote! { .pr(gpui::px(16.0)) },
+        "pt-0" => quote! { .pt_0() },
+        "pt-1" => quote! { .pt(gpui::px(4.0)) },
+        "pt-2" => quote! { .pt(gpui::px(8.0)) },
+        "pt-3" => quote! { .pt(gpui::px(12.0)) },
+        "pt-4" => quote! { .pt(gpui::px(16.0)) },
+        "pb-0" => quote! { .pb_0() },
+        "pb-1" => quote! { .pb(gpui::px(4.0)) },
+        "pb-2" => quote! { .pb(gpui::px(8.0)) },
+        "pb-3" => quote! { .pb(gpui::px(12.0)) },
+        "pb-4" => quote! { .pb(gpui::px(16.0)) },
+        "px-5" => quote! { .px(gpui::px(20.0)) },
+        "py-5" => quote! { .py(gpui::px(20.0)) },
+        "px-1p5" => quote! { .px(gpui::px(6.0)) },
+        "py-1p5" => quote! { .py(gpui::px(6.0)) },
+        "gap-1p5" => quote! { .gap(gpui::px(6.0)) },
+        "p-10" => quote! { .p(gpui::px(40.0)) },
         _ => return None,
     })
 }
@@ -246,6 +320,9 @@ fn transpile_typography_class(class: &str) -> Option<TokenStream> {
         "text-left" => quote! { .text_left() },
         "text-right" => quote! { .text_right() },
         "select-none" => quote! { .select_none() },
+        // Font families
+        "font-mono" => quote! { .font_family("monospace") },
+        "font-sans" => quote! { .font_family("sans-serif") },
         _ => return None,
     })
 }
@@ -282,6 +359,23 @@ fn transpile_border_class(class: &str) -> Option<TokenStream> {
         "rounded-xl" => quote! { .rounded(gpui::px(12.0)) },
         "rounded-2xl" => quote! { .rounded(gpui::px(16.0)) },
         "rounded-full" => quote! { .rounded(gpui::px(9999.0)) },
+        // Per-corner radii
+        "rounded-tl" => quote! { .rounded_tl(gpui::px(4.0)) },
+        "rounded-tr" => quote! { .rounded_tr(gpui::px(4.0)) },
+        "rounded-bl" => quote! { .rounded_bl(gpui::px(4.0)) },
+        "rounded-br" => quote! { .rounded_br(gpui::px(4.0)) },
+        "rounded-tl-lg" => quote! { .rounded_tl(gpui::px(8.0)) },
+        "rounded-tr-lg" => quote! { .rounded_tr(gpui::px(8.0)) },
+        "rounded-bl-lg" => quote! { .rounded_bl(gpui::px(8.0)) },
+        "rounded-br-lg" => quote! { .rounded_br(gpui::px(8.0)) },
+        "rounded-tl-md" => quote! { .rounded_tl(gpui::px(6.0)) },
+        "rounded-tl-xl" => quote! { .rounded_tl(gpui::px(12.0)) },
+        // Box shadows
+        "shadow-xs" => quote! { .shadow_xs() },
+        "shadow-sm" => quote! { .shadow_sm() },
+        "shadow-md" => quote! { .shadow_md() },
+        "shadow-lg" => quote! { .shadow_lg() },
+        "shadow-xl" => quote! { .shadow_xl() },
         _ => return None,
     })
 }
@@ -296,6 +390,48 @@ fn transpile_misc_class(class: &str) -> Option<TokenStream> {
     })
 }
 
+/// Parses a tailwind arbitrary value (the part between the brackets).
+/// Returns the value string without the trailing `px` unit, when present.
+fn arbitrary_px_value(inner: &str) -> Option<f32> {
+    let value = inner.strip_suffix("px").unwrap_or(inner);
+    value.parse::<f32>().ok()
+}
+
+/// Parses `#rrggbb` or `#rrggbbaa` into a `u32`/alpha pair.
+fn arbitrary_hex_color(inner: &str) -> Option<(u32, f32)> {
+    let hex = inner.strip_prefix('#')?;
+    let (rgb, alpha) = match hex.len() {
+        6 => (u32::from_str_radix(hex, 16).ok()?, 1.0),
+        8 => (
+            u32::from_str_radix(&hex[..6], 16).ok()?,
+            f32::from(u8::from_str_radix(&hex[6..], 16).ok()?) / 255.0,
+        ),
+        _ => return None,
+    };
+    Some((rgb, alpha))
+}
+
+/// Tailwind arbitrary colors: `bg-[#rrggbb]`, `text-[#rrggbbaa]`,
+/// `border-[#rrggbb]`. Kept separate so numeric arbitrary values and color
+/// values never collide.
+fn transpile_arbitrary_color_class(class: &str) -> Option<TokenStream> {
+    let (name, inner) = class.split_once('[')?;
+    let inner = inner.strip_suffix(']')?;
+    let (rgb, alpha) = arbitrary_hex_color(inner)?;
+    #[expect(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    let alpha_byte = (alpha * 255.0).round() as u32;
+    let rgba_u32 = (rgb << 8) | alpha_byte;
+    Some(match name {
+        "bg" if alpha >= 1.0 => quote! { .bg(gpui::rgb(#rgb)) },
+        "bg" => quote! { .bg(gpui::rgba(#rgba_u32)) },
+        "text" if alpha >= 1.0 => quote! { .text_color(gpui::rgb(#rgb)) },
+        "text" => quote! { .text_color(gpui::rgba(#rgba_u32)) },
+        "border" if alpha >= 1.0 => quote! { .border_color(gpui::rgb(#rgb)) },
+        "border" => quote! { .border_color(gpui::rgba(#rgba_u32)) },
+        _ => return None,
+    })
+}
+
 fn transpile_single_class(class: &str) -> Option<TokenStream> {
     transpile_layout_class(class)
         .or_else(|| transpile_spacing_class(class))
@@ -303,6 +439,10 @@ fn transpile_single_class(class: &str) -> Option<TokenStream> {
         .or_else(|| transpile_typography_class(class))
         .or_else(|| transpile_border_class(class))
         .or_else(|| transpile_misc_class(class))
+        // Tailwind arbitrary values (`w-[600px]`, `text-[11px]`, …).
+        .or_else(|| transpile_arbitrary_px_class(class))
+        // Tailwind arbitrary colors (`bg-[#1e2e3e]`, …).
+        .or_else(|| transpile_arbitrary_color_class(class))
         // Resolves a shadcn theme token (e.g. "text-primary",
         // "bg-destructive") as the last try. Inlined as a closure on
         // purpose: a standalone `fn` here would be suggested as `const` by
@@ -317,4 +457,50 @@ fn transpile_single_class(class: &str) -> Option<TokenStream> {
             let _ = class;
             None
         })
+}
+
+/// Arbitrary pixel-value classes (`p-[13px]`, `w-[600px]`, `top-[100px]`,
+/// `opacity-[0.9]`, `text-[11px]`, …). The `px` suffix is optional so bare
+/// numbers work too.
+fn transpile_arbitrary_px_class(class: &str) -> Option<TokenStream> {
+    let (name, inner) = class.split_once('[')?;
+    let inner = inner.strip_suffix(']')?;
+    // Colors are handled by [`transpile_arbitrary_color_class`].
+    if inner.starts_with('#') {
+        return None;
+    }
+    let px = arbitrary_px_value(inner)?;
+    let px_lit = proc_macro2::Literal::f32_suffixed(px);
+    Some(match name {
+        "p" => quote! { .p(gpui::px(#px_lit)) },
+        "px" => quote! { .px(gpui::px(#px_lit)) },
+        "py" => quote! { .py(gpui::px(#px_lit)) },
+        "pt" => quote! { .pt(gpui::px(#px_lit)) },
+        "pb" => quote! { .pb(gpui::px(#px_lit)) },
+        "pl" => quote! { .pl(gpui::px(#px_lit)) },
+        "pr" => quote! { .pr(gpui::px(#px_lit)) },
+        "m" => quote! { .m(gpui::px(#px_lit)) },
+        "mx" => quote! { .mx(gpui::px(#px_lit)) },
+        "my" => quote! { .my(gpui::px(#px_lit)) },
+        "mt" => quote! { .mt(gpui::px(#px_lit)) },
+        "mb" => quote! { .mb(gpui::px(#px_lit)) },
+        "ml" => quote! { .ml(gpui::px(#px_lit)) },
+        "mr" => quote! { .mr(gpui::px(#px_lit)) },
+        "gap" => quote! { .gap(gpui::px(#px_lit)) },
+        "top" => quote! { .top(gpui::px(#px_lit)) },
+        "right" => quote! { .right(gpui::px(#px_lit)) },
+        "bottom" => quote! { .bottom(gpui::px(#px_lit)) },
+        "left" => quote! { .left(gpui::px(#px_lit)) },
+        "w" => quote! { .w(gpui::px(#px_lit)) },
+        "h" => quote! { .h(gpui::px(#px_lit)) },
+        "min-w" => quote! { .min_w(gpui::px(#px_lit)) },
+        "min-h" => quote! { .min_h(gpui::px(#px_lit)) },
+        "max-w" => quote! { .max_w(gpui::px(#px_lit)) },
+        "max-h" => quote! { .max_h(gpui::px(#px_lit)) },
+        "rounded" => quote! { .rounded(gpui::px(#px_lit)) },
+        "rounded-tl" => quote! { .rounded_tl(gpui::px(#px_lit)) },
+        "text" => quote! { .text_size(gpui::px(#px_lit)) },
+        "opacity" => quote! { .opacity(#px_lit) },
+        _ => return None,
+    })
 }
