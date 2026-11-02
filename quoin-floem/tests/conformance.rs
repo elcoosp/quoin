@@ -3,7 +3,6 @@ use quoin_conformance::define_conformance_tests;
 use quoin_core::{Executor, ReactiveContext};
 use quoin_floem::{FloemContext, FloemExecutor};
 use std::future::Future;
-use std::time::Duration;
 
 #[derive(Clone)]
 struct TestExecutor(FloemExecutor);
