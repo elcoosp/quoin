@@ -15,6 +15,9 @@ futures-core = "0.3"
 futures-channel = { version = "0.3", default-features = false, features = ["std"] }
 futures-util = { version = "0.3", default-features = false, features = ["std", "async-await"] }
 send_wrapper = "0.6"
+# Native fallback timer for `Executor::sleep` (background timer thread,
+# no ambient async runtime required).
+futures-timer = "3.0"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros", "time", "sync"] }
@@ -31,6 +34,8 @@ floem = []
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen-futures = "0.4"
+# Browser timer backing `Executor::sleep` on wasm.
+gloo-timers = { version = "0.3", features = ["futures"] }
 
 [lints]
 workspace = true
