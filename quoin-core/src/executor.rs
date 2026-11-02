@@ -6,6 +6,9 @@
 //! tasks.
 
 use std::future::Future;
+use std::time::Duration;
+
+use crate::timer::SleepFuture;
 
 /// A handle to a spawned asynchronous task.
 ///
@@ -97,4 +100,27 @@ pub trait Executor: Clone + Send + Sync + 'static {
     where
         F: Future + Send + 'static,
         F::Output: Send + 'static;
+
+    /// Waits for `duration` of wall-clock time.
+    ///
+    /// Timers are part of the executor contract so that libraries built on
+    /// quoin (retry backoff, intervals, throttles) work identically on every
+    /// adapter and on both native and `wasm32` targets without depending on
+    /// a specific async runtime.
+    ///
+    /// The default implementation uses an adapter-neutral timer
+    /// ([`crate::timer::sleep`]: `futures-timer` on native, the browser
+    /// timer on wasm). Executors may override it with their native timer —
+    /// for example the testkit's tokio executor delegates to
+    /// `tokio::time::sleep` so paused-time tests advance virtual clocks.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// use std::time::Duration;
+    /// executor.sleep(Duration::from_millis(50)).await;
+    /// ```
+    fn sleep(&self, duration: Duration) -> SleepFuture {
+        crate::timer::sleep(duration)
+    }
 }
