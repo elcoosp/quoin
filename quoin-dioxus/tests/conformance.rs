@@ -1,6 +1,6 @@
 //! Conformance tests for the quoin-dioxus adapter.
 use dioxus_core::{Element, ScopeId, VNode, VirtualDom};
-use quoin_conformance::{SleepExt, define_conformance_tests};
+use quoin_conformance::define_conformance_tests;
 use quoin_core::{Executor, ReactiveContext};
 use quoin_dioxus::{DioxusContext, DioxusExecutor};
 use std::future::Future;
@@ -12,12 +12,6 @@ fn app() -> Element {
 
 #[derive(Clone)]
 struct TestExecutor(DioxusExecutor);
-
-impl SleepExt for TestExecutor {
-    fn sleep(&self, duration: Duration) -> impl Future<Output = ()> + Send {
-        futures_timer::Delay::new(duration)
-    }
-}
 
 impl Executor for TestExecutor {
     type JoinHandle<T: Send + 'static> = <DioxusExecutor as Executor>::JoinHandle<T>;
