@@ -1,114 +1,165 @@
 use crate::emit::common::{find_arg_bool, find_arg_expr, find_arg_f32, find_arg_string};
 use crate::render_ast::{Element, RenderNode};
+use crate::transpile::force_move_on_closure;
 use proc_macro2::TokenStream;
 use quote::quote;
+use syn::Expr;
 
-use super::handler::wrap_handler;
+/// One `column(...)` child of a `data_table(...)`.
+struct ColumnDef {
+    key: String,
+    label: String,
+    width: Option<f32>,
+    sortable: bool,
+    resizable: bool,
+    render: Expr,
+}
 
+/// Emits a `data_table(...)` element as a real `gpui_component::DataTable`
+/// backed by the shared closure-based [`quoin::QuoinClosureTableDelegate`],
+/// with the `TableState` entity persisted across renders through the
+/// component's `QuoinTableManager` (field `_quoin_tables`).
+///
+/// Supported framework-agnostic arguments:
+/// - `id: &str` — persistence key (required)
+/// - `rows: <Vec<T> expr>` — row data, refreshed on every render
+/// - `striped: bool`, `bordered: bool`, `small: bool`
+/// - `on_sort: |key: &str, ascending: bool| …` — invoked on column sort
+/// - children: `column(key, label, width: f32, sortable: bool, resizable: bool,
+///   render: |row: &T| <IntoElement>)`
 pub(crate) fn emit_data_table(el: &Element) -> TokenStream {
-    let rows_expr = find_arg_expr(el, "rows").expect("data_table requires 'rows'");
-    let on_sort_expr = find_arg_expr(el, "on_sort");
+    let id = find_arg_string(el, "id").expect("data_table requires 'id:' argument");
+    let rows_expr = find_arg_expr(el, "rows").expect("data_table requires 'rows:' argument");
     let striped = find_arg_bool(el, "striped");
+    let bordered = find_arg_bool(el, "bordered");
+    let small = find_arg_bool(el, "small");
+    let on_sort_expr = find_arg_expr(el, "on_sort");
 
-    let header_cells: Vec<TokenStream> = el
-        .children
+    // Collect the column definitions from the `column(...)` children.
+    let mut columns: Vec<ColumnDef> = Vec::new();
+    for child in &el.children {
+        if let RenderNode::Element(e) = child
+            && e.name == "column"
+        {
+            let render = find_arg_expr(e, "render")
+                .expect("column requires 'render:' closure")
+                .clone();
+            columns.push(ColumnDef {
+                key: find_arg_string(e, "key").unwrap_or_default(),
+                label: find_arg_string(e, "label").unwrap_or_default(),
+                width: find_arg_f32(e, "width"),
+                sortable: find_arg_bool(e, "sortable"),
+                resizable: find_arg_bool(e, "resizable"),
+                render,
+            });
+        }
+    }
+    assert!(
+        !columns.is_empty(),
+        "data_table requires at least one column"
+    );
+
+    // Row type from the first render closure's `|row: &T|` parameter.
+    let row_ty: syn::Type = columns
         .iter()
-        .filter_map(|c| {
-            if let RenderNode::Element(e) = c
-                && e.name == "column"
-            {
-                let label = find_arg_string(e, "label").unwrap_or_default();
-                let key = find_arg_string(e, "key").unwrap_or_default();
-                let sortable = find_arg_bool(e, "sortable");
-                let width = find_arg_f32(e, "width");
-
-                let mut header = quote! {
-                    ::gpui::div()
-                        .px(::gpui::px(12.0))
-                        .py(::gpui::px(8.0))
-                        .text_color(::gpui::rgb(0x6b7280))
-                        .font_weight(::gpui::FontWeight::MEDIUM)
-                        .child(#label.to_string())
-                };
-
-                if let Some(w) = width {
-                    header = quote! { #header.w(::gpui::px(#w)) };
-                }
-
-                if sortable {
-                    if let Some(on_sort) = on_sort_expr {
-                        let key_str = key.clone();
-                        let wrap = wrap_handler(on_sort);
-                        header = quote! {
-                            #header
-                                .cursor_pointer()
-                                .hover(|s| s.bg(::gpui::rgb(0x374151)))
-                                .on_mouse_down(::gpui::MouseButton::Left, {
-                                    let __handler = ::std::rc::Rc::new(#wrap);
-                                    move |_, _, _| { __handler(#key_str, "asc"); }
-                                })
-                        };
-                    } else {
-                        header = quote! { #header.cursor_pointer() };
+        .find_map(|col| match &col.render {
+            Expr::Closure(closure) => closure.inputs.first().and_then(|input| {
+                if let syn::Pat::Type(pat) = input {
+                    if let syn::Type::Reference(type_ref) = &*pat.ty {
+                        return Some((*type_ref.elem).clone());
                     }
+                    return Some((*pat.ty).clone());
                 }
-
-                return Some(quote! { #header.into_any_element() });
-            }
-            None
+                None
+            }),
+            _ => None,
         })
-        .collect();
+        .expect("column render closures must be typed: |row: &RowType| …");
 
-    let row_cells: Vec<TokenStream> = el
-        .children
+    // Column metadata arrays.
+    let col_keys: Vec<&String> = columns.iter().map(|c| &c.key).collect();
+    let col_labels: Vec<&String> = columns.iter().map(|c| &c.label).collect();
+    let col_widths: Vec<TokenStream> = columns
         .iter()
-        .filter_map(|c| {
-            if let RenderNode::Element(e) = c
-                && e.name == "column"
-            {
-                let render_closure = find_arg_expr(e, "render").expect("column requires 'render'");
-                let width = find_arg_f32(e, "width");
+        .map(|c| {
+            c.width
+                .map(|w| {
+                    let lit = proc_macro2::Literal::f32_suffixed(w);
+                    quote! { Some(::gpui::px(#lit)) }
+                })
+                .unwrap_or(quote! { None })
+        })
+        .collect();
+    let col_sortables: Vec<bool> = columns.iter().map(|c| c.sortable).collect();
+    let col_resizables: Vec<bool> = columns.iter().map(|c| c.resizable).collect();
 
-                let mut cell = quote! {
-                    ::gpui::div()
-                        .px(::gpui::px(12.0))
-                        .py(::gpui::px(8.0))
-                        .text_color(::gpui::rgb(0xffffff))
-                        .child((#render_closure)(&__row))
-                };
-
-                if let Some(w) = width {
-                    cell = quote! { #cell.w(::gpui::px(#w)) };
+    // Type-erasing renderer closures per column.
+    let renderer_closures: Vec<TokenStream> = columns
+        .iter()
+        .map(|col| {
+            let render = &col.render;
+            quote! {
+                {
+                    let __closure = #render;
+                    ::std::sync::Arc::new(move |__any: &dyn ::std::any::Any| {
+                        let __row = __any
+                            .downcast_ref::<#row_ty>()
+                            .expect("data_table row type mismatch");
+                        ::gpui::IntoElement::into_any_element((__closure)(__row))
+                    })
                 }
-
-                return Some(quote! { #cell.into_any_element() });
             }
-            None
         })
         .collect();
 
-    let row_renderer = if striped {
+    let on_sort_tokens = on_sort_expr.map_or(quote! { None }, |expr| {
+        let with_move = force_move_on_closure(expr);
         quote! {
-            __rows.iter().enumerate().map(|(__i, __row)| {
-                let mut __row_el = ::gpui::div().flex().children(vec![#(#row_cells),*]);
-                if __i % 2 == 1 { __row_el = __row_el.bg(::gpui::rgb(0x1a1a2e)); }
-                __row_el.into_any_element()
-            }).collect::<Vec<_>>()
+            Some(::std::sync::Arc::new(#with_move))
         }
+    });
+
+    let size_tokens = if small {
+        quote! { .with_size(::gpui_component::Size::Small) }
     } else {
-        quote! {
-            __rows.iter().map(|__row| {
-                ::gpui::div().flex().children(vec![#(#row_cells),*]).into_any_element()
-            }).collect::<Vec<_>>()
-        }
+        quote! {}
     };
+
+    let striped_lit = striped;
+    let bordered_lit = bordered;
 
     quote! {
         {
-            let __rows = #rows_expr;
-            let __header = ::gpui::div().flex().children(vec![#(#header_cells),*]);
-            let __row_elements: Vec<::gpui::AnyElement> = #row_renderer;
-            ::gpui::div().flex_col().gap_1().size_full().child(__header).children(__row_elements)
+            let __rows: Vec<#row_ty> = #rows_expr;
+            let __erased_rows: Vec<::std::sync::Arc<dyn ::std::any::Any + ::std::marker::Send + ::std::marker::Sync>> =
+                __rows.into_iter().map(|__r| ::std::sync::Arc::new(__r)).collect();
+            if !self._quoin_tables.contains(#id) {
+                let __delegate = quoin::QuoinClosureTableDelegate {
+                    keys: vec![#(#col_keys),*],
+                    labels: vec![#(#col_labels),*],
+                    widths: vec![#(#col_widths),*],
+                    sortables: vec![#(#col_sortables),*],
+                    resizables: vec![#(#col_resizables),*],
+                    entries: __erased_rows.clone(),
+                    renderers: vec![#(#renderer_closures),*],
+                    on_sort: #on_sort_tokens,
+                };
+                let __entity = cx.new(|__cx| {
+                    ::gpui_component::table::TableState::new(__delegate, window, __cx)
+                });
+                self._quoin_tables.insert(#id, __entity);
+            }
+            let __entity = self._quoin_tables.get(#id).expect("data table just inserted");
+            __entity.update(cx, |__ts, _| {
+                let __d = __ts.delegate_mut();
+                __d.entries = __erased_rows;
+                __d.renderers = vec![#(#renderer_closures),*];
+                __d.on_sort = #on_sort_tokens;
+            });
+            ::gpui_component::table::DataTable::new(&__entity)
+                .stripe(#striped_lit)
+                .bordered(#bordered_lit)
+                #size_tokens
         }
     }
 }
