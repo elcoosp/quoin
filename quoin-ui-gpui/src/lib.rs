@@ -14,6 +14,13 @@ use std::sync::Arc;
 // Re-export GPUI component types for use in generated code
 pub use gpui_component::input::{Input, InputState};
 
+pub mod node_renderer;
+pub use node_renderer::{
+    GpuiCustomElement, GpuiInputValues, NodeElement, NodeKeyBinding, NodeRenderer,
+    QuoinNodeTableDelegate, bind_node_keys, custom_element, resolve_node_color, resolve_token_live,
+    shared_scroll_handle,
+};
+
 // -----------------------------------------------------------------------------
 // Input State Management
 // -----------------------------------------------------------------------------
@@ -463,4 +470,468 @@ pub fn resolve_icon(name: &str) -> &'static str {
     } else {
         "info"
     }
+}
+
+// -----------------------------------------------------------------------------
+// Styled Text (UCP)
+// -----------------------------------------------------------------------------
+
+/// Resolves a [`TextColor`] to a GPUI color.
+#[must_use]
+pub fn resolve_text_color(color: quoin_ui::TextColor) -> gpui::Hsla {
+    use quoin_ui::TextColor;
+    match color {
+        TextColor::Token(token) => GpuiTheme::resolve(token),
+        TextColor::TokenWithOpacity(token, opacity) => {
+            GpuiTheme::resolve_with_opacity(token, opacity)
+        }
+        TextColor::Hex(hex) => gpui::rgb(hex).into(),
+    }
+}
+
+/// Builds a GPUI `StyledText` from framework-agnostic runs.
+#[must_use]
+pub fn build_styled_text(
+    text: impl Into<gpui::SharedString>,
+    runs: &[quoin_ui::StyledRun],
+) -> gpui::StyledText {
+    use gpui::TextStyle;
+    use quoin_ui::StyledRun;
+    let text = text.into();
+    let gpui_runs: Vec<gpui::TextRun> = runs
+        .iter()
+        .map(|run: &StyledRun| {
+            let mut style = TextStyle::default();
+            if let Some(color) = run.color {
+                style.color = resolve_text_color(color);
+            }
+            if let Some(bg) = run.bg {
+                style.background_color = Some(resolve_text_color(bg));
+            }
+            style.to_run(run.len)
+        })
+        .collect();
+    gpui::StyledText::new(text).with_runs(gpui_runs)
+}
+
+// -----------------------------------------------------------------------------
+// Data Table State Manager
+// -----------------------------------------------------------------------------
+
+/// The shared, closure-driven `TableDelegate`: columns and renderers are
+/// plain data + closures, so a single delegate type serves every
+/// `data_table(...)` usage in generated code.
+/// Type-erased row renderer: renders one column cell from the erased row.
+pub type RowRenderer = std::sync::Arc<dyn Fn(&dyn std::any::Any) -> gpui::AnyElement + Send + Sync>;
+/// Sort click handler: receives the column key and ascending flag.
+pub type SortHandler = std::sync::Arc<dyn Fn(&str, bool) + Send + Sync>;
+
+/// A [`gpui_component::table::TableDelegate`] driven entirely by closures,
+/// letting framework-agnostic node tables plug arbitrary cell renderers in.
+pub struct QuoinClosureTableDelegate {
+    /// Column keys (in order).
+    pub keys: Vec<&'static str>,
+    /// Column header labels (in order).
+    pub labels: Vec<&'static str>,
+    /// Column fixed widths; `None` lets the table size the column.
+    pub widths: Vec<Option<gpui::Pixels>>,
+    /// Whether a column shows the sort toggle.
+    pub sortables: Vec<bool>,
+    /// Whether a column is user-resizable.
+    pub resizables: Vec<bool>,
+    /// Type-erased row payloads.
+    pub entries: Vec<std::sync::Arc<dyn std::any::Any + Send + Sync>>,
+    /// Per-column render closures over the erased row.
+    pub renderers: Vec<RowRenderer>,
+    /// Sort callback receiving `(column_key, ascending)`.
+    pub on_sort: Option<SortHandler>,
+}
+
+impl gpui_component::table::TableDelegate for QuoinClosureTableDelegate {
+    fn columns_count(&self, _: &gpui::App) -> usize {
+        self.keys.len()
+    }
+
+    fn rows_count(&self, _: &gpui::App) -> usize {
+        self.entries.len()
+    }
+
+    fn column(&self, col_ix: usize, _: &gpui::App) -> gpui_component::table::Column {
+        let mut col = gpui_component::table::Column::new(self.keys[col_ix], self.labels[col_ix]);
+        if let Some(width) = self.widths[col_ix] {
+            col = col.width(width);
+        }
+        col = col.resizable(self.resizables[col_ix]);
+        if self.sortables[col_ix] {
+            col = col.sortable();
+        }
+        col
+    }
+
+    fn perform_sort(
+        &mut self,
+        col_ix: usize,
+        sort: gpui_component::table::ColumnSort,
+        _: &mut gpui::Window,
+        _: &mut gpui::Context<gpui_component::table::TableState<Self>>,
+    ) {
+        if let (Some(on_sort), Some(key)) = (&self.on_sort, self.keys.get(col_ix).copied()) {
+            on_sort(key, sort == gpui_component::table::ColumnSort::Ascending);
+        }
+    }
+
+    fn render_td(
+        &mut self,
+        row_ix: usize,
+        col_ix: usize,
+        _: &mut gpui::Window,
+        _: &mut gpui::Context<gpui_component::table::TableState<Self>>,
+    ) -> impl gpui::IntoElement {
+        let entry = self.entries[row_ix].clone();
+        (self.renderers[col_ix])(entry.as_ref())
+    }
+}
+
+/// Persists `TableState<QuoinClosureTableDelegate>` entities across renders
+/// for `data_table(...)` elements, keyed by the element's `id`.
+///
+/// Add as a field (named `_quoin_tables`) in components that use
+/// `data_table(...)` inside `quoin_render!`.
+#[derive(Default)]
+pub struct QuoinTableManager {
+    tables:
+        HashMap<String, gpui::Entity<gpui_component::table::TableState<QuoinClosureTableDelegate>>>,
+}
+
+impl QuoinTableManager {
+    /// Creates an empty manager.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Whether a table with `id` is registered.
+    #[must_use]
+    pub fn contains(&self, id: &str) -> bool {
+        self.tables.contains_key(id)
+    }
+
+    /// Registers a freshly created table state under `id`.
+    pub fn insert(
+        &mut self,
+        id: &str,
+        entity: gpui::Entity<gpui_component::table::TableState<QuoinClosureTableDelegate>>,
+    ) {
+        self.tables.insert(id.to_string(), entity);
+    }
+
+    /// The registered table state entity for `id`.
+    #[must_use]
+    pub fn get(
+        &self,
+        id: &str,
+    ) -> Option<gpui::Entity<gpui_component::table::TableState<QuoinClosureTableDelegate>>> {
+        self.tables.get(id).cloned()
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Scroll Handle Manager
+// -----------------------------------------------------------------------------
+
+/// Persists scroll handles across renders for `virtual_list(...)` and
+/// `tabs(...)` elements, keyed by the element's `id`.
+#[derive(Default)]
+pub struct QuoinScrollManager {
+    virtual_lists: HashMap<String, gpui_component::VirtualListScrollHandle>,
+}
+
+impl QuoinScrollManager {
+    /// Creates an empty manager.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// The (lazily created) virtual-list scroll handle for `id`.
+    pub fn virtual_list(&mut self, id: &str) -> gpui_component::VirtualListScrollHandle {
+        self.virtual_lists
+            .entry(id.to_string())
+            .or_insert_with(gpui_component::VirtualListScrollHandle::new)
+            .clone()
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Runtime Style Strings
+// -----------------------------------------------------------------------------
+
+/// Applies a Tailwind-ish style string to a GPUI div at runtime.
+///
+/// The compile-time transpiler in `quoin-macros-core` covers class literals
+/// inside `quoin_render!`; this function covers classes that arrive at
+/// runtime (framework-agnostic component APIs that take style strings, e.g.
+/// `Link::active_class("font-bold")`). Supported: flex layout, gaps,
+/// padding/margin, sizes, text size/colors/weights, backgrounds, borders,
+/// radius, cursor, opacity, overflow, absolute offsets.
+pub fn apply_style_string<D: gpui::Styled>(mut el: D, classes: &str) -> D {
+    for class in classes.split_whitespace() {
+        el = apply_single_class(el, class);
+    }
+    el
+}
+
+fn px_value(token: &str) -> Option<f32> {
+    let value = token.strip_suffix("px").unwrap_or(token);
+    value.parse::<f32>().ok()
+}
+
+#[expect(clippy::too_many_lines)]
+fn apply_single_class<D: gpui::Styled>(mut el: D, class: &str) -> D {
+    // Arbitrary values first: `p-[13px]`, `text-[#cdd6f4]`, `w-[600px]`, …
+    if let Some((name, inner)) = class.split_once('[')
+        && let Some(inner) = inner.strip_suffix(']')
+    {
+        if let Some(hex) = inner.strip_prefix('#') {
+            if let Ok(rgb) = u32::from_str_radix(hex, 16) {
+                match name {
+                    "bg" => el = el.bg(gpui::rgb(rgb)),
+                    "text" => el = el.text_color(gpui::rgb(rgb)),
+                    "border" => el = el.border_color(gpui::rgb(rgb)),
+                    _ => {}
+                }
+                return el;
+            }
+        } else if let Some(px) = px_value(inner) {
+            let px = gpui::px(px);
+            match name {
+                "p" => el = el.p(px),
+                "px" => el = el.px(px),
+                "py" => el = el.py(px),
+                "pl" => el = el.pl(px),
+                "pr" => el = el.pr(px),
+                "pt" => el = el.pt(px),
+                "pb" => el = el.pb(px),
+                "gap" => el = el.gap(px),
+                "w" => el = el.w(px),
+                "h" => el = el.h(px),
+                "min-w" => el = el.min_w(px),
+                "min-h" => el = el.min_h(px),
+                "max-w" => el = el.max_w(px),
+                "max-h" => el = el.max_h(px),
+                "rounded" => el = el.rounded(px),
+                "text" => el = el.text_size(px),
+                "top" => el = el.top(px),
+                "right" => el = el.right(px),
+                "bottom" => el = el.bottom(px),
+                "left" => el = el.left(px),
+                _ => {}
+            }
+            return el;
+        }
+    }
+    match class {
+        "flex" => el = el.flex(),
+        "flex-col" => el = el.flex_col(),
+        "flex-row" => el = el.flex_row(),
+        "flex-wrap" => el = el.flex_wrap(),
+        "flex-1" => el = el.flex_1(),
+        "items-center" => el = el.items_center(),
+        "items-start" => el = el.items_start(),
+        "items-end" => el = el.items_end(),
+        "justify-between" => el = el.justify_between(),
+        "justify-center" => el = el.justify_center(),
+        "justify-start" => el = el.justify_start(),
+        "justify-end" => el = el.justify_end(),
+        "gap-0" => el = el.gap_0(),
+        "gap-1" => el = el.gap(gpui::px(4.0)),
+        "gap-2" => el = el.gap(gpui::px(8.0)),
+        "gap-3" => el = el.gap(gpui::px(12.0)),
+        "gap-4" => el = el.gap(gpui::px(16.0)),
+        "gap-6" => el = el.gap(gpui::px(24.0)),
+        "gap-8" => el = el.gap(gpui::px(32.0)),
+        "p-0" => el = el.p_0(),
+        "p-1" => el = el.p(gpui::px(4.0)),
+        "p-2" => el = el.p(gpui::px(8.0)),
+        "p-3" => el = el.p(gpui::px(12.0)),
+        "p-4" => el = el.p(gpui::px(16.0)),
+        "p-8" => el = el.p(gpui::px(32.0)),
+        "px-0" => el = el.px_0(),
+        "px-1" => el = el.px(gpui::px(4.0)),
+        "px-2" => el = el.px(gpui::px(8.0)),
+        "px-3" => el = el.px(gpui::px(12.0)),
+        "px-4" => el = el.px(gpui::px(16.0)),
+        "py-0" => el = el.py_0(),
+        "py-1" => el = el.py(gpui::px(4.0)),
+        "py-2" => el = el.py(gpui::px(8.0)),
+        "py-3" => el = el.py(gpui::px(12.0)),
+        "py-4" => el = el.py(gpui::px(16.0)),
+        "pl-1" => el = el.pl(gpui::px(4.0)),
+        "pl-2" => el = el.pl(gpui::px(8.0)),
+        "pl-3" => el = el.pl(gpui::px(12.0)),
+        "pr-1" => el = el.pr(gpui::px(4.0)),
+        "pr-2" => el = el.pr(gpui::px(8.0)),
+        "pr-3" => el = el.pr(gpui::px(12.0)),
+        "pt-1" => el = el.pt(gpui::px(4.0)),
+        "pt-2" => el = el.pt(gpui::px(8.0)),
+        "pt-3" => el = el.pt(gpui::px(12.0)),
+        "pb-1" => el = el.pb(gpui::px(4.0)),
+        "pb-2" => el = el.pb(gpui::px(8.0)),
+        "pb-3" => el = el.pb(gpui::px(12.0)),
+        "ml-1" => el = el.ml(gpui::px(4.0)),
+        "ml-2" => el = el.ml(gpui::px(8.0)),
+        "ml-auto" => el = el.ml_auto(),
+        "mr-1" => el = el.mr(gpui::px(4.0)),
+        "mr-2" => el = el.mr(gpui::px(8.0)),
+        "mt-1" => el = el.mt(gpui::px(4.0)),
+        "mt-2" => el = el.mt(gpui::px(8.0)),
+        "mt-3" => el = el.mt(gpui::px(12.0)),
+        "mb-1" => el = el.mb(gpui::px(4.0)),
+        "mb-2" => el = el.mb(gpui::px(8.0)),
+        "size-full" => el = el.size_full(),
+        "w-full" => el = el.w_full(),
+        "h-full" => el = el.h_full(),
+        "max-w-full" => el = el.max_w_full(),
+        "min-w-0" => el = el.min_w_0(),
+        "min-h-0" => el = el.min_h_0(),
+        "overflow-hidden" => el = el.overflow_hidden(),
+        "truncate" => el = el.truncate(),
+        "whitespace-nowrap" => el = el.whitespace_nowrap(),
+        "text-xs" => el = el.text_xs(),
+        "text-sm" => el = el.text_sm(),
+        "text-base" => el = el.text_base(),
+        "text-lg" => el = el.text_lg(),
+        "text-xl" => el = el.text_xl(),
+        "text-2xl" => el = el.text_2xl(),
+        "font-thin" => el = el.font_weight(gpui::FontWeight::THIN),
+        "font-light" => el = el.font_weight(gpui::FontWeight::LIGHT),
+        "font-normal" => el = el.font_weight(gpui::FontWeight::NORMAL),
+        "font-medium" => el = el.font_weight(gpui::FontWeight::MEDIUM),
+        "font-semibold" => el = el.font_weight(gpui::FontWeight::SEMIBOLD),
+        "font-bold" => el = el.font_weight(gpui::FontWeight::BOLD),
+        "font-mono" => el = el.font_family("monospace"),
+        "text-white" => el = el.text_color(gpui::white()),
+        "text-black" => el = el.text_color(gpui::black()),
+        "text-primary" => {
+            el = el.text_color(resolve_text_color(quoin_ui::TextColor::Token(
+                quoin_ui::ThemeToken::Primary,
+            )));
+        }
+        "text-foreground" => {
+            el = el.text_color(resolve_text_color(quoin_ui::TextColor::Token(
+                quoin_ui::ThemeToken::Foreground,
+            )));
+        }
+        "text-muted-foreground" => {
+            el = el.text_color(resolve_text_color(quoin_ui::TextColor::Token(
+                quoin_ui::ThemeToken::MutedForeground,
+            )));
+        }
+        "text-danger" => {
+            el = el.text_color(resolve_text_color(quoin_ui::TextColor::Token(
+                quoin_ui::ThemeToken::Danger,
+            )));
+        }
+        "text-warning" => {
+            el = el.text_color(resolve_text_color(quoin_ui::TextColor::Token(
+                quoin_ui::ThemeToken::Warning,
+            )));
+        }
+        "text-info" => {
+            el = el.text_color(resolve_text_color(quoin_ui::TextColor::Token(
+                quoin_ui::ThemeToken::Info,
+            )));
+        }
+        "text-success" => {
+            el = el.text_color(resolve_text_color(quoin_ui::TextColor::Token(
+                quoin_ui::ThemeToken::Accent,
+            )));
+        }
+        "bg-white" => el = el.bg(gpui::white()),
+        "bg-black" => el = el.bg(gpui::black()),
+        "bg-transparent" => el = el.bg(gpui::transparent_black()),
+        "bg-primary" => {
+            el = el.bg(resolve_text_color(quoin_ui::TextColor::Token(
+                quoin_ui::ThemeToken::Primary,
+            )));
+        }
+        "bg-secondary" => {
+            el = el.bg(resolve_text_color(quoin_ui::TextColor::Token(
+                quoin_ui::ThemeToken::Secondary,
+            )));
+        }
+        "bg-muted" => {
+            el = el.bg(resolve_text_color(quoin_ui::TextColor::Token(
+                quoin_ui::ThemeToken::Muted,
+            )));
+        }
+        "border" => el = el.border_1(),
+        "border-0" => el = el.border_0(),
+        "border-b" => el = el.border_b_1(),
+        "border-t" => el = el.border_t_1(),
+        "border-l" => el = el.border_l_1(),
+        "border-r" => el = el.border_r_1(),
+        "rounded-none" => el = el.rounded(gpui::px(0.0)),
+        "rounded-sm" => el = el.rounded(gpui::px(2.0)),
+        "rounded" => el = el.rounded(gpui::px(4.0)),
+        "rounded-md" => el = el.rounded(gpui::px(6.0)),
+        "rounded-lg" => el = el.rounded(gpui::px(8.0)),
+        "rounded-xl" => el = el.rounded(gpui::px(12.0)),
+        "rounded-2xl" => el = el.rounded(gpui::px(16.0)),
+        "rounded-full" => el = el.rounded(gpui::px(9999.0)),
+        "rounded-tl" => el = el.rounded_tl(gpui::px(4.0)),
+        "rounded-tl-md" => el = el.rounded_tl(gpui::px(6.0)),
+        "rounded-tl-lg" => el = el.rounded_tl(gpui::px(8.0)),
+        "cursor-pointer" => el = el.cursor_pointer(),
+        "cursor-default" => el = el.cursor_default(),
+        "cursor-text" => el = el.cursor_text(),
+        "absolute" => el = el.absolute(),
+        "relative" => el = el.relative(),
+        "opacity-0" => el = el.opacity(0.0),
+        "opacity-25" => el = el.opacity(0.25),
+        "opacity-50" => el = el.opacity(0.5),
+        "opacity-75" => el = el.opacity(0.75),
+        "opacity-100" => el = el.opacity(1.0),
+        "shadow-sm" => el = el.shadow_sm(),
+        "shadow-md" => el = el.shadow_md(),
+        "shadow-lg" => el = el.shadow_lg(),
+        "top-0" => el = el.top(gpui::px(0.0)),
+        "right-0" => el = el.right(gpui::px(0.0)),
+        "bottom-0" => el = el.bottom(gpui::px(0.0)),
+        "left-0" => el = el.left(gpui::px(0.0)),
+        "bottom-3" => el = el.bottom(gpui::px(12.0)),
+        "right-3" => el = el.right(gpui::px(12.0)),
+        _ => {}
+    }
+    el
+}
+
+/// Opens URLs through GPUI's clipboard-free `open_url` path. The window is
+/// captured through a closure the app bootstrap wires (see
+/// `GpuiShell::new`).
+pub struct GpuiShell {
+    open_fn: Arc<dyn Fn(&str) + Send + Sync>,
+}
+
+impl GpuiShell {
+    /// Creates a shell from a closure calling `cx.open_url(...)` with the
+    /// app context available.
+    pub fn new(open_fn: impl Fn(&str) + Send + Sync + 'static) -> Self {
+        Self {
+            open_fn: Arc::new(open_fn),
+        }
+    }
+}
+
+impl quoin_ui::Shell for GpuiShell {
+    fn open_url(&self, url: &str) {
+        (self.open_fn)(url);
+    }
+}
+
+/// Binds a component's `keys { .. }` keybindings once per app. Generated
+/// `component!` code exposes a `__quoin_keys()`-style function returning the
+/// bindings; call this at bootstrap.
+pub fn bind_component_keys(cx: &mut gpui::App, bindings: Vec<gpui::KeyBinding>) {
+    cx.bind_keys(bindings);
 }
