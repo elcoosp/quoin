@@ -56,6 +56,8 @@ fn emit_element_inner(el: &Element) -> TokenStream {
         "virtual_list" => virtual_list::emit_virtual_list(el),
         "dropdown_menu" => dropdown_menu::emit_dropdown_menu(el),
         "clipboard_button" => clipboard_button::emit_clipboard_button(el),
+        "icon" => generic::emit_icon(el),
+        "styled_text" => generic::emit_styled_text(el),
         _ => generic::emit_generic_element(el),
     }
 }
