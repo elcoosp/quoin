@@ -1,6 +1,6 @@
 //! Conformance tests for the quoin-gpui adapter.
 use gpui::TestAppContext;
-use quoin_conformance::{SleepExt, define_conformance_tests};
+use quoin_conformance::define_conformance_tests;
 use quoin_core::{Executor, ReactiveContext};
 use quoin_gpui::{GpuiContext, GpuiExecutor};
 use std::future::Future;
@@ -8,12 +8,6 @@ use std::time::Duration;
 
 #[derive(Clone)]
 struct TestExecutor(GpuiExecutor);
-
-impl SleepExt for TestExecutor {
-    fn sleep(&self, duration: Duration) -> impl Future<Output = ()> + Send {
-        self.0.sleep(duration)
-    }
-}
 
 impl Executor for TestExecutor {
     type JoinHandle<T: Send + 'static> = <GpuiExecutor as Executor>::JoinHandle<T>;
@@ -24,6 +18,12 @@ impl Executor for TestExecutor {
         F::Output: Send + 'static,
     {
         self.0.spawn(future)
+    }
+
+    // Keep exercising GPUI's native scheduler timer (the adapter executor's
+    // inherent `sleep`) instead of the core fallback.
+    fn sleep(&self, duration: Duration) -> quoin_core::SleepFuture {
+        Box::pin(self.0.sleep(duration))
     }
 }
 
