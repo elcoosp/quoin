@@ -199,7 +199,7 @@ impl quoin_core::LocalExecutor for LeptosExecutor {
 ///
 /// Falls back silently if the clipboard API is unavailable (e.g., SSR context).
 /// This function is called by the `clipboard_button` element in `quoin_render!`.
-pub const fn clipboard_write_text(text: &str) {
+pub fn clipboard_write_text(text: &str) {
     #[cfg(target_arch = "wasm32")]
     {
         if let Some(window) = web_sys::window() {
