@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-leptos = "0.8"
+leptos = "0.9.0-rc1"
 quoin = { path = "../quoin", features = ["leptos"] }
 quoin-macros = { path = "../quoin-macros", features = ["leptos"] }
 
