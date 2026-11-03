@@ -38,7 +38,7 @@ use syn::parse::{Parse, ParseStream};
 use syn::{Attribute, Expr, Ident, LitStr, Result, Token, braced, bracketed, parenthesized};
 
 /// A node of the declarative-UI tree parsed from `quoin_render!` input.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum RenderNode {
     /// An HTML-like element with arguments and children.
     Element(Box<Element>),
@@ -48,8 +48,10 @@ pub enum RenderNode {
     Expr(Expr),
     /// A conditional branch (`if[cond] { .. } else { .. }`).
     If(IfNode),
-    /// A loop (`for[item in list] { .. }`).
-    For(ForNode),
+    /// A loop (`for[item in list] { .. }`). Boxed because `ForNode` is
+    /// by far the largest variant (iterable + key + body); keeping the enum
+    /// small matters for the parser's hot path.
+    For(Box<ForNode>),
     /// A sequence of nodes (top-level macro body or block children).
     Root(Vec<Self>),
 }
@@ -68,7 +70,7 @@ impl RenderNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 /// One `key: value` argument of an element.
 pub struct ArgPair {
     /// Argument name.
@@ -87,7 +89,7 @@ impl Parse for ArgPair {
 }
 
 /// An HTML-like element: `name(key: value, ..) { children }`.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Element {
     /// Outer attributes (`#[cfg(..)]` and friends).
     pub attrs: Vec<Attribute>,
@@ -183,7 +185,7 @@ impl Parse for Element {
 }
 
 /// A conditional branch parsed from `if[condition] { .. } else { .. }`.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct IfNode {
     /// Outer attributes (`#[cfg(..)]` and friends) attached to the `if`.
     pub attrs: Vec<Attribute>,
@@ -236,7 +238,7 @@ impl Parse for IfNode {
 }
 
 /// A loop parsed from `for[item in iterable] { .. }`.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ForNode {
     /// Outer attributes attached to the `for`.
     pub attrs: Vec<Attribute>,
@@ -244,6 +246,9 @@ pub struct ForNode {
     pub pat: Ident,
     /// The iterable expression.
     pub iterable: Expr,
+    /// Optional key expression (`for[item in list, key: item.id]`), used by
+    /// diffing backends (Floem's `dyn_stack`).
+    pub key: Option<Expr>,
     /// Nodes of the loop body.
     pub body: Vec<RenderNode>,
 }
@@ -257,6 +262,20 @@ impl Parse for ForNode {
         let pat: Ident = for_content.parse()?;
         for_content.parse::<Token![in]>()?;
         let iterable: Expr = for_content.parse()?;
+        let key = if for_content.peek(Token![,]) {
+            for_content.parse::<Token![,]>()?;
+            let key_ident: Ident = for_content.call(Ident::parse_any)?;
+            if key_ident != "key" {
+                return Err(syn::Error::new(
+                    key_ident.span(),
+                    "expected `key: <expr>` after the comma (e.g. `for[item in list, key: item.id]`)",
+                ));
+            }
+            for_content.parse::<Token![:]>()?;
+            Some(for_content.parse()?)
+        } else {
+            None
+        };
         let body_content;
         braced!(body_content in input);
         let body = parse_nodes(&body_content)?;
@@ -264,6 +283,7 @@ impl Parse for ForNode {
             attrs,
             pat,
             iterable,
+            key,
             body,
         })
     }
