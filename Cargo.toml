@@ -57,6 +57,15 @@ all = { level = "warn", priority = -1 }
 pedantic = { level = "warn", priority = -1 }
 allow_attributes = "deny"
 
+# `leptos-shadcn-ui` (git dependency, leptos 0.9.0-rc1 support) relies on patched
+# versions of these crates. `[patch]` sections in a git dependency are ignored by
+# cargo, so they must be re-declared here for the fork's vendored fixes to apply.
+# Patched against https://github.com/harana-oss/leptos-shadcn-ui rev b16956f.
+[patch.crates-io]
+leptos-node-ref = { git = "https://github.com/harana-oss/leptos-shadcn-ui", rev = "b16956f25868b369100178e06f6c5b0afd7eb2be" }
+leptos-style = { git = "https://github.com/harana-oss/leptos-shadcn-ui", rev = "b16956f25868b369100178e06f6c5b0afd7eb2be" }
+leptos-struct-component = { git = "https://github.com/harana-oss/leptos-shadcn-ui", rev = "b16956f25868b369100178e06f6c5b0afd7eb2be" }
+
 [[workspace.metadata.leptos]]
 name = "counter-leptos"
 bin-package = "counter-leptos"
