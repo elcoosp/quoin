@@ -1,6 +1,6 @@
 # ucp-demo-leptos
 
-UCP demo app running the shared `DemoApp` component on Leptos 0.8 (WASM).
+UCP demo app running the shared `DemoApp` component on Leptos 0.9.0-rc1 (WASM).
 
 ## Run
 
