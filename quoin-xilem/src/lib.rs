@@ -73,6 +73,9 @@
 //! queues `!Send` futures on the current thread, driven by
 //! `quoin_core::local::run_local_tasks()`.
 
+pub mod pump;
+pub mod theme;
+
 use quoin_core::{Executor, ReactiveContext};
 use std::future::Future;
 use std::sync::{Arc, Mutex};
@@ -124,10 +127,10 @@ impl XilemContext {
 }
 
 impl ReactiveContext for XilemContext {
-    type Signal<T: Clone + 'static> = XilemSignal<T>;
+    type Signal<T: Clone + Send + 'static> = XilemSignal<T>;
     type Executor = XilemExecutor;
 
-    fn create_signal<T: Clone + 'static>(&self, initial: T) -> Self::Signal<T> {
+    fn create_signal<T: Clone + Send + 'static>(&self, initial: T) -> Self::Signal<T> {
         self.make_signal(initial)
     }
 
