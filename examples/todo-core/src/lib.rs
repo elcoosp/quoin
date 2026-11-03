@@ -70,6 +70,16 @@ pub struct TodoStore<C: ReactiveContext> {
     next_id: C::Signal<u64>,
 }
 
+impl<C: ReactiveContext> Clone for TodoStore<C> {
+    /// Clones the store handle: every clone shares the same underlying
+    /// signals (this is what [`Self::clone_via_signals`] did by hand before
+    /// the macro emitters' capture analysis started shadow-cloning store
+    /// handles into view closures).
+    fn clone(&self) -> Self {
+        Self::clone_via_signals(self)
+    }
+}
+
 impl<C: ReactiveContext> TodoStore<C> {
     /// Creates an empty store.
     #[must_use]

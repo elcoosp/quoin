@@ -5,7 +5,7 @@ edition = "2024"
 publish = false
 
 [dependencies]
-xilem = "0.4.0"
+xilem = { git = "https://github.com/linebender/xilem", branch = "main" }
 counter-lib = { path = "../counter" }
 quoin = { path = "../../quoin", features = ["xilem", "devtools"] }
 winit = "0.30"

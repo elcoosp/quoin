@@ -1,0 +1,16 @@
+[package]
+name = "todo-floem"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+floem = { git = "https://github.com/lapce/floem", branch = "main" }
+todo-core = { path = "../todo-core" }
+quoin = { path = "../../quoin", features = ["floem"] }
+
+# Floem's main branch depends on `muda` with the `gtk` feature on Linux; the
+# workspace replaces it with the API-compatible stub (see the root manifest).
+# Standalone example builds must re-declare that patch themselves.
+[patch.crates-io]
+muda = { path = "../../third_party/muda-stub" }
