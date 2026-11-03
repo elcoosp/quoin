@@ -508,7 +508,7 @@ Add a new workspace-excluded example that demonstrates parity:
 [dependencies]
 quoin = { path = "../../quoin", features = ["leptos", "leptos-shadcn"] }
 ucp-lib = { path = "../ucp-lib", features = ["leptos", "leptos-shadcn"] }
-leptos-shadcn-ui = { git = "https://github.com/elcoosp/leptos-shadcn-ui", features = ["button", "input", "tabs", "badge", "table", "tooltip"] }
+leptos-shadcn-ui = { git = "https://github.com/harana-oss/leptos-shadcn-ui", features = ["button", "input", "tabs", "badge", "table", "tooltip"] }
 ```
 
 The `MiniDevtools` component compiles against this example unchanged — proving the abstraction holds.
