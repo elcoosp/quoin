@@ -16,6 +16,7 @@ members = [
     "quoin-macros",
     "quoin-macros-core",
     "quoin-macros-tests",
+    "quoin-style",
     "quoin-ui",
     "quoin-ui-gpui",
     "quoin-testkit",
@@ -26,6 +27,7 @@ exclude = [
     "examples/counter-gpui",
     "examples/counter-leptos",
     "examples/counter-floem",
+    "examples/todo-floem",
     "examples/counter-xilem",
     "examples/ucp-demo-dioxus",
     "examples/ucp-demo-gpui",
@@ -65,6 +67,13 @@ allow_attributes = "deny"
 leptos-node-ref = { git = "https://github.com/harana-oss/leptos-shadcn-ui", rev = "b16956f25868b369100178e06f6c5b0afd7eb2be" }
 leptos-style = { git = "https://github.com/harana-oss/leptos-shadcn-ui", rev = "b16956f25868b369100178e06f6c5b0afd7eb2be" }
 leptos-struct-component = { git = "https://github.com/harana-oss/leptos-shadcn-ui", rev = "b16956f25868b369100178e06f6c5b0afd7eb2be" }
+# Floem's main branch depends on `muda` with the `gtk` feature on Linux,
+# which requires the GTK 3 development files at build time. Quoin must build
+# without system GTK, so `muda` is replaced by `third_party/muda-stub`: an
+# API-compatible stand-in whose menu constructors work in memory but whose
+# native-menu operations are runtime errors. Native menus are therefore
+# unsupported on Linux in this configuration; see the stub's crate docs.
+muda = { path = "third_party/muda-stub" }
 
 [[workspace.metadata.leptos]]
 name = "counter-leptos"
