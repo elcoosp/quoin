@@ -7,11 +7,19 @@ edition = "2024"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-leptos = { version = "0.8", default-features = false, features = ["csr"] }
+leptos = { version = "0.9.0-rc1", default-features = false, features = ["csr"] }
 console_error_panic_hook = "0.1"
 console_log = "1.0"
 log = "0.4"
 wasm-bindgen = "0.2"
 quoin = { path = "../../quoin", features = ["leptos", "leptos-shadcn"] }
 ucp-lib = { path = "../ucp-lib", features = ["leptos-shadcn"] }
-leptos-shadcn-ui = { git = "https://github.com/elcoosp/leptos-shadcn-ui", default-features = false, features = ["button", "input", "tabs", "badge", "table", "tooltip", "scroll-area", "dropdown-menu"] }
+leptos-shadcn-ui = { git = "https://github.com/harana-oss/leptos-shadcn-ui", rev = "b16956f25868b369100178e06f6c5b0afd7eb2be", default-features = false, features = ["button", "input", "tabs", "badge", "table", "tooltip", "scroll-area", "dropdown-menu"] }
+
+# Required: the fork carries patched versions of these crates.io crates
+# (leptos 0.9.0-rc1); `[patch]` in a git dependency is ignored by cargo.
+# Patched against https://github.com/harana-oss/leptos-shadcn-ui rev b16956f.
+[patch.crates-io]
+leptos-node-ref = { git = "https://github.com/harana-oss/leptos-shadcn-ui", rev = "b16956f25868b369100178e06f6c5b0afd7eb2be" }
+leptos-style = { git = "https://github.com/harana-oss/leptos-shadcn-ui", rev = "b16956f25868b369100178e06f6c5b0afd7eb2be" }
+leptos-struct-component = { git = "https://github.com/harana-oss/leptos-shadcn-ui", rev = "b16956f25868b369100178e06f6c5b0afd7eb2be" }

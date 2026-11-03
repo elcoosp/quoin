@@ -16,12 +16,12 @@
 //! The `leptos-shadcn-*` component crates must be available. See
 //! `Cargo.toml` for the dependency list — uncomment them once resolved.
 
-use leptos::prelude::*;
-use ucp_lib::MiniDevtools;
-
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen::prelude::wasm_bindgen(start)]
 pub fn main() {
+    use leptos::prelude::*;
+    use ucp_lib::MiniDevtools;
+
     console_error_panic_hook::set_once();
     console_log::init_with_level(log::Level::Debug).unwrap();
     leptos::mount::mount_to_body(|| view! { <MiniDevtools /> });
