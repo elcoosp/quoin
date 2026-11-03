@@ -9,8 +9,9 @@ repository.workspace = true
 
 [dependencies]
 quoin-core = { path = "../quoin-core", default-features = false }
-floem = "0.2.0"
-floem_reactive = "0.2.0"
+quoin-style = { path = "../quoin-style" }
+floem = { git = "https://github.com/lapce/floem", branch = "main" }
+floem_reactive = { git = "https://github.com/lapce/floem", branch = "main" }
 futures = "0.3"
 futures-timer = "3.0"
 send_wrapper = "0.6"

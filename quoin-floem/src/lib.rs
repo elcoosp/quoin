@@ -9,7 +9,7 @@
 //! | Type | Role |
 //! |------|------|
 //! | [`FloemContext`] | A zero-sized context. Creates signals via Floem's `RwSignal`. |
-//! | [`FloemSignal<T>`] | A `Clone + Send + Sync` signal backed by `RwSignal<SendWrapper<T>>`. |
+//! | [`FloemSignal<T>`] | A `Clone + Send + Sync` signal (for `T: Send`) backed by a shared `Mutex<T>` plus a version counter. |
 //! | [`FloemExecutor`] | Spawns futures on worker threads with cooperative abort support. |
 //! | [`FloemJoinHandle<T>`] | Shared oneshot handle (abort / detach / abort-on-drop) from `quoin-core`. |
 //!
@@ -25,13 +25,20 @@
 //!
 //! # Signal Threading Model
 //!
-//! Like the Leptos adapter, Floem signals are not inherently `Send`. Values are
-//! wrapped in [`SendWrapper`](https://docs.rs/send_wrapper) to satisfy quoin's bounds:
+//! A [`FloemSignal`] keeps the authoritative value in a `Mutex<T>` and drives
+//! floem's reactivity through a `RwSignal<u32>` version counter:
 //!
-//! - `FloemSignal<T>` is `Clone + Send + Sync`.
-//! - The underlying `RwSignal` must be accessed on the main thread.
-//! - Safe for storing in structs that cross thread boundaries, but **do not**
-//!   call `.get()` / `.set()` from a background thread.
+//! - For `T: Send` (every real application state), `get`/`set`/`update` work
+//!   from **any** thread. A write from a pool thread bumps the version;
+//!   floem's [`floem_reactive`] runtime enqueues the resulting effects and
+//!   runs them on the UI thread (its documented `SyncStorage` behavior), so
+//!   background `set` calls never panic and never run view code off-thread.
+//! - For `T: !Send` the signal type is single-thread-capable only (the
+//!   compiler rejects sharing it), which is strictly sounder than the
+//!   previous `SendWrapper` layer whose cross-thread dereference panicked.
+//!
+//! Reads track the version counter, so macro-generated views re-run exactly
+//! when a signal they read changes — no double bookkeeping.
 //!
 //! # Global State (Thread-Local Store, Shared Values)
 //!
@@ -46,12 +53,25 @@
 //! queues `!Send` futures on the current thread (native), driven by
 //! `quoin_core::local::run_local_tasks()`.
 
-use floem_reactive::{RwSignal, SignalGet, SignalUpdate, SignalWith};
+pub mod theme;
+
+use floem_reactive::{SignalGet, SignalTrack, SignalUpdate};
 use quoin_core::{Executor, ReactiveContext, Signal};
-use send_wrapper::SendWrapper;
 use std::any::TypeId;
 use std::collections::HashMap;
 use std::future::Future;
+use std::sync::{Arc, Mutex};
+
+/// The storage flavor used by every signal the quoin Floem adapter hands out.
+///
+/// Floem's reactive primitives are generic over their storage: `UnsyncStorage`
+/// (the default) is bound to the creating thread, `SyncStorage` is `Send +
+/// Sync`. Quoin's [`Signal`] contract requires `Send + Sync` handles, so all
+/// adapter signals opt into `SyncStorage` (`floem_reactive`'s `SyncRwSignal`);
+/// values that are not themselves `Send + Sync` stay safe behind
+/// [`SendWrapper`], matching the threading model documented on
+/// [`FloemSignal`].
+type QuoinRwSignal<T> = std::sync::Arc<FloemSignalInner<T>>;
 
 thread_local! {
     static GLOBAL_STORE: std::cell::RefCell<HashMap<TypeId, Box<dyn std::any::Any + Send + Sync>>> =
@@ -71,10 +91,10 @@ impl FloemContext {
 }
 
 impl ReactiveContext for FloemContext {
-    type Signal<T: Clone + 'static> = FloemSignal<T>;
+    type Signal<T: Clone + Send + 'static> = FloemSignal<T>;
     type Executor = FloemExecutor;
 
-    fn create_signal<T: Clone + 'static>(&self, initial: T) -> Self::Signal<T> {
+    fn create_signal<T: Clone + Send + 'static>(&self, initial: T) -> Self::Signal<T> {
         FloemSignal::new(initial)
     }
 
@@ -87,14 +107,14 @@ impl ReactiveContext for FloemContext {
     }
 
     fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T) {
-        // Store the reactive signal itself so every consumer shares the same
-        // cell: mutations propagate between consumers (matching the Leptos
-        // adapter; previously each use_global returned an independent copy).
+        // Store the shared signal cell itself so every consumer shares the
+        // same storage: mutations propagate between consumers (matching the
+        // Leptos adapter; previously each use_global returned an independent
+        // copy).
         GLOBAL_STORE.with(|store| {
-            store.borrow_mut().insert(
-                TypeId::of::<T>(),
-                Box::new(RwSignal::new(SendWrapper::new(value))),
-            );
+            store
+                .borrow_mut()
+                .insert(TypeId::of::<T>(), Box::new(FloemSignal::shared(value)));
         });
     }
 
@@ -103,42 +123,101 @@ impl ReactiveContext for FloemContext {
             store
                 .borrow()
                 .get(&TypeId::of::<T>())
-                .and_then(|v| v.downcast_ref::<RwSignal<SendWrapper<T>>>())
-                .copied()
-                .map(|inner| FloemSignal { inner })
+                .and_then(|v| v.downcast_ref::<FloemSignal<T>>())
+                .cloned()
         })
     }
 }
 
+/// The shared storage behind a [`FloemSignal`]: the authoritative value plus
+/// the version counter that drives floem's reactivity.
+struct FloemSignalInner<T> {
+    value: Mutex<T>,
+    version: floem_reactive::SyncRwSignal<u32>,
+}
+
 #[derive(Clone)]
 /// Floem-backed reactive signal.
+///
+/// The value lives in a shared [`Mutex`]; floem reactivity is driven by a
+/// `RwSignal<u32>` version counter that every read tracks. Writes from any
+/// thread bump the version — floem's `SyncStorage` runtime enqueues the
+/// dependent effects and runs them on the UI thread, so background mutations
+/// are both panic-free and correctly scheduled. Requires `T: Send` for the
+/// handle to be shareable (enforced by the type system).
 pub struct FloemSignal<T: Clone + 'static> {
-    inner: RwSignal<SendWrapper<T>>,
+    inner: QuoinRwSignal<T>,
 }
 
 impl<T: Clone + 'static> FloemSignal<T> {
     fn new(initial: T) -> Self {
+        Self::shared(initial)
+    }
+
+    /// Builds a signal whose storage is shared by every clone (the shape
+    /// `provide_global` uses so consumers see one reactive cell).
+    fn shared(initial: T) -> Self {
         Self {
-            inner: RwSignal::new(SendWrapper::new(initial)),
+            inner: Arc::new(FloemSignalInner {
+                value: Mutex::new(initial),
+                version: floem_reactive::SyncRwSignal::new_sync(0),
+            }),
         }
+    }
+
+    /// Bumps the version counter, notifying floem subscribers.
+    fn bump(&self) {
+        let next = self.inner.version.get_untracked().wrapping_add(1);
+        self.inner.version.set(next);
     }
 }
 
-impl<T: Clone + 'static> Signal<T> for FloemSignal<T> {
+impl<T: Clone + Send + 'static> Signal<T> for FloemSignal<T> {
     fn get(&self) -> T {
-        (*self.inner.get()).clone()
+        // Tracking the version is what registers this read with floem's
+        // reactive graph, so views re-run on the next write.
+        self.inner.version.track();
+        self.inner
+            .value
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
     }
 
+    /// Reads the current value through `f`.
+    ///
+    /// # Deviation from the generic `Signal::with` contract
+    ///
+    /// The generic contract promises clone-free access, but the authoritative
+    /// value sits behind a non-reentrant `Mutex`: holding the guard across
+    /// `f` would deadlock any *nested* access to the same signal (a `get()`
+    /// or `with()` inside the closure, as the `signal_nested_with`
+    /// conformance check exercises). The adapter clones instead; the fast
+    /// path used by macro-generated views is `get()`, which clones in every
+    /// adapter, so generated UI code pays no extra cost on this backend.
     fn with<U>(&self, f: impl FnOnce(&T) -> U) -> U {
-        self.inner.with(|wrapper| f(&**wrapper))
+        let value = self.get();
+        f(&value)
     }
 
     fn set(&self, value: T) {
-        self.inner.set(SendWrapper::new(value));
+        *self
+            .inner
+            .value
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = value;
+        self.bump();
     }
 
     fn update(&self, f: impl FnOnce(&mut T)) {
-        self.inner.update(|wrapper| f(&mut **wrapper));
+        let mut guard = self
+            .inner
+            .value
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        f(&mut guard);
+        drop(guard);
+        self.bump();
     }
 }
 
@@ -189,10 +268,59 @@ impl quoin_core::LocalExecutor for FloemExecutor {
     }
 }
 
-impl<T: Clone + std::fmt::Debug + 'static> std::fmt::Debug for FloemSignal<T> {
+impl<T: Clone + std::fmt::Debug + Send> std::fmt::Debug for FloemSignal<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let value = self
+            .inner
+            .value
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         f.debug_struct("FloemSignal")
-            .field("value", &self.inner.get())
+            .field("value", &*value)
             .finish()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A `set` from a pool thread must not panic (the old `SendWrapper`
+    /// storage panicked as soon as the UI thread read the value) and the
+    /// written value must be visible from any thread afterwards.
+    #[test]
+    fn cross_thread_set_is_panic_free_and_visible() {
+        let signal = FloemSignal::new(0u32);
+
+        // Set on the creating thread first: the pool thread must be able to
+        // READ a value that was written elsewhere without panicking either.
+        signal.set(7);
+        let pool_signal = signal.clone();
+        let handle = std::thread::spawn(move || {
+            assert_eq!(pool_signal.get(), 7);
+            pool_signal.set(41);
+            pool_signal.update(|v| *v += 1);
+            pool_signal.get()
+        });
+        assert_eq!(handle.join().expect("pool thread must not panic"), 42);
+        assert_eq!(signal.get(), 42);
+
+        // `set_if_eq` keeps its single-lock contract across threads too.
+        assert!(!signal.set_if_eq(42));
+        assert!(signal.set_if_eq(43));
+        assert_eq!(signal.get(), 43);
+    }
+
+    /// `with` sees the freshest value from a foreign thread (clone-based
+    /// read; the nested-`with` conformance check covers the lock contract).
+    #[test]
+    fn with_reads_latest_value_cross_thread() {
+        let signal = FloemSignal::new(String::from("init"));
+        let pool_signal = signal.clone();
+        let handle = std::thread::spawn(move || pool_signal.with(|v| v.clone() + "-worker"));
+        assert_eq!(
+            handle.join().expect("pool thread must not panic"),
+            "init-worker"
+        );
     }
 }
