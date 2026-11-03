@@ -1,0 +1,19 @@
+[package]
+name = "quoin-style"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Typed style IR shared by every quoin backend: Tailwind classes lower into `Decl` values at compile time"
+license.workspace = true
+repository.workspace = true
+keywords = ["ui", "styling", "tailwind", "macros"]
+categories = ["gui", "rust-patterns"]
+
+[dependencies]
+
+[dev-dependencies]
+# `trybuild`-style failure assertions for unknown-class diagnostics live in
+# `quoin-macros-tests`; here we only need plain unit tests, so no deps.
+
+[lints]
+workspace = true

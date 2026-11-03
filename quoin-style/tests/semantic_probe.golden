@@ -1,0 +1,56 @@
+# counter-app
+class: flex flex-col gap-2 p-4
+  base:   display:Flex
+  base:   flex-dir:Column
+  base:   gap:8
+  base:   padding:Px(16.0)
+class: text-2xl font-bold
+  base:   text-size:24
+  base:   text-weight:700
+class: text-muted-foreground text-sm
+  base:   text-color:token:muted_foreground
+  base:   text-size:14
+class: px-3 py-1 rounded
+  base:   padding-x:Px(12.0)
+  base:   padding-y:Px(4.0)
+  base:   rounded:4
+class: w-full h-11
+  base:   width:Full
+  base:   height:Px(44.0)
+# todo-app
+class: flex flex-row items-center gap-3
+  base:   display:Flex
+  base:   flex-dir:Row
+  base:   items:Center
+  base:   gap:12
+class: flex-1 min-w-0
+  base:   flex-1
+  base:   min-width:Px(0.0)
+class: text-gray-400 text-sm
+  base:   text-color:rgb(a3afff)
+  base:   text-size:14
+class: border border-gray-200 rounded-md
+  base:   border-width:All:1
+  base:   border-color:rgb(e7ebff)
+  base:   rounded:6
+class: size-full overflow-y-scroll
+  base:   size-full
+  base:   overflow:ScrollY
+# devtools-panel
+class: absolute bg-card text-card
+  base:   position:Absolute
+  base:   background:token:card
+  base:   text-color:token:card
+class: hidden truncate select-none
+  base:   display:Hidden
+  base:   truncate
+  base:   select-none
+class: bg-muted text-muted-foreground
+  base:   background:token:muted
+  base:   text-color:token:muted_foreground
+class: hover:bg-popover
+  hover:  background:token:card
+class: border-b border-gray-700 rounded-none
+  base:   border-width:Bottom:1
+  base:   border-color:rgb(4151ff)
+  base:   rounded:0
