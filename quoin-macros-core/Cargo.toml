@@ -9,6 +9,7 @@ syn = { version = "3", features = ["full", "parsing", "extra-traits", "visit", "
 quote = "1.0"
 proc-macro2 = "1.0"
 thiserror = "2.0"
+quoin-style = { path = "../quoin-style" }
 
 # The framework features are pure `cfg` switches: the emitters *generate*
 # framework code as token streams, they never link against the frameworks
@@ -18,10 +19,26 @@ thiserror = "2.0"
 default = []
 gpui   = []
 dioxus = []
+floem  = []
+xilem  = []
 leptos = []
 # When enabled, emitters produce shadcn component calls instead of plain HTML.
 leptos-shadcn = []
 dioxus-shadcn = []
+
+# Expansion tests compile against a single backend's emitter; each needs its
+# feature on or `render_floem` / `render_xilem` stay `#[cfg]`-ed out.
+[[test]]
+name = "floem_expansion"
+required-features = ["floem"]
+
+[[test]]
+name = "xilem_expansion"
+required-features = ["xilem"]
+
+[[test]]
+name = "parity_matrix"
+required-features = ["floem", "xilem"]
 
 [lints]
 workspace = true

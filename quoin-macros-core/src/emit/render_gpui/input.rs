@@ -47,9 +47,7 @@ pub(crate) fn emit_input(el: &Element) -> TokenStream {
         if let Some(class_expr) = find_arg_expr(el, "class")
             && let Some(styles) = try_transpile_class(class_expr)
         {
-            for style in styles.normal {
-                chain = quote! { #chain #style };
-            }
+            chain = crate::transpile::tailwind::apply_normal(chain, &styles);
         }
         return chain;
     };
@@ -72,9 +70,7 @@ pub(crate) fn emit_input(el: &Element) -> TokenStream {
         if let Some(class_expr) = find_arg_expr(el, "class")
             && let Some(styles) = try_transpile_class(class_expr)
         {
-            for style in styles.normal {
-                chain = quote! { #chain #style };
-            }
+            chain = crate::transpile::tailwind::apply_normal(chain, &styles);
         }
         return chain;
     };
@@ -85,9 +81,7 @@ pub(crate) fn emit_input(el: &Element) -> TokenStream {
     if let Some(class_expr) = find_arg_expr(el, "class")
         && let Some(styles) = try_transpile_class(class_expr)
     {
-        for style in styles.normal {
-            wrapper_styles = quote! { #wrapper_styles #style };
-        }
+        wrapper_styles = crate::transpile::tailwind::apply_normal(wrapper_styles, &styles);
     }
 
     let input_construction = if has_class {

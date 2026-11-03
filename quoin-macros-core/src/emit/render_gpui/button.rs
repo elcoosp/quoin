@@ -58,13 +58,7 @@ pub(crate) fn emit_button(el: &Element) -> TokenStream {
     if let Some(class_expr) = find_arg_expr(el, "class")
         && let Some(styles) = try_transpile_class(class_expr)
     {
-        for style in styles.normal {
-            wrapped = quote! { #wrapped #style };
-        }
-        if !styles.hover.is_empty() {
-            let hover_tokens = styles.hover;
-            wrapped = quote! { #wrapped.hover(|__s| __s #(#hover_tokens)*) };
-        }
+        wrapped = crate::transpile::tailwind::apply_normal_and_hover(wrapped, &styles);
     }
 
     wrapped
