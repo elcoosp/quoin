@@ -162,7 +162,9 @@ pub trait ReactiveContextExt: ReactiveContext {
     where
         Self: Sized,
         T: Clone + Send + 'static,
-        E: Clone + Send + 'static,
+        // `E` is stored inside a shared signal (`ResourceState::Failed`),
+        // so it must be `Sync` too — same contract as the global store.
+        E: Clone + Send + Sync + 'static,
         F: Fn(CancellationToken) -> Fut + Send + 'static,
         Fut: Future<Output = Result<T, E>> + Send + 'static,
         Self::Executor: Executor<JoinHandle<()>: crate::JoinHandle<()> + 'static>,

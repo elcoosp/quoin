@@ -51,7 +51,7 @@ pub trait ReactiveContext: Clone + Send + Sync + 'static {
     /// The framework's native signal type.
     ///
     /// This type must implement the [`Signal`] trait and be `Clone`.
-    type Signal<T: Clone + 'static>: Signal<T>;
+    type Signal<T: Clone + Send + 'static>: Signal<T>;
 
     /// The framework's async executor.
     ///
@@ -69,7 +69,7 @@ pub trait ReactiveContext: Clone + Send + Sync + 'static {
     /// let count = cx.create_signal(0u32);
     /// assert_eq!(count.get(), 0);
     /// ```
-    fn create_signal<T: Clone + 'static>(&self, initial: T) -> Self::Signal<T>;
+    fn create_signal<T: Clone + Send + 'static>(&self, initial: T) -> Self::Signal<T>;
 
     /// Returns the executor for spawning asynchronous tasks.
     ///

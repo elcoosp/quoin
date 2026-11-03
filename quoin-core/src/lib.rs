@@ -90,6 +90,7 @@
 pub mod batch;
 pub mod cancellation;
 pub mod derived;
+pub mod ev;
 pub mod executor;
 pub mod ext;
 pub mod globals;

@@ -137,10 +137,10 @@ mod tests {
     }
 
     impl crate::reactive::ReactiveContext for CountingContext {
-        type Signal<T: Clone + 'static> = crate::test_support::StaticSignal<T>;
+        type Signal<T: Clone + Send + 'static> = crate::test_support::StaticSignal<T>;
         type Executor = crate::test_support::StaticExecutor;
 
-        fn create_signal<T: Clone + 'static>(&self, initial: T) -> Self::Signal<T> {
+        fn create_signal<T: Clone + Send + 'static>(&self, initial: T) -> Self::Signal<T> {
             crate::test_support::StaticSignal::new(initial)
         }
 

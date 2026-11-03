@@ -153,10 +153,10 @@ impl Executor for StaticExecutor {
 pub struct StaticContext;
 
 impl ReactiveContext for StaticContext {
-    type Signal<T: Clone + 'static> = StaticSignal<T>;
+    type Signal<T: Clone + Send + 'static> = StaticSignal<T>;
     type Executor = StaticExecutor;
 
-    fn create_signal<T: Clone + 'static>(&self, initial: T) -> Self::Signal<T> {
+    fn create_signal<T: Clone + Send + 'static>(&self, initial: T) -> Self::Signal<T> {
         static_signal(initial)
     }
 
