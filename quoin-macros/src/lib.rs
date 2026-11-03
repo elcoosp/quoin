@@ -7,6 +7,41 @@
 use proc_macro::TokenStream;
 use quoin_macros_core::emit::FrameworkEmitter;
 
+// The backend dispatch selects exactly one framework: enabling two framework
+// features on `quoin-macros` (or the `quoin` facade) is a configuration error
+// and must fail loudly here rather than silently picking one.
+#[cfg(all(
+    feature = "gpui",
+    any(
+        feature = "leptos",
+        feature = "dioxus",
+        feature = "floem",
+        feature = "xilem",
+    )
+))]
+::core::compile_error!(
+    "multiple framework features enabled: quoin's backends are mutually exclusive; \
+     enable exactly one of `gpui`, `leptos`, `dioxus`, `floem` or `xilem`"
+);
+#[cfg(all(
+    feature = "leptos",
+    any(feature = "dioxus", feature = "floem", feature = "xilem",)
+))]
+::core::compile_error!(
+    "multiple framework features enabled: quoin's backends are mutually exclusive; \
+     enable exactly one of `gpui`, `leptos`, `dioxus`, `floem` or `xilem`"
+);
+#[cfg(all(feature = "dioxus", any(feature = "floem", feature = "xilem")))]
+::core::compile_error!(
+    "multiple framework features enabled: quoin's backends are mutually exclusive; \
+     enable exactly one of `gpui`, `leptos`, `dioxus`, `floem` or `xilem`"
+);
+#[cfg(all(feature = "floem", feature = "xilem"))]
+::core::compile_error!(
+    "multiple framework features enabled: quoin's backends are mutually exclusive; \
+     enable exactly one of `gpui`, `leptos`, `dioxus`, `floem` or `xilem`"
+);
+
 const fn emitter() -> quoin_macros_core::emit::Emitter {
     quoin_macros_core::emit::Emitter
 }
@@ -59,6 +94,12 @@ pub fn quoin_render(input: TokenStream) -> TokenStream {
         Ok(ast) => ast,
         Err(e) => return e.to_compile_error().into(),
     };
+    if std::env::var("QUOIN_DEBUG_EXPAND").is_ok() {
+        let out = emitter().emit_render(&ast);
+        let msg = format!("QUOIN_DEBUG_EXPANSION: {out}");
+        let e = syn::Error::new(proc_macro2::Span::call_site(), msg);
+        return e.to_compile_error().into();
+    }
     emitter().emit_render(&ast).into()
 }
 

@@ -23,6 +23,8 @@ default = []
 gpui = ["quoin-macros-core/gpui"]
 dioxus = ["quoin-macros-core/dioxus"]
 leptos = ["quoin-macros-core/leptos"]
+floem = ["quoin-macros-core/floem"]
+xilem = ["quoin-macros-core/xilem"]
 leptos-shadcn = ["quoin-macros-core/leptos-shadcn"]
 dioxus-shadcn = ["quoin-macros-core/dioxus-shadcn"]
 
