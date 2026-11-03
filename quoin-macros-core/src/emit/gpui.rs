@@ -99,6 +99,20 @@ fn view_struct_tokens(ast: &ComponentAst) -> TokenStream {
     } else {
         quote! { let _quoin_focus = cx.focus_handle(); }
     };
+    // The focus handle only exists when the component declares `keys { .. }`;
+    // the accessor must not leak onto key-less components.
+    let focus_accessors = if ast.keys.is_empty() {
+        quote! {}
+    } else {
+        quote! {
+            /// The focus handle tracking this component's `keys { .. }`
+            /// section; used by the app glue to keep the component's key
+            /// context in the dispatch path.
+            pub fn quoin_focus_handle(&self) -> gpui::FocusHandle {
+                self._quoin_focus.clone()
+            }
+        }
+    };
 
     quote! {
         #vis struct #name {
@@ -133,12 +147,7 @@ fn view_struct_tokens(ast: &ComponentAst) -> TokenStream {
                 }
             }
 
-            /// The focus handle tracking this component when it declares a
-            /// `keys { .. }` section; used by the app glue to keep the
-            /// component's key context in the dispatch path.
-            pub fn quoin_focus_handle(&self) -> gpui::FocusHandle {
-                self._quoin_focus.clone()
-            }
+            #focus_accessors
 
             #(#action_methods)*
         }

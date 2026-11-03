@@ -25,6 +25,7 @@ component! {
             let sort_dir = sort_dir.clone();
             quoin_render! {
                 data_table(
+                    id: "sortable-table",
                     rows: entries,
                     striped: true,
                 ) {

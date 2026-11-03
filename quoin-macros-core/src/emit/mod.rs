@@ -7,7 +7,13 @@
 pub mod cfg;
 // Shared helpers are consumed exclusively by the framework backends; the
 // default (no-framework) build would otherwise carry dead code.
-#[cfg(any(feature = "gpui", feature = "leptos", feature = "dioxus"))]
+#[cfg(any(
+    feature = "gpui",
+    feature = "leptos",
+    feature = "dioxus",
+    feature = "floem",
+    feature = "xilem"
+))]
 pub mod common;
 
 #[cfg(feature = "dioxus")]
@@ -24,12 +30,18 @@ pub mod leptos;
 /// Dioxus backend for `quoin_render!`.
 #[cfg(feature = "dioxus")]
 pub mod render_dioxus;
+/// Floem backend for `quoin_render!`.
+#[cfg(feature = "floem")]
+pub mod render_floem;
 /// GPUI backend for `quoin_render!`.
 #[cfg(feature = "gpui")]
 pub mod render_gpui;
 /// Leptos backend for `quoin_render!`.
 #[cfg(feature = "leptos")]
 pub mod render_leptos;
+/// Xilem backend for `quoin_render!`.
+#[cfg(feature = "xilem")]
+pub mod render_xilem;
 
 /// Dioxus backend for `run_app!`.
 #[cfg(feature = "dioxus")]
@@ -42,6 +54,13 @@ pub mod run_app_gpui;
 pub mod run_app_leptos;
 
 use proc_macro2::TokenStream as TokenStream2;
+#[cfg(not(any(
+    feature = "gpui",
+    feature = "leptos",
+    feature = "dioxus",
+    feature = "floem",
+    feature = "xilem"
+)))]
 use quote::quote;
 
 // ── Trait ────────────────────────────────────────────────────────────────────
@@ -62,8 +81,20 @@ pub trait FrameworkEmitter {
 /// Dispatches to the implementation selected by the enabled framework feature.
 pub struct Emitter;
 
+// Each impl below is additionally gated on *no other* framework feature being
+// enabled. The proc-macro build path always compiles exactly one backend, so
+// this changes nothing there — but tests that exercise two emitters at once
+// (the parity matrix) call the backend modules directly and must not hit
+// conflicting `impl FrameworkEmitter for Emitter` blocks.
+
 // ── Default (no feature) implementation ────────────────────────────────────
-#[cfg(not(any(feature = "gpui", feature = "leptos", feature = "dioxus")))]
+#[cfg(not(any(
+    feature = "gpui",
+    feature = "leptos",
+    feature = "dioxus",
+    feature = "floem",
+    feature = "xilem"
+)))]
 impl FrameworkEmitter for Emitter {
     fn emit_component(&self, _: &crate::parse::ComponentAst) -> TokenStream2 {
         quote! { compile_error!("component! requires a framework feature"); }
@@ -79,13 +110,22 @@ impl FrameworkEmitter for Emitter {
     }
 }
 
-#[cfg(feature = "gpui")]
+#[cfg(all(
+    feature = "gpui",
+    not(any(
+        feature = "leptos",
+        feature = "dioxus",
+        feature = "floem",
+        feature = "xilem"
+    ))
+))]
 mod gpui_impl {
-    use super::{Emitter, FrameworkEmitter, quote};
+    use super::{Emitter, FrameworkEmitter};
     use crate::emit::gpui::emit_component;
     use crate::emit::render_gpui::emit_render;
     use crate::emit::run_app_gpui::emit_run_app;
     use proc_macro2::TokenStream as TokenStream2;
+    use quote::quote;
     impl FrameworkEmitter for Emitter {
         fn emit_component(&self, ast: &crate::parse::ComponentAst) -> TokenStream2 {
             emit_component(ast)
@@ -107,13 +147,22 @@ mod gpui_impl {
     }
 }
 
-#[cfg(feature = "leptos")]
+#[cfg(all(
+    feature = "leptos",
+    not(any(
+        feature = "gpui",
+        feature = "dioxus",
+        feature = "floem",
+        feature = "xilem"
+    ))
+))]
 mod leptos_impl {
-    use super::{Emitter, FrameworkEmitter, quote};
+    use super::{Emitter, FrameworkEmitter};
     use crate::emit::leptos::emit_component;
     use crate::emit::render_leptos::emit_render;
     use crate::emit::run_app_leptos::emit_run_app;
     use proc_macro2::TokenStream as TokenStream2;
+    use quote::quote;
     impl FrameworkEmitter for Emitter {
         fn emit_component(&self, ast: &crate::parse::ComponentAst) -> TokenStream2 {
             emit_component(ast)
@@ -140,13 +189,22 @@ mod leptos_impl {
     }
 }
 
-#[cfg(feature = "dioxus")]
+#[cfg(all(
+    feature = "dioxus",
+    not(any(
+        feature = "gpui",
+        feature = "leptos",
+        feature = "floem",
+        feature = "xilem"
+    ))
+))]
 mod dioxus_impl {
-    use super::{Emitter, FrameworkEmitter, quote};
+    use super::{Emitter, FrameworkEmitter};
     use crate::emit::dioxus::emit_component;
     use crate::emit::render_dioxus::emit_render;
     use crate::emit::run_app_dioxus::emit_run_app;
     use proc_macro2::TokenStream as TokenStream2;
+    use quote::quote;
     impl FrameworkEmitter for Emitter {
         fn emit_component(&self, ast: &crate::parse::ComponentAst) -> TokenStream2 {
             emit_component(ast)
@@ -169,6 +227,90 @@ mod dioxus_impl {
         }
         fn emit_run_app(&self, input: &crate::run_app::RunAppInput) -> TokenStream2 {
             emit_run_app(input)
+        }
+    }
+}
+
+#[cfg(all(
+    feature = "xilem",
+    not(any(
+        feature = "gpui",
+        feature = "leptos",
+        feature = "dioxus",
+        feature = "floem"
+    ))
+))]
+mod xilem_impl {
+    use super::{Emitter, FrameworkEmitter};
+    use crate::emit::render_xilem::emit_render;
+    use proc_macro2::TokenStream as TokenStream2;
+    use quote::quote;
+    impl FrameworkEmitter for Emitter {
+        fn emit_component(&self, ast: &crate::parse::ComponentAst) -> TokenStream2 {
+            crate::emit::render_xilem::component::emit_component(ast)
+        }
+        fn emit_render(&self, node: &crate::render_ast::RenderNode) -> TokenStream2 {
+            emit_render(node)
+        }
+        fn emit_effect(&self, _eff: &crate::effect::Effect) -> TokenStream2 {
+            quote! {
+                ::core::compile_error!("effect! has no equivalent on the Xilem backend (no reactive graph); use a `task`/`worker` view or run the work in the app logic")
+            }
+        }
+        fn emit_run_app(&self, input: &crate::run_app::RunAppInput) -> TokenStream2 {
+            crate::emit::render_xilem::component::emit_run_app(input)
+        }
+    }
+}
+
+#[cfg(all(
+    feature = "floem",
+    not(any(
+        feature = "gpui",
+        feature = "leptos",
+        feature = "dioxus",
+        feature = "xilem"
+    ))
+))]
+mod floem_impl {
+    use super::{Emitter, FrameworkEmitter};
+    use crate::emit::render_floem::emit_render;
+    use proc_macro2::TokenStream as TokenStream2;
+    use quote::quote;
+    impl FrameworkEmitter for Emitter {
+        fn emit_component(&self, ast: &crate::parse::ComponentAst) -> TokenStream2 {
+            // Floem has no component runtime: a component becomes a plain fn
+            // that creates its signals once and returns the view.
+            crate::emit::render_floem::component::emit_component(ast)
+        }
+        fn emit_render(&self, node: &crate::render_ast::RenderNode) -> TokenStream2 {
+            emit_render(node)
+        }
+        fn emit_effect(&self, eff: &crate::effect::Effect) -> TokenStream2 {
+            let body = &eff.body;
+            if eff.cleanup.is_some() {
+                quote! {
+                    ::floem::reactive::Effect::new(
+                        move |__prev: ::core::option::Option<()>| {
+                            let _ = __prev;
+                            #body;
+                        },
+                    );
+                    ::core::compile_error!("effect! cleanup is not supported on the Floem backend yet; drop the cleanup block or manage the resource with a signal");
+                }
+            } else {
+                quote! {
+                    ::floem::reactive::Effect::new(
+                        move |__prev: ::core::option::Option<()>| {
+                            let _ = __prev;
+                            #body;
+                        },
+                    );
+                }
+            }
+        }
+        fn emit_run_app(&self, input: &crate::run_app::RunAppInput) -> TokenStream2 {
+            crate::emit::render_floem::component::emit_run_app(input)
         }
     }
 }

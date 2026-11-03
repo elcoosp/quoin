@@ -5,6 +5,13 @@ use quote::quote;
 
 use super::{emit_render, handler::wrap_handler, try_transpile_class};
 
+/// Per-compilation counter giving scroll divs unique element ids.
+fn next_scroll_site() -> usize {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    static SITE: AtomicUsize = AtomicUsize::new(0);
+    SITE.fetch_add(1, Ordering::Relaxed)
+}
+
 pub(crate) fn emit_generic_element(el: &Element) -> TokenStream {
     let name_str = el.name.to_string();
     let mut chain = match name_str.as_str() {
@@ -17,13 +24,20 @@ pub(crate) fn emit_generic_element(el: &Element) -> TokenStream {
     if let Some(class_expr) = find_arg_expr(el, "class")
         && let Some(styles) = try_transpile_class(class_expr)
     {
-        for style in styles.normal {
-            chain = quote! { #chain #style };
+        // Scroll overflow classes need a stateful element: make this div
+        // stateful before any style applies. The id must be unique per
+        // expansion site; a per-compilation counter keeps it deterministic.
+        if styles.scroll {
+            let site = next_scroll_site();
+            let id = format!("quoin-scroll-{site}");
+            chain = quote! {
+                {
+                    use ::gpui::InteractiveElement as _;
+                    #chain.id(#id)
+                }
+            };
         }
-        if !styles.hover.is_empty() {
-            let hover_tokens = styles.hover;
-            chain = quote! { #chain.hover(|__s| __s #(#hover_tokens)*) };
-        }
+        chain = crate::transpile::tailwind::apply_normal_and_hover(chain, &styles);
     }
 
     if let Some(children_expr) = &el.children_expr {
@@ -59,9 +73,7 @@ pub(crate) fn emit_icon(el: &Element) -> TokenStream {
     if let Some(class_expr) = find_arg_expr(el, "class")
         && let Some(styles) = try_transpile_class(class_expr)
     {
-        for style in styles.normal {
-            chain = quote! { #chain #style };
-        }
+        chain = crate::transpile::tailwind::apply_normal(chain, &styles);
     }
     chain
 }
@@ -71,9 +83,8 @@ pub(crate) fn emit_icon(el: &Element) -> TokenStream {
 /// the GPUI backend resolves tokens to theme colors at runtime.
 pub(crate) fn emit_styled_text(el: &Element) -> TokenStream {
     let text_expr = find_arg_expr(el, "text").expect("styled_text requires 'text:' argument");
-    let runs_expr = match find_arg_expr(el, "runs") {
-        Some(expr) => expr,
-        None => return quote! { ::gpui::div().child("styled_text: missing runs") },
+    let Some(runs_expr) = find_arg_expr(el, "runs") else {
+        return quote! { ::gpui::div().child("styled_text: missing runs") };
     };
     quote! {
         {

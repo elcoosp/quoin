@@ -74,8 +74,13 @@ pub fn expand_custom_element(def: CustomElementDef) -> TokenStream {
         quote! { pub #name: #ty }
     });
 
+    // One accumulator instead of three same-named `let`s: when several
+    // backend features are enabled simultaneously (clippy runs the union),
+    // shadowed bindings would be dead code while only the last one wins.
+    let mut render_impl = TokenStream::new();
+
     #[cfg(feature = "gpui")]
-    let render_impl = match &def.render_fn {
+    render_impl.extend(match &def.render_fn {
         Some(render_expr) => {
             quote! {
                 impl #element_ident {
@@ -104,10 +109,10 @@ pub fn expand_custom_element(def: CustomElementDef) -> TokenStream {
                 }
             }
         }
-    };
+    });
 
     #[cfg(feature = "leptos")]
-    let render_impl = match &def.render_fn {
+    render_impl.extend(match &def.render_fn {
         Some(render_expr) => {
             quote! {
                 impl #element_ident {
@@ -126,10 +131,10 @@ pub fn expand_custom_element(def: CustomElementDef) -> TokenStream {
                 }
             }
         }
-    };
+    });
 
     #[cfg(feature = "dioxus")]
-    let render_impl = match &def.render_fn {
+    render_impl.extend(match &def.render_fn {
         Some(render_expr) => {
             quote! {
                 impl #element_ident {
@@ -148,14 +153,14 @@ pub fn expand_custom_element(def: CustomElementDef) -> TokenStream {
                 }
             }
         }
-    };
+    });
 
     #[cfg(not(any(feature = "gpui", feature = "leptos", feature = "dioxus")))]
-    let render_impl = {
+    render_impl.extend({
         quote! {
             compile_error!("quoin_element! requires a framework feature (gpui, leptos, or dioxus)");
         }
-    };
+    });
 
     quote! {
         #[derive(Clone)]

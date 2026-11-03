@@ -35,46 +35,12 @@ pub(crate) fn emit_data_table(el: &Element) -> TokenStream {
     let small = find_arg_bool(el, "small");
     let on_sort_expr = find_arg_expr(el, "on_sort");
 
-    // Collect the column definitions from the `column(...)` children.
-    let mut columns: Vec<ColumnDef> = Vec::new();
-    for child in &el.children {
-        if let RenderNode::Element(e) = child
-            && e.name == "column"
-        {
-            let render = find_arg_expr(e, "render")
-                .expect("column requires 'render:' closure")
-                .clone();
-            columns.push(ColumnDef {
-                key: find_arg_string(e, "key").unwrap_or_default(),
-                label: find_arg_string(e, "label").unwrap_or_default(),
-                width: find_arg_f32(e, "width"),
-                sortable: find_arg_bool(e, "sortable"),
-                resizable: find_arg_bool(e, "resizable"),
-                render,
-            });
-        }
-    }
+    let columns = collect_columns(el);
     assert!(
         !columns.is_empty(),
         "data_table requires at least one column"
     );
-
-    // Row type from the first render closure's `|row: &T|` parameter.
-    let row_ty: syn::Type = columns
-        .iter()
-        .find_map(|col| match &col.render {
-            Expr::Closure(closure) => closure.inputs.first().and_then(|input| {
-                if let syn::Pat::Type(pat) = input {
-                    if let syn::Type::Reference(type_ref) = &*pat.ty {
-                        return Some((*type_ref.elem).clone());
-                    }
-                    return Some((*pat.ty).clone());
-                }
-                None
-            }),
-            _ => None,
-        })
-        .expect("column render closures must be typed: |row: &RowType| …");
+    let row_ty = row_type_of(&columns);
 
     // Column metadata arrays.
     let col_keys: Vec<&String> = columns.iter().map(|c| &c.key).collect();
@@ -93,24 +59,7 @@ pub(crate) fn emit_data_table(el: &Element) -> TokenStream {
     let col_sortables: Vec<bool> = columns.iter().map(|c| c.sortable).collect();
     let col_resizables: Vec<bool> = columns.iter().map(|c| c.resizable).collect();
 
-    // Type-erasing renderer closures per column.
-    let renderer_closures: Vec<TokenStream> = columns
-        .iter()
-        .map(|col| {
-            let render = &col.render;
-            quote! {
-                {
-                    let __closure = #render;
-                    ::std::sync::Arc::new(move |__any: &dyn ::std::any::Any| {
-                        let __row = __any
-                            .downcast_ref::<#row_ty>()
-                            .expect("data_table row type mismatch");
-                        ::gpui::IntoElement::into_any_element((__closure)(__row))
-                    })
-                }
-            }
-        })
-        .collect();
+    let renderer_closures = renderer_closures(&columns, &row_ty);
 
     let on_sort_tokens = on_sort_expr.map_or(quote! { None }, |expr| {
         let with_move = force_move_on_closure(expr);
@@ -125,14 +74,18 @@ pub(crate) fn emit_data_table(el: &Element) -> TokenStream {
         quote! {}
     };
 
-    let striped_lit = striped;
-    let bordered_lit = bordered;
-
     quote! {
         {
             let __rows: Vec<#row_ty> = #rows_expr;
             let __erased_rows: Vec<::std::sync::Arc<dyn ::std::any::Any + ::std::marker::Send + ::std::marker::Sync>> =
-                __rows.into_iter().map(|__r| ::std::sync::Arc::new(__r)).collect();
+                __rows
+                    .into_iter()
+                    .map(|__r| {
+                        ::std::sync::Arc::new(__r) as ::std::sync::Arc<
+                            dyn ::std::any::Any + ::std::marker::Send + ::std::marker::Sync,
+                        >
+                    })
+                    .collect();
             if !self._quoin_tables.contains(#id) {
                 let __delegate = quoin::QuoinClosureTableDelegate {
                     keys: vec![#(#col_keys),*],
@@ -157,9 +110,72 @@ pub(crate) fn emit_data_table(el: &Element) -> TokenStream {
                 __d.on_sort = #on_sort_tokens;
             });
             ::gpui_component::table::DataTable::new(&__entity)
-                .stripe(#striped_lit)
-                .bordered(#bordered_lit)
+                .stripe(#striped)
+                .bordered(#bordered)
                 #size_tokens
         }
     }
+}
+
+/// Collects the `column(...)` children of a `data_table(...)` element.
+fn collect_columns(el: &Element) -> Vec<ColumnDef> {
+    let mut columns: Vec<ColumnDef> = Vec::new();
+    for child in &el.children {
+        if let RenderNode::Element(e) = child
+            && e.name == "column"
+        {
+            let render = find_arg_expr(e, "render")
+                .expect("column requires 'render:' closure")
+                .clone();
+            columns.push(ColumnDef {
+                key: find_arg_string(e, "key").unwrap_or_default(),
+                label: find_arg_string(e, "label").unwrap_or_default(),
+                width: find_arg_f32(e, "width"),
+                sortable: find_arg_bool(e, "sortable"),
+                resizable: find_arg_bool(e, "resizable"),
+                render,
+            });
+        }
+    }
+    columns
+}
+
+/// The row type, taken from the first render closure's `|row: &T|` parameter.
+fn row_type_of(columns: &[ColumnDef]) -> syn::Type {
+    columns
+        .iter()
+        .find_map(|col| match &col.render {
+            Expr::Closure(closure) => closure.inputs.first().and_then(|input| {
+                if let syn::Pat::Type(pat) = input {
+                    if let syn::Type::Reference(type_ref) = &*pat.ty {
+                        return Some((*type_ref.elem).clone());
+                    }
+                    return Some((*pat.ty).clone());
+                }
+                None
+            }),
+            _ => None,
+        })
+        .expect("column render closures must be typed: |row: &RowType| …")
+}
+
+/// Type-erasing renderer closures per column (`&dyn Any -> AnyElement`).
+fn renderer_closures(columns: &[ColumnDef], row_ty: &syn::Type) -> Vec<TokenStream> {
+    columns
+        .iter()
+        .map(|col| {
+            let render = &col.render;
+            quote! {
+                {
+                    let __closure = #render;
+                    ::std::sync::Arc::new(move |__any: &dyn ::std::any::Any| {
+                        let __row = __any
+                            .downcast_ref::<#row_ty>()
+                            .expect("data_table row type mismatch");
+                        ::gpui::IntoElement::into_any_element((__closure)(__row))
+                    })
+                }
+            }
+        })
+        .collect()
 }

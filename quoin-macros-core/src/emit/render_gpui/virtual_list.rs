@@ -19,13 +19,9 @@ pub(crate) fn emit_virtual_list(el: &Element) -> TokenStream {
     let count_expr = find_arg_expr(el, "count").expect("virtual_list requires 'count:' argument");
     let item_width = find_arg_f32(el, "item_width").unwrap_or(2500.0);
     let item_height = find_arg_f32(el, "item_height").unwrap_or(32.0);
-    let render_expr = find_arg_expr(el, "render")
-        .or_else(|| {
-            // Fall back to DSL children: `for[item in …] { … }` style bodies
-            // are not supported here; children must be a single expression.
-            None
-        })
-        .expect("virtual_list requires 'render:' closure");
+    // DSL children (`for[item in …] { … }` style bodies) are not supported
+    // here; the renderer must be a single expression closure.
+    let render_expr = find_arg_expr(el, "render").expect("virtual_list requires 'render:' closure");
     let render_with_move = force_move_on_closure(render_expr);
 
     let width_lit = proc_macro2::Literal::f32_suffixed(item_width);

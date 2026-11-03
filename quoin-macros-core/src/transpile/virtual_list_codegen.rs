@@ -28,9 +28,12 @@ pub fn generate_gpui_virtual_list(
     _item_render: TokenStream,
 ) -> TokenStream {
     // v_virtual_list requires Entity<V> which can't be created inline in quoin_render!
-    // Using a simple scrollable div as fallback
+    // Using a simple scrollable div as fallback. `overflow_y_scroll` is a
+    // `StatefulInteractiveElement` method: the div must be stateful (`.id`)
+    // or the method does not exist.
     quote! {
         ::gpui::div()
+            .id("quoin-virtual-list")
             .size_full()
             .overflow_y_scroll()
     }
