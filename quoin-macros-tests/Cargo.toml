@@ -15,7 +15,7 @@ quoin-gpui = { path = "../quoin-gpui", optional = true }
 quoin-ui-gpui = { path = "../quoin-ui-gpui", optional = true }
 gpui-component = { version = "0.8.1", optional = true }
 
-leptos = { version = "0.8", optional = true }
+leptos = { version = "0.9.0-rc1", optional = true }
 quoin-leptos = { path = "../quoin-leptos", optional = true }
 
 dioxus = { version = "0.7", optional = true }
