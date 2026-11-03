@@ -42,7 +42,7 @@ bench-core:
 
 # Micro-benchmarks for the devtools event log (release profile)
 bench-devtools:
-    cargo run --release -p quoin-devtools --example bench
+    cargo run --release -p quoin-devtools --example bench-devtools
 
 # Headless devtools demo with tracing enabled
 trace-demo:
@@ -306,3 +306,46 @@ test-global:
 # Clear trybuild cache (use when tests show stale errors)
 clean-trybuild:
     rm -rf target/tests/trybuild
+
+# ---------------------------------------------------------------------
+# Zero-overhead gates (rendering-parity plan, section 3)
+# ---------------------------------------------------------------------
+
+# Gate 1 — expansion gate: no boxing/Vec/dyn in fully static trees, exactly
+# one seam per dynamic construct. Runs on both dynamic backends.
+gate-expand:
+    cargo nextest run -p quoin-macros-core --features floem --test floem_expansion
+    cargo nextest run -p quoin-macros-core --features xilem --test xilem_expansion
+    cargo nextest run -p quoin-macros-core --features floem,xilem --test parity_matrix
+
+# Gate 2 — allocation gate: the quoin_render! expansion of a fully static
+# tree must allocate exactly what the hand-written equivalent allocates.
+gate-alloc:
+    cargo nextest run -p quoin-xilem --test allocation_gate
+
+# Gate 3 — binary gate (requires cargo-bloat): the macro must add zero bytes
+# over the hand-written view. Compares against docs/bloat-baseline.txt;
+# regenerate the baseline intentionally with `just gate-bloat-save`. The first
+# run on a fresh checkout saves the baseline instead of failing on a missing
+# file.
+gate-bloat:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if ! command -v cargo-bloat >/dev/null 2>&1; then
+        echo "gate-bloat requires cargo-bloat (cargo install cargo-bloat); skipping"
+        exit 0
+    fi
+    cargo bloat --release --manifest-path examples/counter-xilem/Cargo.toml --crates > /tmp/bloat-now.txt
+    if [ ! -f docs/bloat-baseline.txt ]; then
+        echo "no docs/bloat-baseline.txt yet; saving the current build as the baseline"
+        cp /tmp/bloat-now.txt docs/bloat-baseline.txt
+        exit 0
+    fi
+    diff docs/bloat-baseline.txt /tmp/bloat-now.txt \
+        || (echo "binary size changed; re-review and run \`just gate-bloat-save\`" && exit 1)
+
+gate-bloat-save:
+    cargo bloat --release --manifest-path examples/counter-xilem/Cargo.toml --crates > docs/bloat-baseline.txt
+
+# All gates that run without extra tooling.
+gate: gate-expand gate-alloc

@@ -51,7 +51,7 @@ every read (here ~65 ns including the recompute; the gap widens with
 genuinely expensive maps — sorting, formatting, filtering — where `memo`
 skips the work entirely and pays only the source clone + `PartialEq`).
 
-## quoin-devtools (`quoin-devtools/examples/bench.rs`)
+## quoin-devtools (`quoin-devtools/examples/bench-devtools.rs`)
 
 Aggregate views read **incremental counters** maintained on push and on ring
 eviction, so they no longer scan the retained window. Before → after for the
