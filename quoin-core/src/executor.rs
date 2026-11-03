@@ -121,6 +121,7 @@ pub trait Executor: Clone + Send + Sync + 'static {
     /// executor.sleep(Duration::from_millis(50)).await;
     /// ```
     fn sleep(&self, duration: Duration) -> SleepFuture {
-        Box::pin(crate::timer::sleep(duration))
+        // `timer::sleep` already returns the boxed `SleepFuture`.
+        crate::timer::sleep(duration)
     }
 }

@@ -18,5 +18,5 @@ pub use crate::{
     CancelGuard, CancellationToken, Cancelled, CancelledFuture, Derived, Executor, ExecutorExt,
     JoinHandle, LocalExecutor, LocalJoinHandle, LocalTask, Memo, ReactiveContext,
     ReactiveContextExt, Resource, ResourceState, RunUntilCancelled, Signal, SignalExt, SleepFuture,
-    derived, memo, sleep,
+    SyncSleepFuture, derived, memo, sleep,
 };

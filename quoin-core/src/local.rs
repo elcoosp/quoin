@@ -31,7 +31,9 @@
 //! [`Executor::spawn`]: crate::Executor::spawn
 
 use futures_util::future::{AbortHandle, Abortable};
+#[cfg(not(target_arch = "wasm32"))]
 use std::cell::RefCell;
+#[cfg(not(target_arch = "wasm32"))]
 use std::collections::VecDeque;
 use std::future::Future;
 use std::pin::Pin;
@@ -127,11 +129,13 @@ impl<T: 'static> Future for LocalTask<T> {
 // Thread-local queue (native)
 // ---------------------------------------------------------------------------
 
+#[cfg(not(target_arch = "wasm32"))]
 struct QueuedJob {
     /// Runs the wrapped task to completion when invoked.
     run: Box<dyn FnOnce() + 'static>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 thread_local! {
     static LOCAL_QUEUE: RefCell<VecDeque<QueuedJob>> = const { RefCell::new(VecDeque::new()) };
 }

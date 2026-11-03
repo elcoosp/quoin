@@ -26,24 +26,32 @@ use std::time::Duration;
 /// and [`sleep`].
 pub type SleepFuture = Pin<Box<dyn Future<Output = ()> + Send>>;
 
+/// The `Send + Sync` boxed future returned by [`sleep`].
+///
+/// Downstream seams that only need `Send` (e.g. rs-query's
+/// `QueryRuntime::sleep` returning a `BoxFuture`) receive it via the usual
+/// unsize coercion, which drops the `Sync` bound.
+pub type SyncSleepFuture = Pin<Box<dyn Future<Output = ()> + Send + Sync>>;
+
 /// Resolves after `duration` of wall-clock time, without requiring any
 /// ambient async runtime on native targets.
 ///
-/// The returned future is `Send + Sync`, so loaders composing it satisfy
-/// storage seams that require `Sync` futures (e.g. rs-query's `Query`).
+/// Returns a boxed [`SyncSleepFuture`]: loaders that await it (e.g.
+/// navi-router route loaders, which must stay `Sync`) remain `Sync`, while
+/// seams that only require `Send` consume it as a plain `BoxFuture`.
 ///
 /// # Panics
 /// Never panics. `wasm32` rounds durations above ~49 days down to the
 /// browser's maximum `setTimeout` delay.
 #[must_use = "sleep returns a future that must be awaited"]
-pub fn sleep(duration: Duration) -> impl Future<Output = ()> + Send + Sync {
+pub fn sleep(duration: Duration) -> SyncSleepFuture {
     #[cfg(target_arch = "wasm32")]
     {
         wasm_sleep(duration)
     }
     #[cfg(not(target_arch = "wasm32"))]
     {
-        futures_timer::Delay::new(duration)
+        Box::pin(futures_timer::Delay::new(duration))
     }
 }
 
@@ -54,12 +62,16 @@ pub fn sleep(duration: Duration) -> impl Future<Output = ()> + Send + Sync {
 /// it is driven by `wasm_bindgen_futures::spawn_local` — which accepts
 /// `!Send` futures and runs them on the single wasm thread — while the
 /// caller only holds the `Send` oneshot receiver.
+///
+/// The box keeps the `Sync` bound promised by [`sleep`]: the awaited
+/// `oneshot::Receiver<()>` is `Sync`, so the wrapped future is too (boxing
+/// into `dyn Future + Send` alone would erase it).
 #[cfg(target_arch = "wasm32")]
-fn wasm_sleep(duration: Duration) -> SleepFuture {
+fn wasm_sleep(duration: Duration) -> SyncSleepFuture {
     let (tx, rx) = futures_channel::oneshot::channel::<()>();
-    // Browsers cap `setTimeout` delays at 2^31-1 ms; clamp so the rounding
-    // stays lossless.
-    let millis = duration.as_millis().min(i32::MAX as u128) as i32;
+    // Browsers cap `setTimeout` delays at 2^31-1 ms (also `gloo-timers` 0.3
+    // takes a `u32`); clamp so the rounding stays lossless.
+    let millis = duration.as_millis().min(i32::MAX as u128) as u32;
     wasm_bindgen_futures::spawn_local(async move {
         gloo_timers::future::TimeoutFuture::new(millis).await;
         let _ = tx.send(());

@@ -116,5 +116,5 @@ pub use notify_signal::NotifierSignal;
 pub use reactive::ReactiveContext;
 pub use resource::{Resource, ResourceState};
 pub use signal::Signal;
-pub use timer::{SleepFuture, sleep};
+pub use timer::{SleepFuture, SyncSleepFuture, sleep};
 pub mod prelude;
