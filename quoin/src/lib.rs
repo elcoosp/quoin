@@ -67,10 +67,22 @@ pub use quoin_leptos::*;
 // ── Xilem adapter ──────────────────────────────────────────────────────────
 
 #[cfg(feature = "xilem")]
+/// The Xilem rebuild pump (see `quoin-xilem/src/pump.rs`).
+pub use quoin_xilem::pump as xilem_pump;
+#[cfg(feature = "xilem")]
+/// The Xilem theme module under an unambiguous name (the emitter's generated
+/// code references `::quoin::xilem_theme::…`).
+pub use quoin_xilem::theme as xilem_theme;
+#[cfg(feature = "xilem")]
 pub use quoin_xilem::*;
 
 // ── Floem adapter ──────────────────────────────────────────────────────────
 
+#[cfg(feature = "floem")]
+/// The Floem theme module under an unambiguous name: the glob re-export
+/// above already puts its tokens at the facade root, and the emitter's
+/// generated code references `::quoin::floem_theme::…`.
+pub use quoin_floem::theme as floem_theme;
 #[cfg(feature = "floem")]
 pub use quoin_floem::*;
 
@@ -80,6 +92,8 @@ pub use quoin_floem::*;
     feature = "gpui",
     feature = "dioxus",
     feature = "leptos",
+    feature = "xilem",
+    feature = "floem",
     feature = "macros",
 ))]
 pub use quoin_macros::{component, effect, quoin_element, quoin_render, run_app};

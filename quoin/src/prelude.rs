@@ -35,6 +35,8 @@ pub use quoin_xilem::*;
     feature = "gpui",
     feature = "leptos",
     feature = "dioxus",
+    feature = "xilem",
+    feature = "floem",
     feature = "macros"
 ))]
 pub use quoin_macros::{component, effect, quoin_element, quoin_render, run_app};
