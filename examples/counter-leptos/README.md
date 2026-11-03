@@ -1,6 +1,6 @@
 # counter-leptos
 
-Minimal counter app using Leptos 0.8 with SSR support and `quoin`.
+Minimal counter app using Leptos 0.9.0-rc1 with SSR support and `quoin`.
 
 ## Run
 
