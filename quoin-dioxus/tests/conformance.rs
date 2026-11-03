@@ -67,10 +67,10 @@ impl TestHarness {
 }
 
 impl ReactiveContext for TestHarness {
-    type Signal<T: Clone + 'static> = <DioxusContext as ReactiveContext>::Signal<T>;
+    type Signal<T: Clone + Send + 'static> = <DioxusContext as ReactiveContext>::Signal<T>;
     type Executor = TestExecutor;
 
-    fn create_signal<T: Clone + 'static>(&self, initial: T) -> Self::Signal<T> {
+    fn create_signal<T: Clone + Send + 'static>(&self, initial: T) -> Self::Signal<T> {
         Self::with_vdom(|| self.context.create_signal(initial))
     }
 

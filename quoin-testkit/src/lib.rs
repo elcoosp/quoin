@@ -555,10 +555,10 @@ impl<E: Executor> TestContext<E> {
 }
 
 impl<E: Executor> ReactiveContext for TestContext<E> {
-    type Signal<T: Clone + 'static> = TestSignal<T>;
+    type Signal<T: Clone + Send + 'static> = TestSignal<T>;
     type Executor = E;
 
-    fn create_signal<T: Clone + 'static>(&self, initial: T) -> Self::Signal<T> {
+    fn create_signal<T: Clone + Send + 'static>(&self, initial: T) -> Self::Signal<T> {
         TestSignal::new(initial, self.updates.count.clone())
     }
 

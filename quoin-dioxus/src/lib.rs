@@ -87,10 +87,10 @@ impl DioxusContext {
 }
 
 impl ReactiveContext for DioxusContext {
-    type Signal<T: Clone + 'static> = DioxusSignal<T>;
+    type Signal<T: Clone + Send + 'static> = DioxusSignal<T>;
     type Executor = DioxusExecutor;
 
-    fn create_signal<T: Clone + 'static>(&self, initial: T) -> Self::Signal<T> {
+    fn create_signal<T: Clone + Send + 'static>(&self, initial: T) -> Self::Signal<T> {
         DioxusSignal {
             inner: RefCell::new(Signal::new(initial)),
         }

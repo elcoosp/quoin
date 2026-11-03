@@ -217,10 +217,10 @@ impl<T: 'static> From<&mut Context<'_, T>> for GpuiContext {
 }
 
 impl ReactiveContext for GpuiContext {
-    type Signal<T: Clone + 'static> = GpuiSignal<T>;
+    type Signal<T: Clone + Send + 'static> = GpuiSignal<T>;
     type Executor = GpuiExecutor;
 
-    fn create_signal<T: Clone + 'static>(&self, initial: T) -> Self::Signal<T> {
+    fn create_signal<T: Clone + Send + 'static>(&self, initial: T) -> Self::Signal<T> {
         self.make_signal(initial)
     }
 

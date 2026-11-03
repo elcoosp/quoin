@@ -43,10 +43,10 @@ impl TestHarness {
 }
 
 impl ReactiveContext for TestHarness {
-    type Signal<T: Clone + 'static> = <GpuiContext as ReactiveContext>::Signal<T>;
+    type Signal<T: Clone + Send + 'static> = <GpuiContext as ReactiveContext>::Signal<T>;
     type Executor = TestExecutor;
 
-    fn create_signal<T: Clone + 'static>(&self, initial: T) -> Self::Signal<T> {
+    fn create_signal<T: Clone + Send + 'static>(&self, initial: T) -> Self::Signal<T> {
         self.context.create_signal(initial)
     }
 

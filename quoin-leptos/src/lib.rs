@@ -87,10 +87,10 @@ impl LeptosContext {
 }
 
 impl ReactiveContext for LeptosContext {
-    type Signal<T: Clone + 'static> = LeptosSignal<T>;
+    type Signal<T: Clone + Send + 'static> = LeptosSignal<T>;
     type Executor = LeptosExecutor;
 
-    fn create_signal<T: Clone + 'static>(&self, initial: T) -> Self::Signal<T> {
+    fn create_signal<T: Clone + Send + 'static>(&self, initial: T) -> Self::Signal<T> {
         let inner = RwSignal::new(SendWrapper::new(initial));
         LeptosSignal { inner }
     }

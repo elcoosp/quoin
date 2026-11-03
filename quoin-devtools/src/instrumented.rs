@@ -108,10 +108,10 @@ impl<C> Instrumented<C> {
 }
 
 impl<C: ReactiveContext> ReactiveContext for Instrumented<C> {
-    type Signal<T: Clone + 'static> = TracedSignal<C::Signal<T>, T>;
+    type Signal<T: Clone + Send + 'static> = TracedSignal<C::Signal<T>, T>;
     type Executor = TracedExecutor<C::Executor>;
 
-    fn create_signal<T: Clone + 'static>(&self, initial: T) -> Self::Signal<T> {
+    fn create_signal<T: Clone + Send + 'static>(&self, initial: T) -> Self::Signal<T> {
         record(
             self.log,
             EventKind::SignalCreated,
