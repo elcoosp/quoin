@@ -27,7 +27,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 mod button;
-pub(crate) mod component;
+pub mod component;
 mod control_flow;
 mod generic;
 mod handler;
