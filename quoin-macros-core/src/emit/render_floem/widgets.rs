@@ -243,11 +243,14 @@ pub(crate) fn emit_scroll_area(
 
 // ── virtual_list ────────────────────────────────────────────────────────────
 
-/// `virtual_list(id, count, item_height, render)` → Floem `virtual_list`.
+/// `virtual_list(items, estimated_height, render)` → Floem `virtual_list`.
+///
+/// The parser enforces the shared contract (`items:` + `estimated_height:`);
+/// the range is the items' length.
 pub(crate) fn emit_virtual_list(el: &Element, _ctx: &mut super::EmitterCtx) -> TokenStream {
-    let count_fallback: syn::Expr = syn::parse_quote!(0);
-    let count_expr = find_arg_expr(el, "count").unwrap_or(&count_fallback);
-    let item_height = find_arg_f32(el, "item_height").unwrap_or(32.0);
+    let items_fallback: syn::Expr = syn::parse_quote!(Vec::<()>::new());
+    let items_expr = find_arg_expr(el, "items").unwrap_or(&items_fallback);
+    let item_height = find_arg_f32(el, "estimated_height").unwrap_or(32.0);
     let render_fallback: syn::Expr =
         syn::parse_quote!((|__ix: usize| ::floem::views::Empty::new()));
     let render_expr = find_arg_expr(el, "render").unwrap_or(&render_fallback);
@@ -255,7 +258,7 @@ pub(crate) fn emit_virtual_list(el: &Element, _ctx: &mut super::EmitterCtx) -> T
 
     quote! {
         ::floem::views::virtual_list(
-            move || 0..(#count_expr),
+            move || 0..(#items_expr).len(),
             move |__ix| *__ix,
             move |__ix| (#render_expr)(__ix),
         )
@@ -303,7 +306,7 @@ pub(crate) fn emit_tabs(
         .enumerate()
         .map(|(index, body)| {
             let lit = proc_macro2::Literal::usize_unsuffixed(index);
-            quote! { #lit => #body.into_any() }
+            quote! { #lit => #body.into_any(), }
         })
         .collect();
 
