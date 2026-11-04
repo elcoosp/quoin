@@ -28,7 +28,7 @@ pub struct ParsedClasses {
 impl ParsedClasses {
     /// True when nothing was unrecognized.
     #[must_use]
-    pub fn is_known(&self) -> bool {
+    pub const fn is_known(&self) -> bool {
         self.unknown.is_empty()
     }
 }
@@ -491,7 +491,7 @@ fn spacing_units(class: &str, prefix: &str) -> Option<Len> {
 /// Non-negative Tailwind pixel steps fit `f32` exactly (multiples of 4 px
 /// below 2^24); the cast is lossless for every vocabulary value.
 #[expect(clippy::cast_precision_loss)]
-fn i64_to_px_f32(n: i64) -> f32 {
+const fn i64_to_px_f32(n: i64) -> f32 {
     n as f32
 }
 
