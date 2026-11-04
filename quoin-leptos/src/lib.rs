@@ -199,6 +199,11 @@ impl quoin_core::LocalExecutor for LeptosExecutor {
 ///
 /// Falls back silently if the clipboard API is unavailable (e.g., SSR context).
 /// This function is called by the `clipboard_button` element in `quoin_render!`.
+//
+// `missing_const_for_fn` fires on the native compilation (the cfg-stripped
+// body is `let _ = text;`), but the function must stay non-`const`: the
+// wasm32 body calls `web_sys`, which is not allowed in a `const fn`.
+#[expect(clippy::missing_const_for_fn)]
 pub fn clipboard_write_text(text: &str) {
     #[cfg(target_arch = "wasm32")]
     {
