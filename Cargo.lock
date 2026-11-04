@@ -7938,12 +7938,14 @@ dependencies = [
 name = "quoin-floem"
 version = "0.1.0"
 dependencies = [
+ "dhat",
  "floem",
  "floem_reactive",
  "futures",
  "futures-timer",
  "quoin-conformance",
  "quoin-core",
+ "quoin-macros",
  "quoin-style",
  "send_wrapper",
 ]
