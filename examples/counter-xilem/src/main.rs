@@ -1,105 +1,52 @@
 //! Visual counter demo — the same `quoin_render!` source the GPUI, Leptos,
-//! Dioxus and Floem demos use, rendered through the Xilem backend, with the
-//! rebuild pump installed so background signal writes repaint the window.
+//! Dioxus and Floem demos use, rendered through the Xilem backend via
+//! `component!` + `run_app!`.
 //!
-//! The `XilemContext` is wrapped in an [`Instrumented`] context: every signal
-//! creation, mutation, and update request this window performs is recorded
-//! into the global [`EventLog`].
+//! The expansion owns the state struct, creates the signals, installs the
+//! rebuild pump (background signal writes repaint the window), and boots the
+//! app — this file contains no Xilem boilerplate at all.
+//!
+//! For the devtools-instrumented variant of the same demo see
+//! `src/bin/traced.rs`: tracing needs the `Instrumented` context wrapper,
+//! which is the documented hand-written escape hatch when a component needs
+//! more than `component!` expresses.
 //!
 //! ```bash
 //! cargo run --manifest-path examples/counter-xilem/Cargo.toml
+//! cargo run --manifest-path examples/counter-xilem/Cargo.toml --bin traced
 //! ```
 
 use counter_lib::use_counter_send;
-use quoin::devtools::{EventKind, Instrumented, TracedSignal, enable, global_log, init_from_env};
+use quoin::devtools::{EventKind, Instrumented, TracedSignal, global_log, init_from_env};
 use quoin::prelude::*;
-use quoin::xilem_pump;
 use std::sync::Arc;
 use xilem::tokio::runtime::Runtime;
-use xilem::{EventLoop, WindowOptions, Xilem};
+use quoin::XilemContext;
 
-/// The trace scope every event from this window is recorded under.
-const SCOPE: &str = "counter-xilem";
+component! {
+    pub CounterApp {
+        state { count: u32 = 0 }
 
-/// The shared counter hook as produced by an `Instrumented` Xilem context.
-type InstrumentedCounter =
-    counter_lib::Counter<TracedSignal<XilemSignal<u32>, u32>, Arc<dyn Fn() + Send + Sync>>;
-
-/// The application state: just the shared counter hook.
-struct CounterApp {
-    counter: InstrumentedCounter,
-}
-
-/// One line summarizing the trace activity recorded for this window.
-fn trace_summary_line() -> String {
-    let counts = global_log().summary();
-    let count = |kind| counts.get(&(SCOPE, kind)).copied().unwrap_or(0);
-    format!(
-        "devtools: {} created, {} mutated, {} update requests",
-        count(EventKind::SignalCreated),
-        count(EventKind::SignalMutated),
-        count(EventKind::UpdateRequested),
-    )
-}
-
-fn main() -> Result<(), winit::error::EventLoopError> {
-    init_from_env();
-    enable();
-
-    let runtime = Arc::new(Runtime::new().expect("failed to start tokio runtime"));
-    let ctx = Instrumented::wrap(XilemContext::new(runtime), SCOPE);
-    // Background signal writes request rebuilds through the pump.
-    xilem_pump::install_notifier(ctx.inner());
-
-    let app = CounterApp {
-        counter: use_counter_send(&ctx),
-    };
-
-    let result = Xilem::new_simple(
-        app,
-        |state: &mut CounterApp| {
-            let count = state.counter.count.clone();
-            let trace = trace_summary_line();
-
-            // The pump view rides along in the tree; the counter UI is the
-            // same quoin_render! source the other backends render.
-            xilem::view::flex(
-                xilem::kurbo::Axis::Vertical,
-                (xilem_pump::pump_view(), quoin_render! {
-                    div(class: "flex flex-col gap-2 p-4") {
-                        h1() { "Counter" }
-                        p() { { format!("Count: {}", count.get()) } }
-                        button(label: "Increment",
-                               on_click: |_| count.update(|c| *c += 1))
-                        button(label: "Reset",
-                               on_click: |_| count.set(0))
-                        p(class: "text-muted-foreground text-sm") { { trace } }
-                    }
-                }),
-            )
-        },
-        WindowOptions::new("Counter - quoin + devtools"),
-    )
-    .run_in(EventLoop::with_user_event());
-
-    // Window closed: print the recorded session.
-    let log = global_log();
-    log.dump();
-    println!("\nevents ({} retained):", log.len());
-    for event in log.events().iter().take(50) {
-        println!(
-            "  [{:>7}] scope={:<14} type={:<24} {}",
-            event.kind,
-            event.scope,
-            event.type_name.unwrap_or("-"),
-            match &event.value {
-                Some(value) => format!("value={value}"),
-                None => String::new(),
+        render {
+            quoin_render! {
+                div(class: "flex flex-col gap-2 p-4") {
+                    h1() { "Counter" }
+                    p() { { format!("Count: {}", count.get()) } }
+                    button(label: "Increment",
+                           on_click: |_| count.update(|c| *c += 1))
+                    button(label: "Reset",
+                           on_click: |_| count.set(0))
+                }
             }
-        );
+        }
     }
+}
 
-    result
+fn main() {
+    run_app!(
+        CounterApp,
+        window_opts: ::xilem::WindowOptions::new("Counter - quoin")
+    );
 }
 
 #[cfg(test)]
@@ -126,6 +73,16 @@ mod tests {
         let log: &'static EventLog = Box::leak(Box::new(EventLog::with_capacity(256)));
         log.set_enabled(true);
         log
+    }
+
+    /// The `component!` state struct constructs from a context: its signals
+    /// are created through the standard `ReactiveContext` path.
+    #[test]
+    fn component_constructs_and_starts_at_zero() {
+        let runtime = Arc::new(Runtime::new().expect("tokio runtime"));
+        let ctx = XilemContext::new(runtime);
+        let app = CounterApp::new(&ctx);
+        assert_eq!(app.count.get(), 0);
     }
 
     #[test]
@@ -162,7 +119,7 @@ mod tests {
         // pump view installed the driver would rebuild, and the flag clears.
         let runtime = Arc::new(Runtime::new().expect("tokio runtime"));
         let ctx = XilemContext::new(runtime);
-        xilem_pump::install_notifier(&ctx);
+        quoin::xilem_pump::install_notifier(&ctx);
         let counter = use_counter_send(&ctx);
 
         let handle = std::thread::spawn(move || {
@@ -171,7 +128,7 @@ mod tests {
         handle.join().expect("background write");
 
         assert!(
-            xilem_pump::is_dirty(),
+            quoin::xilem_pump::is_dirty(),
             "the background write must request a rebuild through the pump"
         );
     }
