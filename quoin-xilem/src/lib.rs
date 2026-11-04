@@ -99,6 +99,15 @@ impl XilemContext {
         }
     }
 
+    /// The tokio runtime backing this context.
+    ///
+    /// `run_app!` shares it with the Xilem driver (`new_simple_with_tokio`)
+    /// so one runtime serves both the app's async work and the framework's.
+    #[must_use]
+    pub fn runtime(&self) -> Arc<Runtime> {
+        ::std::sync::Arc::clone(&self.runtime)
+    }
+
     /// Set a closure that will be called whenever any signal created from this context
     /// is mutated. This is typically used to request a UI rebuild.
     ///
