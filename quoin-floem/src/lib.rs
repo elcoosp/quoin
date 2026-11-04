@@ -53,6 +53,8 @@
 //! queues `!Send` futures on the current thread (native), driven by
 //! `quoin_core::local::run_local_tasks()`.
 
+pub mod effect;
+pub mod keys;
 pub mod theme;
 
 use floem_reactive::{SignalGet, SignalTrack, SignalUpdate};
@@ -316,8 +318,7 @@ mod tests {
     #[test]
     fn with_reads_latest_value_cross_thread() {
         let signal = FloemSignal::new(String::from("init"));
-        let pool_signal = signal.clone();
-        let handle = std::thread::spawn(move || pool_signal.with(|v| v.clone() + "-worker"));
+        let handle = std::thread::spawn(move || signal.with(|v| v.clone() + "-worker"));
         assert_eq!(
             handle.join().expect("pool thread must not panic"),
             "init-worker"
