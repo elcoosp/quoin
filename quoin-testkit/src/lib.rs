@@ -334,6 +334,12 @@ impl TokioExecutor {
     ///
     /// Prefer [`TokioExecutor::global`] inside `#[tokio::test]` so tasks run
     /// on the test's own runtime (and time is controlled by `pause()`).
+    ///
+    /// # Panics
+    ///
+    /// Panics if the tokio multi-thread runtime cannot be built (e.g. the
+    /// process exhausted the resources needed to spawn its worker threads);
+    /// the underlying `Builder::build` error message is preserved.
     #[must_use]
     pub fn new() -> Self {
         Self {
