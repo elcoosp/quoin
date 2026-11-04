@@ -62,11 +62,12 @@ impl EmitterCtx {
 }
 
 mod button;
-pub(crate) mod component;
+pub mod component;
 mod control_flow;
 mod generic;
 mod handler;
 mod input;
+mod keys;
 mod style;
 mod text;
 mod widgets;
