@@ -4,6 +4,12 @@
 //! through signals — so `component!` expands to a plain function that
 //! creates its signals once and returns the view. `run_app!` expands to a
 //! `main` that launches the Floem application with the component's view.
+//!
+//! When the component declares `keys { .. }`, the returned root view is made
+//! focusable, grabs focus on construction (the Floem counterpart of the
+//! GPUI backend's `track_focus` contract: shortcut-like keys also reach the
+//! listener registry without focus, typing keys need it), and carries one
+//! `KeyDown` listener dispatching each parsed keystroke to its handler.
 
 use crate::parse::ComponentAst;
 use crate::run_app::RunAppInput;
@@ -12,18 +18,6 @@ use quote::quote;
 
 #[must_use]
 /// Expands a `component!` AST into a Floem view function.
-#[cfg_attr(
-    all(
-        feature = "floem",
-        any(
-            feature = "gpui",
-            feature = "leptos",
-            feature = "dioxus",
-            feature = "xilem"
-        )
-    ),
-    expect(dead_code)
-)]
 pub fn emit_component(ast: &ComponentAst) -> TokenStream {
     let vis = &ast.vis;
     let name = &ast.name;
@@ -65,17 +59,64 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
 
     let render_stmts = &ast.render.stmts;
 
-    let keys_error = if ast.keys.is_empty() {
-        quote! {}
+    // `keys { .. }`: focus the root and dispatch each parsed keystroke.
+    // The `move` closure owns its own clones of the state signals the
+    // handlers reference, so the component's own bindings stay live.
+    let (key_shadows, keys_decorator) = if ast.keys.is_empty() {
+        (Vec::new(), quote! {})
+    } else {
+        let state_globals: std::collections::HashSet<String> = ast
+            .state
+            .iter()
+            .map(|s| s.name.to_string())
+            .chain(ast.globals.iter().map(|g| g.name.to_string()))
+            .collect();
+
+        let mut shadows = Vec::new();
+        let mut arms = Vec::new();
+        for key in &ast.keys {
+            let arm = super::keys::lower_key_entry(&key.keystroke, &key.handler, &state_globals);
+            shadows.extend(arm.shadows);
+            arms.push(arm.arm);
+        }
+
+        let decorator = quote! {
+            {
+                use ::floem::views::Decorators as _;
+                root_view
+                    .style(|__s| __s.focusable())
+                    .request_focus(|| ())
+                    .on_event(
+                        ::floem::event::listener::KeyDown,
+                        move |__cx, __ev| {
+                            let _ = __cx;
+                            #(#arms)else*
+                            else {
+                                ::floem::event::EventPropagation::Continue
+                            }
+                        },
+                    )
+            }
+        };
+        (shadows, decorator)
+    };
+
+    let body = if ast.keys.is_empty() {
+        quote! { { #(#render_stmts)* } }
     } else {
         quote! {
-            ::core::compile_error!("`keys { .. }` on the Floem backend lands with the M5 keys push; handle input on the specific widget for now");
+            {
+                #(#key_shadows)*
+                {
+                    let root_view = { #(#render_stmts)* };
+                    #keys_decorator
+                }
+            }
         }
     };
 
     quote! {
         #vis fn #name() -> impl ::floem::view::IntoView {
-            #keys_error
             use quoin::ReactiveContext;
             use quoin::Signal;
             let ctx = quoin::FloemContext::new();
@@ -85,25 +126,13 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
             #(#on_mount_tokens)*
             #(#state_clones)*
             #(#global_clones)*
-            { #(#render_stmts)* }
+            #body
         }
     }
 }
 
 #[must_use]
 /// Expands `run_app!` into the Floem application bootstrap (`main`).
-#[cfg_attr(
-    all(
-        feature = "floem",
-        any(
-            feature = "gpui",
-            feature = "leptos",
-            feature = "dioxus",
-            feature = "xilem"
-        )
-    ),
-    expect(dead_code)
-)]
 pub fn emit_run_app(input: &RunAppInput) -> TokenStream {
     let component = &input.component;
     quote! {
