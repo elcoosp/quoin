@@ -301,6 +301,7 @@ const KNOWN_ELEMENTS: &[&str] = &[
     "input",
     "label",
     "img",
+    "svg",
     "a",
     "ul",
     "ol",
