@@ -136,10 +136,40 @@ pub const PUMP_ACTION: MessageResult<()> = MessageResult::Action(());
 mod tests {
     use super::*;
 
+    /// Serializes the pump tests: `DIRTY` is process-global, so tests in the
+    /// same binary must not observe each other's flag transitions (a plain
+    /// `cargo test` runs them in one process; nextest isolates per test).
+    fn pump_lock() -> std::sync::MutexGuard<'static, ()> {
+        static LOCK: std::sync::OnceLock<Mutex<()>> = std::sync::OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+            // A poisoned lock still guards: the flag is plain state, so
+            // continue rather than cascade a panic.
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
     #[test]
     fn dirty_flag_flips_and_clears() {
+        let _guard = pump_lock();
+        // Reset whatever state a previous test in this binary left behind.
+        clear_dirty();
         assert!(!is_dirty());
         // notify without a proxy only flips the flag (no proxy yet).
+        notify();
+        assert!(is_dirty());
+        clear_dirty();
+        assert!(!is_dirty());
+    }
+
+    #[test]
+    fn repeated_notify_coalesces_into_one_flip() {
+        let _guard = pump_lock();
+        clear_dirty();
+        // The flag flips exactly once: N writes must coalesce into one
+        // pump message (or none, when no proxy is installed).
+        notify();
+        assert!(is_dirty());
+        notify();
         notify();
         assert!(is_dirty());
         clear_dirty();
