@@ -549,10 +549,11 @@ pub mod tests {
         assert_eq!(value, Some(42));
     }
 
-    /// `Executor::sleep` is part of the core contract: awaiting it must
-    /// resolve (immediately or after the requested duration, depending on
-    /// the executor's clock — gpui's test scheduler, for example, advances
-    /// a *virtual* clock, so wall-clock assertions would be wrong here).
+    /// Awaiting `Executor::sleep` must resolve after the requested duration.
+    ///
+    /// The clock is the executor's own: gpui's test scheduler, for example,
+    /// advances a *virtual* clock, so wall-clock assertions would be wrong
+    /// here.
     ///
     /// # Panics
     /// Panics when the executor's sleep future never resolves.
