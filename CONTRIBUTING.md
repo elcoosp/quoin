@@ -35,6 +35,47 @@ the unit + conformance tests per adapter, the trybuild macro UI tests
 (Leptos, Dioxus, GPUI), and a compile check of every example. A PR must keep
 all of these green.
 
+### Clippy runs one compilation unit at a time
+
+Never run a workspace-wide `cargo clippy --workspace --all-features`: the
+framework features on `quoin-macros` / `quoin-macros-core` are **mutually
+exclusive by contract** (enabling two backends is a deliberate, documented
+compile error — see `quoin-macros/src/lib.rs`). A single workspace-wide
+invocation builds `quoin-floem` and `quoin-xilem` together, cargo unifies
+their feature sets on the macro crates, and the mutual-exclusion diagnostic
+fires before any lint does. Lint each unit separately — `just lint` and
+`just lint-pedantic` encode the exact split CI uses (framework-free batch,
+one invocation per backend feature, one per adapter crate).
+
+### Debugging macro expansions
+
+Set `QUOIN_DEBUG_EXPAND=1` while building any crate that invokes the quoin
+macros: every `quoin_render!` then fails its compilation **on purpose** and
+prints its full expansion as the error message
+(`QUOIN_DEBUG_EXPANSION: …`). This is a debugging aid, not a supported
+build mode — unset the variable to build normally:
+
+```bash
+QUOIN_DEBUG_EXPAND=1 cargo build -p your-crate 2>&1 | grep QUOIN_DEBUG_EXPANSION
+```
+
+### Zero-overhead gates
+
+The Floem/Xilem backends are guarded by three gates (run `just gate`):
+
+- **Expansion gate** — static trees expand to native calls only (no boxing,
+  `Vec`, `Rc`/`Arc`, `dyn`); dynamic seams box exactly once.
+- **Allocation gate** — the expansion of a static tree allocates exactly
+  what the hand-written equivalent allocates (dhat-counted; the Floem gate
+  takes the minimum over repeated constructions because floem's reactive
+  runtime defers work into later measurement windows).
+- **Binary gate** (opt-in, needs `cargo-bloat`) — `just gate-bloat` diffs
+  `counter-xilem`'s binary against `docs/bloat-baseline.txt`; capture a new
+  baseline deliberately with `just gate-bloat-save`.
+
+The parity contract between the emitters and `docs/BACKEND-PARITY.md` is
+enforced by `quoin-macros-core/tests/parity_matrix.rs`.
+
 ## Commit Messages (Conventional Commits)
 
 This project uses [Conventional Commits](https://www.conventionalcommits.org/):
