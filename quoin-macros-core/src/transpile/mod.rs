@@ -216,9 +216,24 @@ impl<'ast> Visit<'ast> for PathIdentCollectorSkipClosures {
     /// not parsed expressions), so a signal referenced only inside
     /// `format!("Count: {}", count.get())` would otherwise be invisible to
     /// the capture analysis and moved into the closure instead of cloned.
-    /// The scan below walks the macro's token trees and collects the same
-    /// single-segment idents the AST visitor would find in parsed code.
+    ///
+    /// The tokens are first parsed as a comma-separated expression list
+    /// (the shape of `format!`/`println!`/`assert!` arguments) and visited
+    /// as real expressions, so a nested closure's *parameters* (`format!`
+    /// arg `items.iter().filter(|t| …)`) are recognized and excluded
+    /// instead of being mistaken for captured variables. Macro bodies that
+    /// are not an expression list fall back to the raw token scan.
     fn visit_expr_macro(&mut self, mac: &'ast syn::ExprMacro) {
+        use syn::parse::Parser as _;
+        let parser = |input: syn::parse::ParseStream| {
+            syn::punctuated::Punctuated::<syn::Expr, syn::Token![,]>::parse_terminated(input)
+        };
+        if let Ok(args) = parser.parse2(mac.mac.tokens.clone()) {
+            for arg in &args {
+                self.visit_expr(arg);
+            }
+            return;
+        }
         self.scan_token_stream(mac.mac.tokens.clone());
     }
 }
