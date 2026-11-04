@@ -5,6 +5,15 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::Expr;
 
+/// Per-compilation counter giving `data_table`s without an explicit `id:` a
+/// deterministic persistence key (same scheme as scroll divs in
+/// [`crate::emit::render_gpui::generic`]).
+fn next_table_site() -> usize {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    static SITE: AtomicUsize = AtomicUsize::new(0);
+    SITE.fetch_add(1, Ordering::Relaxed)
+}
+
 /// One `column(...)` child of a `data_table(...)`.
 struct ColumnDef {
     key: String,
@@ -21,14 +30,18 @@ struct ColumnDef {
 /// component's `QuoinTableManager` (field `_quoin_tables`).
 ///
 /// Supported framework-agnostic arguments:
-/// - `id: &str` — persistence key (required)
+/// - `id: &str` — persistence key; optional, defaulting to a deterministic
+///   per-expansion-site `quoin-table-<n>` (two `data_table`s in the same
+///   component never collide; the key is stable across recompiles of the
+///   same source)
 /// - `rows: <Vec<T> expr>` — row data, refreshed on every render
 /// - `striped: bool`, `bordered: bool`, `small: bool`
 /// - `on_sort: |key: &str, ascending: bool| …` — invoked on column sort
 /// - children: `column(key, label, width: f32, sortable: bool, resizable: bool,
 ///   render: |row: &T| <IntoElement>)`
 pub(crate) fn emit_data_table(el: &Element) -> TokenStream {
-    let id = find_arg_string(el, "id").expect("data_table requires 'id:' argument");
+    let id =
+        find_arg_string(el, "id").unwrap_or_else(|| format!("quoin-table-{}", next_table_site()));
     let rows_expr = find_arg_expr(el, "rows").expect("data_table requires 'rows:' argument");
     let striped = find_arg_bool(el, "striped");
     let bordered = find_arg_bool(el, "bordered");
