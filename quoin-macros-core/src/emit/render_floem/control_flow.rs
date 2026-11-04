@@ -129,13 +129,20 @@ pub(crate) fn emit_for(node: &ForNode, ctx: &mut super::EmitterCtx) -> TokenStre
         }
     } else {
         // Unkeyed: rebuild the whole list on change — the same cost a
-        // hand-written `dyn_container` pays — plus a diagnostic that
+        // hand-written `dyn_container` pays. A body that renders pure text
+        // is exactly correct under a full rebuild; a stateful body (handler
+        // closures, nested seams, input focus) silently loses identity when
+        // every row is re-created, so those keep the loud diagnostic that
         // points at the missing key.
-        let diagnostic = quote! {
-            ::core::compile_error!(
-                "unkeyed `for[...]` on the Floem backend rebuilds every row on each change; \
-                 add a key (`for[item in list, key: item.id]`) to get diffing"
-            );
+        let diagnostic = if body_is_stateful(node, &body_captures) {
+            quote! {
+                ::core::compile_error!(
+                    "unkeyed `for[...]` with a stateful body rebuilds every row on each change; \
+                     add a key (`for[item in list, key: item.id]`) to get diffing"
+                );
+            }
+        } else {
+            quote! {}
         };
         quote! {
             {
@@ -158,5 +165,56 @@ pub(crate) fn emit_for(node: &ForNode, ctx: &mut super::EmitterCtx) -> TokenStre
                 )
             }
         }
+    }
+}
+
+/// Whether an unkeyed `for` body needs row identity across rebuilds.
+///
+/// A body that captures outer state or contains an interactive element
+/// (`button`, `input`, …), a handler argument, or a nested dynamic seam
+/// (`if`/`for`) must not silently rebuild; pure text bodies may.
+fn body_is_stateful(node: &ForNode, body_captures: &[proc_macro2::Ident]) -> bool {
+    if !body_captures.is_empty() {
+        return true;
+    }
+    node.body.iter().any(needs_row_identity)
+}
+
+/// Elements whose presence forces row identity in an unkeyed loop.
+const INTERACTIVE_ELEMENTS: &[&str] = &[
+    "button",
+    "input",
+    "checkbox",
+    "switch",
+    "slider",
+    "tabs",
+    "data_table",
+    "dropdown_menu",
+    "virtual_list",
+    "scroll_area",
+    "clipboard_button",
+];
+
+/// Handler arguments that force row identity in an unkeyed loop.
+const HANDLER_ARGS: &[&str] = &["on_click", "on_input", "on_change", "on_sort"];
+
+/// Recursive predicate: does this node interact or nest a dynamic seam?
+fn needs_row_identity(node: &RenderNode) -> bool {
+    match node {
+        RenderNode::If(_) | RenderNode::For(_) => true,
+        RenderNode::Element(el) => {
+            if INTERACTIVE_ELEMENTS.contains(&el.name.to_string().as_str()) {
+                return true;
+            }
+            if el
+                .args
+                .iter()
+                .any(|a| HANDLER_ARGS.contains(&a.key.to_string().as_str()))
+            {
+                return true;
+            }
+            el.children.iter().any(needs_row_identity)
+        }
+        RenderNode::Text(_) | RenderNode::Expr(_) | RenderNode::Root(_) => false,
     }
 }
