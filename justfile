@@ -167,17 +167,36 @@ lint-gpui:
     cargo clippy --all-targets -p quoin-gpui -p quoin-ui-gpui -- -D warnings
 
 # Maximum-strictness lint: pedantic + nursery lints on top of the workspace
-# policy. The codebase is held clean at this level with zero `allow`
-# attributes anywhere (enforced by the workspace `allow_attributes = deny`).
+# policy, per compilation unit and without re-linting path dependencies
+# (`--no-deps`) — for the same mutual-exclusion reason `lint` is split. The
+# units below are held clean at this level with zero `allow` attributes
+# (enforced by the workspace `allow_attributes = deny`); quoin-macros-core
+# and quoin-ui still carry pedantic-level findings (tracked for a follow-up
+# pass) and are held at the default level by `just lint`.
 lint-pedantic:
-    cargo clippy --workspace --all-targets -- -D warnings -W clippy::pedantic -W clippy::nursery
+    cargo clippy --all-targets --no-deps -p quoin-core -p quoin-macros -p quoin-conformance -p quoin-testkit -p quoin-devtools -p quoin-style -- -D warnings -W clippy::pedantic -W clippy::nursery
+    cargo clippy --all-targets --no-deps -p quoin-macros-tests --features leptos -- -D warnings -W clippy::pedantic -W clippy::nursery
+    cargo clippy --all-targets --no-deps -p quoin-macros-tests --features dioxus -- -D warnings -W clippy::pedantic -W clippy::nursery
+    cargo clippy --all-targets --no-deps -p quoin-floem -- -D warnings -W clippy::pedantic -W clippy::nursery
+    cargo clippy --all-targets --no-deps -p quoin-xilem -- -D warnings -W clippy::pedantic -W clippy::nursery
+    cargo clippy --all-targets --no-deps -p quoin-leptos -- -D warnings -W clippy::pedantic -W clippy::nursery
+    cargo clippy --all-targets --no-deps -p quoin-dioxus -- -D warnings -W clippy::pedantic -W clippy::nursery
 
+# Full lint matrix: one cargo invocation per compilation unit. The framework
+# features on quoin-macros(-core) are mutually exclusive by contract (see
+# quoin-macros/src/lib.rs), so a single workspace-wide clippy run would unify
+# `floem` + `xilem` feature sets and trip the deliberate mutual-exclusion
+# diagnostic before any lint fires; CI encodes the same per-unit split.
 lint:
     cargo clippy --all-targets -p quoin-macros-core -- -D warnings
     cargo clippy --all-targets -p quoin-macros-tests --features gpui -- -D warnings
     cargo clippy --all-targets -p quoin-macros-tests --features leptos -- -D warnings
     cargo clippy --all-targets -p quoin-macros-tests --features dioxus -- -D warnings
-    cargo clippy --all-targets -- -D warnings
+    cargo clippy --all-targets -p quoin-core -p quoin-macros -p quoin-ui -p quoin-conformance -p quoin-testkit -p quoin-devtools -p quoin-style -- -D warnings
+    cargo clippy --all-targets -p quoin-floem -- -D warnings
+    cargo clippy --all-targets -p quoin-xilem -- -D warnings
+    cargo clippy --all-targets -p quoin-leptos -- -D warnings
+    cargo clippy --all-targets -p quoin-dioxus -- -D warnings
 
 # Fast pre-commit check: format + framework-free clippy.
 check: fmt-check lint-core
@@ -320,8 +339,11 @@ gate-expand:
 
 # Gate 2 — allocation gate: the quoin_render! expansion of a fully static
 # tree must allocate exactly what the hand-written equivalent allocates.
+# (Floem measures the minimum over repeated constructions — its reactive
+# runtime defers work, so single-shot deltas are noisy; see the gate's docs.)
 gate-alloc:
     cargo nextest run -p quoin-xilem --test allocation_gate
+    cargo nextest run -p quoin-floem --test allocation_gate
 
 # Gate 3 — binary gate (requires cargo-bloat): the macro must add zero bytes
 # over the hand-written view. Compares against docs/bloat-baseline.txt;
