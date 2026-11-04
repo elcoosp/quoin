@@ -64,8 +64,10 @@ pub(crate) fn emit_generic_element(el: &Element) -> TokenStream {
 
 /// Emits an `icon(name: "…")` element as a `gpui_component::Icon`.
 pub(crate) fn emit_icon(el: &Element) -> TokenStream {
-    let name =
-        crate::emit::common::find_arg_string(el, "name").expect("icon requires 'name:' argument");
+    // The parser enforces `icon_name:` as the shared contract; the GPUI
+    // variant table then maps the name to a concrete icon.
+    let name = crate::emit::common::find_arg_string(el, "icon_name")
+        .expect("icon requires 'icon_name:' argument");
     let variant = crate::transpile::icon_codegen::icon_variant_ident(&name);
     let mut chain = quote! {
         ::gpui_component::Icon::new(::gpui_component::IconName::#variant)
