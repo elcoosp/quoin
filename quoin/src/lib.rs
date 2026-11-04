@@ -79,6 +79,14 @@ pub use quoin_xilem::*;
 // ── Floem adapter ──────────────────────────────────────────────────────────
 
 #[cfg(feature = "floem")]
+/// The Floem effect-cleanup slot under an unambiguous name: the emitter's
+/// `effect!` expansion references `::quoin::floem_effect::…`.
+pub use quoin_floem::effect as floem_effect;
+#[cfg(feature = "floem")]
+/// The Floem keystroke matcher under an unambiguous name: the emitter's
+/// `keys { .. }` expansion references `::quoin::floem_keys::…`.
+pub use quoin_floem::keys as floem_keys;
+#[cfg(feature = "floem")]
 /// The Floem theme module under an unambiguous name: the glob re-export
 /// above already puts its tokens at the facade root, and the emitter's
 /// generated code references `::quoin::floem_theme::…`.
