@@ -5,6 +5,9 @@
 
 /// `#[cfg]` attribute helpers shared by all emitters.
 pub mod cfg;
+/// The machine-checked rendering-parity table (Floem + Xilem columns),
+/// shared by the parity-matrix test and `docs/BACKEND-PARITY.md`.
+pub mod parity;
 // Shared helpers are consumed exclusively by the framework backends; the
 // default (no-framework) build would otherwise carry dead code.
 #[cfg(any(
@@ -253,8 +256,17 @@ mod xilem_impl {
             emit_render(node)
         }
         fn emit_effect(&self, _eff: &crate::effect::Effect) -> TokenStream2 {
+            // Permanent diagnostic contract (docs/BACKEND-PARITY.md): Xilem
+            // has no reactive graph to run effects on — the app logic IS the
+            // effect. Background work goes through a `task`/`worker` view;
+            // `quoin::xilem_pump` turns signal writes into rebuilds.
             quote! {
-                ::core::compile_error!("effect! has no equivalent on the Xilem backend (no reactive graph); use a `task`/`worker` view or run the work in the app logic")
+                ::core::compile_error!(
+                    "effect! has no equivalent on the Xilem backend (no reactive graph; \
+                     this is a documented permanent contract, see docs/BACKEND-PARITY.md); \
+                     run the work in the app logic or a `task`/`worker` view — the rebuild \
+                     pump (quoin::xilem_pump) turns signal writes into rebuilds"
+                )
             }
         }
         fn emit_run_app(&self, input: &crate::run_app::RunAppInput) -> TokenStream2 {
@@ -288,22 +300,46 @@ mod floem_impl {
         }
         fn emit_effect(&self, eff: &crate::effect::Effect) -> TokenStream2 {
             let body = &eff.body;
-            if eff.cleanup.is_some() {
+            // The `run` field is a closure; it must actually be invoked —
+            // inlining it as a statement would evaluate a closure value and
+            // silently no-op.
+            let run_once = quote! { (#body)(); };
+            if let Some(cleanup) = &eff.cleanup {
+                // Cleanup: the user's one cleanup closure is installed once
+                // in a shared slot (outside the effect, so the `Fn` effect
+                // closure never has to move it); the effect runs it before
+                // every re-run, and a slot clone owned by a scope-bound
+                // signal runs it when the owning scope is disposed (floem
+                // has no on_cleanup hook; see quoin::floem_effect).
                 quote! {
-                    ::floem::reactive::Effect::new(
-                        move |__prev: ::core::option::Option<()>| {
-                            let _ = __prev;
-                            #body;
-                        },
-                    );
-                    ::core::compile_error!("effect! cleanup is not supported on the Floem backend yet; drop the cleanup block or manage the resource with a signal");
+                    {
+                        let __quoin_slot = ::quoin::floem_effect::CleanupSlot::new();
+                        __quoin_slot.set(
+                            Box::new(#cleanup) as Box<dyn ::core::ops::Fn() + 'static>
+                        );
+                        ::floem::reactive::RwSignal::new(::core::clone::Clone::clone(
+                            &__quoin_slot,
+                        ));
+                        ::floem::reactive::Effect::new({
+                            let __quoin_slot =
+                                ::core::clone::Clone::clone(&__quoin_slot);
+                            move |__prev: ::core::option::Option<()>| {
+                                // The initial run has no previous state to
+                                // tear down; every re-run cleans up first.
+                                if __prev.is_some() {
+                                    __quoin_slot.run();
+                                }
+                                #run_once
+                            }
+                        });
+                    }
                 }
             } else {
                 quote! {
                     ::floem::reactive::Effect::new(
                         move |__prev: ::core::option::Option<()>| {
                             let _ = __prev;
-                            #body;
+                            #run_once
                         },
                     );
                 }
