@@ -234,11 +234,14 @@ pub(crate) fn emit_scroll_area(
 
 // ── virtual_list ────────────────────────────────────────────────────────────
 
-/// `virtual_list(id, count, item_height, render)` → Xilem `virtual_scroll`.
+/// `virtual_list(items, estimated_height, render)` → Xilem `virtual_scroll`.
+///
+/// The parser enforces the shared contract (`items:` + `estimated_height:`);
+/// the scroll length is the items' length.
 pub(crate) fn emit_virtual_list(el: &Element, ctx: &mut super::EmitterCtx) -> TokenStream {
-    let count_fallback: syn::Expr = syn::parse_quote!(0);
-    let count_expr = find_arg_expr(el, "count").unwrap_or(&count_fallback);
-    let _item_height = find_arg_f32(el, "item_height").unwrap_or(32.0);
+    let items_fallback: syn::Expr = syn::parse_quote!(::std::vec::Vec::<()>::new());
+    let items_expr = find_arg_expr(el, "items").unwrap_or(&items_fallback);
+    let _item_height = find_arg_f32(el, "estimated_height").unwrap_or(32.0);
     let render_fallback: syn::Expr = syn::parse_quote!((|__ix: usize| ::xilem::view::label("")));
     let render_expr = find_arg_expr(el, "render").unwrap_or(&render_fallback);
 
@@ -261,7 +264,7 @@ pub(crate) fn emit_virtual_list(el: &Element, ctx: &mut super::EmitterCtx) -> To
         {
             #(#render_shadows)*
             ::xilem::view::virtual_scroll(
-                #count_expr,
+                (#items_expr).len(),
                 #render_expr,
             )
         }
@@ -341,7 +344,7 @@ pub(crate) fn emit_tabs(
         .enumerate()
         .map(|(index, body)| {
             let lit = proc_macro2::Literal::usize_unsuffixed(index);
-            quote! { #lit => #body.boxed() }
+            quote! { #lit => #body.boxed(), }
         })
         .collect();
 
