@@ -199,9 +199,46 @@ jobs:
         if: matrix.backend == 'xilem'
         run: cargo nextest run -p quoin-macros-core --features floem,xilem --test parity_matrix
 
-      - name: Allocation gate (Xilem only)
+      - name: Allocation gate
+        run: cargo nextest run -p quoin-${{ matrix.backend }} --test allocation_gate
+
+      # The excluded examples are not workspace members, so a plain
+      # `cargo build` never checks them; build them by manifest path so a
+      # broken example fails CI. They need no GTK (the muda stub is patched
+      # in the workspace) and no xkbcommon (only the GPUI stack links it).
+      - name: Build the floem examples
+        if: matrix.backend == 'floem'
+        run: |
+          cargo build --manifest-path examples/counter-floem/Cargo.toml
+          cargo build --manifest-path examples/todo-floem/Cargo.toml
+
+      - name: Build the xilem example
         if: matrix.backend == 'xilem'
-        run: cargo nextest run -p quoin-xilem --test allocation_gate
+        run: cargo build --manifest-path examples/counter-xilem/Cargo.toml
+
+      # Soft binary-size guard: report the counter-xilem binary bloat diff
+      # and fail only on a >10% regression. cargo-bloat may be absent (the
+      # justfile treats that as skip); the step mirrors that leniency.
+      - name: Binary-size report (counter-xilem, soft)
+        if: matrix.backend == 'xilem'
+        run: |
+          if ! command -v cargo-bloat >/dev/null 2>&1; then
+            echo "cargo-bloat not installed; skipping the soft size check"
+            exit 0
+          fi
+          cargo bloat --release --manifest-path examples/counter-xilem/Cargo.toml --crates > /tmp/bloat-now.txt
+          if [ ! -f docs/bloat-baseline.txt ]; then
+            echo "no docs/bloat-baseline.txt yet; not failing"
+            exit 0
+          fi
+          now=$(grep -m1 -E '^[0-9.]+%' /tmp/bloat-now.txt | grep -oE '^[0-9.]+')
+          base=$(grep -m1 -E '^[0-9.]+%' docs/bloat-baseline.txt | grep -oE '^[0-9.]+')
+          echo "filtered .text: now ${now:-?}% baseline ${base:-?}%"
+          if [ -n "$now" ] && [ -n "$base" ]; then
+            awk -v n="$now" -v b="$base" 'BEGIN { exit !(n > b * 1.1) }' \
+              && (echo "binary size regressed more than 10% (baseline $base%, now $now%)" && exit 1) \
+              || exit 0
+          fi
 
   # -----------------------------------------------------------------------
   # GPUI tests — requires Linux system libraries
