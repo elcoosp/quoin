@@ -36,7 +36,7 @@ impl Len {
 /// byte-identical hex literal the hand-written transpiler produced before
 /// the style IR existed; the numeric form is what the Floem/Xilem lowerings
 /// pack into their color types.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct HexLit {
     /// The literal as written, without the `0x` prefix (e.g. `"3b82f6"`).
     /// Empty for arbitrary (bracket-syntax) colors, whose text form is not
@@ -81,7 +81,7 @@ impl HexLit {
 
 /// A color specification: a literal RGB value, `transparent`, or a theme
 /// token resolved by the backend.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Col {
     /// A literal sRGB color (`bg-gray-500`, `bg-[#1e2e3e]`).
     Rgb(HexLit),
@@ -364,7 +364,7 @@ impl Overflow {
     /// live on `StatefulInteractiveElement`, so the target div must carry an
     /// element id before they can be applied.
     #[must_use]
-    pub fn needs_stateful_scroll(self) -> bool {
+    pub const fn needs_stateful_scroll(self) -> bool {
         !matches!(self, Self::Hidden)
     }
 }
@@ -392,7 +392,7 @@ pub enum TextAlign {
 /// The Tailwind font-size scale. Parsed into px values for the
 /// framework-agnostic lowerings; the GPUI lowering maps the canonical px
 /// values back onto its named methods to preserve byte-identical output.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TextScale {
     /// `text-xs` → 12 px.
     Xs,
@@ -448,7 +448,7 @@ impl TextScale {
 }
 
 /// Font weight as a numeric value (Tailwind's 100–900 scale).
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Weight(pub u16);
 
 impl Weight {
@@ -613,7 +613,7 @@ impl Decl {
     /// the container context — it is cascade-*aware* without being
     /// cascade-*required* on containers that contain no text.
     #[must_use]
-    pub fn is_inherited_text(&self) -> bool {
+    pub const fn is_inherited_text(&self) -> bool {
         matches!(
             self,
             Self::TextColor(_) | Self::TextSize(_) | Self::TextWeight(_)
