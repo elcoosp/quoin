@@ -6,6 +6,7 @@
 //! not allocate (`Rc ::`, `Arc ::`, `Vec`). Dynamic seams are allowed exactly
 //! one seam per `if`/`for`.
 
+#![cfg(feature = "floem")]
 use quoin_macros_core::emit::render_floem::emit_render;
 use quoin_macros_core::render_ast::RenderNode;
 use syn::parse_quote;
@@ -108,7 +109,7 @@ fn keyed_for_expands_to_dyn_stack() {
 }
 
 #[test]
-fn unkeyed_for_is_a_compile_error() {
+fn unkeyed_for_with_pure_text_body_expands_without_error() {
     let source = parse_quote! {
         div() {
             for[item in items] {
@@ -116,10 +117,50 @@ fn unkeyed_for_is_a_compile_error() {
             }
         }
     };
+    let expanded = expand(source);
+    let text = tokens_to_string(&expanded);
+    // A pure-text body is exactly correct under a full `dyn_container`
+    // rebuild: no key required, no diagnostic.
+    syn::parse2::<syn::Expr>(expanded).expect("expansion must be a valid expression");
+    assert!(
+        text.contains("dyn_container") && !text.contains("compile_error"),
+        "unkeyed pure-text loop must expand without a diagnostic:\n{text}"
+    );
+}
+
+#[test]
+fn unkeyed_for_with_stateful_body_is_a_compile_error() {
+    let source = parse_quote! {
+        div() {
+            for[item in items] {
+                button(label: "pick", on_click: |_| picked.set(item.id))
+            }
+        }
+    };
+    let text = tokens_to_string(&expand(source));
+    assert!(
+        text.contains("compile_error") && text.contains("key"),
+        "unkeyed stateful loop must still fail loudly:\n{text}"
+    );
+}
+
+#[test]
+fn unkeyed_for_with_captured_state_is_a_compile_error() {
+    // `visible` is outer state captured inside the body: a full rebuild
+    // would tear it down, so the missing key must be an error.
+    let source = parse_quote! {
+        div() {
+            for[item in items] {
+                if[visible] {
+                    p() { { item.name.clone() } }
+                }
+            }
+        }
+    };
     let text = tokens_to_string(&expand(source));
     assert!(
         text.contains("compile_error"),
-        "unkeyed for must emit the key diagnostic:\n{text}"
+        "unkeyed loop capturing outer state must fail loudly:\n{text}"
     );
 }
 
