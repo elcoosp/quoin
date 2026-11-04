@@ -1,5 +1,6 @@
 //! Expansion-shape tests for the Xilem backend (the expansion gate).
 
+#![cfg(feature = "xilem")]
 use quoin_macros_core::emit::render_xilem::emit_render;
 use quoin_macros_core::render_ast::RenderNode;
 use syn::parse_quote;
@@ -138,5 +139,107 @@ fn unknown_class_is_a_compile_error() {
     assert!(
         text.contains("compile_error") && text.contains("definitely-not-a-class"),
         "unknown classes must fail with a diagnostic:\n{text}"
+    );
+}
+
+#[test]
+fn component_expands_to_struct_new_and_app_logic() {
+    use quoin_macros_core::emit::render_xilem::component::emit_component;
+    use quoin_macros_core::parse::ComponentAst;
+
+    let ast: ComponentAst = syn::parse2(quote::quote! {
+        pub CounterApp {
+            state { count: u32 = 0 }
+            render {
+                quoin_render! {
+                    div(class: "flex flex-col gap-2 p-4") {
+                        h1() { "Counter" }
+                        button(label: "Increment", on_click: |_| count.update(|c| *c += 1))
+                    }
+                }
+            }
+        }
+    })
+    .expect("component AST should parse");
+
+    // A `component!` expansion is a set of items (struct + impl), not an
+    // expression.
+    let expanded = emit_component(&ast);
+    let file: syn::File =
+        syn::parse2(expanded.clone()).expect("component expansion must parse as items");
+    assert_eq!(
+        file.items.len(),
+        2,
+        "struct + impl, nothing else; got {:#?}",
+        file.items
+            .iter()
+            .map(|i| match i {
+                syn::Item::Struct(_) => "struct",
+                syn::Item::Impl(_) => "impl",
+                _ => "other",
+            })
+            .collect::<Vec<_>>()
+    );
+
+    let text = expanded.to_string();
+    assert!(
+        text.contains("struct CounterApp") && text.contains("XilemSignal < u32 >"),
+        "one signal field per state declaration; expansion:\n{text}"
+    );
+    assert!(
+        text.contains("fn new") && text.contains("ctx . create_signal (0)"),
+        "new creates the signals from a context:\n{text}"
+    );
+    assert!(
+        text.contains("fn app_logic") && text.contains("view :: flex"),
+        "app_logic renders the tree:\n{text}"
+    );
+    assert!(
+        text.contains("pump_view :: < CounterApp > ()"),
+        "the pump view rides along in the tree:\n{text}"
+    );
+}
+
+#[test]
+fn component_with_keys_is_a_named_diagnostic() {
+    use quoin_macros_core::emit::render_xilem::component::emit_component;
+    use quoin_macros_core::parse::ComponentAst;
+
+    let ast: ComponentAst = syn::parse2(quote::quote! {
+        pub KeysApp {
+            state { n: u32 = 0 }
+            keys { "escape" => n.set(0) }
+            render {
+                quoin_render! { p() { "x" } }
+            }
+        }
+    })
+    .expect("component AST should parse");
+    let text = emit_component(&ast).to_string();
+    assert!(
+        text.contains("compile_error") && text.contains("keys"),
+        "keys on Xilem must fail with the documented diagnostic:\n{text}"
+    );
+}
+
+#[test]
+fn run_app_expands_to_a_main_installing_the_pump() {
+    use quoin_macros_core::emit::render_xilem::component::emit_run_app;
+    use quoin_macros_core::run_app::RunAppInput;
+
+    let input: RunAppInput =
+        syn::parse2(quote::quote!(CounterApp)).expect("run_app AST should parse");
+    let expanded = emit_run_app(&input);
+    syn::parse2::<syn::Item>(expanded.clone())
+        .expect("run_app expansion must parse as an item (one fn)");
+
+    let text = expanded.to_string();
+    assert!(
+        text.contains("install_notifier"),
+        "run_app! must install the rebuild pump notifier:\n{text}"
+    );
+    assert!(
+        text.contains("new_simple_with_tokio"),
+        "one tokio runtime serves the context and the driver:\n{text}"
     );
 }
