@@ -125,7 +125,7 @@ impl FrameworkEmitter for Emitter {
 mod gpui_impl {
     use super::{Emitter, FrameworkEmitter};
     use crate::emit::gpui::emit_component;
-    use crate::emit::render_gpui::emit_render;
+    use crate::emit::render_gpui::emit_render_root;
     use crate::emit::run_app_gpui::emit_run_app;
     use proc_macro2::TokenStream as TokenStream2;
     use quote::quote;
@@ -134,7 +134,9 @@ mod gpui_impl {
             emit_component(ast)
         }
         fn emit_render(&self, node: &crate::render_ast::RenderNode) -> TokenStream2 {
-            emit_render(node)
+            // The per-macro root: adds the dynamic-class runtime hoist under
+            // the `gpui-rsx-classes` feature (plain expansion otherwise).
+            emit_render_root(node)
         }
         fn emit_effect(&self, eff: &crate::effect::Effect) -> TokenStream2 {
             let body = &eff.body;
