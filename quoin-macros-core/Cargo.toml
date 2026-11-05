@@ -10,6 +10,15 @@ quote = "1.0"
 proc-macro2 = "1.0"
 thiserror = "2.0"
 quoin-style = { path = "../quoin-style" }
+# gpui-rsx's class engine as a library (no GPUI dependency: syn/quote/proc-macro2
+# only). Optional — pulled in by the `gpui-rsx-classes` feature. Pinned to the
+# same 0.10.2 release whose tables are generated from quoin's pinned GPUI
+# snapshot (gpui-pre 0.3.10); bump together with any gpui-pre bump.
+gpui-rsx-core = { version = "0.10.2", optional = true }
+# gpui-rsx-core is built on syn 2; quoin-macros-core uses syn 3. The rename
+# lets both major versions coexist (needed for `generate_runtime_module`'s
+# typed `&syn::Path` argument).
+syn2 = { package = "syn", version = "2", optional = true }
 
 # The framework features are pure `cfg` switches: the emitters *generate*
 # framework code as token streams, they never link against the frameworks
@@ -25,6 +34,11 @@ leptos = []
 # When enabled, emitters produce shadcn component calls instead of plain HTML.
 leptos-shadcn = []
 dioxus-shadcn = []
+# Phase 1 of the gpui-rsx migration (docs/gpui-rsx-classes.md): route unknown
+# Tailwind classes on the GPUI backend through gpui-rsx's class engine, unlock
+# the extended vocabulary, state variants, and dynamic `class:` values.
+# Classes quoin already knows keep their byte-identical lowering.
+gpui-rsx-classes = ["dep:gpui-rsx-core", "dep:syn2"]
 
 # Expansion tests compile against a single backend's emitter; each needs its
 # feature on or `render_floem` / `render_xilem` stay `#[cfg]`-ed out.
