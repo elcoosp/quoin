@@ -337,7 +337,32 @@ const KNOWN_ELEMENTS: &[&str] = &[
     "radio",
     "slider",
     "tooltip",
+    // Rich-elements Phase 0 (canonical shadcn Tier-1 surface — see
+    // `emit::shadcn_spec` and docs/quoin-shadcn-rich-elements-evaluation.md).
+    // Lowered generically (containers/text) on every backend; the
+    // `<framework>-shadcn` features upgrade the lowering to the real
+    // component libraries.
+    "card",
+    "card_header",
+    "card_title",
+    "card_description",
+    "card_content",
+    "card_footer",
+    "card_action",
+    "alert",
+    "alert_title",
+    "alert_description",
+    "spinner",
+    "kbd",
+    "avatar",
+    "avatar_fallback",
 ];
+
+/// The accepted element names, exposed for contract tests
+/// (`emit::shadcn_spec` asserts its Tier-1 table stays a subset).
+pub fn known_elements() -> &'static [&'static str] {
+    KNOWN_ELEMENTS
+}
 
 
 /// Unwraps a single-expression block: `{ expr }` -> `expr`.
