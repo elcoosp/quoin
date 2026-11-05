@@ -2,8 +2,9 @@
 
 Phase 1 + Phase 2 of the gpui-rsx migration plan
 (`quoin-gpui-rsx-migration-report.md`, §8): quoin's GPUI backend gains
-gpui-rsx's class engine as an **opt-in extension**, without changing the
-output of anything that compiles today.
+gpui-rsx's class engine, **enabled by default with the `gpui` feature**
+(the standalone `gpui-rsx-classes` flag remains for `macros`-only users),
+without changing the output of anything that compiled before.
 
 ## TL;DR
 
@@ -11,7 +12,8 @@ output of anything that compiles today.
 # your crate's Cargo.toml
 [dependencies.quoin]
 version = "…"
-features = ["gpui", "gpui-rsx-classes"]
+# `gpui` implies `gpui-rsx-classes` — no second flag to remember.
+features = ["gpui"]
 ```
 
 ```rust
