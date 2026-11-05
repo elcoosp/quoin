@@ -183,6 +183,26 @@ pub const KNOWN_CLASSES: &[&str] = &[
     "bg-danger",
     "bg-destructive",
     "bg-success",
+    // Rich-elements Phase 2: token-tinted borders (the destructive alert
+    // shim uses `border-destructive`; the full family mirrors the `bg-` and
+    // `text-` token lists so the vocabulary stays symmetric).
+    "border-primary",
+    "border-secondary",
+    "border-background",
+    "border-foreground",
+    "border-muted",
+    "border-muted-foreground",
+    "border-accent",
+    "border-info",
+    "border-warning",
+    "border-danger",
+    "border-destructive",
+    "border-success",
+    "border-border",
+    "border-input",
+    "border-ring",
+    "border-card",
+    "border-popover",
     // Typography
     "text-xs",
     "text-sm",
@@ -823,6 +843,9 @@ fn token_class(class: &str) -> Option<Decl> {
     match role {
         "bg" => Some(Decl::Background(Col::Token(token))),
         "text" => Some(Decl::TextColor(Col::Token(token))),
+        // Rich-elements Phase 2: the destructive alert shim tints its border
+        // through the danger token (`border-destructive`).
+        "border" => Some(Decl::BorderColor(Col::Token(token))),
         _ => None,
     }
 }
