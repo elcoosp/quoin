@@ -5,6 +5,10 @@
 
 /// `#[cfg]` attribute helpers shared by all emitters.
 pub mod cfg;
+/// The canonical shadcn element contract (rich-elements Phase 0): the
+/// Tier-1 element set, the canonical `variant:`/`size:` grammar, and the
+/// per-framework backing map. See `docs/quoin-shadcn-rich-elements-evaluation.md`.
+pub mod shadcn_spec;
 /// The machine-checked rendering-parity table (Floem + Xilem columns),
 /// shared by the parity-matrix test and `docs/BACKEND-PARITY.md`.
 pub mod parity;
