@@ -40,7 +40,13 @@ quoin-devtools  = { path = "../quoin-devtools",  optional = true }
 gpui = { package = "gpui-pre", version = "=0.3.10", optional = true }
 [features]
 default = []
-gpui   = ["dep:gpui", "dep:quoin-gpui", "dep:quoin-ui-gpui", "dep:quoin-macros", "quoin-macros?/gpui", "rsx"]
+# The GPUI adapter ships the full gpui-rsx class engine by default
+# (`gpui-rsx-classes` is implied — no second feature flag to remember): the
+# extended Tailwind palette, extra state variants and dynamic `class:`
+# expressions are part of the GPUI experience, and strict-mode diagnostics
+# stay compile errors either way. The standalone `gpui-rsx-classes` flag
+# remains for `macros`-without-framework users.
+gpui   = ["dep:gpui", "dep:quoin-gpui", "dep:quoin-ui-gpui", "dep:quoin-macros", "quoin-macros?/gpui", "rsx", "gpui-rsx-classes"]
 dioxus = ["dep:quoin-dioxus", "dep:quoin-macros", "quoin-macros?/dioxus"]
 leptos = ["dep:quoin-leptos", "dep:quoin-macros", "quoin-macros?/leptos"]
 xilem  = ["dep:quoin-xilem", "dep:quoin-macros", "quoin-macros?/xilem"]
