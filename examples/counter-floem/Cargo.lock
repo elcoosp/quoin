@@ -884,7 +884,7 @@ dependencies = [
  "bitflags 2.13.2",
  "cursor-icon",
  "dpi 0.1.2 (git+https://github.com/lapce/winit?rev=133268de675a4fda70816d78a7a1435eb972fea1)",
- "keyboard-types",
+ "keyboard-types 0.8.3",
  "raw-window-handle",
  "serde",
  "smol_str",
@@ -1675,6 +1675,17 @@ dependencies = [
 
 [[package]]
 name = "keyboard-types"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b750dcadc39a09dbadd74e118f6dd6598df77fa01df0cfcdc52c28dece74528a"
+dependencies = [
+ "bitflags 2.13.2",
+ "serde",
+ "unicode-segmentation",
+]
+
+[[package]]
+name = "keyboard-types"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fbe853b403ae61a04233030ae8a79d94975281ed9770a1f9e246732b534b28d"
@@ -1887,6 +1898,9 @@ dependencies = [
 [[package]]
 name = "muda"
 version = "0.17.1"
+dependencies = [
+ "keyboard-types 0.7.0",
+]
 
 [[package]]
 name = "naga"
@@ -3429,7 +3443,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3e29e3e199888d594edd191c5917a2d5c1893b8bf20076c2bf4df7a40a2ee71"
 dependencies = [
  "dpi 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "keyboard-types",
+ "keyboard-types 0.8.3",
  "kurbo",
 ]
 
