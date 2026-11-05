@@ -2,13 +2,15 @@
 
 **Evaluation report** · 2026-11-05 · prepared against quoin @ `cb622a3` (fresh clone of `elcoosp/quoin` main)
 
-> **STATUS UPDATE — Phase 0 + Phase 1 are LANDED on this branch.**
-> The canonical contract is checked-in Rust (`quoin-macros-core/src/emit/shadcn_spec.rs`),
-> `floem-shadcn` is vendored under `third_party/floem-shadcn` with the full feature
-> chain (`quoin/floem-shadcn`), the Tier-1 emitters lower for real (47/47 conformance
-> tests run against the shadcn components), Leptos features broadened 8 → 28 (wasm32-verified),
-> and the canonical `variant:`/`size:` grammar is wired into GPUI/Leptos/Dioxus/Floem.
-> See §10 for the landed inventory and the verification matrix.
+> **STATUS UPDATE — Phase 0 + Phase 1 + Phase 2 are LANDED on this branch.**
+> The canonical contract is checked-in Rust (`quoin-macros-core/src/emit/shadcn_spec.rs`,
+> now with Tier-1 + Tier-2 tables), `floem-shadcn` is a **standalone sibling checkout**
+> (v0.2.0 — the vendored copy was retired in Phase 2), the Tier-1 emitters lower for real
+> on Floem, Leptos features broadened 8 → 28 (wasm32-verified), the canonical
+> `variant:`/`size:` grammar is wired into GPUI/Leptos/Dioxus/Floem, and Phase 2 adds the
+> `accordion` family + shadcn `tabs`/`tooltip` Floem lowerings plus the GPUI styled shims
+> (real `Spinner`, card/alert/kbd/avatar composition shims — the shimmable parts of
+> gpui-kit #2311). See §10 (Phase 0/1) and §11 (Phase 2) for the landed inventories.
 
 ---
 
@@ -277,3 +279,81 @@ gpui-component API probe. Upstream CI runs the gpui suite unchanged.
 3. Dioxus source-of-truth decisions (MBeliou vs yuxuetr `dioxus-shadcn`) per missing component.
 4. gpui-kit #2311: canonical renames (`danger`→`destructive`, sizes), sub-component splits, controlled props.
 5. Xilem stays generic until linebender ships a component story; the contract costs nothing there.
+
+---
+
+## 11. Phase 2 landed inventory & verification matrix (2026-11-06)
+
+### 11.1 What landed
+
+**Leg A — `floem-shadcn` as a standalone dependency (un-vendoring):**
+
+| Artifact | Where | Notes |
+|---|---|---|
+| Vendored copy retired | `third_party/floem-shadcn` removed | `git rm` + workspace member list updated; the §10.3 #1 follow-up is done |
+| Sibling path dependency | `quoin-floem/Cargo.toml` | `floem-shadcn = { path = "../../floem-shadcn", optional = true }`; layout contract documented in the manifest (`parent/{quoin,floem-shadcn}`) |
+| Upstream blocker fixed in-tree | floem-shadcn v0.2.0 `Cargo.toml` | `floem-tailwind` was `path = "https://…"` (a URL is not a path dep); now a rev-pinned git dep |
+| Source-id unification | quoin-floem + floem-shadcn manifests | `floem`/`floem_reactive`/`floem-test` declarations are **bare git** everywhere: a branch-qualified twin resolves to a second package id — two full floem feature-universes (~2 GB) with `TailwindExt` implemented against the wrong one |
+| `accordion_rich` module | floem-shadcn `src/components/accordion_rich.rs` | `RichAccordionItem`: trigger/content accept arbitrary views (`AnyView`), same shared `RwSignal<Option<String>>` toggle contract, chevron + `Display::None` mechanics as the 0.1.x string item; item `ViewId` attached so harness layout tests can find it |
+| floem-shadcn v0.2.0 tests | `tests/accordion_rich.rs` + unit tests | 194 tests green standalone (lib + 17 integration targets + doctests) against floem `1351ffb` |
+
+**Leg B — Tier-2 contract + Floem lowerings:**
+
+| Artifact | Where | Notes |
+|---|---|---|
+| `CANONICAL_TIER2` table | `emit/shadcn_spec.rs` | 6 rows: `accordion`, `accordion_item`, `accordion_trigger`, `accordion_content`, `tabs`, `tooltip`; tier-1/tier-2 disjointness unit-tested |
+| Parser legalization | `render_ast.rs` + `render_ast_diag.rs` | `KNOWN_ELEMENTS` +4 (accordion family); `KNOWN_ARGS` +`expanded`, `on_toggle` |
+| Floem `accordion` emitter | `render_floem/widgets.rs::emit_accordion` | shadcn: real `Accordion` + `RichAccordionItem` over `RwSignal<Option<String>>` (`expanded:` = `Option<String>` value expression seeding the state; absent = uncontrolled). Generic: disclosure rows over quoin theme tokens with an inline click toggle and `Display::None` collapsed content |
+| Floem `tabs` upgrade | `emit_tabs` shadcn branch | Real `Tabs`/`TabsList`/`Tab`/`TabsContent`; `active:` stays a plain `usize` value expression (GPUI/Leptos contract parity) seeding the string-keyed signal; the shadcn Tabs owns the selection (click-interactive) |
+| Floem `tooltip` upgrade | `emit_tooltip` shadcn branch | shadcn-themed `TooltipExt::tooltip_styled` over the same source contract |
+| Value-expression contract | both new emitters | `active:`/`expanded:` are read once to seed component-owned state — no signal-type requirements, matching the GPUI/Leptos precedent |
+| Double-move bridge fix | `emit_toggle` (checkbox/switch, both cfg branches) | Phase-1 latent bug: two/three `Effect::new(move …)` closures captured the same non-`Copy` quoin signal by value; now one clone per consuming closure. Found by the new compile tests |
+| Generic tabs closure fix | `emit_tabs` generic branch | same double-move class: the strip/content `move` closures now shadow-clone their captures (`handler::wrap_closure_with`) |
+| Floem expansion conformance test | `quoin-floem/tests/shadcn_expansion.rs` | Compiles the full Tier-1 + Tier-2 surface **twice** (generic + shadcn branches): 48/48 on both |
+
+**Leg C — GPUI convergence (the shimmable parts of #2311):**
+
+| Artifact | Where | Notes |
+|---|---|---|
+| Styled shims module | `emit/render_gpui/shadcn.rs` | card + 6 parts, alert (+`variant: "destructive"` tint via the new `border-destructive` token class), alert_title/description, kbd (key-cap chip, Floem-identical text contract), avatar (initials circle, `fallback:`/`size:`), avatar_fallback — all through the same class engine as user `class:` args, layered via `finish_with_class_children_handlers` |
+| Real `Spinner` | `render_gpui/shadcn.rs` | `gpui_component::spinner::Spinner` (0.8.1 ships it) |
+| Shared finishing pass | `render_gpui/generic.rs` | class/children/handler tail extracted so shims and the generic lowering behave identically |
+| `border-destructive` + token-border family | `quoin-style/src/parse.rs` | `token_class` border role + 17 KNOWN_CLASSES entries (full symmetric family; vocabulary self-tests enforce it) |
+| Canonical table honesty | `shadcn_spec.rs` gpui cells | every gpui cell now states what actually lowers (real component vs Phase-2 shim vs generic fallback) |
+| GPUI expansion test | `quoin-macros-tests/tests/shadcn_shims_expansion_gpui.rs` | typechecks the whole shim surface + accordion family against real gpui-component 0.8.1 |
+| trybuild snapshot refresh | `render_unknown_element_fail.stderr` | KNOWN_ELEMENTS list + accordion family |
+
+### 11.2 Verification matrix (all commands green this session)
+
+| Gate | Command | Result |
+|---|---|---|
+| floem-shadcn standalone | `cargo test -j 1` in the sibling checkout | 194 tests ✅ (9 lib + 17 targets incl. `accordion_rich` + 47 doctests) |
+| Contract unit tests | `cargo nextest run -p quoin-macros-core --features floem,floem-shadcn,xilem` | ✅ (Tier-2 rows known, unique, tier-disjoint) |
+| Core crates + spec/parity/combo | `cargo nextest run -p quoin-core -p quoin-style -p quoin-ui -p quoin-macros-core --features floem,floem-shadcn,xilem` | 157/157 ✅ |
+| Style vocabulary | `cargo nextest run -p quoin-style` | 21/21 ✅ (incl. the border-token family) |
+| **Floem shadcn branch** | `cargo nextest run -p quoin-floem --features shadcn` | **48/48 ✅ — real expansions against the sibling v0.2.0** |
+| **Floem generic branch** | `cargo nextest run -p quoin-floem` | **48/48 ✅ — same expansion source against the generic lowerings** |
+| Dioxus shadcn | `cargo nextest run -p quoin-dioxus --features shadcn` | 32/32 ✅ |
+| Xilem | `cargo nextest run -p quoin-xilem` | 39/39 ✅ |
+| Testkit/devtools/conformance/macros-tests | `cargo nextest run -p quoin-testkit -p quoin-devtools -p quoin-conformance -p quoin-macros-tests` | 56/56 ✅ |
+| trybuild (dioxus suite incl. refreshed snapshot) | `cargo test -p quoin-macros-tests --features dioxus` | ✅ all fixtures |
+| Facade flag | `cargo check -p quoin --features floem,floem-shadcn` | ✅ |
+| GPUI adapter | `cargo check -p quoin-gpui` | ✅ |
+| Canonical shims expansion (gpui-component 0.8.1) | `cargo nextest run -p quoin-macros-tests --features gpui` | ✅ `shadcn_shims_expansion_gpui` + `button_variant_expansion_gpui` |
+| Leptos 28-feature shadcn | `cargo check -p quoin-leptos --features shadcn --target wasm32-unknown-unknown` | ✅ |
+| navi against new quoin | `cargo check -p example-app` + `cargo nextest run -p navi-core -p navi-router -p navi-router-core` | ✅ 155/155 |
+| navi example-app live | headless Xvfb + lavapipe run | ✅ "Route tree validation complete", 14-step tour captured |
+
+**Known environment limits (unchanged from Phase 1, documented honestly):** the gpui
+trybuild suite needs a second full gpui scratch workspace (~2.7 GB) which does not fit
+this 10 GB sandbox alongside the five framework stacks; equivalent coverage stands via
+the dioxus trybuild suite (shared fail-fixtures + refreshed snapshot) and the two gpui
+expansion integration tests. Upstream CI runs the gpui suite unchanged.
+
+### 11.3 Follow-ups (Phase 3)
+
+1. Dioxus real lowerings for the Tier-2 family (`shadcn_dioxus::accordion` module exists upstream; quoin currently lowers generic) + per-component source-of-truth decisions.
+2. Leptos real lowerings for the Tier-1/Tier-2 surface (the 28 shadcn features are available; emitters still lower generic, matching the Phase-1 staging).
+3. gpui disclosure shim for the accordion family (needs an overlay/state seam decision; generic fallback today).
+4. Tier-3 (dialog/popover/command/table) once overlay seams exist on the GPU backends.
+5. Publish floem-shadcn 0.2.0 upstream (the manifest fix + `accordion_rich`), then switch `quoin-floem` to the git dep and drop the sibling layout requirement.
