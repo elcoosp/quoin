@@ -34,6 +34,11 @@ leptos = []
 # When enabled, emitters produce shadcn component calls instead of plain HTML.
 leptos-shadcn = []
 dioxus-shadcn = []
+# The Floem emitter lowers Tier-1 elements to `floem-shadcn` components
+# (third_party/floem-shadcn) instead of the generic primitives. Pure
+# emitter-level cfg: the generated code resolves `::floem_shadcn::…` in the
+# consumer crate (quoin-floem enables the dep via its own `shadcn` feature).
+floem-shadcn = []
 # Phase 1 of the gpui-rsx migration (docs/gpui-rsx-classes.md): route unknown
 # Tailwind classes on the GPUI backend through gpui-rsx's class engine, unlock
 # the extended vocabulary, state variants, and dynamic `class:` values.
