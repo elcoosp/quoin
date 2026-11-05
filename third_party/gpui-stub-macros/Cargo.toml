@@ -1,0 +1,12 @@
+# Vendored from https://github.com/wsafight/gpui-rsx v0.10.2
+# (`crates/gpui-stub-macros`, MIT license, unmodified). See
+# `../gpui-stub/Cargo.toml` for the provenance notes.
+
+[package]
+name = "gpui-rsx-gpui-stub-macros"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[lib]
+proc-macro = true
