@@ -116,6 +116,7 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
     };
 
     quote! {
+        #[allow(non_snake_case)]
         #vis fn #name() -> impl ::floem::view::IntoView {
             use quoin::ReactiveContext;
             use quoin::Signal;
