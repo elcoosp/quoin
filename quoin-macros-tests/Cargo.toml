@@ -29,6 +29,9 @@ quoin-dioxus = { path = "../quoin-dioxus", optional = true }
 [features]
 default = []
 gpui = ["dep:gpui", "dep:quoin-gpui", "dep:quoin-ui-gpui", "dep:gpui-component", "quoin-macros/gpui", "quoin/gpui"]
+# Engine flag: run with `cargo test -p quoin-macros-tests --features gpui,gpui-rsx-classes`
+# to compile the UI/expansion tests through the gpui-rsx-classes engine.
+gpui-rsx-classes = ["quoin-macros/gpui-rsx-classes", "quoin/gpui-rsx-classes"]
 leptos = ["dep:leptos", "dep:quoin-leptos", "quoin-macros/leptos", "quoin/leptos"]
 dioxus = [
     "dep:dioxus",
