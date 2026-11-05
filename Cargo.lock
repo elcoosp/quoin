@@ -2738,12 +2738,12 @@ dependencies = [
  "dispatch2",
  "dpi 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "educe",
- "floem-editor-core",
+ "floem-editor-core 0.2.0 (git+https://github.com/lapce/floem?branch=main)",
  "floem-winit",
- "floem_reactive",
- "floem_renderer",
- "floem_tiny_skia_renderer",
- "floem_vger_renderer",
+ "floem_reactive 0.2.0 (git+https://github.com/lapce/floem?branch=main)",
+ "floem_renderer 0.2.0 (git+https://github.com/lapce/floem?branch=main)",
+ "floem_tiny_skia_renderer 0.2.0 (git+https://github.com/lapce/floem?branch=main)",
+ "floem_vger_renderer 0.2.0 (git+https://github.com/lapce/floem?branch=main)",
  "futures",
  "image",
  "imbl",
@@ -2769,7 +2769,61 @@ dependencies = [
  "strum_macros",
  "taffy 0.9.2",
  "ui-events",
- "ui-events-floem-winit",
+ "ui-events-floem-winit 0.2.0 (git+https://github.com/lapce/floem?branch=main)",
+ "understory_box_tree",
+ "understory_event_state",
+ "understory_focus",
+ "understory_index",
+ "understory_virtual_list 0.1.0",
+ "unicode-segmentation",
+ "wasm-bindgen-futures",
+ "web-time",
+ "wgpu 27.0.1",
+]
+
+[[package]]
+name = "floem"
+version = "0.2.0"
+source = "git+https://github.com/lapce/floem#1351ffb162faeb8be983f1301d718a0d5fb59c27"
+dependencies = [
+ "bitflags 2.13.2",
+ "clipboard-win",
+ "copypasta",
+ "dispatch2",
+ "dpi 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "educe",
+ "floem-editor-core 0.2.0 (git+https://github.com/lapce/floem)",
+ "floem-winit",
+ "floem_reactive 0.2.0 (git+https://github.com/lapce/floem)",
+ "floem_renderer 0.2.0 (git+https://github.com/lapce/floem)",
+ "floem_tiny_skia_renderer 0.2.0 (git+https://github.com/lapce/floem)",
+ "floem_vger_renderer 0.2.0 (git+https://github.com/lapce/floem)",
+ "futures",
+ "image",
+ "imbl",
+ "indexmap",
+ "lapce-xi-rope",
+ "muda",
+ "objc2 0.6.5",
+ "objc2-app-kit 0.3.2",
+ "objc2-foundation 0.3.2",
+ "parking_lot",
+ "parley 0.7.0",
+ "paste",
+ "peniko",
+ "raw-window-handle",
+ "rfd",
+ "rustc-hash 2.1.3",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "slotmap",
+ "smallvec",
+ "strum",
+ "strum_macros",
+ "taffy 0.9.2",
+ "ui-events",
+ "ui-events-floem-winit 0.2.0 (git+https://github.com/lapce/floem)",
  "understory_box_tree",
  "understory_event_state",
  "understory_focus",
@@ -2793,6 +2847,50 @@ dependencies = [
  "serde",
  "strum",
  "strum_macros",
+ "ui-events",
+]
+
+[[package]]
+name = "floem-editor-core"
+version = "0.2.0"
+source = "git+https://github.com/lapce/floem#1351ffb162faeb8be983f1301d718a0d5fb59c27"
+dependencies = [
+ "bitflags 2.13.2",
+ "itertools 0.14.0",
+ "lapce-xi-rope",
+ "memchr",
+ "serde",
+ "strum",
+ "strum_macros",
+ "ui-events",
+]
+
+[[package]]
+name = "floem-shadcn"
+version = "0.1.0"
+dependencies = [
+ "floem 0.2.0 (git+https://github.com/lapce/floem)",
+ "floem-tailwind",
+ "floem-test",
+ "num-traits",
+ "serial_test",
+]
+
+[[package]]
+name = "floem-tailwind"
+version = "0.1.0"
+source = "git+https://github.com/elcoosp/floem-tailwind#7329b302ad67306a5c5d21c63f55d332b0b44ede"
+dependencies = [
+ "floem 0.2.0 (git+https://github.com/lapce/floem)",
+ "smallvec",
+]
+
+[[package]]
+name = "floem-test"
+version = "0.2.0"
+source = "git+https://github.com/lapce/floem#1351ffb162faeb8be983f1301d718a0d5fb59c27"
+dependencies = [
+ "floem 0.2.0 (git+https://github.com/lapce/floem)",
  "ui-events",
 ]
 
@@ -3035,9 +3133,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "floem_reactive"
+version = "0.2.0"
+source = "git+https://github.com/lapce/floem#1351ffb162faeb8be983f1301d718a0d5fb59c27"
+dependencies = [
+ "parking_lot",
+ "smallvec",
+]
+
+[[package]]
 name = "floem_renderer"
 version = "0.2.0"
 source = "git+https://github.com/lapce/floem?branch=main#1351ffb162faeb8be983f1301d718a0d5fb59c27"
+dependencies = [
+ "floem-winit",
+ "fontique 0.7.0",
+ "futures",
+ "parking_lot",
+ "parley 0.7.0",
+ "peniko",
+ "resvg 0.46.0",
+ "wasm-bindgen-futures",
+ "wgpu 27.0.1",
+]
+
+[[package]]
+name = "floem_renderer"
+version = "0.2.0"
+source = "git+https://github.com/lapce/floem#1351ffb162faeb8be983f1301d718a0d5fb59c27"
 dependencies = [
  "floem-winit",
  "fontique 0.7.0",
@@ -3056,7 +3179,23 @@ version = "0.2.0"
 source = "git+https://github.com/lapce/floem?branch=main#1351ffb162faeb8be983f1301d718a0d5fb59c27"
 dependencies = [
  "anyhow",
- "floem_renderer",
+ "floem_renderer 0.2.0 (git+https://github.com/lapce/floem?branch=main)",
+ "parley 0.7.0",
+ "peniko",
+ "raw-window-handle",
+ "resvg 0.46.0",
+ "rustc-hash 2.1.3",
+ "softbuffer",
+ "swash",
+]
+
+[[package]]
+name = "floem_tiny_skia_renderer"
+version = "0.2.0"
+source = "git+https://github.com/lapce/floem#1351ffb162faeb8be983f1301d718a0d5fb59c27"
+dependencies = [
+ "anyhow",
+ "floem_renderer 0.2.0 (git+https://github.com/lapce/floem)",
  "parley 0.7.0",
  "peniko",
  "raw-window-handle",
@@ -3073,7 +3212,23 @@ source = "git+https://github.com/lapce/floem?branch=main#1351ffb162faeb8be983f13
 dependencies = [
  "anyhow",
  "floem-vger",
- "floem_renderer",
+ "floem_renderer 0.2.0 (git+https://github.com/lapce/floem?branch=main)",
+ "image",
+ "parley 0.7.0",
+ "peniko",
+ "resvg 0.46.0",
+ "swash",
+ "wgpu 27.0.1",
+]
+
+[[package]]
+name = "floem_vger_renderer"
+version = "0.2.0"
+source = "git+https://github.com/lapce/floem#1351ffb162faeb8be983f1301d718a0d5fb59c27"
+dependencies = [
+ "anyhow",
+ "floem-vger",
+ "floem_renderer 0.2.0 (git+https://github.com/lapce/floem)",
  "image",
  "parley 0.7.0",
  "peniko",
@@ -5396,6 +5551,62 @@ dependencies = [
 ]
 
 [[package]]
+name = "leptos-shadcn-accordion"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-alert"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-alert-dialog"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-avatar"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-shadcn-signal-management",
+ "leptos-style",
+ "tailwind_fuse 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
 name = "leptos-shadcn-badge"
 version = "0.9.1"
 source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
@@ -5411,6 +5622,62 @@ dependencies = [
 
 [[package]]
 name = "leptos-shadcn-button"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-card"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-checkbox"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-collapsible"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-dialog"
 version = "0.9.1"
 source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
 dependencies = [
@@ -5453,7 +5720,84 @@ dependencies = [
 ]
 
 [[package]]
+name = "leptos-shadcn-kbd"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+]
+
+[[package]]
+name = "leptos-shadcn-label"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-popover"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-progress"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-radio-group"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "leptos-shadcn-scroll-area"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-separator"
 version = "0.9.1"
 source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
 dependencies = [
@@ -5480,6 +5824,56 @@ dependencies = [
 ]
 
 [[package]]
+name = "leptos-shadcn-skeleton"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-slider"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-spinner"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+]
+
+[[package]]
+name = "leptos-shadcn-switch"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "web-sys",
+]
+
+[[package]]
 name = "leptos-shadcn-table"
 version = "0.9.1"
 source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
@@ -5495,6 +5889,34 @@ dependencies = [
 
 [[package]]
 name = "leptos-shadcn-tabs"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-textarea"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-toggle"
 version = "0.9.1"
 source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
 dependencies = [
@@ -5530,13 +5952,33 @@ dependencies = [
  "gloo-timers",
  "leptos",
  "leptos-node-ref",
+ "leptos-shadcn-accordion",
+ "leptos-shadcn-alert",
+ "leptos-shadcn-alert-dialog",
+ "leptos-shadcn-avatar",
  "leptos-shadcn-badge",
  "leptos-shadcn-button",
+ "leptos-shadcn-card",
+ "leptos-shadcn-checkbox",
+ "leptos-shadcn-collapsible",
+ "leptos-shadcn-dialog",
  "leptos-shadcn-dropdown-menu",
  "leptos-shadcn-input",
+ "leptos-shadcn-kbd",
+ "leptos-shadcn-label",
+ "leptos-shadcn-popover",
+ "leptos-shadcn-progress",
+ "leptos-shadcn-radio-group",
  "leptos-shadcn-scroll-area",
+ "leptos-shadcn-separator",
+ "leptos-shadcn-skeleton",
+ "leptos-shadcn-slider",
+ "leptos-shadcn-spinner",
+ "leptos-shadcn-switch",
  "leptos-shadcn-table",
  "leptos-shadcn-tabs",
+ "leptos-shadcn-textarea",
+ "leptos-shadcn-toggle",
  "leptos-shadcn-tooltip",
  "leptos-struct-component",
  "leptos-style",
@@ -7979,8 +8421,9 @@ name = "quoin-floem"
 version = "0.1.0"
 dependencies = [
  "dhat",
- "floem",
- "floem_reactive",
+ "floem 0.2.0 (git+https://github.com/lapce/floem?branch=main)",
+ "floem-shadcn",
+ "floem_reactive 0.2.0 (git+https://github.com/lapce/floem?branch=main)",
  "futures",
  "futures-timer",
  "quoin-conformance",
@@ -9267,6 +9710,31 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "serial_test"
+version = "3.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "699f4197115b8a7e7ff19c9a315a4bd6fffec26cc4626ef45ecaea389e081c6d"
+dependencies = [
+ "futures-executor",
+ "futures-util",
+ "log",
+ "once_cell",
+ "parking_lot",
+ "serial_test_derive",
+]
+
+[[package]]
+name = "serial_test_derive"
+version = "3.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "94e153fc76e1c6a068703d6d29c508a0b15c061c4b7e43da59cc097bc342673c"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -10717,6 +11185,17 @@ dependencies = [
 name = "ui-events-floem-winit"
 version = "0.2.0"
 source = "git+https://github.com/lapce/floem?branch=main#1351ffb162faeb8be983f1301d718a0d5fb59c27"
+dependencies = [
+ "dpi 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "floem-winit",
+ "ui-events",
+ "web-time",
+]
+
+[[package]]
+name = "ui-events-floem-winit"
+version = "0.2.0"
+source = "git+https://github.com/lapce/floem#1351ffb162faeb8be983f1301d718a0d5fb59c27"
 dependencies = [
  "dpi 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "floem-winit",
