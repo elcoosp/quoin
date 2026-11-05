@@ -24,6 +24,11 @@ quoin-floem     = { path = "../quoin-floem",     optional = true }
 # Macro crate (optional)
 quoin-macros    = { path = "../quoin-macros",    optional = true }
 
+# gpui-rsx proc-macro shell (rsx!, rsx_strict!, #[component], …). Pure token
+# machinery (its core has no GPUI dependency), re-exported as the escape hatch
+# for GPUI-only subtrees — see `docs/gpui-rsx-classes.md`.
+gpui-rsx = { version = "0.10.2", optional = true }
+
 # UCP crates (optional)
 quoin-ui        = { path = "../quoin-ui",        optional = true }
 quoin-ui-gpui   = { path = "../quoin-ui-gpui",   optional = true }
@@ -35,13 +40,22 @@ quoin-devtools  = { path = "../quoin-devtools",  optional = true }
 gpui = { package = "gpui-pre", version = "=0.3.10", optional = true }
 [features]
 default = []
-gpui   = ["dep:gpui", "dep:quoin-gpui", "dep:quoin-ui-gpui", "dep:quoin-macros", "quoin-macros?/gpui"]
+gpui   = ["dep:gpui", "dep:quoin-gpui", "dep:quoin-ui-gpui", "dep:quoin-macros", "quoin-macros?/gpui", "rsx"]
 dioxus = ["dep:quoin-dioxus", "dep:quoin-macros", "quoin-macros?/dioxus"]
 leptos = ["dep:quoin-leptos", "dep:quoin-macros", "quoin-macros?/leptos"]
 xilem  = ["dep:quoin-xilem", "dep:quoin-macros", "quoin-macros?/xilem"]
 floem  = ["dep:quoin-floem", "dep:quoin-macros", "quoin-macros?/floem"]
 macros = ["dep:quoin-macros"]
 ui     = ["dep:quoin-ui"]
+# gpui-rsx escape hatch: re-exports rsx! / rsx_strict! / rsx_permissive! /
+# rsx_fragment! / rsx_expand! / #[component] for GPUI-only subtrees inside
+# quoin_render! render blocks (migration report §5, Option C). Enabled
+# automatically by the `gpui` feature; standalone for raw-macro users.
+rsx = ["dep:gpui-rsx"]
+# Phase 1 of the gpui-rsx class-engine migration (docs/gpui-rsx-classes.md):
+# forward the flag to the macro crates. Requires `macros` (or any framework
+# feature) so the macro crate is actually in the graph.
+gpui-rsx-classes = ["dep:quoin-macros", "quoin-macros?/gpui-rsx-classes"]
 # Testing & devtools re-exports
 testkit   = ["dep:quoin-testkit"]
 devtools  = ["dep:quoin-devtools"]
