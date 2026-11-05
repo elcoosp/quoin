@@ -180,6 +180,15 @@ fn emit_element_inner(el: &Element, ctx: &mut EmitterCtx, inside_for: bool) -> T
         "spinner" => widgets::emit_spinner(el, ctx, inside_for),
         "kbd" => widgets::emit_kbd(el, ctx, inside_for),
         "avatar" => widgets::emit_avatar(el, ctx, inside_for),
+        // Rich-elements Phase 2: canonical shadcn Tier-2 disclosure family.
+        // `accordion` scans its `accordion_item` children (which own their
+        // `accordion_trigger`/`accordion_content` parts); the parts falling
+        // through the dispatcher standalone lower as generic containers,
+        // matching the stray-`tab` behavior.
+        "accordion" => widgets::emit_accordion(el, ctx, inside_for),
+        "accordion_item" | "accordion_trigger" | "accordion_content" => {
+            generic::emit_container(el, ctx, inside_for)
+        }
         "img" | "svg" => widgets::unsupported_element(
             &name_str,
             "images/svg are not on the v1 Floem parity path",
