@@ -14,6 +14,7 @@ mod dropdown_menu;
 mod generic;
 mod handler;
 mod input;
+mod shadcn;
 mod tabs;
 mod virtual_list;
 
@@ -131,6 +132,9 @@ fn emit_element_inner(el: &Element) -> TokenStream {
         "clipboard_button" => clipboard_button::emit_clipboard_button(el),
         "icon" => generic::emit_icon(el),
         "styled_text" => generic::emit_styled_text(el),
+        // Rich-elements Phase 2: the canonical shadcn surface lowers as
+        // styled shims until gpui-component ships the components (#2311).
+        _ if shadcn::is_shim_element(&name_str) => shadcn::emit_shim_element(el),
         _ => generic::emit_generic_element(el),
     }
 }
