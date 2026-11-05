@@ -1,0 +1,112 @@
+=== 1. quoin token classes -> baked GPUI hex ===
+  bg-primary                   -> Primary (surface) 0x6366f1ff
+  text-primary                 -> Primary (text) 0x6366f1ff
+  bg-secondary                 -> Secondary (surface) 0x1e293bff
+  text-secondary               -> Secondary (text) 0x94a3b8ff
+  bg-background                -> Background (surface) 0xf172aff
+  text-background              -> Background (text) 0xfafafaff
+  bg-foreground                -> Foreground (surface) 0xfafafaff
+  text-foreground              -> Foreground (text) 0xfafafaff
+  bg-muted                     -> Muted (surface) 0x1e293bff
+  text-muted                   -> Muted (text) 0x94a3b8ff
+  bg-muted-foreground          -> MutedForeground (surface) 0x1e293bff
+  text-muted-foreground        -> MutedForeground (text) 0x94a3b8ff
+  bg-accent                    -> Accent (surface) 0x6366f1ff
+  text-accent                  -> Accent (text) 0x6366f1ff
+  bg-info                      -> Info (surface) 0x1e3a5fff
+  text-info                    -> Info (text) 0x3b82f6ff
+  bg-warning                   -> Warning (surface) 0x422006ff
+  text-warning                 -> Warning (text) 0xeab308ff
+  bg-danger                    -> Danger (surface) 0x450a0aff
+  text-danger                  -> Danger (text) 0xef4444ff
+  bg-destructive               -> Danger (surface) 0x450a0aff
+  text-destructive             -> Danger (text) 0xef4444ff
+  bg-success                   -> Success (surface) 0x14532dff
+  text-success                 -> Success (text) 0x22c55eff
+  bg-border                    -> Border (surface) 0x1e293bff
+  text-border                  -> Border (text) 0xe2e8f0ff
+  bg-input                     -> Input (surface) 0x1e293bff
+  text-input                   -> Input (text) 0x1e293bff
+  bg-ring                      -> Ring (surface) 0x6366f1ff
+  text-ring                    -> Ring (text) 0x1e293bff
+  bg-card                      -> Card (surface) 0x1e293bff
+  text-card                    -> Card (text) 0x1e293bff
+  bg-popover                   -> Card (surface) 0x1e293bff
+  text-popover                 -> Card (text) 0x1e293bff
+
+=== 2. Static parity: same hexes in a gpui-rsx Theme ===
+  bg-primary                   -> grsx `bg-primary                ` SAME HEX [OK] SUPPORTED . bg (rgb (6514417u32))
+  text-primary                 -> grsx `text-primary              ` SAME HEX [OK] SUPPORTED . text_color (rgb (6514417u32))
+  bg-secondary                 -> grsx `bg-secondary              ` SAME HEX [OK] SUPPORTED . bg (rgb (1976635u32))
+  text-secondary               -> grsx `text-secondary-fg         ` SAME HEX [OK] SUPPORTED . text_color (rgb (9741240u32))
+  bg-background                -> grsx `bg-background             ` SAME HEX [OK] SUPPORTED . bg (rgb (988970u32))
+  text-background              -> grsx `text-background-fg        ` SAME HEX [OK] SUPPORTED . text_color (rgb (16448250u32))
+  bg-foreground                -> grsx `bg-foreground             ` SAME HEX [OK] SUPPORTED . bg (rgb (16448250u32))
+  text-foreground              -> grsx `text-foreground           ` SAME HEX [OK] SUPPORTED . text_color (rgb (16448250u32))
+  bg-muted                     -> grsx `bg-muted                  ` SAME HEX [OK] SUPPORTED . bg (rgb (1976635u32))
+  text-muted                   -> grsx `text-muted-fg             ` SAME HEX [OK] SUPPORTED . text_color (rgb (9741240u32))
+  bg-muted-foreground          -> grsx `bg-muted-foreground       ` SAME HEX [OK] SUPPORTED . bg (rgb (1976635u32))
+  text-muted-foreground        -> grsx `text-muted-foreground-fg  ` SAME HEX [OK] SUPPORTED . text_color (rgb (9741240u32))
+  bg-accent                    -> grsx `bg-accent                 ` SAME HEX [OK] SUPPORTED . bg (rgb (6514417u32))
+  text-accent                  -> grsx `text-accent               ` SAME HEX [OK] SUPPORTED . text_color (rgb (6514417u32))
+  bg-info                      -> grsx `bg-info                   ` SAME HEX [OK] SUPPORTED . bg (rgb (1981023u32))
+  text-info                    -> grsx `text-info-fg              ` SAME HEX [OK] SUPPORTED . text_color (rgb (3900150u32))
+  bg-warning                   -> grsx `bg-warning                ` SAME HEX [OK] SUPPORTED . bg (rgb (4333574u32))
+  text-warning                 -> grsx `text-warning-fg           ` SAME HEX [OK] SUPPORTED . text_color (rgb (15381256u32))
+  bg-danger                    -> grsx `bg-danger                 ` SAME HEX [OK] SUPPORTED . bg (rgb (4524554u32))
+  text-danger                  -> grsx `text-danger-fg            ` SAME HEX [OK] SUPPORTED . text_color (rgb (15680580u32))
+  bg-destructive               -> grsx `bg-destructive            ` SAME HEX [OK] SUPPORTED . bg (rgb (4524554u32))
+  text-destructive             -> grsx `text-destructive-fg       ` SAME HEX [OK] SUPPORTED . text_color (rgb (15680580u32))
+  bg-success                   -> grsx `bg-success                ` SAME HEX [OK] SUPPORTED . bg (rgb (1332013u32))
+  text-success                 -> grsx `text-success-fg           ` SAME HEX [OK] SUPPORTED . text_color (rgb (2278750u32))
+  bg-border                    -> grsx `bg-border                 ` SAME HEX [OK] SUPPORTED . bg (rgb (1976635u32))
+  text-border                  -> grsx `text-border-fg            ` SAME HEX [OK] SUPPORTED . text_color (rgb (14870768u32))
+  bg-input                     -> grsx `bg-input                  ` SAME HEX [OK] SUPPORTED . bg (rgb (1976635u32))
+  text-input                   -> grsx `text-input                ` SAME HEX [OK] SUPPORTED . text_color (rgb (1976635u32))
+  bg-ring                      -> grsx `bg-ring                   ` SAME HEX [OK] SUPPORTED . bg (rgb (6514417u32))
+  text-ring                    -> grsx `text-ring-fg              ` SAME HEX [OK] SUPPORTED . text_color (rgb (1976635u32))
+  bg-card                      -> grsx `bg-card                   ` SAME HEX [OK] SUPPORTED . bg (rgb (1976635u32))
+  text-card                    -> grsx `text-card                 ` SAME HEX [OK] SUPPORTED . text_color (rgb (1976635u32))
+  bg-popover                   -> grsx `bg-popover                ` SAME HEX [OK] SUPPORTED . bg (rgb (1976635u32))
+  text-popover                 -> grsx `text-popover              ` SAME HEX [OK] SUPPORTED . text_color (rgb (1976635u32))
+  mismatches: 0
+
+=== 3. Live preset: token classes -> cx.theme().colors.<field> ===
+  bg-primary                   -> . bg (cx . theme () . colors . primary)  (field: primary)
+  bg-secondary                 -> . bg (cx . theme () . colors . secondary)  (field: secondary)
+  bg-background                -> . bg (cx . theme () . colors . background)  (field: background)
+  bg-foreground                -> . bg (cx . theme () . colors . foreground)  (field: foreground)
+  bg-muted                     -> . bg (cx . theme () . colors . muted)  (field: muted)
+  bg-muted-foreground          -> . bg (cx . theme () . colors . muted_foreground)  (field: muted_foreground)
+  bg-accent                    -> . bg (cx . theme () . colors . accent)  (field: accent)
+  bg-info                      -> . bg (cx . theme () . colors . info)  (field: info)
+  bg-warning                   -> . bg (cx . theme () . colors . warning)  (field: warning)
+  bg-danger                    -> . bg (cx . theme () . colors . danger)  (field: danger)
+  bg-destructive               -> . bg (cx . theme () . colors . danger)  (field: danger)
+  bg-success                   -> . bg (cx . theme () . colors . success)  (field: success)
+  bg-border                    -> . bg (cx . theme () . colors . border)  (field: border)
+  bg-input                     -> . bg (cx . theme () . colors . input)  (field: input)
+  bg-ring                      -> . bg (cx . theme () . colors . ring)  (field: ring)
+  bg-card                      -> (no preset field; declare `[colors.card]` in rsx.toml)
+  bg-popover                   -> . bg (cx . theme () . colors . popover)  (field: popover)
+
+=== 4. Theme-driven class inventory (completion surface) ===
+  quoin token classes: 34
+  covered by parity theme: 34
+
+=== 5. Which tokens have asymmetric roles? ===
+  "primary" surface 0x6366f1 text 0x6366f1 (same)
+  "secondary" surface 0x1e293b text 0x94a3b8 (DIFFER -> preset *-foreground vocabulary)
+  "background" surface 0xf172a text 0xfafafa (DIFFER -> preset *-foreground vocabulary)
+  "foreground" surface 0xfafafa text 0xfafafa (same)
+  "muted" surface 0x1e293b text 0x94a3b8 (DIFFER -> preset *-foreground vocabulary)
+  "muted_foreground" surface 0x1e293b text 0x94a3b8 (DIFFER -> preset *-foreground vocabulary)
+  "accent" surface 0x6366f1 text 0x6366f1 (same)
+  "info" surface 0x1e3a5f text 0x3b82f6 (DIFFER -> preset *-foreground vocabulary)
+  "success" surface 0x14532d text 0x22c55e (DIFFER -> preset *-foreground vocabulary)
+  "warning" surface 0x422006 text 0xeab308 (DIFFER -> preset *-foreground vocabulary)
+  "danger" surface 0x450a0a text 0xef4444 (DIFFER -> preset *-foreground vocabulary)
+  "border" surface 0x1e293b text 0xe2e8f0 (DIFFER -> preset *-foreground vocabulary)
+  "input" surface 0x1e293b text 0x1e293b (same)
+  "ring" surface 0x6366f1 text 0x1e293b (DIFFER -> preset *-foreground vocabulary)
+  "card" surface 0x1e293b text 0x1e293b (same)
