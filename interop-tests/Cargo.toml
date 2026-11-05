@@ -1,0 +1,29 @@
+[package]
+name = "quoin-interop-tests"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Phase-0 parity harness between quoin-style and gpui-rsx-core (migration report §8)"
+
+[dependencies]
+quoin-style = { path = "../quoin-style" }
+gpui-rsx-core = "0.10.2"
+
+[[bin]]
+name = "class_engine_probe"
+path = "src/bin/class_engine_probe.rs"
+
+[[bin]]
+name = "theme_parity_probe"
+path = "src/bin/theme_parity.rs"
+
+[[test]]
+name = "theme_parity"
+path = "tests/theme_parity.rs"
+
+[[test]]
+name = "class_corpus"
+path = "tests/class_corpus.rs"
+
+[lints]
+workspace = true
