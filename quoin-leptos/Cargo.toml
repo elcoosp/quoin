@@ -14,7 +14,36 @@ futures = { version = "0.3", features = ["executor"] }
 leptos = { version = "0.9.0-rc1" }
 send_wrapper = "0.6"
 web-sys = { version = "0.3", features = ["Window", "Navigator", "Clipboard"] }
-leptos-shadcn-ui = { git = "https://github.com/harana-oss/leptos-shadcn-ui", rev = "b16956f25868b369100178e06f6c5b0afd7eb2be", default-features = false, features = ["button", "input", "tabs", "badge", "table", "tooltip", "scroll-area", "dropdown-menu"], optional = true }
+leptos-shadcn-ui = { git = "https://github.com/harana-oss/leptos-shadcn-ui", rev = "b16956f25868b369100178e06f6c5b0afd7eb2be", default-features = false, features = [
+            "button",
+            "input",
+            "label",
+            "textarea",
+            "tabs",
+            "badge",
+            "table",
+            "tooltip",
+            "scroll-area",
+            "dropdown-menu",
+            "card",
+            "alert",
+            "alert-dialog",
+            "accordion",
+            "dialog",
+            "popover",
+            "collapsible",
+            "separator",
+            "checkbox",
+            "switch",
+            "radio-group",
+            "slider",
+            "progress",
+            "skeleton",
+            "toggle",
+            "spinner",
+            "kbd",
+            "avatar",
+        ], optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen-futures = "0.4"
