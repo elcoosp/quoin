@@ -167,6 +167,19 @@ fn emit_element_inner(el: &Element, ctx: &mut EmitterCtx, inside_for: bool) -> T
             &name_str,
             "radio inputs land with the M5 widget push; use `checkbox` meanwhile",
         ),
+        // Rich-elements Phase 1: canonical shadcn Tier-1 surface. Each
+        // emitter switches between the `floem-shadcn` component and the
+        // generic container fallback; `alert_title`/`alert_description`/
+        // `avatar_fallback` stay generic surface elements on Floem (their
+        // parents carry the copy as args).
+        "card" => widgets::emit_card(el, ctx, inside_for),
+        "card_header" => widgets::emit_card_header(el, ctx, inside_for),
+        "card_title" | "card_description" | "card_content" | "card_footer"
+        | "card_action" => widgets::emit_card_part(el, ctx, inside_for),
+        "alert" => widgets::emit_alert(el, ctx, inside_for),
+        "spinner" => widgets::emit_spinner(el, ctx, inside_for),
+        "kbd" => widgets::emit_kbd(el, ctx, inside_for),
+        "avatar" => widgets::emit_avatar(el, ctx, inside_for),
         "img" | "svg" => widgets::unsupported_element(
             &name_str,
             "images/svg are not on the v1 Floem parity path",
