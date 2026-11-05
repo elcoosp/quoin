@@ -80,8 +80,9 @@ dioxus-shadcn = [
     "quoin-dioxus?/shadcn",
     "quoin-macros?/dioxus-shadcn",
 ]
-# Floem shadcn backing — third_party/floem-shadcn, the same "one flag" pattern:
-# adapter gets the component dep, the macro emitter switches lowering.
+# Floem shadcn backing — standalone sibling checkout (../floem-shadcn, v0.2.0),
+# the same "one flag" pattern: adapter gets the component dep, the macro
+# emitter switches lowering.
 floem-shadcn = [
     "floem",
     "quoin-floem?/shadcn",
