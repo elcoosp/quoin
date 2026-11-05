@@ -74,6 +74,10 @@ const KNOWN_ARGS: &[&str] = &[
     "fallback",
     "small",
     "xsmall",
+    // Rich-elements Phase 2 (canonical shadcn Tier-2): the accordion
+    // disclosure family. `value` is already listed above (input/slider).
+    "expanded",
+    "on_toggle",
 ];
 
 const KNOWN_ELEMENTS: &[&str] = &[
@@ -137,6 +141,11 @@ const KNOWN_ELEMENTS: &[&str] = &[
     "kbd",
     "avatar",
     "avatar_fallback",
+    // Rich-elements Phase 2 — keep in sync with `render_ast::KNOWN_ELEMENTS`
+    "accordion",
+    "accordion_item",
+    "accordion_trigger",
+    "accordion_content",
 ];
 
 #[must_use]
