@@ -356,6 +356,12 @@ const KNOWN_ELEMENTS: &[&str] = &[
     "kbd",
     "avatar",
     "avatar_fallback",
+    // Rich-elements Phase 2 (canonical shadcn Tier-2 — disclosure family
+    // plus the canonical tabs/tooltip upgrades; see `emit::shadcn_spec`).
+    "accordion",
+    "accordion_item",
+    "accordion_trigger",
+    "accordion_content",
 ];
 
 /// The accepted element names, exposed for contract tests
