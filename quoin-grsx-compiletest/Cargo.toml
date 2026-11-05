@@ -1,0 +1,16 @@
+[package]
+name = "quoin-grsx-compiletest"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Compiles gpui-rsx-classes engine expansions against the vendored GPUI stub"
+
+[dependencies]
+# The macro crates with the new engine enabled. No real GPUI: emitted chains
+# are type-checked against the vendored gpui-stub, whose builder surface is
+# generated from the same gpui-pre@0.3.10 snapshot quoin pins.
+quoin-macros = { path = "../quoin-macros", features = ["gpui", "gpui-rsx-classes"] }
+gpui = { package = "gpui-rsx-gpui-stub", path = "../third_party/gpui-stub" }
+
+[lints]
+workspace = true
