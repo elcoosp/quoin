@@ -14,13 +14,24 @@ fn next_scroll_site() -> usize {
 
 pub(crate) fn emit_generic_element(el: &Element) -> TokenStream {
     let name_str = el.name.to_string();
-    let mut chain = match name_str.as_str() {
+    let chain = match name_str.as_str() {
         "h1" => quote! { ::gpui::div().text_xl().font_weight(::gpui::FontWeight::BOLD) },
         "h2" => quote! { ::gpui::div().text_lg().font_weight(::gpui::FontWeight::BOLD) },
         // `div`, `p`, `text`, and unknown tags all map to a plain div.
         _ => quote! { ::gpui::div() },
     };
 
+    finish_with_class_children_handlers(el, chain)
+}
+
+/// Shared GPUI element finishing pass: user `class:` styles, children, and
+/// the mouse handlers. Both the generic lowering and the rich-elements
+/// shadcn shims (`render_gpui::shadcn`) route through this so a `card` and
+/// a plain `div` handle `class:`/children/`on_click:` identically.
+pub(crate) fn finish_with_class_children_handlers(
+    el: &Element,
+    mut chain: TokenStream,
+) -> TokenStream {
     if let Some(class_expr) = find_arg_expr(el, "class")
         && let Some(styles) = try_transpile_class(class_expr)
     {
