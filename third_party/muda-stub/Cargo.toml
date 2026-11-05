@@ -1,0 +1,29 @@
+# Minimal `muda` stand-in for Linux sandboxes / fresh clones.
+#
+# The workspace `[patch.crates-io]` in the root Cargo.toml patches `muda`
+# against this directory so that quoin builds without GTK 3 development
+# files (muda's `gtk` feature pulls them in on Linux). Upstream keeps the
+# full stub untracked in the maintainer's local checkout; this committed
+# version is a *resolution* stub: it satisfies the patch so `cargo` can
+# resolve the workspace, and its API surface is intentionally empty.
+#
+# Consequences: crates that actually call muda's menu API (the Floem
+# adapter's native menus) will not compile against this stub. Restore the
+# maintainer's full API-compatible stub to build `quoin-floem` on Linux;
+# native menus remain unsupported on Linux in this configuration, matching
+# the note in the root Cargo.toml.
+[package]
+name = "muda"
+version = "0.17.1"
+edition = "2021"
+license = "MIT"
+description = "Minimal resolution stub replacing muda when GTK is unavailable"
+
+[lib]
+path = "src/lib.rs"
+
+# Floem depends on muda with `gtk` on Linux; the stub declares the feature
+# (empty) so dependency resolution succeeds without GTK development files.
+[features]
+default = []
+gtk = []
