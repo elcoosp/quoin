@@ -1,0 +1,27 @@
+# Vendored from https://github.com/wsafight/gpui-rsx v0.10.2
+# (`crates/gpui-stub` + `crates/gpui-stub-macros`, MIT license, unmodified).
+#
+# Purpose: `quoin-grsx-compiletest` compiles `quoin_render!` expansions for the
+# GPUI backend against this stand-in instead of the real `gpui-pre 0.3.10`:
+# the stub's builder surface (`generated.rs`) is produced by gpui-rsx's
+# `cargo xtask gen-tables` from the *same* GPUI snapshot quoin pins, so
+# "does the emitted chain type-check" is verified here in seconds, without
+# the multi-minute gpui-pre build.
+#
+# It is a dev-only helper: nothing in quoin's runtime depends on it. Methods
+# are no-ops returning `self`; rendering behavior is NOT covered — that is
+# what the real-GPUI crates (`quoin-macros-tests --features gpui`,
+# `quoin-conformance --features gpui`) and the example apps are for.
+
+[package]
+name = "gpui-rsx-gpui-stub"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "Minimal GPUI stand-in so quoin's gpui-rsx-classes expansion tests compile without the real GPUI"
+
+[lib]
+name = "gpui"
+
+[dependencies]
+gpui-rsx-gpui-stub-macros = { path = "../gpui-stub-macros" }
