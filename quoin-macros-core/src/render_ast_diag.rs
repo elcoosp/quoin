@@ -65,6 +65,15 @@ const KNOWN_ARGS: &[&str] = &[
     "max",
     "indeterminate",
     "on_checked_change",
+    // Rich-elements Phase 0 (canonical shadcn Tier-1 — see
+    // `emit::shadcn_spec`): the canonical `variant:`/`size:` grammar plus
+    // the avatar/card surface args. `small`/`xsmall` legalise the boolean
+    // button-size sugar the GPUI emitter has always documented.
+    "variant",
+    "description",
+    "fallback",
+    "small",
+    "xsmall",
 ];
 
 const KNOWN_ELEMENTS: &[&str] = &[
@@ -112,6 +121,22 @@ const KNOWN_ELEMENTS: &[&str] = &[
     "slider",
     "tooltip",
     "item",
+    // Rich-elements Phase 0 — keep in sync with `render_ast::KNOWN_ELEMENTS`
+    // (the suggestion engine must know the Tier-1 surface too).
+    "card",
+    "card_header",
+    "card_title",
+    "card_description",
+    "card_content",
+    "card_footer",
+    "card_action",
+    "alert",
+    "alert_title",
+    "alert_description",
+    "spinner",
+    "kbd",
+    "avatar",
+    "avatar_fallback",
 ];
 
 #[must_use]
