@@ -25,6 +25,7 @@ members = [
     "quoin-grsx-compiletest",
     "third_party/gpui-stub",
     "third_party/gpui-stub-macros",
+    "third_party/floem-shadcn",
 ]
 exclude = [
     "examples/counter-dioxus",
