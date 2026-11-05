@@ -120,9 +120,14 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
                     #(#global_inits,)*
                 };
                 // The handles are in scope for `on_mount`, like on the
-                // other backends.
-                #(#on_mount_locals)*
-                #(#on_mount_tokens)*
+                // other backends. The block carries `allow(unused_variables)`:
+                // every state field gets a handle whether or not this
+                // component's `on_mount` reads it.
+                #[allow(unused_variables)]
+                {
+                    #(#on_mount_locals)*
+                    #(#on_mount_tokens)*
+                }
                 state
             }
 
