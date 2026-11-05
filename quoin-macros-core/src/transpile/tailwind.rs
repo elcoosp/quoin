@@ -41,6 +41,45 @@ pub struct TranspiledStyles {
     /// `StatefulInteractiveElement` methods in current GPUI, so the div must
     /// be made stateful (`.id(..)`) before the chain applies.
     pub scroll: bool,
+    /// Non-scroll classes that still require a stateful element (`.id(..)`):
+    /// the `focus:`/`active:`/`group-*:` variants resolved by the
+    /// gpui-rsx-classes engine are `StatefulInteractiveElement` methods too.
+    /// Always `false` on the default engine (it has no such variants).
+    pub stateful: bool,
+    /// The `class:` expression when it is not a string literal (dynamic
+    /// classes). Only set by the `gpui-rsx-classes` engine; the default
+    /// engine leaves dynamic classes untouched (its historical behavior).
+    pub dynamic: Option<TokenStream>,
+    /// Rebuild-tracking statements (`include_bytes!` of `rsx.toml`) so that
+    /// editing the theme file recompiles the invoking crate. Only set by the
+    /// `gpui-rsx-classes` engine when an `rsx.toml` is present.
+    pub rebuild: Option<TokenStream>,
+}
+
+impl TranspiledStyles {
+    /// Whether the element carrying these styles must be made stateful
+    /// (`.id(..)`) before style methods apply.
+    #[must_use]
+    pub fn needs_stateful(&self) -> bool {
+        self.scroll || self.stateful
+    }
+
+    /// Styles for a dynamic (non-literal) `class:` expression. Under the
+    /// `gpui-rsx-classes` engine the expression is resolved at render time
+    /// through the inline `rsx_runtime` module emitted at the render root;
+    /// static vocabulary applies, unknown classes panic in strict mode.
+    #[must_use]
+    pub fn dynamic_class(expr: &syn::Expr) -> Self {
+        Self {
+            normal: Vec::new(),
+            hover: Vec::new(),
+            errors: Vec::new(),
+            scroll: false,
+            stateful: false,
+            dynamic: Some(expr.to_token_stream()),
+            rebuild: None,
+        }
+    }
 }
 
 /// Appends the normal (non-hover) styles to an element chain.
@@ -54,17 +93,53 @@ pub fn apply_normal(chain: TokenStream, styles: &TranspiledStyles) -> TokenStrea
     for style in &styles.normal {
         out = quote! { #out #style };
     }
-    wrap_errors(out, styles)
+    let out = wrap_errors(out, styles);
+    finish(out, styles)
 }
 
 /// Wraps a chain in unknown-class `compile_error!` statements, if any.
 #[must_use]
 pub fn wrap_errors(chain: TokenStream, styles: &TranspiledStyles) -> TokenStream {
-    if styles.errors.is_empty() {
+    if styles.errors.is_empty() && styles.rebuild.is_none() {
         chain
     } else {
         let errors = &styles.errors;
-        quote! { { #(#errors)* #chain } }
+        let rebuild = styles.rebuild.iter();
+        quote! { { #(#rebuild)* #(#errors)* #chain } }
+    }
+}
+
+/// Applies the dynamic-class refinement when the styles carry one, otherwise
+/// returns the chain unchanged.
+///
+/// The referenced `__quoin_rsx_runtime` module is emitted once per
+/// `quoin_render!` expansion by the GPUI backend's render root (see
+/// `emit/render_gpui/mod.rs`), so this wrap is self-contained: crates only
+/// need `quoin-macros` with the `gpui-rsx-classes` feature and a `gpui`
+/// dependency.
+fn finish(chain: TokenStream, styles: &TranspiledStyles) -> TokenStream {
+    let Some(class_expr) = &styles.dynamic else {
+        return chain;
+    };
+    quote! {
+        {
+            let mut __el = #chain;
+            let __class_str = #class_expr;
+            {
+                let __style = ::gpui::Styled::style(&mut __el);
+                *__style = __quoin_rsx_runtime::tailwind(
+                    ::core::mem::take(__style),
+                    &__class_str,
+                    &mut |__class: &str| {
+                        ::core::panic!(
+                            "unknown dynamic Tailwind class `{__class}` on the GPUI backend \
+                             (gpui-rsx-classes engine, strict mode)"
+                        )
+                    },
+                );
+            }
+            __el
+        }
     }
 }
 
@@ -80,7 +155,8 @@ pub fn apply_normal_and_hover(chain: TokenStream, styles: &TranspiledStyles) -> 
         let hover_tokens = &styles.hover;
         out = quote! { #out.hover(|__s| __s #(#hover_tokens)*) };
     }
-    wrap_errors(out, styles)
+    let out = wrap_errors(out, styles);
+    finish(out, styles)
 }
 
 /// Transpiles a Tailwind `class=".."` string into GPUI modifier chains,
@@ -102,6 +178,9 @@ pub fn transpile_class(class_str: &str) -> TranspiledStyles {
         hover,
         errors,
         scroll,
+        stateful: false,
+        dynamic: None,
+        rebuild: None,
     }
 }
 
