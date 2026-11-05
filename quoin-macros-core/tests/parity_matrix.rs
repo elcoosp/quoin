@@ -12,8 +12,15 @@
 //!   have an `Unsupported` row (never a silent drop, never an undocumented
 //!   diagnostic);
 //! - `docs/BACKEND-PARITY.md` must mention every row and its status.
+//!
+//! The matrix documents the **generic** lowerings — the default contract on
+//! a no-shadcn build. The `<framework>-shadcn` features are an additive
+//! visual layer with its own expansion coverage (the `quoin-floem`
+//! conformance suite runs against the shadcn components when its `shadcn`
+//! feature is on), so the matrix steps aside when `floem-shadcn` is
+//! enabled: the two contracts legitimately differ in what they accept.
 
-#![cfg(all(feature = "floem", feature = "xilem"))]
+#![cfg(all(feature = "floem", feature = "xilem", not(feature = "floem-shadcn")))]
 use quoin_macros_core::emit::parity::{BACKEND_PARITY, Back, ElementParity, ParityLevel, row};
 use quoin_macros_core::emit::{render_floem, render_xilem};
 use quoin_macros_core::render_ast::RenderNode;
