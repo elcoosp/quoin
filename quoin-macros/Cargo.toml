@@ -27,6 +27,7 @@ floem = ["quoin-macros-core/floem"]
 xilem = ["quoin-macros-core/xilem"]
 leptos-shadcn = ["quoin-macros-core/leptos-shadcn"]
 dioxus-shadcn = ["quoin-macros-core/dioxus-shadcn"]
+floem-shadcn = ["quoin-macros-core/floem-shadcn"]
 gpui-rsx-classes = ["quoin-macros-core/gpui-rsx-classes"]
 
 [lints]
