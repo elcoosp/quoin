@@ -19,6 +19,88 @@ use quote::quote;
 use super::{handler, style};
 
 pub(crate) fn emit_input(el: &Element, ctx: &mut super::EmitterCtx) -> TokenStream {
+    #[cfg(feature = "floem-shadcn")]
+    {
+        // Fully controlled: `.value(getter)` re-reads the quoin signal and
+        // `.on_update` writes user edits back — the same two-guard round
+        // trip as the generic buffer bridge, with the shadcn chrome.
+        let value_fallback: syn::Expr =
+            syn::parse_quote!((|| unreachable!("input requires `value:`")));
+        let value_expr = find_arg_expr(el, "value").unwrap_or(&value_fallback);
+        let value_capture = handler::capture_shadows(value_expr, ctx);
+
+        let on_update = match find_arg_expr(el, "on_input") {
+            Some(handler_expr) => {
+                let (block, _name) = handler::handler_block(handler_expr, ctx);
+                let call = if handler::handler_arity_is_zero(handler_expr) {
+                    quote! { __h() }
+                } else {
+                    quote! { __h(::quoin::ev::Input::new(__edited.to_owned())) }
+                };
+                quote! {
+                    .on_update(move |__edited: &str| {
+                        #block
+                        ::quoin::Signal::set(&__value, __edited.to_owned());
+                        #call;
+                    })
+                }
+            }
+            None => quote! {
+                .on_update(move |__edited: &str| {
+                    ::quoin::Signal::set(&__value, __edited.to_owned());
+                })
+            },
+        };
+
+        let input_view = if el.name == "textarea" {
+            // The shadcn input is single-line; multi-line text stays on the
+            // native editor (same buffer round trip).
+            return emit_input_generic(el, ctx);
+        } else {
+            quote! {
+                ::floem_shadcn::components::input::Input::new()
+                    .value(move || ::quoin::Signal::get(&__value))
+                    #on_update
+            }
+        };
+
+        let placeholder = match crate::emit::common::find_arg_string(el, "placeholder") {
+            Some(text) => quote! { .placeholder(#text) },
+            None => quote! {},
+        };
+
+        let styled = match crate::emit::common::find_arg_string(el, "class") {
+            Some(class) => {
+                let styles = style::lower_class(&class);
+                style::apply_styles(input_view, &styles)
+            }
+            None => input_view,
+        };
+
+        let disabled = match find_arg_expr(el, "disabled") {
+            Some(expr) => quote! { .disabled(move || #expr) },
+            None => quote! {},
+        };
+
+        quote! {
+            {
+                #(#value_capture)*
+                let __value = ::core::clone::Clone::clone(&(#value_expr));
+                #styled #placeholder #disabled
+            }
+        }
+    }
+
+    #[cfg(not(feature = "floem-shadcn"))]
+    {
+        emit_input_generic(el, ctx)
+    }
+}
+
+/// The generic v1 lowering (`text_input` over a floem buffer signal).
+/// Always compiled: the shadcn arm routes `textarea` here (the shadcn
+/// input is single-line), the default build uses it exclusively.
+pub(crate) fn emit_input_generic(el: &Element, ctx: &mut super::EmitterCtx) -> TokenStream {
     // `check_element_args` rejects `input` without `value`; the fallback
     // below fails loudly if it ever runs.
     let value_fallback: syn::Expr = syn::parse_quote!((|| unreachable!("input requires `value:`")));
