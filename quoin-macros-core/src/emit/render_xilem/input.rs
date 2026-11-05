@@ -16,9 +16,9 @@ pub(crate) fn emit_input(el: &Element, ctx: &mut super::EmitterCtx) -> TokenStre
         syn::parse_quote!((|| unreachable!("input requires `value:`"))());
     let value_expr = find_arg_expr(el, "value").unwrap_or(&value_fallback);
 
-    // Shadow clones for the value handle: the contents read borrows it and
-    // the callback owns its own copy.
-    let value_shadows = handler::capture_shadows(value_expr, ctx);
+// No shadow clones for the value handle: cloning the caller's binding
+// directly keeps the original state local *used* (shadow clones would
+// orphan it and trip `unused_variables` on the component's state field).
 
     // The on_changed callback: writes the edit into the quoin signal and
     // invokes the user handler with the quoin `Input` event.
@@ -47,7 +47,6 @@ pub(crate) fn emit_input(el: &Element, ctx: &mut super::EmitterCtx) -> TokenStre
 
     let base = quote! {
         {
-            #(#value_shadows)*
             let __value = ::core::clone::Clone::clone(&(#value_expr));
             #handler_setup
             let __cb_value = ::core::clone::Clone::clone(&__value);
