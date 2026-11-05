@@ -25,7 +25,6 @@ members = [
     "quoin-grsx-compiletest",
     "third_party/gpui-stub",
     "third_party/gpui-stub-macros",
-    "third_party/floem-shadcn",
 ]
 exclude = [
     "examples/counter-dioxus",
@@ -42,6 +41,10 @@ exclude = [
     "examples/ucp-demo-leptos-shadcn",
     "quoin-expand-test",
 ]
+# Rich-elements Phase 2 note: `floem-shadcn` is no longer vendored under
+# third_party/. It is a standalone sibling checkout (the same modified tree
+# the floem-shadcn zip carries) consumed as a path dependency by
+# `quoin-floem` — see that crate's manifest for the layout contract.
 
 [workspace.package]
 version = "0.1.0"
