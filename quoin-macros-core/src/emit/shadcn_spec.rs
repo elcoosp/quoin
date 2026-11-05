@@ -18,9 +18,11 @@
 //!
 //! The Tier-1 set is deliberately *presentational / composite-surface* only:
 //! everything here lowers without portals, overlays or focus traps. Tier-2
-//! behavioral elements (`dialog`, `accordion`, `popover`, `command`, …) land
-//! with their own contract rows once their overlay seams exist on the GPU
-//! backends.
+//! behavioral elements (`dialog`, `popover`, `command`, …) land with their own
+//! contract rows once their overlay seams exist on the GPU backends. Phase 2
+//! added the first Tier-2 rows — the disclosure family (`accordion*`) plus
+//! the canonical `tabs`/`tooltip` upgrades — none of which need an overlay
+//! seam: they are inline, signal-driven behavior.
 //!
 //! Tier-1 elements are lowered **generically** (styled containers/text) on
 //! both dynamic backends when no shadcn backing is enabled, which keeps them
@@ -62,7 +64,7 @@ pub const CANONICAL_TIER1: &[CanonicalElement] = &[
         floem: "floem_shadcn::components::card::Card",
         leptos: "leptos-shadcn-card",
         dioxus: "shadcn_dioxus::card",
-        gpui: "shim: styled div composition (gpui-kit #2311 asks for Card)",
+        gpui: "shim (Phase 2): styled div composition (real Card lands with gpui-kit #2311)",
         xilem: "generic bordered container",
     },
     CanonicalElement {
@@ -70,7 +72,7 @@ pub const CANONICAL_TIER1: &[CanonicalElement] = &[
         floem: "floem_shadcn::components::card::CardHeader",
         leptos: "leptos-shadcn-card",
         dioxus: "shadcn_dioxus::card (CardHeader part)",
-        gpui: "shim: styled div (title/description args)",
+        gpui: "shim (Phase 2): styled div (title/description args)",
         xilem: "generic container",
     },
     CanonicalElement {
@@ -78,7 +80,7 @@ pub const CANONICAL_TIER1: &[CanonicalElement] = &[
         floem: "floem_shadcn::components::card::CardTitle",
         leptos: "leptos-shadcn-card",
         dioxus: "shadcn_dioxus::card (CardTitle part)",
-        gpui: "shim: styled text",
+        gpui: "shim (Phase 2): styled text",
         xilem: "generic text",
     },
     CanonicalElement {
@@ -86,7 +88,7 @@ pub const CANONICAL_TIER1: &[CanonicalElement] = &[
         floem: "floem_shadcn::components::card::CardDescription",
         leptos: "leptos-shadcn-card",
         dioxus: "shadcn_dioxus::card (CardDescription part)",
-        gpui: "shim: muted styled text",
+        gpui: "shim (Phase 2): muted styled text",
         xilem: "generic muted text",
     },
     CanonicalElement {
@@ -94,7 +96,7 @@ pub const CANONICAL_TIER1: &[CanonicalElement] = &[
         floem: "floem_shadcn::components::card::CardContent",
         leptos: "leptos-shadcn-card",
         dioxus: "shadcn_dioxus::card (CardContent part)",
-        gpui: "shim: padded container",
+        gpui: "shim (Phase 2): padded container",
         xilem: "generic container",
     },
     CanonicalElement {
@@ -102,7 +104,7 @@ pub const CANONICAL_TIER1: &[CanonicalElement] = &[
         floem: "floem_shadcn::components::card::CardFooter",
         leptos: "leptos-shadcn-card",
         dioxus: "shadcn_dioxus::card (CardFooter part)",
-        gpui: "shim: padded row container",
+        gpui: "shim (Phase 2): padded footer row",
         xilem: "generic container",
     },
     CanonicalElement {
@@ -110,7 +112,7 @@ pub const CANONICAL_TIER1: &[CanonicalElement] = &[
         floem: "floem_shadcn::components::card::CardAction",
         leptos: "leptos-shadcn-card",
         dioxus: "shadcn_dioxus::card (CardAction part)",
-        gpui: "shim: right-aligned row",
+        gpui: "shim (Phase 2): right-aligned action row",
         xilem: "generic container",
     },
     CanonicalElement {
@@ -118,7 +120,7 @@ pub const CANONICAL_TIER1: &[CanonicalElement] = &[
         floem: "floem_shadcn::components::alert::Alert",
         leptos: "leptos-shadcn-alert",
         dioxus: "shadcn_dioxus::alert",
-        gpui: "shim: tinted container + title/description",
+        gpui: "shim (Phase 2): tinted container + title/description args",
         xilem: "generic text stack",
     },
     CanonicalElement {
@@ -126,7 +128,7 @@ pub const CANONICAL_TIER1: &[CanonicalElement] = &[
         floem: "generic (Alert takes title:/description: args)",
         leptos: "leptos-shadcn-alert",
         dioxus: "shadcn_dioxus::alert (AlertTitle part)",
-        gpui: "shim: medium-weight text",
+        gpui: "shim (Phase 2): medium-weight text",
         xilem: "generic text",
     },
     CanonicalElement {
@@ -134,7 +136,7 @@ pub const CANONICAL_TIER1: &[CanonicalElement] = &[
         floem: "generic (Alert takes title:/description: args)",
         leptos: "leptos-shadcn-alert",
         dioxus: "shadcn_dioxus::alert (AlertDescription part)",
-        gpui: "shim: muted text",
+        gpui: "shim (Phase 2): muted text",
         xilem: "generic muted text",
     },
     CanonicalElement {
@@ -142,7 +144,7 @@ pub const CANONICAL_TIER1: &[CanonicalElement] = &[
         floem: "floem_shadcn::components::spinner::Spinner",
         leptos: "leptos-shadcn-spinner",
         dioxus: "shadcn_dioxus::spinner",
-        gpui: "shim: animated glyph",
+        gpui: "gpui_component::spinner::Spinner (real, Phase 2)",
         xilem: "generic static glyph",
     },
     CanonicalElement {
@@ -150,7 +152,7 @@ pub const CANONICAL_TIER1: &[CanonicalElement] = &[
         floem: "floem_shadcn::components::kbd::Kbd",
         leptos: "leptos-shadcn-kbd",
         dioxus: "shadcn_dioxus::kbd",
-        gpui: "shim: key-cap styled text",
+        gpui: "shim (Phase 2): key-cap chip (real Kbd needs the #2311 text API)",
         xilem: "generic text",
     },
     CanonicalElement {
@@ -158,7 +160,7 @@ pub const CANONICAL_TIER1: &[CanonicalElement] = &[
         floem: "floem_shadcn::components::avatar::Avatar",
         leptos: "leptos-shadcn-avatar",
         dioxus: "shadcn_dioxus::avatar",
-        gpui: "shim: initials circle (gpui-kit #2311 asks for Avatar)",
+        gpui: "shim (Phase 2): initials circle (real Avatar lands with #2311)",
         xilem: "generic fallback text",
     },
     CanonicalElement {
@@ -166,8 +168,64 @@ pub const CANONICAL_TIER1: &[CanonicalElement] = &[
         floem: "generic (Avatar takes fallback: arg)",
         leptos: "leptos-shadcn-avatar",
         dioxus: "shadcn_dioxus::avatar (AvatarFallback part)",
-        gpui: "shim: initials text",
+        gpui: "shim (Phase 2): initials text",
         xilem: "generic text",
+    },
+];
+
+/// The canonical Tier-2 set (rich-elements Phase 2): inline, signal-driven
+/// behavior elements — the disclosure family plus the canonical `tabs` and
+/// `tooltip` rows. Same rules as Tier-1: every row is a known element, and
+/// every backend must lower it (real component, styled shim, or generic
+/// fallback) without new dependency requirements.
+pub const CANONICAL_TIER2: &[CanonicalElement] = &[
+    CanonicalElement {
+        name: "accordion",
+        floem: "floem_shadcn::components::accordion::Accordion",
+        leptos: "leptos-shadcn-accordion (feature; generic lowering in quoin)",
+        dioxus: "shadcn_dioxus::accordion (module exists; quoin lowers generic)",
+        gpui: "generic fallback (disclosure shim planned with #2311)",
+        xilem: "generic disclosure container",
+    },
+    CanonicalElement {
+        name: "accordion_item",
+        floem: "floem_shadcn::components::accordion_rich::RichAccordionItem",
+        leptos: "leptos-shadcn-accordion (AccordionItem)",
+        dioxus: "shadcn_dioxus::accordion (AccordionItem)",
+        gpui: "generic fallback (rows keyed by `value:`)",
+        xilem: "generic rows",
+    },
+    CanonicalElement {
+        name: "accordion_trigger",
+        floem: "RichAccordionItem trigger (any view, chevron + click toggle)",
+        leptos: "leptos-shadcn-accordion (AccordionTrigger)",
+        dioxus: "shadcn_dioxus::accordion (AccordionTrigger)",
+        gpui: "generic fallback",
+        xilem: "generic row",
+    },
+    CanonicalElement {
+        name: "accordion_content",
+        floem: "RichAccordionItem content (any view, Display::None collapsed)",
+        leptos: "leptos-shadcn-accordion (AccordionContent)",
+        dioxus: "shadcn_dioxus::accordion (AccordionContent)",
+        gpui: "generic fallback",
+        xilem: "generic region",
+    },
+    CanonicalElement {
+        name: "tabs",
+        floem: "floem_shadcn::components::tabs::Tabs (Phase 2 upgrade; usize bridge)",
+        leptos: "leptos-shadcn-tabs (feature; pre-existing lowering)",
+        dioxus: "generic strip + keyed content (pre-existing)",
+        gpui: "gpui-component tabs (pre-existing lowering)",
+        xilem: "generic strip + keyed content",
+    },
+    CanonicalElement {
+        name: "tooltip",
+        floem: "floem_shadcn::components::tooltip::TooltipExt (Phase 2 upgrade)",
+        leptos: "leptos-shadcn-tooltip (feature; pre-existing lowering)",
+        dioxus: "generic title attr (pre-existing)",
+        gpui: "gpui-component tooltip (pre-existing)",
+        xilem: "generic (hover story pending upstream)",
     },
 ];
 
@@ -342,6 +400,36 @@ mod tests {
         names.sort_unstable();
         names.dedup();
         assert_eq!(names.len(), CANONICAL_TIER1.len(), "duplicate Tier-1 rows");
+    }
+
+    /// Every canonical Tier-2 row must also be an accepted `quoin_render!`
+    /// element — the contract table and the parser cannot drift.
+    #[test]
+    fn tier2_rows_are_known_elements() {
+        for row in CANONICAL_TIER2 {
+            assert!(
+                crate::render_ast::known_elements().contains(&row.name),
+                "canonical Tier-2 element `{}` is not in KNOWN_ELEMENTS",
+                row.name
+            );
+        }
+    }
+
+    /// Tier-2 row names must be unique *within their tier and across tiers*
+    /// — an element belongs to exactly one contract tier.
+    #[test]
+    fn tier2_rows_are_unique_and_disjoint_from_tier1() {
+        let mut names: Vec<_> = CANONICAL_TIER2.iter().map(|r| r.name).collect();
+        let tier1: Vec<_> = CANONICAL_TIER1.iter().map(|r| r.name).collect();
+        names.sort_unstable();
+        names.dedup();
+        assert_eq!(names.len(), CANONICAL_TIER2.len(), "duplicate Tier-2 rows");
+        for name in &names {
+            assert!(
+                !tier1.contains(name),
+                "element `{name}` appears in both Tier-1 and Tier-2"
+            );
+        }
     }
 
     /// The choice readers (and the emitters that consume them) are compiled
