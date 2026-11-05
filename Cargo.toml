@@ -21,6 +21,10 @@ members = [
     "quoin-ui-gpui",
     "quoin-testkit",
     "quoin-devtools",
+    "interop-tests",
+    "quoin-grsx-compiletest",
+    "third_party/gpui-stub",
+    "third_party/gpui-stub-macros",
 ]
 exclude = [
     "examples/counter-dioxus",
