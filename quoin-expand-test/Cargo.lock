@@ -1026,11 +1026,16 @@ name = "quoin-macros-core"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",
+ "quoin-style",
  "quote",
  "syn 3.0.9",
  "thiserror",
  "uuid",
 ]
+
+[[package]]
+name = "quoin-style"
+version = "0.1.0"
 
 [[package]]
 name = "quote"
