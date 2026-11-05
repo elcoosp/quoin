@@ -35,7 +35,7 @@
 
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
-use syn::{Attribute, Expr, Ident, LitStr, Result, Token, braced, bracketed, parenthesized};
+use syn::{Attribute, Expr, Ident, LitStr, Result, Stmt, Token, braced, bracketed, parenthesized};
 
 /// A node of the declarative-UI tree parsed from `quoin_render!` input.
 #[derive(Clone, Debug)]
@@ -339,6 +339,22 @@ const KNOWN_ELEMENTS: &[&str] = &[
     "tooltip",
 ];
 
+
+/// Unwraps a single-expression block: `{ expr }` -> `expr`.
+///
+/// Text children are authored as `{ expr }` to disambiguate them from
+/// pattern bindings; splicing the block verbatim into argument position
+/// trips `unused_braces`, so the parse layer keeps just the expression.
+fn unblock_expr(expr: Expr) -> Expr {
+    if let Expr::Block(block) = &expr {
+        let stmts = &block.block.stmts;
+        if stmts.len() == 1 && let Some(Stmt::Expr(inner, None)) = stmts.first() {
+            return (*inner).clone();
+        }
+    }
+    expr
+}
+
 impl Parse for RenderNode {
     fn parse(input: ParseStream) -> Result<Self> {
         if input.peek(Token![#]) {
@@ -414,12 +430,12 @@ impl Parse for RenderNode {
                     return Ok(Self::Element(input.parse()?));
                 }
 
-                let result = input.parse::<Expr>();
+                let result = input.parse::<Expr>().map(unblock_expr);
                 return Ok(Self::Expr(result?));
             }
         }
 
-        Ok(Self::Expr(input.parse()?))
+        Ok(Self::Expr(input.parse::<Expr>().map(unblock_expr)?))
     }
 }
 
