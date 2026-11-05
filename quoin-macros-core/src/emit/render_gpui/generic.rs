@@ -25,9 +25,12 @@ pub(crate) fn emit_generic_element(el: &Element) -> TokenStream {
         && let Some(styles) = try_transpile_class(class_expr)
     {
         // Scroll overflow classes need a stateful element: make this div
-        // stateful before any style applies. The id must be unique per
-        // expansion site; a per-compilation counter keeps it deterministic.
-        if styles.scroll {
+        // stateful before any style applies. The gpui-rsx-classes engine can
+        // also resolve `focus:`/`active:`/`group-*:` variants, which are
+        // `StatefulInteractiveElement` methods too. The id must be unique
+        // per expansion site; a per-compilation counter keeps it
+        // deterministic.
+        if styles.needs_stateful() {
             let site = next_scroll_site();
             let id = format!("quoin-scroll-{site}");
             chain = quote! {
