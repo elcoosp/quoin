@@ -106,6 +106,36 @@ pub use quoin_floem::*;
 ))]
 pub use quoin_macros::{component, effect, quoin_element, quoin_render, run_app};
 
+// ── gpui-rsx escape hatch (Option C of the gpui-rsx migration) ─────────────
+
+/// Re-exports gpui-rsx's render macros for GPUI-only subtrees inside
+/// `quoin_render!` render blocks: gpui-kit components, the full GPUI event
+/// surface, `when`/`whenClass`, keyed loops, and the dynamic-class runtime.
+///
+/// ```ignore
+/// use quoin::component::button::{Button, ButtonVariants as _};
+///
+/// quoin_render! {
+///     div(class: "flex flex-col gap-4") {
+///         // framework-agnostic UI as usual…
+///         quoin::rsx! {
+///             <Button base={Button::new("save")} label="Save" primary class="rounded-md" />
+///         }
+///     }
+/// }
+/// ```
+///
+/// The fragment evaluates to an element that `.child()` accepts, because both
+/// macros emit plain `::gpui::`-path builder chains against the same pinned
+/// GPUI instance (`gpui-pre 0.3.10`).
+///
+/// Spacing: use [`rsx_tw`] for quoin's 4 px-per-unit scale (or enable
+/// gpui-rsx's `tailwind-scale` feature crate-wide); plain [`rsx`] keeps
+/// gpui-rsx's 1 px-per-unit default. Strictness: [`rsx_strict`] errors on
+/// unknown classes with suggestions, matching quoin's own contract.
+#[cfg(feature = "rsx")]
+pub use gpui_rsx::{component as rsx_component, rsx, rsx_expand, rsx_fragment, rsx_permissive, rsx_runtime, rsx_strict, rsx_tw};
+
 // ── UCP traits ─────────────────────────────────────────────────────────────
 
 #[cfg(feature = "ui")]
