@@ -10,12 +10,30 @@ repository.workspace = true
 [dependencies]
 quoin-core = { path = "../quoin-core", default-features = false }
 quoin-style = { path = "../quoin-style" }
-floem = { git = "https://github.com/lapce/floem", branch = "main" }
-# shadcn/ui component backing for the Floem backend (rich-elements Phase 1).
-# Vendored under third_party/ with the upstream `floem-tailwind` path-dep
-# line fixed to a git dep (upstream bug — a URL is not a valid path dep).
-floem-shadcn = { path = "../third_party/floem-shadcn", optional = true }
-floem_reactive = { git = "https://github.com/lapce/floem", branch = "main" }
+# Bare git (no `branch` qualifier), on purpose: the sibling `floem-shadcn`
+# checkout and its `floem-tailwind` both declare floem bare, and a
+# branch-qualified twin would resolve to a second package id — two full
+# floem feature-universes (floem, wayland, gtk, winit: ~2 GB of artifacts)
+# in one workspace, with `TailwindExt` implemented against the other one.
+# Bare declarations unify by resolved rev.
+floem = { git = "https://github.com/lapce/floem" }
+# shadcn/ui component backing for the Floem backend (rich-elements Phase 2).
+# Standalone sibling checkout of elcoosp/floem-shadcn (v0.2.0): the upstream
+# `floem-tailwind` path-dep blocker is fixed and `accordion_rich` added in
+# that tree. Layout contract: unpack/clone floem-shadcn next to this REPO —
+#
+#     parent/
+#     ├── quoin/          <- this workspace (quoin-floem lives inside)
+#     └── floem-shadcn/   <- https://github.com/elcoosp/floem-shadcn
+#
+# hence the `../../` (paths resolve relative to this crate's directory).
+# The dependency is optional; builds without the `shadcn` feature never
+# resolve it. Consumers embedding quoin elsewhere can point the path at
+# their own checkout, or drop it once the upstream fix is published and
+# switch to the git source.
+floem-shadcn = { path = "../../floem-shadcn", optional = true }
+# Same bare-git rule as `floem` above (one source id per resolved rev).
+floem_reactive = { git = "https://github.com/lapce/floem" }
 futures = "0.3"
 futures-timer = "3.0"
 send_wrapper = "0.6"
@@ -32,6 +50,19 @@ shadcn = [
 [dev-dependencies]
 quoin-conformance = { path = "../quoin-conformance", features = ["floem"] }
 quoin-macros = { path = "../quoin-macros", features = ["floem"] }
+# Facade for the `quoin_render!` expansion tests: the generated code
+# resolves `::quoin::…` paths. Deliberately WITHOUT `floem-shadcn` — this
+# crate's own `shadcn` feature flips `quoin-macros/floem-shadcn`, so:
+#   cargo nextest run -p quoin-floem                    → generic lowerings
+#   cargo nextest run -p quoin-floem --features shadcn  → shadcn lowerings
+# compile the same expansion test against the other cfg branch.
+quoin = { path = "../quoin", default-features = false, features = ["floem"] }
+# Direct component dep for the expansion tests: the generated code names
+# `::floem_shadcn::…` paths, which resolve from this crate's own
+# dependencies. Test-only; consumers get the dep through the `shadcn`
+# feature. Requires the floem-shadcn sibling checkout (see the main
+# dependency block above).
+floem-shadcn = { path = "../../floem-shadcn" }
 dhat = "0.3"
 
 [lints]
