@@ -56,6 +56,19 @@ trace-counter-xilem:
 test-quoin-macros-gpui:
     cargo nextest run -p quoin-macros-tests --features gpui
 
+# gpui-rsx-classes engine (docs/gpui-rsx-classes.md): unit tests + parity
+# gates + expansion compile-check against the vendored GPUI stub. Fast — no
+# real gpui-pre build.
+test-gpui-rsx-classes:
+    cargo test -p quoin-macros-core --features gpui,gpui-rsx-classes
+    cargo test -p quoin-interop-tests
+    cargo test -p quoin-grsx-compiletest
+    cargo run -p quoin-grsx-compiletest
+
+# The flag layered on the real GPUI stack (trybuild + conformance) for CI.
+test-quoin-macros-gpui-rsx-classes:
+    cargo nextest run -p quoin-macros-tests --features gpui,gpui-rsx-classes
+
 test-quoin-macros-leptos:
     cargo nextest run -p quoin-macros-tests --features leptos
 
