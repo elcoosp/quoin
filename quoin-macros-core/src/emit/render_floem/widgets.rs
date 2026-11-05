@@ -102,10 +102,11 @@ fn emit_toggle(el: &Element, ctx: &mut super::EmitterCtx, switch: bool) -> Token
                     };
                     quote! {
                         #block
+                        let __value_hook = ::core::clone::Clone::clone(&__value);
                         ::floem::reactive::Effect::new(
                             move |__prev: ::core::option::Option<()>| {
                                 let _ = __prev;
-                                let __current = ::quoin::Signal::get(&__value);
+                                let __current = ::quoin::Signal::get(&__value_hook);
                                 #call;
                             },
                         );
@@ -129,18 +130,20 @@ fn emit_toggle(el: &Element, ctx: &mut super::EmitterCtx, switch: bool) -> Token
                 #(#capture)*
                 let __value = ::core::clone::Clone::clone(&(#checked_expr));
                 let __state = ::floem::reactive::RwSignal::new(::quoin::Signal::get(&__value));
+                let __value_quoin_to_floem = ::core::clone::Clone::clone(&__value);
                 ::floem::reactive::Effect::new(move |__prev: ::core::option::Option<()>| {
                     let _ = __prev;
-                    let __next = ::quoin::Signal::get(&__value);
+                    let __next = ::quoin::Signal::get(&__value_quoin_to_floem);
                     if ::floem::reactive::SignalGet::get_untracked(&__state) != __next {
                         ::floem::reactive::SignalUpdate::set(&__state, __next);
                     }
                 });
+                let __value_floem_to_quoin = ::core::clone::Clone::clone(&__value);
                 ::floem::reactive::Effect::new(move |__prev: ::core::option::Option<()>| {
                     let _ = __prev;
                     let __edited = ::floem::reactive::SignalGet::get(&__state);
-                    if ::quoin::Signal::get(&__value) != __edited {
-                        ::quoin::Signal::set(&__value, __edited);
+                    if ::quoin::Signal::get(&__value_floem_to_quoin) != __edited {
+                        ::quoin::Signal::set(&__value_floem_to_quoin, __edited);
                     }
                 });
                 #change_hook
@@ -168,10 +171,11 @@ fn emit_toggle(el: &Element, ctx: &mut super::EmitterCtx, switch: bool) -> Token
                     };
                     quote! {
                         #block
+                        let __value_hook = ::core::clone::Clone::clone(&__value);
                         ::floem::reactive::Effect::new(
                             move |__prev: ::core::option::Option<()>| {
                                 let _ = __prev;
-                                let __current = ::quoin::Signal::get(&__value);
+                                let __current = ::quoin::Signal::get(&__value_hook);
                                 #call;
                             },
                         );
@@ -207,18 +211,20 @@ fn emit_toggle(el: &Element, ctx: &mut super::EmitterCtx, switch: bool) -> Token
                 #(#capture)*
                 let __value = ::core::clone::Clone::clone(&(#checked_expr));
                 let __state = ::floem::reactive::RwSignal::new(::quoin::Signal::get(&__value));
+                let __value_quoin_to_floem = ::core::clone::Clone::clone(&__value);
                 ::floem::reactive::Effect::new(move |__prev: ::core::option::Option<()>| {
                     let _ = __prev;
-                    let __next = ::quoin::Signal::get(&__value);
+                    let __next = ::quoin::Signal::get(&__value_quoin_to_floem);
                     if ::floem::reactive::SignalGet::get_untracked(&__state) != __next {
                         ::floem::reactive::SignalUpdate::set(&__state, __next);
                     }
                 });
+                let __value_floem_to_quoin = ::core::clone::Clone::clone(&__value);
                 ::floem::reactive::Effect::new(move |__prev: ::core::option::Option<()>| {
                     let _ = __prev;
                     let __edited = ::floem::reactive::SignalGet::get(&__state);
-                    if ::quoin::Signal::get(&__value) != __edited {
-                        ::quoin::Signal::set(&__value, __edited);
+                    if ::quoin::Signal::get(&__value_floem_to_quoin) != __edited {
+                        ::quoin::Signal::set(&__value_floem_to_quoin, __edited);
                     }
                 });
                 #change_hook
@@ -376,7 +382,8 @@ pub(crate) fn emit_slider(el: &Element, ctx: &mut super::EmitterCtx) -> TokenStr
 
 // ── tooltip ─────────────────────────────────────────────────────────────────
 
-/// `tooltip(text: "..") { hover-target }` → Floem's `tooltip` view.
+/// `tooltip(text: "..") { hover-target }` → shadcn-themed `TooltipExt`
+/// (feature `floem-shadcn`) or Floem's plain `tooltip` view.
 pub(crate) fn emit_tooltip(
     el: &Element,
     ctx: &mut super::EmitterCtx,
@@ -392,7 +399,21 @@ pub(crate) fn emit_tooltip(
         1 => kids[0].clone(),
         _ => super::generic::static_stack(&kids, quoin_style::FlexDir::Column, None),
     };
-    quote! { ::floem::views::tooltip(#child, move || ::floem::views::Label::derived(move || #tip)) }
+
+    #[cfg(feature = "floem-shadcn")]
+    {
+        // The shadcn upgrade is pure chrome: the same floem tooltip view,
+        // themed through floem-shadcn's popover tokens.
+        quote! {{
+            use ::floem::views::Decorators as _;
+            ::floem_shadcn::components::tooltip::TooltipExt::tooltip_styled(#child, #tip)
+        }}
+    }
+
+    #[cfg(not(feature = "floem-shadcn"))]
+    {
+        quote! { ::floem::views::tooltip(#child, move || ::floem::views::Label::derived(move || #tip)) }
+    }
 }
 
 // ── scroll_area ─────────────────────────────────────────────────────────────
@@ -450,10 +471,16 @@ pub(crate) fn emit_virtual_list(el: &Element, _ctx: &mut super::EmitterCtx) -> T
 
 // ── tabs ────────────────────────────────────────────────────────────────────
 
-/// `tabs(active: <signal>, on_click: handler) { tab(label: "..") { … } }`.
+/// `tabs(active: <usize expr>) { tab(label: "..", index: 0) { … } }`.
 ///
-/// Floem's `tab` view owns the keyed tab strip; the content row is a
-/// `dyn_container` keyed on the active index.
+/// `active:` is a plain `usize` value expression (call `.get()` on your
+/// signal), matching the GPUI/Leptos contract. With feature `floem-shadcn`
+/// this lowers to the real shadcn `Tabs` / `TabsList` / `Tab` /
+/// `TabsContent` stack: the expression seeds a floem `RwSignal<String>`
+/// keyed by tab index and the shadcn `Tabs` owns the selection from there
+/// (click-interactive out of the box). Without the feature the historical
+/// generic lowering applies: Floem's `tab` strip plus a `dyn_container`
+/// keyed on the active index, re-reading the expression per render.
 pub(crate) fn emit_tabs(
     el: &Element,
     ctx: &mut super::EmitterCtx,
@@ -461,6 +488,8 @@ pub(crate) fn emit_tabs(
 ) -> TokenStream {
     let active_fallback: syn::Expr = syn::parse_quote!(0usize);
     let active_expr = find_arg_expr(el, "active").unwrap_or(&active_fallback);
+    // Registers the outer captures for the hoist (the tokens are unused:
+    // the value-expression contract evaluates the expr inline).
     let _capture = handler::capture_shadows(active_expr, ctx);
 
     let mut labels = Vec::new();
@@ -483,24 +512,108 @@ pub(crate) fn emit_tabs(
         }
     }
 
-    let content_arms: Vec<TokenStream> = bodies
-        .iter()
-        .enumerate()
-        .map(|(index, body)| {
-            let lit = proc_macro2::Literal::usize_unsuffixed(index);
-            quote! { #lit => #body.into_any(), }
-        })
-        .collect();
+    #[cfg(feature = "floem-shadcn")]
+    {
+        // Per-tab id = its index, so the `usize` quoin contract bridges to
+        // the shadcn string-keyed signal by plain formatting.
+        let tab_triggers: Vec<TokenStream> = labels
+            .iter()
+            .enumerate()
+            .map(|(index, label)| {
+                let id = index.to_string();
+                quote! {
+                    ::floem_shadcn::components::tabs::Tab::new(#id, #label).active(__state)
+                }
+            })
+            .collect();
+        let contents: Vec<TokenStream> = bodies
+            .iter()
+            .enumerate()
+            .map(|(index, body)| {
+                let id = index.to_string();
+                quote! {
+                    ::floem_shadcn::components::tabs::TabsContent::new(#id, #body)
+                        .active(__state)
+                }
+            })
+            .collect();
 
-    let label_lits: Vec<TokenStream> = labels.iter().map(|l| quote! { #l, }).collect();
-    let label_count = labels.len();
-    let body_count = bodies.len();
-    let strip = quote! {
-        ::floem::views::tab(
-            move || {
-                let __active: usize = ::core::clone::Clone::clone(&#active_expr);
-                Some(__active)
+        let list = if tab_triggers.is_empty() {
+            quote! { ::floem::views::Empty::new() }
+        } else if tab_triggers.len() == 1 {
+            quote! {
+                ::floem_shadcn::components::tabs::TabsList::new((#(#tab_triggers,)*))
+            }
+        } else {
+            quote! {
+                ::floem_shadcn::components::tabs::TabsList::new((#(#tab_triggers,)*))
+            }
+        };
+
+        // Tabs' child must be a single view tuple member list: (list, content…).
+        let tabs = if contents.is_empty() {
+            quote! {
+                ::floem_shadcn::components::tabs::Tabs::new(__state, (#list,))
+            }
+        } else {
+            quote! {
+                ::floem_shadcn::components::tabs::Tabs::new(
+                    __state,
+                    (#list, #(#contents,)*),
+                )
+            }
+        };
+
+        let styled = match find_arg_string(el, "class") {
+            Some(class) => {
+                let style_decls = style::lower_class(&class);
+                style::apply_styles(tabs, &style_decls)
+            }
+            None => tabs,
+        };
+
+        // Contract parity with the GPUI/Leptos tabs lowerings: `active:` is
+        // a plain `usize` *value expression* (call `.get()` on your signal),
+        // read once to seed the selection. The shadcn `Tabs` then owns the
+        // state — it is click-interactive out of the box.
+        quote! {{
+            let __state = ::floem::reactive::RwSignal::new(
+                (#active_expr).to_string(),
+            );
+            #styled
+        }}
+    }
+
+    #[cfg(not(feature = "floem-shadcn"))]
+    {
+        let content_arms: Vec<TokenStream> = bodies
+            .iter()
+            .enumerate()
+            .map(|(index, body)| {
+                let lit = proc_macro2::Literal::usize_unsuffixed(index);
+                quote! { #lit => #body.into_any(), }
+            })
+            .collect();
+
+        let label_lits: Vec<TokenStream> = labels.iter().map(|l| quote! { #l, }).collect();
+        let label_count = labels.len();
+        let body_count = bodies.len();
+        // Each `move` closure gets its own shadow clone of the active
+        // expression's captures: two bare `move` closures would move the
+        // same non-`Copy` binding twice. Shadowing keeps the per-render
+        // re-evaluation (`active_expr` may be `signal.get()`).
+        let strip_shadows = handler::capture_shadows(active_expr, ctx);
+        let strip = handler::wrap_closure_with(
+            &strip_shadows,
+            quote! {
+                move || {
+                    let __active: usize = ::core::clone::Clone::clone(&#active_expr);
+                    Some(__active)
+                }
             },
+        );
+        let strip = quote! { ::floem::views::tab(
+            #strip,
             move || (0usize..#label_count).collect::<Vec<_>>(),
             move |__ix| *__ix,
             move |__ix| {
@@ -508,31 +621,277 @@ pub(crate) fn emit_tabs(
                 let __label: &'static str = LABELS[__ix];
                 ::floem::views::Label::derived(move || __label)
             },
-        )
-    };
+        ) };
 
-    let content = quote! {
-        ::floem::views::dyn_container(
-            move || {
-                let __active: usize = ::core::clone::Clone::clone(&#active_expr);
-                __active.min(#body_count.saturating_sub(1))
+        let content_shadows = handler::capture_shadows(active_expr, ctx);
+        let content = handler::wrap_closure_with(
+            &content_shadows,
+            quote! {
+                move || {
+                    let __active: usize = ::core::clone::Clone::clone(&#active_expr);
+                    __active.min(#body_count.saturating_sub(1))
+                }
             },
+        );
+        let content = quote! { ::floem::views::dyn_container(
+            #content,
             move |__ix| match __ix {
                 #(#content_arms)*
                 _ => ::floem::views::Empty::new().into_any(),
             },
-        )
-    };
+        ) };
 
-    let styled = quote! {
-        ::floem::views::Stack::vertical((#strip, #content))
-    };
-    match find_arg_string(el, "class") {
-        Some(class) => {
-            let style_decls = style::lower_class(&class);
-            style::apply_styles(styled, &style_decls)
+        let styled = quote! {
+            ::floem::views::Stack::vertical((#strip, #content))
+        };
+        match find_arg_string(el, "class") {
+            Some(class) => {
+                let style_decls = style::lower_class(&class);
+                style::apply_styles(styled, &style_decls)
+            }
+            None => styled,
         }
-        None => styled,
+    }
+}
+
+// ── accordion (rich-elements Phase 2, Tier-2 disclosure family) ────────────
+
+/// One scanned `accordion_item`: its `value:` key and pre-lowered
+/// trigger/content views.
+struct AccordionPart {
+    value: String,
+    trigger: Option<TokenStream>,
+    content: Option<TokenStream>,
+}
+
+/// `accordion(expanded: <Option<String> expr>) { accordion_item(value: "..")
+/// { accordion_trigger { … } accordion_content { … } } }`.
+///
+/// `expanded:` is an `Option<String>` value expression (call `.get()` on
+/// your signal) read once to seed the shared open-section state; without it
+/// the accordion is uncontrolled (self-managed). With feature
+/// `floem-shadcn` this lowers to the real `Accordion` +
+/// `accordion_rich::RichAccordionItem` stack over `RwSignal<Option<String>>`.
+/// Without the feature the generic lowering renders the same disclosure
+/// rows over quoin theme tokens with an inline click toggle.
+pub(crate) fn emit_accordion(
+    el: &Element,
+    ctx: &mut super::EmitterCtx,
+    inside_for: bool,
+) -> TokenStream {
+    let expanded_arg = find_arg_expr(el, "expanded");
+    // Registers the outer captures for the hoist (the tokens are unused:
+    // the value-expression contract evaluates the expr inline).
+    let _capture = expanded_arg
+        .as_ref()
+        .map(|expr| handler::capture_shadows(expr, ctx))
+        .unwrap_or_default();
+
+    // Scan `accordion_item` children once, shared by both cfg branches.
+    let mut parts: Vec<AccordionPart> = Vec::new();
+    for (index, child) in el.children.iter().enumerate() {
+        if let crate::render_ast::RenderNode::Element(item) = child
+            && item.name == "accordion_item"
+        {
+            let value = find_arg_string(item, "value")
+                .unwrap_or_else(|| index.to_string());
+            let mut trigger = None;
+            let mut content = None;
+            for part in &item.children {
+                if let crate::render_ast::RenderNode::Element(part_el) = part {
+                    let mut kids = Vec::new();
+                    for kid in &part_el.children {
+                        kids.push(emit_node(kid, ctx, inside_for));
+                    }
+                    let view = match kids.len() {
+                        0 => quote! { ::floem::views::Empty::new() },
+                        1 => kids[0].clone(),
+                        _ => super::generic::static_stack(
+                            &kids,
+                            quoin_style::FlexDir::Column,
+                            None,
+                        ),
+                    };
+                    if part_el.name == "accordion_trigger" {
+                        trigger = Some(view);
+                    } else if part_el.name == "accordion_content" {
+                        content = Some(view);
+                    } else {
+                        // Unknown nested tags are ignored here; the
+                        // dispatcher lowers them if the same tag appears
+                        // standalone.
+                    }
+                }
+            }
+            parts.push(AccordionPart {
+                value,
+                trigger,
+                content,
+            });
+        }
+    }
+
+    #[cfg(feature = "floem-shadcn")]
+    {
+        let item_exprs: Vec<TokenStream> = parts
+            .iter()
+            .map(|part| {
+                let AccordionPart {
+                    value,
+                    trigger,
+                    content,
+                } = part;
+                let mut chain =
+                    quote! { ::floem_shadcn::components::accordion_rich::RichAccordionItem::new(#value) };
+                if let Some(trigger) = trigger {
+                    chain = quote! { #chain.trigger(#trigger) };
+                }
+                if let Some(content) = content {
+                    chain = quote! { #chain.content(#content) };
+                }
+                quote! { #chain.expanded(__state) }
+            })
+            .collect();
+
+        let items_view = match item_exprs.len() {
+            0 => quote! { ::floem::views::Empty::new() },
+            1 => item_exprs[0].clone(),
+            _ => super::generic::static_stack(&item_exprs, quoin_style::FlexDir::Column, None),
+        };
+
+        let accordion =
+            quote! { ::floem_shadcn::components::accordion::Accordion::new(__state, (#items_view)) };
+        let styled = match find_arg_string(el, "class") {
+            Some(class) => {
+                let style_decls = style::lower_class(&class);
+                style::apply_styles(accordion, &style_decls)
+            }
+            None => accordion,
+        };
+
+        let state_setup = match &expanded_arg {
+            // Contract parity with the other value-expression args: read
+            // once to seed the shared signal (`Option<String>`); the shadcn
+            // `Accordion` owns the state from there.
+            Some(expanded_expr) => quote! {
+                let __state = ::floem::reactive::RwSignal::new(#expanded_expr);
+            },
+            // Uncontrolled: a local signal owns the open section.
+            None => quote! {
+                let __state = ::floem::reactive::RwSignal::new(
+                    ::core::option::Option::<::std::string::String>::None,
+                );
+            },
+        };
+
+        quote! {{
+            #state_setup
+            #styled
+        }}
+    }
+
+    #[cfg(not(feature = "floem-shadcn"))]
+    {
+        // Generic disclosure rows over quoin theme tokens: trigger row with
+        // an inline click toggle, content hidden via `Display::None` while
+        // collapsed.
+        let rows: Vec<TokenStream> = parts
+            .iter()
+            .map(|part| {
+                let AccordionPart {
+                    value,
+                    trigger,
+                    content,
+                } = part;
+                let trigger_body =
+                    trigger.clone().unwrap_or_else(|| quote! { ::floem::views::Empty::new() });
+                let content_body =
+                    content.clone().unwrap_or_else(|| quote! { ::floem::views::Empty::new() });
+                let value_toggle = value.clone();
+                let value_content = value.clone();
+                let trigger_row = quote! {
+                    ::floem::views::Container::new(#trigger_body)
+                        .style(move |__s| __s
+                            .width_full()
+                            .items_center()
+                            .padding_horiz(12.0)
+                            .padding_vert(10.0)
+                            .border_bottom(1.0)
+                            .border_color(::quoin::floem_theme::border()))
+                        .on_event_stop(
+                            ::floem::event::listener::Click,
+                            move |_, ()| {
+                                let __current =
+                                    ::floem::reactive::SignalGet::get_untracked(&__state);
+                                let __next = if __current
+                                    == ::core::option::Option::Some(
+                                        ::std::string::String::from(#value_toggle),
+                                    )
+                                {
+                                    ::core::option::Option::None
+                                } else {
+                                    ::core::option::Option::Some(
+                                        ::std::string::String::from(#value_toggle),
+                                    )
+                                };
+                                ::floem::reactive::SignalUpdate::set(&__state, __next);
+                            },
+                        )
+                };
+                let content_row = quote! {
+                    ::floem::views::Container::new(#content_body)
+                        .style(move |__s| {
+                            let __is_open = ::floem::reactive::SignalGet::get_untracked(&__state)
+                                == ::core::option::Option::Some(
+                                    ::std::string::String::from(#value_content),
+                                );
+                            __s.width_full()
+                                .padding_horiz(12.0)
+                                .padding_vert(10.0)
+                                .border_bottom(1.0)
+                                .border_color(::quoin::floem_theme::border())
+                                .apply_if(
+                                    !__is_open,
+                                    |__s| __s.display(::floem::style::Display::None),
+                                )
+                        })
+                };
+                quote! { (#trigger_row, #content_row) }
+            })
+            .collect();
+
+        // `on_event_stop`/`style` are `Decorators` methods; the generated
+        // block imports the trait anonymously.
+        let rows_view: Vec<TokenStream> = rows
+            .iter()
+            .map(|row| quote! { ::floem::views::Stack::vertical(#row) })
+            .collect();
+
+        let state_setup = match &expanded_arg {
+            // Value-expression contract: read once to seed the local state.
+            Some(expanded_expr) => quote! {
+                let __state = ::floem::reactive::RwSignal::new(#expanded_expr);
+            },
+            None => quote! {
+                let __state = ::floem::reactive::RwSignal::new(
+                    ::core::option::Option::<::std::string::String>::None,
+                );
+            },
+        };
+
+        let disclosure = if rows_view.is_empty() {
+            quote! { ::floem::views::Empty::new() }
+        } else if rows_view.len() == 1 {
+            rows_view[0].clone()
+        } else {
+            quote! { ::floem::views::Stack::vertical((#(#rows_view,)*)) }
+        };
+
+        quote! {{
+            use ::floem::views::Decorators as _;
+            #state_setup
+            #disclosure
+        }}
     }
 }
 
