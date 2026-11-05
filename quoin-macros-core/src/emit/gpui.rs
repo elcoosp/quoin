@@ -323,6 +323,11 @@ fn render_impl_tokens(ast: &ComponentAst) -> TokenStream {
             fn render(&mut self, window: &mut gpui::Window, cx: &mut gpui::Context<Self>) -> impl gpui::IntoElement {
                 use gpui::*;
                 use quoin::Signal;
+                // gpui-component widget traits the emitters may reference
+                // (button variants/sizes). `as _` keeps unused imports quiet
+                // for components that never touch a styled widget.
+                use ::gpui_component::button::ButtonVariants as _;
+                use ::gpui_component::Sizable as _;
                 #(#state_clones)*
                 #(#global_clones)*
                 #render_body
