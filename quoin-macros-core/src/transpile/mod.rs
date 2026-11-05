@@ -8,6 +8,7 @@
 //! | Submodule              | Description |
 //!------------------------|-------------|
 //! [`tailwind`]           | Transpiles Tailwind CSS class strings into GPUI builder-method chains. |
+//! [`tailwind_grsx`]      | `gpui-rsx-classes` engine: gpui-rsx-backed lowering for classes quoin does not know, dynamic classes, and `rsx.toml` themes. |
 //! [`table_codegen`]      | Generates data-table render code for each framework. |
 //! [`dropdown_codegen`]   | Generates dropdown menu code for each framework. |
 //! [`virtual_list_codegen`]| Generates virtual list code (currently falls back to scrollable div). |
@@ -29,6 +30,11 @@ pub mod icon_codegen;
 pub mod rich_text_codegen;
 pub mod table_codegen;
 pub mod tailwind;
+// The gpui-rsx engine lowers classes only for the GPUI backend, so it is
+// compiled when both switches are on. `gpui-rsx-classes` alone (without
+// `gpui`) changes nothing — there is no GPUI emitter to route through.
+#[cfg(all(feature = "gpui", feature = "gpui-rsx-classes"))]
+pub mod tailwind_grsx;
 pub mod theme_tokens;
 pub mod virtual_list_codegen;
 
