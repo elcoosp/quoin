@@ -15,20 +15,30 @@ pub(crate) fn emit_button(el: &Element) -> TokenStream {
     {
         let tooltip_text = find_arg_string(el, "tooltip");
         let class_expr = find_arg_expr(el, "class");
-
-        let primary = find_arg_bool(el, "primary");
-        let destructive = find_arg_bool(el, "destructive");
-        let ghost = find_arg_bool(el, "ghost");
         let disabled = find_arg_bool(el, "disabled");
 
-        let variant_class = if destructive {
-            "bg-destructive text-destructive-foreground hover:bg-destructive/90"
-        } else if ghost {
-            "hover:bg-accent hover:text-accent-foreground"
-        } else if primary {
-            "bg-primary text-primary-foreground hover:bg-primary/90"
-        } else {
-            "border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+        // Canonical `variant:` first (`emit::shadcn_spec`), boolean sugar
+        // as the fallback; unknown values are a hard error. The variant
+        // lowers to its shadcn Tailwind class string (the Dioxus shadcn
+        // path is class-based — no component import needed).
+        let choice = crate::emit::shadcn_spec::canonical_button_variant(el);
+        if let Some(error) = choice.as_ref().and_then(crate::emit::shadcn_spec::choice_error) {
+            return error;
+        }
+        let variant_class = match choice.and_then(|c| c.ok()) {
+            Some("destructive") => {
+                "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            }
+            Some("ghost") => "hover:bg-accent hover:text-accent-foreground",
+            Some("secondary") => {
+                "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+            }
+            Some("link") => "text-primary underline-offset-4 hover:underline",
+            Some("outline") | None => {
+                "border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+            }
+            // `default`/`primary` — the emphasized filled look.
+            Some(_) => "bg-primary text-primary-foreground hover:bg-primary/90",
         };
 
         let base_class = "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors cursor-pointer";
