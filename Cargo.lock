@@ -5226,6 +5226,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b750dcadc39a09dbadd74e118f6dd6598df77fa01df0cfcdc52c28dece74528a"
 dependencies = [
  "bitflags 2.13.2",
+ "serde",
+ "unicode-segmentation",
 ]
 
 [[package]]
@@ -6294,6 +6296,9 @@ dependencies = [
 [[package]]
 name = "muda"
 version = "0.17.1"
+dependencies = [
+ "keyboard-types 0.7.0",
+]
 
 [[package]]
 name = "multiversion_no_op"
