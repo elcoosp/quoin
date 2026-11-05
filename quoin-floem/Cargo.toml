@@ -11,10 +11,23 @@ repository.workspace = true
 quoin-core = { path = "../quoin-core", default-features = false }
 quoin-style = { path = "../quoin-style" }
 floem = { git = "https://github.com/lapce/floem", branch = "main" }
+# shadcn/ui component backing for the Floem backend (rich-elements Phase 1).
+# Vendored under third_party/ with the upstream `floem-tailwind` path-dep
+# line fixed to a git dep (upstream bug — a URL is not a valid path dep).
+floem-shadcn = { path = "../third_party/floem-shadcn", optional = true }
 floem_reactive = { git = "https://github.com/lapce/floem", branch = "main" }
 futures = "0.3"
 futures-timer = "3.0"
 send_wrapper = "0.6"
+
+[features]
+# shadcn backing: the component dep for consumers of generated code, plus
+# the emitter switch on the dev-dependency macro crate so quoin-floem's own
+# conformance tests compile (and run) against the shadcn lowerings.
+shadcn = [
+    "dep:floem-shadcn",
+    "quoin-macros/floem-shadcn",
+]
 
 [dev-dependencies]
 quoin-conformance = { path = "../quoin-conformance", features = ["floem"] }
