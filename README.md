@@ -44,6 +44,7 @@ Building cross‑platform Rust UI applications often means choosing a framework 
 ## Features
 - **Unified Reactive API** — `Signal<T>`, `ReactiveContext`, and `Executor` traits that abstract over framework‑specific implementations.
 - **Derived Signals** — `derived(&source, |v| …)`, `.map()`, and `zip()` computed views that work identically on every adapter.
+- **Reactive Effects** — `create_effect(run)` and `watch(signal, f)`: push-based, dependency-tracked reactions implemented once in `quoin-core` (batch-aware flush, dynamic dependency sets, `EffectScope` disposal) — no per-adapter effect system required.
 - **Resources** — `cx.create_resource(fetch)` gives every framework the Leptos/Dioxus async-data lifecycle (`Loading → Ready | Failed`) with race-free reloads and cooperative cancellation.
 - **Batched Updates** — `cx.batch(|| …)` collapses N signal writes into one re-render request on GPUI/Xilem.
 - **`spawn_local` Everywhere** — `LocalExecutor` runs `!Send` futures: platform-driven on WASM, deterministic thread-local queue on native.
@@ -372,6 +373,30 @@ let _guard = parent.guard();                // RAII: cancels on drop
 let value = parent.run_until_cancelled(work()).await;  // race work vs cancel
 ```
 
+### Reactive effects (push-based reactivity)
+```rust
+use quoin_core::EffectScope;
+
+let query = cx.create_signal(String::new());
+let results = cx.create_signal(Vec::new());
+
+let scope = EffectScope::new();
+let (query2, results2) = (query.clone(), results.clone());
+// Re-runs whenever the signals it reads change; batched writes coalesce
+// into one re-run; dropping `scope` disposes the effect (component lifetime).
+scope.create_effect(move || {
+    results2.set(search(&query2.get()));
+});
+
+// Or observe a single signal explicitly (fires on writes, not initially):
+let _handle = quoin_core::watch(&query, |q| println!("query = {q}"));
+```
+Effects track their dependencies automatically (the set is rebuilt every
+run, so conditional reads produce dynamic graphs), defer self-writes instead
+of recursing, and pay one thread-local flag check per read when idle. Type-erase
+signal handles for storage with `AnySignal<T>` (ADR-002's opt-in dynamic
+dispatch — zero measurable read overhead, see `docs/BENCHMARKS.md`).
+
 ### Signal extras
 ```rust
 signal.set_eq(new_value);   // writes only when changed (fewer renders)
@@ -416,6 +441,8 @@ let button = adapter.render(Some("Click Me".into()), ButtonVariant {
 ```text
 quoin/                       # Facade — re‑exports everything
 ├── quoin-core/              # Core traits + derived/resource/batch/local/pool
+│                          #   + effect (push-based reactive effects),
+│                          #   + AnySignal (type-erased handles, ADR-002),
 │                          #   + shared adapter machinery: join (JoinHandle
 │                          #   lifecycle), globals (thread-local store),
 │                          #   NotifierSignal (cell + batch-aware notifier)
