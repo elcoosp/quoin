@@ -5,32 +5,59 @@
 //! UI framework. For richer testing support (update counting, deterministic
 //! executors, an update log) see the `quoin-testkit` crate.
 
+use crate::effect::DepHandle;
 use crate::executor::{Executor, JoinHandle};
 use crate::reactive::ReactiveContext;
 use crate::signal::Signal;
 use std::future::Future;
 use std::sync::{Arc, Mutex, RwLock};
 
+/// The shared cell behind a [`StaticSignal`]: the value plus the effect
+/// dependency handle. Keeping the handle inside the cell means every handle
+/// created over the same cell (notably via `use_global`) notifies the same
+/// dependency on mutation.
+struct StaticCell<T> {
+    value: RwLock<T>,
+    dep: DepHandle,
+}
+
 /// A thread-safe standalone signal backed by `Arc<RwLock<T>>`.
 ///
-/// Mutations do **not** notify anything (there is no UI to update), which
-/// makes it ideal for doctests that focus on value semantics.
-#[derive(Clone, Debug)]
+/// Mutations notify the core effect runtime (see [`crate::effect`]) but
+/// trigger no UI update (there is no UI here), which makes it ideal for
+/// doctests that focus on value semantics.
+#[derive(Clone)]
 pub struct StaticSignal<T> {
-    cell: Arc<RwLock<T>>,
+    cell: Arc<StaticCell<T>>,
 }
 
 impl<T> StaticSignal<T> {
     /// Creates a signal holding `initial`.
     pub fn new(initial: T) -> Self {
         Self {
-            cell: Arc::new(RwLock::new(initial)),
+            cell: Arc::new(StaticCell {
+                value: RwLock::new(initial),
+                dep: DepHandle::new(),
+            }),
         }
     }
 
-    /// Creates a signal sharing an existing cell (used for globals).
-    const fn from_cell(cell: Arc<RwLock<T>>) -> Self {
+    /// Creates a signal sharing an existing cell (used for globals). The
+    /// dependency handle travels with the cell, so mutations through any
+    /// handle notify the same effect subscribers.
+    const fn from_cell(cell: Arc<StaticCell<T>>) -> Self {
         Self { cell }
+    }
+}
+
+impl<T> std::fmt::Debug for StaticSignal<T>
+where
+    T: std::fmt::Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StaticSignal")
+            .field("value", &self.cell.value)
+            .finish_non_exhaustive()
     }
 }
 
@@ -41,19 +68,23 @@ pub fn static_signal<T>(initial: T) -> StaticSignal<T> {
 
 impl<T: Clone + 'static> Signal<T> for StaticSignal<T> {
     fn get(&self) -> T {
-        self.cell.read().unwrap().clone()
+        self.cell.dep.track_read();
+        self.cell.value.read().unwrap().clone()
     }
 
     fn with<U>(&self, f: impl FnOnce(&T) -> U) -> U {
-        f(&self.cell.read().unwrap())
+        self.cell.dep.track_read();
+        f(&self.cell.value.read().unwrap())
     }
 
     fn set(&self, value: T) {
-        *self.cell.write().unwrap() = value;
+        *self.cell.value.write().unwrap() = value;
+        self.cell.dep.notify();
     }
 
     fn update(&self, f: impl FnOnce(&mut T)) {
-        f(&mut self.cell.write().unwrap());
+        f(&mut self.cell.value.write().unwrap());
+        self.cell.dep.notify();
     }
 
     fn set_if_eq(&self, value: T) -> bool
@@ -61,12 +92,20 @@ impl<T: Clone + 'static> Signal<T> for StaticSignal<T> {
         T: PartialEq,
     {
         // Single write-lock acquisition instead of read-then-write.
-        let mut guard = self.cell.write().unwrap();
+        let mut guard = self.cell.value.write().unwrap();
         if *guard == value {
             return false;
         }
         *guard = value;
+        drop(guard);
+        self.cell.dep.notify();
         true
+    }
+}
+
+impl<T: Clone + 'static> crate::effect::TrackedSignal<T> for StaticSignal<T> {
+    fn dep_handle(&self) -> DepHandle {
+        self.cell.dep.clone()
     }
 }
 
@@ -173,11 +212,16 @@ impl ReactiveContext for StaticContext {
         // consumer observes the same mutations (matching the unified
         // production-adapter semantics). The cell type is the map key, so
         // the shared `globals` store namespaces by context automatically.
-        crate::globals::insert::<Self, Arc<RwLock<T>>>(Arc::new(RwLock::new(value)));
+        // The effect dependency handle lives inside the cell, so every
+        // handle handed out by `use_global` shares one subscription list.
+        crate::globals::insert::<Self, Arc<StaticCell<T>>>(Arc::new(StaticCell {
+            value: RwLock::new(value),
+            dep: DepHandle::new(),
+        }));
     }
 
     fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>> {
-        crate::globals::get::<Self, Arc<RwLock<T>>>().map(StaticSignal::from_cell)
+        crate::globals::get::<Self, Arc<StaticCell<T>>>().map(StaticSignal::from_cell)
     }
 }
 
