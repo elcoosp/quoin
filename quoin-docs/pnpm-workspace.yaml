@@ -1,0 +1,11 @@
+packages: []
+
+overrides:
+  "@emnapi/runtime": 1.11.3
+
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
+
+minimumReleaseAgeExclude:
+  - "@astrojs/starlight@0.42.10"

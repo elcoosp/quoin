@@ -1,0 +1,28 @@
+/*
+ * Quoin documentation theme overrides.
+ *
+ * The accent palette is derived from the project logo (docs/logo.png in the
+ * quoin repository): a 3D interlocking-ring sculpture whose dominant brand
+ * hue is a rust/burnt orange (hue ≈ 10–20°). All text-bearing accent values
+ * below pass WCAG AA (≥ 4.5:1) against their backgrounds:
+ *
+ *   light accent      hsl(14, 71%, 36%) on #ffffff  → 6.9:1
+ *   light accent-high hsl(10, 71%, 28%) on #ffffff  → 9.9:1
+ *   dark accent       hsl(20, 88%, 60%) on #121820  → 6.6:1
+ *   dark accent-high  hsl(28, 92%, 74%) on #121820  → 10.5:1
+ *
+ * Starlight switches themes via the data-theme attribute on the root
+ * element, so each theme gets its own declaration block.
+ */
+
+:root {
+  --sl-color-accent-low: hsl(16, 65%, 96%);
+  --sl-color-accent: hsl(14, 71%, 36%);
+  --sl-color-accent-high: hsl(10, 71%, 28%);
+}
+
+[data-theme='dark'] {
+  --sl-color-accent-low: hsl(14, 40%, 15%);
+  --sl-color-accent: hsl(20, 88%, 60%);
+  --sl-color-accent-high: hsl(28, 92%, 74%);
+}
