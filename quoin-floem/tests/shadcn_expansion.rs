@@ -15,8 +15,8 @@
 //! typecheck to build the test binary.
 
 use floem::prelude::*;
-use quoin::Signal as _;
 use quoin::quoin_render;
+use quoin::Signal as _;
 use quoin::test_support::static_signal;
 
 /// A controlled `expanded:` state for the accordion family.
