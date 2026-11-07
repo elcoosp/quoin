@@ -1,0 +1,77 @@
+---
+title: Styling with Tailwind Classes
+description: Style quoin_render! trees with Tailwind utility classes that compile to native styling on every backend.
+type: how-to
+---
+
+import { Aside, LinkCard, Badge } from '@astrojs/starlight/components';
+
+You will style declarative components with Tailwind utility classes. Class strings are parsed **at compile time** into Quoin's typed style IR and lowered to framework-native builder calls — there is no runtime class parsing and no string lookup in the emitted code.
+
+**Prerequisites:** the `macros` feature (implied by any framework feature).
+
+## Write classes in the tree
+
+```rust
+quoin_render! {
+    div(class: "flex flex-col gap-4 p-4 bg-gray-900 text-white h-full") {
+        div(class: "text-2xl font-bold hover:text-blue-400") { "Hello" }
+        button(class: "px-4 py-2 bg-blue-600 rounded-md", on_click: move |_| increment()) {
+            "Increment"
+        }
+    }
+}
+```
+
+On GPUI this compiles to method chains:
+
+```rust
+.flex().flex_col().gap(px(16.0)).p(px(16.0)).bg(rgb(0x111827))
+.hover(|s| s.text_color(rgb(0x60a5fa)))
+```
+
+The same class string lowers to each backend's native styling mechanism, so one source serves all frameworks.
+
+## Know the supported vocabulary
+
+The built-in parser (`quoin-style`) models this Tailwind subset:
+
+- Flexbox direction, wrap, and alignment
+- Gap, padding, margin
+- Width/height (length values)
+- Background and border colors (including theme tokens), border widths, corner radii
+- Opacity, cursor, position offsets, overflow, shadows
+- Text color, size, weight, alignment, and family
+- The `hover:` state variant
+
+**Unknown classes are a compile error.** The parser never silently drops a class it does not recognize; every backend must turn unrecognized classes into a `compile_error!` with a did-you-mean suggestion.
+
+## Use theme tokens
+
+Class names that map to [shadcn](https://ui.shadcn.com/) theme tokens (17 token names) resolve to baked colors — in the default engine, the shadcn dark-theme hex values. Tokens keep component styling consistent with the UCP `QuoinTheme` resolution.
+
+## Extended engine for GPUI
+
+<Badge text="Unreleased" variant="caution" />
+
+The `gpui-rsx-classes` feature (enabled automatically by the `gpui` feature) routes classes Quoin does not know through the gpui-rsx class engine, which unlocks:
+
+- The **full Tailwind 4 px-scale palette**, fractions, arbitrary values, and negative utilities
+- Additional state variants: `focus:`, `focus-visible:`, `active:`, `group-hover:`, `group-active:`
+- **Dynamic `class:` expressions** resolved at render time (unknown dynamic classes panic in strict mode)
+- Custom vocabulary via an `rsx.toml` file next to your crate's `Cargo.toml`, with rebuild tracking
+
+Classes Quoin already knows keep their byte-identical lowering under this flag, verified by parity tests.
+
+## Escape hatch for GPUI-only subtrees
+
+When you need raw gpui-rsx machinery inside a `quoin_render!` tree — for example to drop in a gpui-kit component — the `rsx` feature (implied by `gpui`) re-exports `rsx!`, `rsx_strict!`, `rsx_permissive!`, `rsx_tw!`, `rsx_fragment!`, `rsx_expand!`, `rsx_runtime!`, and `#[component]` from the `quoin` facade.
+
+<Aside type="caution">
+  The Floem adapter in this repository replaces the `muda` menu library with an API-compatible stub, so native menus are unsupported on Linux in this configuration.
+</Aside>
+
+## Next steps
+
+- <LinkCard title="Declarative UI Macros" href="/guides/ui-macros/" description="Where class strings fit in component! and quoin_render!." />
+- <LinkCard title="Feature Flags Reference" href="/reference/feature-flags/" description="The gpui-rsx-classes and rsx flags in detail." />

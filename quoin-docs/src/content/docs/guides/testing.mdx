@@ -1,0 +1,71 @@
+---
+title: Testing with quoin-testkit
+description: Run framework-agnostic hooks and stores headlessly with deterministic executors and update-count assertions.
+type: how-to
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+
+You will test reactive business logic without a window manager or browser. `quoin-testkit` provides concrete, dependency-light implementations of the core traits designed for tests, so a hook written once runs in a plain `cargo test`.
+
+**Prerequisites:** the `testkit` feature (or a direct dependency on `quoin-testkit`).
+
+## Drive a hook with TestContext
+
+```rust
+use quoin_core::prelude::*;
+use quoin_testkit::{ImmediateExecutor, TestContext};
+
+fn use_counter<C: ReactiveContext>(cx: &C) -> C::Signal<u32> {
+    cx.create_signal(0u32)
+}
+
+let mut cx = TestContext::with_executor(ImmediateExecutor);
+let count = use_counter(&cx);
+count.set(41);
+count.update(|v| *v += 1);
+assert_eq!(count.get(), 42);
+
+// Update plumbing is observable:
+assert_eq!(cx.updates().count(), 2, "set + update each requested a re-render");
+```
+
+`TestContext` is a full `ReactiveContext` with update counting and a shared global store. `TestSignal` mutates bump the context's update counter, mirroring the pull-based adapters.
+
+## Choose the right executor
+
+| Executor | Behavior | Use it for |
+| --- | --- | --- |
+| `ImmediateExecutor` | Runs futures inline to completion; fully deterministic, blocking | Pure state machines, reducers, derived pipelines |
+| `ThreadedExecutor` | One dedicated thread per future; real concurrency and abort semantics | Timers, channels, abort/detach tests |
+| `TokioExecutor` *(feature `tokio`)* | Real tokio runtime | `#[tokio::test]` suites; supports paused time via `tokio::time::advance` |
+
+<Aside type="caution">
+  `ImmediateExecutor` cannot model mid-flight cancellation — futures finish before the handle exists. Use `ThreadedExecutor` (or the tokio one) when the logic under test awaits or exercises abort semantics.
+</Aside>
+
+## Assert re-render churn
+
+`cx.updates()` records how many times the UI was asked to re-render. Pair it with `cx.batch(|| …)` to prove that batches collapse N writes into one update request:
+
+```rust
+cx.batch(|| {
+    a.set(1);
+    b.set(2);
+});
+assert_eq!(cx.updates().count(), 1);
+```
+
+## Test framework-agnostic stores end to end
+
+The repository ships two headless example suites you can read as templates:
+
+- **todo-core** — a framework-agnostic todo store: `cargo test -p todo-core`
+- **fetch-core** — resource-driven async search: `cargo test -p fetch-core`
+
+Run the whole headless example suite (including the devtools demo) with `just test-headless-examples`.
+
+## Next steps
+
+- <LinkCard title="quoin-testkit Reference" href="/reference/testkit/" description="Every testkit type and executor in one table." />
+- <LinkCard title="Tracing with quoin-devtools" href="/guides/devtools/" description="Record and inspect signal mutations, spawns, and update requests." />

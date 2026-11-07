@@ -1,0 +1,118 @@
+---
+title: Installation
+description: Add Quoin to a Rust project, choose the right feature flags, and satisfy the system prerequisites for each framework adapter.
+type: how-to
+---
+
+import { Tabs, TabItem, Aside, LinkCard } from '@astrojs/starlight/components';
+
+This guide gets Quoin into an existing Cargo project and explains every feature flag you can enable. Quoin supports Rust 1.88 and newer (the workspace declares `rust-version = "1.88"`).
+
+## Prerequisites
+
+- Rust stable 1.88+ (`rustup update stable`).
+- For the GPUI adapter on Linux: `libxkbcommon-dev`, `libx11-dev`, `libxcb1-dev`, `libwayland-dev`, and `libfontconfig1-dev`.
+- The other adapters (Leptos, Dioxus, Xilem, Floem) have no system-library requirements beyond Rust itself.
+
+## Add the dependency
+
+Enable exactly **one** framework feature — this choice selects the adapter compiled into your binary:
+
+<Tabs>
+  <TabItem label="GPUI">
+    ```sh
+    cargo add quoin --features gpui
+    ```
+  </TabItem>
+  <TabItem label="Leptos">
+    ```sh
+    cargo add quoin --features leptos
+    ```
+  </TabItem>
+  <TabItem label="Dioxus">
+    ```sh
+    cargo add quoin --features dioxus
+    ```
+  </TabItem>
+  <TabItem label="Xilem">
+    ```sh
+    cargo add quoin --features xilem
+    ```
+  </TabItem>
+  <TabItem label="Floem">
+    ```sh
+    cargo add quoin --features floem
+    ```
+  </TabItem>
+</Tabs>
+
+This is equivalent to editing `Cargo.toml`:
+
+```toml
+[dependencies]
+quoin = { version = "0.1", features = ["gpui"] }
+```
+
+<Aside type="caution">
+  Enabling two framework features on the same crate is a compile error. Quoin emits a `compile_error!` naming the mutually exclusive features rather than silently picking one.
+</Aside>
+
+## Library-only dependencies
+
+If you are writing a shared hook or store crate that must stay framework-free, depend on `quoin-core` instead of `quoin`. It contains the traits and portable machinery with no adapter compiled in:
+
+```toml
+[dependencies]
+quoin-core = "0.1"
+```
+
+Consumers of your crate then pick the framework by enabling one feature on their `quoin` dependency and passing your hook any context that implements `ReactiveContext`.
+
+## Feature flag matrix
+
+| Feature | What it enables |
+| --- | --- |
+| `gpui` | GPUI adapter + UCP GPUI implementation + macros; implies `rsx` and `gpui-rsx-classes` |
+| `leptos` | Leptos adapter + macros |
+| `dioxus` | Dioxus adapter + macros |
+| `xilem` | Xilem adapter + macros |
+| `floem` | Floem adapter + macros |
+| `macros` | `component!`, `quoin_render!`, `effect!`, `run_app!`, `quoin_element!` without a framework |
+| `ui` | Universal Component Protocol traits from `quoin-ui` |
+| `rsx` | gpui-rsx escape hatch (`rsx!`, `#[component]`, …) for GPUI-only subtrees |
+| `gpui-rsx-classes` | Extended Tailwind engine for GPUI (full palette, more variants, dynamic `class:`) |
+| `testkit` | Re-exports `quoin-testkit` for headless testing |
+| `devtools` | Re-exports `quoin-devtools` for signal tracing |
+| `leptos-shadcn` | shadcn component backing for the Leptos emitter (requires `leptos`) |
+| `dioxus-shadcn` | shadcn component backing for the Dioxus emitter (requires `dioxus`) |
+| `floem-shadcn` | shadcn component backing for the Floem emitter (requires `floem`) |
+
+The full reference with dependencies between flags lives in [Feature Flags](/reference/feature-flags/).
+
+## Verify the setup
+
+Create a signal and read it back in a unit test using `quoin-testkit` — no window, no browser:
+
+```rust
+use quoin::prelude::*;
+use quoin::testkit::{TestContext, ImmediateExecutor};
+
+#[test]
+fn signal_round_trip() {
+    let cx = TestContext::with_executor(ImmediateExecutor);
+    let count = cx.create_signal(0u32);
+    count.set(42);
+    assert_eq!(count.get(), 42);
+}
+```
+
+```sh
+cargo test
+```
+
+**Expected output:** the test passes, confirming the adapter compiled and the context works.
+
+## Next steps
+
+- <LinkCard title="Build a Cross-Framework Counter" href="/tutorials/build-a-counter/" description="The golden-path tutorial from zero to a running app." />
+- <LinkCard title="Feature Flags Reference" href="/reference/feature-flags/" description="Every flag, its dependencies, and when to enable it." />

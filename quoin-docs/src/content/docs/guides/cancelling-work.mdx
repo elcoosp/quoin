@@ -1,0 +1,96 @@
+---
+title: Cancelling Work
+description: Cancel long-running async work cooperatively with child tokens, RAII guards, and run-until-cancelled races.
+type: how-to
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+
+You will stop work that is no longer wanted — abandoned searches, closed panels, superseded polls — using Quoin's cancellation toolkit, which behaves identically on all five adapters.
+
+**Prerequisites:** familiarity with spawning tasks ([Loading Async Data](/guides/async-data/)).
+
+## Poll the token
+
+`CancellationToken` is cloneable and cheap. The most direct pattern checks it inside a loop:
+
+```rust
+let token = CancellationToken::new();
+executor.spawn({
+    let token = token.clone();
+    async move {
+        while !token.is_cancelled() {
+            do_work().await;
+        }
+        cleanup().await;
+    }
+});
+
+// Later, from another task or UI event:
+token.cancel();
+```
+
+Cancellation is **cooperative**: nothing preempts your future. It stops at its next suspension point, so long computations between `.await`s delay it.
+
+## Await cancellation itself
+
+`token.cancelled()` returns a future that resolves when the token fires; `into_cancelled()` gives an owned variant. Use them to select between completion and shutdown:
+
+```rust
+tokio::select! {
+    result = work() => handle(result),
+    _ = token.cancelled() => shutdown().await,
+}
+```
+
+## Race work against cancellation
+
+`run_until_cancelled` resolves with `Some(output)` when the wrapped future finishes first, or `None` when the token wins:
+
+```rust
+let value = token.run_until_cancelled(work()).await;
+match value {
+    Some(result) => apply(result),
+    None => /* cancelled */,
+}
+```
+
+## Build token trees
+
+Long-lived screens create child tokens that cancel together with their parent but also cancel independently:
+
+```rust
+let parent = CancellationToken::new();
+let per_request = parent.child_token();  // cancels with the parent
+// Cancelling per_request leaves parent untouched.
+// Cancelling parent also cancels per_request.
+```
+
+This models UI lifetimes: one parent token per view, one child per in-flight request.
+
+## Cancel on drop with guards
+
+`guard()` returns an RAII guard that cancels the token when dropped — the "cancel when this scope exits" pattern:
+
+```rust
+let token = CancellationToken::new();
+let _guard = token.guard();  // token.cancel() runs when _guard drops
+```
+
+## Detach or drop — know the difference
+
+Dropping a join handle cancels the task; that is structured concurrency by default. When you genuinely want fire-and-forget, call `detach()` explicitly so the task runs to completion:
+
+```rust
+let handle = executor.spawn(log_flusher());
+handle.detach();  // survives; drop(handle) would have cancelled it
+```
+
+<Aside type="tip">
+  Prefer drop-cancellation. A task that mutates UI state after its view is gone is a bug class Quoin's defaults eliminate.
+</Aside>
+
+## Next steps
+
+- <LinkCard title="Cancellation Tokens Reference" href="/reference/cancellation/" description="Every method and future type on CancellationToken." />
+- <LinkCard title="Loading Async Data" href="/guides/async-data/" description="Resources with built-in race-free reloads and cancellation." />

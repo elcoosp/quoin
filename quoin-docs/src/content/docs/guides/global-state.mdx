@@ -1,0 +1,60 @@
+---
+title: Sharing Global State
+description: Store app-wide state with provide_global and use_global, update it safely, and understand the shared-cell semantics.
+type: how-to
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+
+You will store application-wide values — theme, settings, a router state — outside any single component and access them from any hook or view.
+
+**Prerequisites:** a context implementing `ReactiveContext` (see [Writing Portable Hooks](/guides/portable-hooks/)).
+
+## Provide and read a global
+
+`provide_global` stores a value keyed by its type; `use_global` retrieves it as a reactive signal handle:
+
+```rust
+cx.provide_global(Theme::Dark);
+
+if let Some(theme) = cx.use_global::<Theme>() {
+    // theme is a signal handle — read or observe it.
+    let current = theme.get();
+}
+```
+
+Store one value per type per context. Two adapters running on the same thread never collide: the underlying store keys entries by both the context type and the value type.
+
+## Update a global in place
+
+`update_global` (from `ReactiveContextExt`, in the prelude) mutates the stored value through a closure. The type parameter after the struct is your error type — return `Err` to reject the update:
+
+```rust
+cx.update_global::<Settings, ()>(|s| s.theme = Theme::Dark);
+```
+
+## Initialize on first use
+
+`use_global_or_init` inserts a default when no value exists yet and returns the handle either way:
+
+```rust
+let settings = cx.use_global_or_init(Settings::default);
+```
+
+This replaces the provide-then-read dance for globals that always exist.
+
+## Semantics on every adapter
+
+All five adapters share one semantic: every `use_global` call returns a handle to the **same shared cell**, so a mutation performed through one handle is visible through every other handle. The pull-based adapters (GPUI, Xilem, Floem) back this with a thread-local, `TypeId`-keyed map matching each framework's main-thread assumptions:
+
+- Globals are visible on the thread that registered them.
+- GPUI, Xilem, and Floem share the same thread-local machinery from `quoin_core::globals`; the fine-grained adapters map onto their own stores with identical observable behavior.
+
+<Aside type="caution">
+  Globals live per thread on native targets. Register them on the main/UI thread and read them there; crossing threads is the job of signals passed through tasks, not of the global store.
+</Aside>
+
+## Next steps
+
+- <LinkCard title="Reactive Context Reference" href="/reference/reactive-context/" description="The full ReactiveContext and ReactiveContextExt surface, including the global methods." />
+- <LinkCard title="The Reactivity Model" href="/explanation/reactivity-model/" description="How signals, batching, and globals interact under the hood." />

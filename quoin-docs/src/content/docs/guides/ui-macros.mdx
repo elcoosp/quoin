@@ -1,0 +1,156 @@
+---
+title: Declarative UI Macros
+description: Define components, render JSX-like trees, run effects, and bootstrap apps with component!, quoin_render!, effect!, and run_app!.
+type: how-to
+---
+
+import { Aside, LinkCard, Badge } from '@astrojs/starlight/components';
+
+You will replace hand-written framework view code with Quoin's declarative macros. One syntax expands to native code for your chosen framework: a `Render` impl on GPUI, a `#[component]` function on Leptos and Dioxus.
+
+**Prerequisites:** the `macros` feature (implied by any framework feature) — see [Installation](/guides/installation/).
+
+## Define a component with `component!`
+
+`component!` declares props, reactive state, globals, lifecycle hooks, actions, and the render tree in one block:
+
+```rust
+use quoin_macros::component;
+
+component! {
+    pub DemoApp {
+        props {
+            initial_count: u32 = 0,
+        }
+        state {
+            count: u32 = initial_count,
+            selected: String = "Option A".to_string(),
+        }
+        globals {
+            theme: Theme,                  // automatically retrieved from context
+            router: RouterState observe,   // observe = track changes
+        }
+        on_mount {
+            log::info!("Component mounted");
+        }
+        on_unmount {
+            log::info!("Component unmounted");
+        }
+        fn increment() {
+            count.update(|c| *c += 1);
+        }
+        fn select_option(opt: String) {
+            selected.set(opt);
+        }
+        render {
+            let count_text = format!("Count: {}", count.get());
+            quoin_render! {
+                div(class: "flex flex-col gap-4 p-4 bg-gray-900 text-white") {
+                    div(class: "text-2xl font-bold") { "Quoin Render Demo" }
+                    div { count_text }
+                    button(class: "px-4 py-2 bg-blue-600 rounded-md",
+                        on_click: move |_| increment()) {
+                        "Increment"
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+Framework output:
+
+- **GPUI** — a `struct DemoApp` with a `Render` impl.
+- **Leptos** — `#[component] fn DemoApp() -> impl IntoView`.
+- **Dioxus** — `#[component] fn DemoApp() -> Element`.
+
+State fields declared in `state` become signals; plain Rust code inside `render` runs each render pass.
+
+## Write trees with `quoin_render!`
+
+The render syntax is JSX-like with named attributes, conditional blocks, and loops:
+
+```rust
+use quoin_macros::quoin_render;
+
+quoin_render! {
+    div(class: "flex flex-col gap-4 p-4 bg-gray-900 text-white h-full") {
+        div(class: "text-2xl font-bold hover:text-blue-400") { "Hello" }
+        if[show_details] {
+            div(class: "p-2 bg-gray-800 rounded-md") { details }
+        }
+        for[item in items] {
+            div(class: "text-sm") { item.name.clone() }
+        }
+        tabs(active: active_tab, on_click: move |i| set_active(i)) {
+            tab(index: 0, label: "Tab 1")
+            tab(index: 1, label: "Tab 2")
+        }
+        data_table(rows: people, striped: true) {
+            column(key: "name", label: "Name", render: |p: &Person| p.name.clone())
+            column(key: "age",  label: "Age",  render: |p: &Person| p.age.to_string())
+        }
+        clipboard_button(copy_text: "Copied!") { "Copy" }
+    }
+}
+```
+
+Beyond `div` and `button`, the element vocabulary includes the rich components the emitters support per framework: `tabs`, `data_table`, `virtual_list`, `dropdown_menu`, `input`, `checkbox`, `radio`, `switch`, `slider`, `icon`, `badge`, `tooltip`, `progress`, `skeleton`, `scroll_area`, `separator`, and `styled_text`. Handlers receive [typed events](/reference/events/), so the same handler source compiles on all backends.
+
+## Run side effects with `effect!`
+
+`effect!` has a structured form with dependencies, a run closure, and optional cleanup:
+
+```rust
+use quoin_macros::effect;
+
+effect! { watch: [count], || println!("Count changed: {}", count.get()) }
+
+effect! {
+    deps: [query],
+    run: || {
+        let data = fetch_data(&query.get());
+        results.set(data);
+    },
+    cleanup: || {
+        cancel_pending_request();
+    }
+}
+```
+
+- **Leptos** expands to `create_effect` + `on_cleanup`.
+- **Dioxus** expands to `use_effect` + `use_drop`.
+- **GPUI** executes the run closure and calls cleanup when the effect is dropped.
+
+## Bootstrap with `run_app!`
+
+One line mounts your component:
+
+```rust
+run_app!(MyComponent);                            // GPUI with default window options
+run_app!(MyComponent, window_opts: custom_opts);  // GPUI with a custom window
+run_app!(MyComponent);                            // Leptos/Dioxus mount to body
+```
+
+## Define reusable elements with `quoin_element!`
+
+<Badge text="Advanced" variant="caution" />
+
+`quoin_element!` declares a named custom element with typed props, rendered through a `quoin_render!` closure:
+
+```rust
+quoin_element!("my-widget", { width: u32 }, |props| quoin_render! {
+    div { "w" }
+});
+```
+
+<Aside type="note">
+  The GPUI backend additionally re-exports the gpui-rsx escape hatch (`rsx!`, `rsx_strict!`, `#[component]`, …) under the `rsx` feature for GPUI-only subtrees inside `quoin_render!` render blocks — see the [styling guide](/guides/styling/#escape-hatch-for-gpui-only-subtrees).
+</Aside>
+
+## Next steps
+
+- <LinkCard title="Styling with Tailwind Classes" href="/guides/styling/" description="How class strings compile to native styling on each backend." />
+- <LinkCard title="Composing UCP Components" href="/guides/ucp-components/" description="Data tables, virtual lists, and dropdowns through the Universal Component Protocol." />
+- <LinkCard title="Macros Reference" href="/reference/macros/" description="Signature tables for all five macros." />

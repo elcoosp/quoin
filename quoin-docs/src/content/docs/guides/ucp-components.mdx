@@ -1,0 +1,73 @@
+---
+title: Composing UCP Components
+description: Build data tables, virtual lists, inputs, buttons, dropdowns, and tab bars through the framework-agnostic Universal Component Protocol.
+type: how-to
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+
+You will build rich components — tables, virtual lists, dropdown menus, clipboard access — through the Universal Component Protocol (UCP), so the composition code stays framework-agnostic while an adapter crate supplies the native rendering.
+
+**Prerequisites:** the `ui` feature (included by the `gpui` feature); for GPUI rendering the adapter ships `quoin-ui-gpui` automatically.
+
+## Understand the two layers
+
+UCP splits rich widgets into:
+
+1. **Traits** in `quoin-ui` — abstract contracts such as `TableAdapter`, `VirtualListAdapter`, `ButtonAdapter`, `TextInputAdapter`, `DropdownMenuAdapter`, `TabBarAdapter`, and `Clipboard`.
+2. **Adapter implementations** — concrete per-framework crates such as `quoin-ui-gpui` that know how to render the widget natively.
+
+Your code talks to the traits; the framework feature pulls in the implementation.
+
+## Render a button
+
+`ButtonVariant` selects emphasis (`primary`, `ghost`, `destructive`) and density (`ComponentSize::Small | Medium | Large`):
+
+```rust
+use quoin_ui::{ButtonAdapter, ButtonVariant, ComponentSize};
+
+let adapter = GpuiButtonAdapter::default();
+let button = adapter.render(Some("Click Me".into()), ButtonVariant {
+    primary: true,
+    size: ComponentSize::Medium,
+    ..Default::default()
+});
+```
+
+## Declare a sortable data table
+
+Inside `quoin_render!`, the `data_table` element declares columns with keys, labels, and render closures; sorting and striping come from attributes:
+
+```rust
+data_table(rows: people, striped: true) {
+    column(key: "name", label: "Name", render: |p: &Person| p.name.clone())
+    column(key: "age",  label: "Age",  render: |p: &Person| p.age.to_string())
+}
+```
+
+`SortDirection` (`None | Asc | Desc`) models the per-column sort state on the `TableAdapter` side.
+
+## Render large lists efficiently
+
+`virtual_list` backs scrollable lists with the `VirtualListAdapter` contract so only visible rows render; scroll restoration is part of the node vocabulary (`scroll_restoration`).
+
+## Read and write the clipboard
+
+The `Clipboard` trait abstracts the system clipboard; the `clipboard_button` element wires a button that copies text and reports success:
+
+```rust
+clipboard_button(copy_text: "Copied!") { "Copy" }
+```
+
+## Theme tokens
+
+`QuoinTheme` resolves theme color tokens for adapters, so UCP components pick up consistent colors across light and dark appearances without hard-coded hex values in your code.
+
+<Aside type="tip">
+  Run the UCP demo to see every widget live: `just run-ucp-gpui` (or `just run-ucp-dioxus`) from the repository root.
+</Aside>
+
+## Next steps
+
+- <LinkCard title="Universal Component Protocol Reference" href="/reference/ucp/" description="All traits, node types, and variant enums." />
+- <LinkCard title="Declarative UI Macros" href="/guides/ui-macros/" description="Where UCP elements fit inside quoin_render! trees." />

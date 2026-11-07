@@ -1,0 +1,67 @@
+---
+title: Tracing with quoin-devtools
+description: Record every signal mutation, task spawn, and update request with quoin-devtools, then inspect the log at runtime or on exit.
+type: how-to
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+
+You will instrument a running application to see what its reactive core is doing: signal creations, read-triggering mutations, update requests, and task spawns, completions, and aborts. `quoin-devtools` wraps **any** adapter's context — GPUI, Leptos, Dioxus, Xilem, Floem, or the testkit context.
+
+**Prerequisites:** the `devtools` feature (or a direct dependency on `quoin-devtools`).
+
+## Wrap the context
+
+`Instrumented::wrap` is a drop-in wrapper: keep using the wrapped context everywhere you used the raw one.
+
+```rust
+use quoin_devtools::Instrumented;
+
+let raw_ctx = /* any adapter context */;
+let ctx = Instrumented::wrap(raw_ctx, "app");
+```
+
+## Enable recording
+
+Recording is gated so that shipping the wiring costs nothing when disabled — with tracing off, each call is one relaxed atomic load and nothing is allocated.
+
+```sh
+QUOIN_TRACE=1 ./myapp    # or QUOIN_TRACE=on
+```
+
+Alternatively enable it programmatically: `quoin_devtools::enable()` (and `disable()` / `enabled()` to inspect the state).
+
+## Read the log
+
+The global `EventLog` is a ring buffer (default capacity 4096 events) with three aggregate views:
+
+```rust
+quoin_devtools::global_log().dump();          // stderr table
+quoin_devtools::global_log().hot_signals();   // ranked mutation counts
+quoin_devtools::global_log().events();        // raw snapshot of Event values
+```
+
+Call them from a debug hotkey, a drop-down panel, or on exit. Each event carries an `EventKind` (updates, spawns, mutations, …) and the label you passed to `Instrumented::wrap`.
+
+## See it live in a real window
+
+The `counter-xilem` example renders trace counts next to the counter and dumps the session when the window closes:
+
+```sh
+cargo run --manifest-path examples/counter-xilem/Cargo.toml
+```
+
+For a headless tour of the tracing session itself, run `just trace-demo` (it drives `devtools-demo` with `QUOIN_TRACE=1`).
+
+## Forward to the tracing ecosystem
+
+The optional `tracing` feature forwards events into the [`tracing`](https://crates.io/crates/tracing) ecosystem instead of (or in addition to) the built-in log.
+
+<Aside type="tip">
+  Pair devtools with the testkit in CI: an `EventLog` snapshot makes a useful assertion surface — for example, that a feature flag flip caused exactly one update request.
+</Aside>
+
+## Next steps
+
+- <LinkCard title="quoin-devtools Reference" href="/reference/devtools/" description="Every public item: Instrumented, EventLog, EventKind, and the record helpers." />
+- <LinkCard title="Testing with quoin-testkit" href="/guides/testing/" description="Deterministic headless testing of the same reactive code." />

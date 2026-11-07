@@ -1,0 +1,106 @@
+---
+title: Loading Async Data
+description: Fetch remote data with race-free resources, spawn async tasks on the framework runtime, and use portable timers.
+type: how-to
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+
+You will load remote data into the UI without races between stale and fresh responses, and you will run background work on the framework's native async runtime.
+
+**Prerequisites:** a working Quoin setup and a context that implements `ReactiveContext` (see [Writing Portable Hooks](/guides/portable-hooks/)).
+
+## Load data with a resource
+
+`cx.create_resource` gives every adapter the async-data lifecycle familiar from Leptos and Dioxus: `Idle → Loading → Ready(T) | Failed(E)`. Pass a closure that receives a [`CancellationToken`](/reference/cancellation/) and returns a future:
+
+```rust
+let user = cx.create_resource(|token| async move {
+    // Check the token between awaits so reloads stop stale work:
+    Ok::<User, FetchError>(fetch_user(&token).await?)
+});
+
+// Anywhere in the UI:
+match user.state().get() {
+    ResourceState::Ready(user) => render_user(&user),
+    ResourceState::Loading => render_spinner(),
+    ResourceState::Failed(err) => render_error(&err),
+    ResourceState::Idle => render_placeholder(),
+}
+```
+
+The resource handles the two problems that plague hand-rolled fetch loops:
+
+- **Race-free reloads** — every reload bumps a generation counter, so a stale request can never overwrite a newer result.
+- **Cooperative cancellation** — reloading cancels the in-flight request through its token and aborts the task through the executor's join handle.
+
+Call `user.reload_with(&cx, fetch)` to re-run the fetch closure; the state returns to `Loading` until the new request settles.
+
+## Spawn one-off tasks
+
+For work that is not tied to a resource, spawn onto the framework runtime with the executor:
+
+```rust
+let handle = cx.executor().spawn(async {
+    let data = fetch_from_api().await;
+    signal.set(data);
+});
+
+// Later: await the result (Err(Canceled) if aborted), abort(), or detach().
+```
+
+Every adapter implements the same join-handle lifecycle:
+
+| Operation | Effect |
+| --- | --- |
+| `handle.await` | Waits for the result; the task runs to completion. |
+| `handle.abort()` | Cancels at the next suspension point; later awaits resolve with `Err(Canceled)`. |
+| `handle.detach()` | Fire-and-forget; the task runs to completion, its result is discarded. |
+| `drop(handle)` | Cancels the task — structured concurrency, no orphaned tasks mutating UI state. |
+
+Cancellation is cooperative on the thread-based adapters (Leptos, Dioxus, Floem): the future stops at its next `.await` point. GPUI and Xilem cancel natively.
+
+## Fetch-and-cancel in one call
+
+`spawn_with_token` (from `ExecutorExt`, in the prelude) creates a cancellation token and hands it to your future:
+
+```rust
+let (handle, token) = cx.executor().spawn_with_token(|t| async move {
+    while !t.is_cancelled() {
+        do_work().await;
+    }
+});
+// User navigated away:
+token.cancel();
+```
+
+## Run !Send futures with spawn_local
+
+Browsers run WASM on a single thread and most DOM-touching futures are `!Send`. The `LocalExecutor` machinery covers both worlds:
+
+```rust
+use quoin_core::LocalExecutor;
+
+cx.executor().spawn_local(async { update_dom().await });
+```
+
+- **On `wasm32`** tasks run on the browser main thread via `wasm_bindgen_futures`.
+- **On native** tasks enter a deterministic thread-local FIFO queue driven by `quoin_core::local::run_local_tasks()` — useful in tests.
+
+<Aside type="caution">
+  GPUI does not implement `LocalExecutor` — its executor is `!Send` by design. Use `Executor::spawn` there.
+</Aside>
+
+## Sleep without an async runtime
+
+Timers are part of the executor contract. `executor.sleep(duration)` returns a future on every adapter (futures-timer on native, browser timers on WASM), and the free function `quoin_core::sleep` gives you a standalone `SyncSleepFuture`:
+
+```rust
+cx.executor().sleep(Duration::from_millis(250)).await;
+```
+
+## Next steps
+
+- <LinkCard title="Cancelling Work" href="/guides/cancelling-work/" description="Child tokens, RAII guards, and racing work against cancellation." />
+- <LinkCard title="Resources Reference" href="/reference/resources/" description="The full Resource and ResourceState API." />
+- <LinkCard title="Executors & Tasks Reference" href="/reference/executors/" description="Spawn, join handles, local tasks, and timers." />
