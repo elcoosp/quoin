@@ -90,30 +90,30 @@ fn emit_toggle(el: &Element, ctx: &mut super::EmitterCtx, switch: bool) -> Token
             }
         };
 
-        let change_hook =
-            match find_arg_expr(el, "on_change").or_else(|| find_arg_expr(el, "on_checked_change"))
-            {
-                Some(handler_expr) => {
-                    let (block, _name) = handler::handler_block(handler_expr, ctx);
-                    let call = if handler::handler_arity_is_zero(handler_expr) {
-                        quote! { __h() }
-                    } else {
-                        quote! { __h(::quoin::Signal::get(&__value)) }
-                    };
-                    quote! {
-                        #block
-                        let __value_hook = ::core::clone::Clone::clone(&__value);
-                        ::floem::reactive::Effect::new(
-                            move |__prev: ::core::option::Option<()>| {
-                                let _ = __prev;
-                                let __current = ::quoin::Signal::get(&__value_hook);
-                                #call;
-                            },
-                        );
-                    }
+        let change_hook = match find_arg_expr(el, "on_change")
+            .or_else(|| find_arg_expr(el, "on_checked_change"))
+        {
+            Some(handler_expr) => {
+                let (block, _name) = handler::handler_block(handler_expr, ctx);
+                let call = if handler::handler_arity_is_zero(handler_expr) {
+                    quote! { __h() }
+                } else {
+                    quote! { __h(::quoin::Signal::get(&__value)) }
+                };
+                quote! {
+                    #block
+                    let __value_hook = ::core::clone::Clone::clone(&__value);
+                    ::floem::reactive::Effect::new(
+                        move |__prev: ::core::option::Option<()>| {
+                            let _ = __prev;
+                            let __current = ::quoin::Signal::get(&__value_hook);
+                            #call;
+                        },
+                    );
                 }
-                None => quote! {},
-            };
+            }
+            None => quote! {},
+        };
 
         let component = if switch {
             quote! { ::floem_shadcn::components::switch::Switch::new(__state) }
@@ -159,30 +159,30 @@ fn emit_toggle(el: &Element, ctx: &mut super::EmitterCtx, switch: bool) -> Token
         let checked_expr = find_arg_expr(el, "checked").unwrap_or(&checked_fallback);
         let capture = handler::capture_shadows(checked_expr, ctx);
 
-        let change_hook =
-            match find_arg_expr(el, "on_change").or_else(|| find_arg_expr(el, "on_checked_change"))
-            {
-                Some(handler_expr) => {
-                    let (block, _name) = handler::handler_block(handler_expr, ctx);
-                    let call = if handler::handler_arity_is_zero(handler_expr) {
-                        quote! { __h() }
-                    } else {
-                        quote! { __h(::quoin::Signal::get(&__value)) }
-                    };
-                    quote! {
-                        #block
-                        let __value_hook = ::core::clone::Clone::clone(&__value);
-                        ::floem::reactive::Effect::new(
-                            move |__prev: ::core::option::Option<()>| {
-                                let _ = __prev;
-                                let __current = ::quoin::Signal::get(&__value_hook);
-                                #call;
-                            },
-                        );
-                    }
+        let change_hook = match find_arg_expr(el, "on_change")
+            .or_else(|| find_arg_expr(el, "on_checked_change"))
+        {
+            Some(handler_expr) => {
+                let (block, _name) = handler::handler_block(handler_expr, ctx);
+                let call = if handler::handler_arity_is_zero(handler_expr) {
+                    quote! { __h() }
+                } else {
+                    quote! { __h(::quoin::Signal::get(&__value)) }
+                };
+                quote! {
+                    #block
+                    let __value_hook = ::core::clone::Clone::clone(&__value);
+                    ::floem::reactive::Effect::new(
+                        move |__prev: ::core::option::Option<()>| {
+                            let _ = __prev;
+                            let __current = ::quoin::Signal::get(&__value_hook);
+                            #call;
+                        },
+                    );
                 }
-                None => quote! {},
-            };
+            }
+            None => quote! {},
+        };
 
         let view = if switch {
             quote! { ::floem::views::toggle_button::ToggleButton::new_rw(__state) }
@@ -252,30 +252,30 @@ pub(crate) fn emit_slider(el: &Element, ctx: &mut super::EmitterCtx) -> TokenStr
 
         let capture = handler::capture_shadows(value_expr, ctx);
 
-        let change_hook = match find_arg_expr(el, "on_change").or_else(|| find_arg_expr(el, "on_input"))
-        {
-            Some(handler_expr) => {
-                let (block, _name) = handler::handler_block(handler_expr, ctx);
-                let call = if handler::handler_arity_is_zero(handler_expr) {
-                    quote! { __h() }
-                } else {
-                    quote! { __h(__current) }
-                };
-                quote! {
-                    #block
-                    ::floem::reactive::Effect::new(
-                        move |__prev: ::core::option::Option<f64>| {
-                            let __current = ::floem::reactive::SignalGet::get(&__state);
-                            if __prev != Some(__current) {
-                                #call;
-                            }
-                            __current
-                        },
-                    );
+        let change_hook =
+            match find_arg_expr(el, "on_change").or_else(|| find_arg_expr(el, "on_input")) {
+                Some(handler_expr) => {
+                    let (block, _name) = handler::handler_block(handler_expr, ctx);
+                    let call = if handler::handler_arity_is_zero(handler_expr) {
+                        quote! { __h() }
+                    } else {
+                        quote! { __h(__current) }
+                    };
+                    quote! {
+                        #block
+                        ::floem::reactive::Effect::new(
+                            move |__prev: ::core::option::Option<f64>| {
+                                let __current = ::floem::reactive::SignalGet::get(&__state);
+                                if __prev != Some(__current) {
+                                    #call;
+                                }
+                                __current
+                            },
+                        );
+                    }
                 }
-            }
-            None => quote! {},
-        };
+                None => quote! {},
+            };
 
         let disabled_lit = find_arg_bool(el, "disabled");
 
@@ -323,60 +323,60 @@ pub(crate) fn emit_slider(el: &Element, ctx: &mut super::EmitterCtx) -> TokenStr
         let min_expr = find_arg_expr(el, "min").unwrap_or(&min_fallback);
         let max_expr = find_arg_expr(el, "max").unwrap_or(&max_fallback);
 
-    let capture = handler::capture_shadows(value_expr, ctx);
+        let capture = handler::capture_shadows(value_expr, ctx);
 
-    let change_hook = match find_arg_expr(el, "on_change").or_else(|| find_arg_expr(el, "on_input"))
-    {
-        Some(handler_expr) => {
-            let (block, _name) = handler::handler_block(handler_expr, ctx);
-            let call = if handler::handler_arity_is_zero(handler_expr) {
-                quote! { __h() }
-            } else {
-                quote! { __h(__event.pct.0) }
-            };
-            quote! {
-                .on_event(::floem::views::slider::SliderChanged::listener(), {
-                    #block
-                    move |__cx, __event| {
-                        let _ = __cx;
-                        #call;
-                        ::floem::event::EventPropagation::Continue
+        let change_hook =
+            match find_arg_expr(el, "on_change").or_else(|| find_arg_expr(el, "on_input")) {
+                Some(handler_expr) => {
+                    let (block, _name) = handler::handler_block(handler_expr, ctx);
+                    let call = if handler::handler_arity_is_zero(handler_expr) {
+                        quote! { __h() }
+                    } else {
+                        quote! { __h(__event.pct.0) }
+                    };
+                    quote! {
+                        .on_event(::floem::views::slider::SliderChanged::listener(), {
+                            #block
+                            move |__cx, __event| {
+                                let _ = __cx;
+                                #call;
+                                ::floem::event::EventPropagation::Continue
+                            }
+                        })
                     }
-                })
+                }
+                None => quote! {},
+            };
+
+        let view = quote! {
+            ::floem::views::slider(move || {
+                let __min: f64 = #min_expr;
+                let __max: f64 = #max_expr;
+                let __value: f64 = ::core::clone::Clone::clone(&#value_expr);
+                if __max > __min { (__value - __min) / (__max - __min) * 100.0 } else { 0.0 }
+            })
+        };
+
+        let styled = match find_arg_string(el, "class") {
+            Some(class) => {
+                let styles = style::lower_class(&class);
+                style::apply_styles(view, &styles)
+            }
+            None => view,
+        };
+
+        let disabled = if find_arg_bool(el, "disabled") {
+            quote! { .disabled(|| true) }
+        } else {
+            quote! {}
+        };
+
+        quote! {
+            {
+                #(#capture)*
+                #styled #change_hook #disabled
             }
         }
-        None => quote! {},
-    };
-
-    let view = quote! {
-        ::floem::views::slider(move || {
-            let __min: f64 = #min_expr;
-            let __max: f64 = #max_expr;
-            let __value: f64 = ::core::clone::Clone::clone(&#value_expr);
-            if __max > __min { (__value - __min) / (__max - __min) * 100.0 } else { 0.0 }
-        })
-    };
-
-    let styled = match find_arg_string(el, "class") {
-        Some(class) => {
-            let styles = style::lower_class(&class);
-            style::apply_styles(view, &styles)
-        }
-        None => view,
-    };
-
-    let disabled = if find_arg_bool(el, "disabled") {
-        quote! { .disabled(|| true) }
-    } else {
-        quote! {}
-    };
-
-    quote! {
-        {
-            #(#capture)*
-            #styled #change_hook #disabled
-        }
-    }
     }
 }
 
@@ -693,8 +693,7 @@ pub(crate) fn emit_accordion(
         if let crate::render_ast::RenderNode::Element(item) = child
             && item.name == "accordion_item"
         {
-            let value = find_arg_string(item, "value")
-                .unwrap_or_else(|| index.to_string());
+            let value = find_arg_string(item, "value").unwrap_or_else(|| index.to_string());
             let mut trigger = None;
             let mut content = None;
             for part in &item.children {
@@ -706,11 +705,9 @@ pub(crate) fn emit_accordion(
                     let view = match kids.len() {
                         0 => quote! { ::floem::views::Empty::new() },
                         1 => kids[0].clone(),
-                        _ => super::generic::static_stack(
-                            &kids,
-                            quoin_style::FlexDir::Column,
-                            None,
-                        ),
+                        _ => {
+                            super::generic::static_stack(&kids, quoin_style::FlexDir::Column, None)
+                        }
                     };
                     if part_el.name == "accordion_trigger" {
                         trigger = Some(view);
@@ -759,8 +756,7 @@ pub(crate) fn emit_accordion(
             _ => super::generic::static_stack(&item_exprs, quoin_style::FlexDir::Column, None),
         };
 
-        let accordion =
-            quote! { ::floem_shadcn::components::accordion::Accordion::new(__state, (#items_view)) };
+        let accordion = quote! { ::floem_shadcn::components::accordion::Accordion::new(__state, (#items_view)) };
         let styled = match find_arg_string(el, "class") {
             Some(class) => {
                 let style_decls = style::lower_class(&class);
@@ -803,10 +799,12 @@ pub(crate) fn emit_accordion(
                     trigger,
                     content,
                 } = part;
-                let trigger_body =
-                    trigger.clone().unwrap_or_else(|| quote! { ::floem::views::Empty::new() });
-                let content_body =
-                    content.clone().unwrap_or_else(|| quote! { ::floem::views::Empty::new() });
+                let trigger_body = trigger
+                    .clone()
+                    .unwrap_or_else(|| quote! { ::floem::views::Empty::new() });
+                let content_body = content
+                    .clone()
+                    .unwrap_or_else(|| quote! { ::floem::views::Empty::new() });
                 let value_toggle = value.clone();
                 let value_content = value.clone();
                 let trigger_row = quote! {
@@ -1022,8 +1020,9 @@ pub(crate) fn emit_badge(
     #[cfg(feature = "floem-shadcn")]
     {
         let choice = crate::emit::shadcn_spec::canonical_badge_variant(el);
-        if let Some(error) =
-            choice.as_ref().and_then(crate::emit::shadcn_spec::choice_error)
+        if let Some(error) = choice
+            .as_ref()
+            .and_then(crate::emit::shadcn_spec::choice_error)
         {
             return error;
         }
@@ -1083,7 +1082,8 @@ pub(crate) fn emit_skeleton(el: &Element) -> TokenStream {
                 )
             };
         }
-        let width = proc_macro2::Literal::f64_suffixed(find_arg_f32(el, "width").unwrap_or(96.0) as f64);
+        let width =
+            proc_macro2::Literal::f64_suffixed(find_arg_f32(el, "width").unwrap_or(96.0) as f64);
         let height =
             proc_macro2::Literal::f64_suffixed(find_arg_f32(el, "height").unwrap_or(16.0) as f64);
         let block = quote! {
@@ -1251,8 +1251,9 @@ pub(crate) fn emit_alert(
             };
         }
         let choice = crate::emit::shadcn_spec::canonical_alert_variant(el);
-        if let Some(error) =
-            choice.as_ref().and_then(crate::emit::shadcn_spec::choice_error)
+        if let Some(error) = choice
+            .as_ref()
+            .and_then(crate::emit::shadcn_spec::choice_error)
         {
             return error;
         }
@@ -1290,7 +1291,11 @@ pub(crate) fn emit_alert(
 }
 
 /// `card { … }` → shadcn `Card` over the static child tuple.
-pub(crate) fn emit_card(el: &Element, ctx: &mut super::EmitterCtx, inside_for: bool) -> TokenStream {
+pub(crate) fn emit_card(
+    el: &Element,
+    ctx: &mut super::EmitterCtx,
+    inside_for: bool,
+) -> TokenStream {
     #[cfg(feature = "floem-shadcn")]
     {
         let mut kids = Vec::new();
@@ -1441,11 +1446,7 @@ pub(crate) fn emit_spinner(
 }
 
 /// `kbd(text: "..")` (or a single text child) → shadcn `Kbd` key cap.
-pub(crate) fn emit_kbd(
-    el: &Element,
-    ctx: &mut super::EmitterCtx,
-    inside_for: bool,
-) -> TokenStream {
+pub(crate) fn emit_kbd(el: &Element, ctx: &mut super::EmitterCtx, inside_for: bool) -> TokenStream {
     #[cfg(feature = "floem-shadcn")]
     {
         let _ = (ctx, inside_for);

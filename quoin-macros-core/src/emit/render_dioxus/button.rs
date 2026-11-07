@@ -22,7 +22,10 @@ pub(crate) fn emit_button(el: &Element) -> TokenStream {
         // lowers to its shadcn Tailwind class string (the Dioxus shadcn
         // path is class-based — no component import needed).
         let choice = crate::emit::shadcn_spec::canonical_button_variant(el);
-        if let Some(error) = choice.as_ref().and_then(crate::emit::shadcn_spec::choice_error) {
+        if let Some(error) = choice
+            .as_ref()
+            .and_then(crate::emit::shadcn_spec::choice_error)
+        {
             return error;
         }
         let variant_class = match choice.and_then(|c| c.ok()) {
@@ -30,9 +33,7 @@ pub(crate) fn emit_button(el: &Element) -> TokenStream {
                 "bg-destructive text-destructive-foreground hover:bg-destructive/90"
             }
             Some("ghost") => "hover:bg-accent hover:text-accent-foreground",
-            Some("secondary") => {
-                "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-            }
+            Some("secondary") => "bg-secondary text-secondary-foreground hover:bg-secondary/80",
             Some("link") => "text-primary underline-offset-4 hover:underline",
             Some("outline") | None => {
                 "border border-input bg-background hover:bg-accent hover:text-accent-foreground"

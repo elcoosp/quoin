@@ -265,7 +265,14 @@ pub(crate) fn transpile_class(class_str: &str) -> TranspiledStyles {
         let analysis = analyze_class(class, mode.clone());
         match analysis.outcome {
             ClassOutcome::Supported(_) => {
-                route_resolved(analysis, class, &mut normal, &mut hover, &mut errors, &mut stateful);
+                route_resolved(
+                    analysis,
+                    class,
+                    &mut normal,
+                    &mut hover,
+                    &mut errors,
+                    &mut stateful,
+                );
                 if raw_is_scroll_class(class) {
                     scroll = true;
                 }
@@ -310,7 +317,10 @@ mod tests {
     use quoin_style::suggest_class;
 
     fn norm(ts: &proc_macro2::TokenStream) -> String {
-        ts.to_string().chars().filter(|c| !c.is_whitespace()).collect()
+        ts.to_string()
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .collect()
     }
 
     fn token_string(tokens: &[proc_macro2::TokenStream]) -> String {
@@ -413,7 +423,10 @@ mod tests {
         let styles = transpile_class("-mt-2");
         assert!(!styles.errors.is_empty(), "strict mode must reject -mt-2");
         let s = norm(&styles.errors[0]);
-        assert!(s.contains("strictmode"), "expected the strict-mode guidance, got `{s}`");
+        assert!(
+            s.contains("strictmode"),
+            "expected the strict-mode guidance, got `{s}`"
+        );
     }
 
     #[test]
@@ -423,7 +436,10 @@ mod tests {
         assert!(styles.stateful, "focus: requires a stateful element");
         // The refinement rides in the normal list, already wrapped.
         let s = norm(&styles.normal[0]);
-        assert!(s.starts_with(".focus("), "expected a focus refinement, got `{s}`");
+        assert!(
+            s.starts_with(".focus("),
+            "expected a focus refinement, got `{s}`"
+        );
         assert!(s.contains("border_color"), "refinement body lost: `{s}`");
     }
 
@@ -455,8 +471,14 @@ mod tests {
         let styles = transpile_class("totally-not-a-class");
         assert!(!styles.errors.is_empty(), "fail-fast contract must hold");
         let s = norm(&styles.errors[0]);
-        assert!(s.contains("compile_error!"), "expected compile_error, got `{s}`");
-        assert!(s.contains("totally-not-a-class"), "error must name the class");
+        assert!(
+            s.contains("compile_error!"),
+            "expected compile_error, got `{s}`"
+        );
+        assert!(
+            s.contains("totally-not-a-class"),
+            "error must name the class"
+        );
     }
 
     #[test]
@@ -495,8 +517,14 @@ mod tests {
             token_string(&styles.errors)
         );
         let normal = token_string(&styles.normal);
-        assert!(normal.contains(".flex()"), "quoin-known class missing: `{normal}`");
-        assert!(normal.contains("text_color"), "engine-resolved class missing: `{normal}`");
+        assert!(
+            normal.contains(".flex()"),
+            "quoin-known class missing: `{normal}`"
+        );
+        assert!(
+            normal.contains("text_color"),
+            "engine-resolved class missing: `{normal}`"
+        );
         assert!(!styles.hover.is_empty(), "engine-resolved hover missing");
     }
 
@@ -515,7 +543,10 @@ mod tests {
         let expr: syn::Expr = syn::parse_str("accent.clone()").expect("parses");
         let styles = TranspiledStyles::dynamic_class(&expr);
         assert!(styles.dynamic.is_some());
-        assert_eq!(norm(&styles.dynamic.as_ref().expect("checked")), "accent.clone()");
+        assert_eq!(
+            norm(&styles.dynamic.as_ref().expect("checked")),
+            "accent.clone()"
+        );
         assert!(styles.normal.is_empty() && styles.hover.is_empty() && styles.errors.is_empty());
         assert!(!styles.needs_stateful());
     }
@@ -538,7 +569,10 @@ mod tests {
         // their tokens through the engine (end-to-end covered in
         // quoin-grsx-compiletest and gpui-rsx-core's own theme tests).
         let styles = transpile_class("bg-brand-turquoise");
-        assert!(!styles.errors.is_empty(), "unknown token must fail fast without rsx.toml");
+        assert!(
+            !styles.errors.is_empty(),
+            "unknown token must fail fast without rsx.toml"
+        );
         assert!(styles.rebuild.is_none(), "no rsx.toml, no rebuild tracking");
     }
 }

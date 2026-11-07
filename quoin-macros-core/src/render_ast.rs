@@ -370,7 +370,6 @@ pub fn known_elements() -> &'static [&'static str] {
     KNOWN_ELEMENTS
 }
 
-
 /// Unwraps a single-expression block: `{ expr }` -> `expr`.
 ///
 /// Text children are authored as `{ expr }` to disambiguate them from
@@ -379,7 +378,9 @@ pub fn known_elements() -> &'static [&'static str] {
 fn unblock_expr(expr: Expr) -> Expr {
     if let Expr::Block(block) = &expr {
         let stmts = &block.block.stmts;
-        if stmts.len() == 1 && let Some(Stmt::Expr(inner, None)) = stmts.first() {
+        if stmts.len() == 1
+            && let Some(Stmt::Expr(inner, None)) = stmts.first()
+        {
             return (*inner).clone();
         }
     }

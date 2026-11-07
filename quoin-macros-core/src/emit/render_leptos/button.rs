@@ -27,7 +27,10 @@ pub(crate) fn emit_button(
         // (`primary:`/`destructive:`/`ghost:`) as the fallback. Unknown
         // values are a hard error.
         let choice = crate::emit::shadcn_spec::canonical_button_variant(el);
-        if let Some(error) = choice.as_ref().and_then(crate::emit::shadcn_spec::choice_error) {
+        if let Some(error) = choice
+            .as_ref()
+            .and_then(crate::emit::shadcn_spec::choice_error)
+        {
             return error;
         }
         let variant = match choice.and_then(|c| c.ok()) {
