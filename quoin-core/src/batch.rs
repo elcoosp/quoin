@@ -54,6 +54,14 @@ impl BatchGuard {
 impl Drop for BatchGuard {
     fn drop(&mut self) {
         BATCH_DEPTH.with(|d| d.set(d.get().saturating_sub(1)));
+        // The outermost batch end flushes deferred effect re-runs (see
+        // `crate::effect`): mutations made inside the batch scheduled their
+        // reading effects instead of running them inline, so N writes
+        // produce at most one re-run per effect — the effect-side twin of
+        // the single `request_update` the batch issues below.
+        if !crate::batch::in_batch() {
+            crate::effect::on_batch_end();
+        }
     }
 }
 
