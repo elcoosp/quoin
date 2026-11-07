@@ -99,15 +99,5 @@ fn main() {
         }
     };
 
-    let _ = (
-        known,
-        scroll,
-        tokens,
-        extended,
-        variants,
-        dynamic,
-        dynamic_control_flow,
-        handler,
-        mixed,
-    );
+    let _ = (known, scroll, tokens, extended, variants, dynamic, dynamic_control_flow, handler, mixed);
 }
