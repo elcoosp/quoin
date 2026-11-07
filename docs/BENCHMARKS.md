@@ -51,6 +51,40 @@ every read (here ~65 ns including the recompute; the gap widens with
 genuinely expensive maps — sorting, formatting, filtering — where `memo`
 skips the work entirely and pays only the source clone + `PartialEq`).
 
+### Effects and type-erased signals (`quoin-core::effect`, `AnySignal`)
+
+The M1.6 additions shipped with two zero-cost gates, and the numbers confirm
+both: reads and writes on tracked cells are **unchanged** when no effect is
+running (the tracking gate is one thread-local flag check), and writes skip even
+the dependency-cell lock while no undisposed effect exists at all (the
+live-effect gate). Costs appear only where reactivity is actually wired:
+
+| Benchmark | Ops | ns/op | Notes |
+| --- | ---: | ---: | --- |
+| `signal.get` (tracked cell, no effects) | 1,000,000 | 14 | == plain `signal.get`: the gate is invisible |
+| `signal.set` (tracked cell, no effects) | 1,000,000 | 14 | == plain `signal.set`: live-effect gate skips the dep lock |
+| `signal.set` (effect exists, cell unobserved) | 1,000,000 | 24 | +10 ns: one empty subscriber-list lock |
+| `signal.set` (trivial effect re-runs) | 1,000,000 | 188 | full cycle: notify → schedule → flush → body → resubscribe |
+| `effect.create` (initial run, 1 dep) | 100,000 | 292 | node alloc + registry insert + initial run + subscribe |
+| effect rerun (batched set ×10 → 1 run) | 100,000 | 661 | 10 sets + one re-run ≈ 10×14 + run — batch still coalesces |
+| `watch` callback (set → callback) | 1,000,000 | 180 | same flush cycle through the `watch` sugar |
+| `any_signal.get` (vtable dispatch) | 1,000,000 | 14 | erasure adds ~0 ns to reads |
+| `any_signal.set` (vtable dispatch) | 1,000,000 | 24 | same +10 ns shape as the unobserved-cell row above |
+| `any_signal.with` (clone + lend) | 1,000,000 | 16 | clone-based lend, ~`get` cost |
+
+**Effect-cycle takeaway:** an observed `set` costs ~188 ns for a trivial
+body — roughly 13× a plain write, which is the price of the full
+reactive-graph maintenance (notify, schedule, flush, rebuild the dependency
+set, resubscribe). Coalescing through `batch` amortizes it: 10 batched
+writes + one re-run cost ~661 ns ≈ 10 plain writes + one cycle, so batching
+still wins exactly as it does for update requests.
+
+**Erasure takeaway:** `AnySignal` adds no measurable cost to `get`/`set`
+beyond what the underlying cell already pays; only `with` changes shape
+(clone + lend instead of borrow), matching the documented erasure cost
+model. Use erasure for storage and plumbing, concrete signal types on hot
+read paths.
+
 ## quoin-devtools (`quoin-devtools/examples/bench-devtools.rs`)
 
 Aggregate views read **incremental counters** maintained on push and on ring
