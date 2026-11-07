@@ -6,3 +6,6 @@ dist
 
 # Leptos/Trunk build outputs (belt and braces)
 dist/
+
+# Local commit driver (never commit the commit tool itself)
+commit.sh
