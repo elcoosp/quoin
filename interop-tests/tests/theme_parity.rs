@@ -150,9 +150,8 @@ fn surface_sentinel() -> u32 {
 fn parity_theme() -> Theme {
     let mut builder = ThemeBuilder::default().scale(SpacingScale::Tailwind);
     for name in QUOIN_TOKEN_NAMES {
-        let (surface, _) = quoin_baked_rgb(&format!("bg-{name}")).unwrap_or_else(|| {
-            panic!("quoin no longer accepts bg-{name} — update QUOIN_TOKEN_NAMES")
-        });
+        let (surface, _) = quoin_baked_rgb(&format!("bg-{name}"))
+            .unwrap_or_else(|| panic!("quoin no longer accepts bg-{name} — update QUOIN_TOKEN_NAMES"));
         builder = builder.color(
             name.to_string(),
             TokenValue::Color {
@@ -162,10 +161,7 @@ fn parity_theme() -> Theme {
         );
         let (text, is_text) = quoin_baked_rgb(&format!("text-{name}"))
             .unwrap_or_else(|| panic!("quoin no longer accepts text-{name}"));
-        assert!(
-            is_text,
-            "text-{name} did not parse into a text-role token decl"
-        );
+        assert!(is_text, "text-{name} did not parse into a text-role token decl");
         if text != surface {
             builder = builder.color(
                 format!("{name}-fg"),
@@ -248,9 +244,7 @@ fn gpui_rsx_theme_expands_all_34_token_classes_to_same_hex() {
                     ));
                 }
             }
-            other => failures.push(format!(
-                "`{class}` (as `{mapped}`): not Supported — {other:?}"
-            )),
+            other => failures.push(format!("`{class}` (as `{mapped}`): not Supported — {other:?}")),
         }
     }
     assert!(
@@ -277,14 +271,9 @@ fn representative_expansions_keep_verified_shape() {
     for (class, normalized_expected) in goldens {
         match expand(class, &theme) {
             ClassOutcome::Supported(ts) => {
-                let norm: String = format!("{ts}")
-                    .chars()
-                    .filter(|c| !c.is_whitespace())
-                    .collect();
-                assert_eq!(
-                    &norm, normalized_expected,
-                    "expansion shape drifted for `{class}`"
-                );
+                let norm: String =
+                    format!("{ts}").chars().filter(|c| !c.is_whitespace()).collect();
+                assert_eq!(&norm, normalized_expected, "expansion shape drifted for `{class}`");
             }
             other => panic!("`{class}`: not Supported — {other:?}"),
         }
@@ -299,10 +288,8 @@ fn preset_resolves_16_of_17_names_through_live_theme() {
         let class = format!("bg-{name}");
         match (*field, expand(&class, &theme)) {
             (Some(field), ClassOutcome::Supported(ts)) => {
-                let norm: String = format!("{ts}")
-                    .chars()
-                    .filter(|c| !c.is_whitespace())
-                    .collect();
+                let norm: String =
+                    format!("{ts}").chars().filter(|c| !c.is_whitespace()).collect();
                 assert!(
                     norm.contains(&format!("cx.theme().colors.{field}")),
                     "`{class}` no longer resolves through cx.theme().colors.{field}: `{ts}`"
@@ -336,10 +323,7 @@ fn card_workaround_via_preset_expr_expands_to_popover() {
         .build();
     match expand("bg-card", &theme) {
         ClassOutcome::Supported(ts) => {
-            let norm: String = format!("{ts}")
-                .chars()
-                .filter(|c| !c.is_whitespace())
-                .collect();
+            let norm: String = format!("{ts}").chars().filter(|c| !c.is_whitespace()).collect();
             assert!(
                 norm.contains("cx.theme().colors.popover"),
                 "`bg-card` workaround changed semantics: `{ts}`"
