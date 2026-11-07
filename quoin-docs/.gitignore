@@ -1,0 +1,11 @@
+# Astro build cache — regenerated on every dev/build, contains pids
+# and timestamps. Never commit.
+.astro/
+
+# Dependency and build output
+node_modules/
+dist/
+
+# Editor / OS noise
+.DS_Store
+*.log
