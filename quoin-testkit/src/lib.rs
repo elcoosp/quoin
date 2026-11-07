@@ -47,6 +47,7 @@
 //! ```
 
 use quoin_core::batch;
+use quoin_core::effect::DepHandle;
 use quoin_core::executor::{Executor, JoinHandle};
 use quoin_core::local::{LocalExecutor, LocalJoinHandle};
 use quoin_core::reactive::ReactiveContext;
@@ -64,21 +65,35 @@ use std::sync::{Arc, Mutex, RwLock};
 // TestSignal
 // ---------------------------------------------------------------------------
 
-/// A standalone, thread-safe signal backed by `Arc<RwLock<T>>`.
+/// The shared cell behind a [`TestSignal`]: value plus effect dependency
+/// handle, so every handle over the same cell (notably via `use_global`)
+/// notifies the same subscribers.
+struct TestCell<T> {
+    value: RwLock<T>,
+    dep: DepHandle,
+}
+
+/// A standalone, thread-safe signal backed by a shared cell.
 ///
 /// Mutations bump the owning [`TestContext`]'s update counter, mirroring the
 /// "pull-based adapter" behaviour (GPUI/Xilem): every write asks for a
-/// re-render unless suppressed by [`quoin_core::batch`].
+/// re-render unless suppressed by [`quoin_core::batch`]. Reads inside
+/// [`create_effect`](quoin_core::create_effect) register dependencies and
+/// mutations re-run effects — the same effect semantics as the production
+/// pull-based adapters.
 #[derive(Clone)]
 pub struct TestSignal<T> {
-    cell: Arc<RwLock<T>>,
+    cell: Arc<TestCell<T>>,
     updates: Arc<AtomicUsize>,
 }
 
 impl<T> TestSignal<T> {
     fn new(initial: T, updates: Arc<AtomicUsize>) -> Self {
         Self {
-            cell: Arc::new(RwLock::new(initial)),
+            cell: Arc::new(TestCell {
+                value: RwLock::new(initial),
+                dep: DepHandle::new(),
+            }),
             updates,
         }
     }
@@ -95,28 +110,53 @@ impl<T: std::fmt::Debug + Clone + 'static> std::fmt::Debug for TestSignal<T> {
         // The update counter is context-shared bookkeeping, not part of the
         // value; expose it as non-exhaustive instead of a field.
         f.debug_struct("TestSignal")
-            .field("value", &self.cell.read().unwrap())
+            .field("value", &*self.cell.value.read().unwrap())
             .finish_non_exhaustive()
     }
 }
 
 impl<T: Clone + 'static> Signal<T> for TestSignal<T> {
     fn get(&self) -> T {
-        self.cell.read().unwrap().clone()
+        self.cell.dep.track_read();
+        self.cell.value.read().unwrap().clone()
     }
 
     fn with<U>(&self, f: impl FnOnce(&T) -> U) -> U {
-        f(&self.cell.read().unwrap())
+        self.cell.dep.track_read();
+        f(&self.cell.value.read().unwrap())
     }
 
     fn set(&self, value: T) {
-        *self.cell.write().unwrap() = value;
+        *self.cell.value.write().unwrap() = value;
+        self.cell.dep.notify();
         self.record_update();
     }
 
     fn update(&self, f: impl FnOnce(&mut T)) {
-        f(&mut self.cell.write().unwrap());
+        f(&mut self.cell.value.write().unwrap());
+        self.cell.dep.notify();
         self.record_update();
+    }
+
+    fn set_if_eq(&self, value: T) -> bool
+    where
+        T: PartialEq,
+    {
+        let mut guard = self.cell.value.write().unwrap();
+        if *guard == value {
+            return false;
+        }
+        *guard = value;
+        drop(guard);
+        self.cell.dep.notify();
+        self.record_update();
+        true
+    }
+}
+
+impl<T: Clone + 'static> quoin_core::TrackedSignal<T> for TestSignal<T> {
+    fn dep_handle(&self) -> quoin_core::DepHandle {
+        self.cell.dep.clone()
     }
 }
 
@@ -579,12 +619,16 @@ impl<E: Executor> ReactiveContext for TestContext<E> {
     fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T) {
         // Store the value inside a shared cell so every `use_global`
         // consumer observes the same mutations (matching the unified
-        // production-adapter semantics).
-        let cell = Arc::new(RwLock::new(value));
-        self.globals
-            .lock()
-            .unwrap()
-            .insert(TypeId::of::<SharedGlobal<T>>(), Box::new(cell));
+        // production-adapter semantics). The effect dependency handle lives
+        // inside the cell, so every handle handed out by `use_global`
+        // shares one subscription list.
+        self.globals.lock().unwrap().insert(
+            TypeId::of::<SharedGlobal<T>>(),
+            Box::new(Arc::new(TestCell {
+                value: RwLock::new(value),
+                dep: DepHandle::new(),
+            })),
+        );
     }
 
     fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>> {
@@ -593,7 +637,7 @@ impl<E: Executor> ReactiveContext for TestContext<E> {
             .lock()
             .unwrap()
             .get(&TypeId::of::<SharedGlobal<T>>())?
-            .downcast_ref::<Arc<RwLock<T>>>()?
+            .downcast_ref::<Arc<TestCell<T>>>()?
             .clone();
         Some(TestSignal {
             cell,
@@ -833,5 +877,90 @@ mod tests {
             !flag.load(Ordering::SeqCst),
             "dropping the handle without detaching cancels the task"
         );
+    }
+
+    // -----------------------------------------------------------------------
+    // Core effects over TestContext signals
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_signal_effect_reruns_on_mutation() {
+        let cx = TestContext::with_executor(ImmediateExecutor);
+        let count = cx.create_signal(0u32);
+        let runs = Arc::new(AtomicUsize::new(0));
+        let (count2, runs2) = (count.clone(), runs.clone());
+        let _handle = quoin_core::create_effect(move || {
+            let _value = count2.get();
+            runs2.fetch_add(1, Ordering::SeqCst);
+        });
+        assert_eq!(runs.load(Ordering::SeqCst), 1);
+        count.set(1);
+        assert_eq!(
+            runs.load(Ordering::SeqCst),
+            2,
+            "TestSignal mutations re-run effects"
+        );
+        count.set(2);
+        assert_eq!(runs.load(Ordering::SeqCst), 3);
+    }
+
+    #[test]
+    fn effect_rerun_does_not_inflate_update_counter() {
+        let cx = TestContext::with_executor(ImmediateExecutor);
+        let count = cx.create_signal(0u32);
+        let (count2,) = (count.clone(),);
+        let _handle = quoin_core::create_effect(move || {
+            let _value = count2.get();
+        });
+        assert_eq!(
+            cx.updates().count(),
+            0,
+            "the initial effect run is not a write"
+        );
+        count.set(1);
+        // One write → one update request; the effect re-run it causes reads
+        // only and must not look like another write to the recorder.
+        assert_eq!(cx.updates().count(), 1);
+    }
+
+    #[test]
+    fn watch_over_test_signal_sees_values() {
+        let cx = TestContext::with_executor(ImmediateExecutor);
+        let name = cx.create_signal("a".to_string());
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let (name2, seen2) = (name.clone(), seen.clone());
+        let _handle = quoin_core::watch(&name2, move |value: &String| {
+            seen2.lock().unwrap().push(value.clone());
+        });
+        name.set("b".to_string());
+        name.set("c".to_string());
+        assert_eq!(
+            *seen.lock().unwrap(),
+            vec!["b".to_string(), "c".to_string()]
+        );
+    }
+
+    #[test]
+    fn global_handles_share_one_effect_dependency() {
+        let cx = TestContext::with_executor(ImmediateExecutor);
+        cx.provide_global(0u32);
+        let first = cx.use_global::<u32>().expect("global provided");
+        let second = cx.use_global::<u32>().expect("global provided");
+        let runs = Arc::new(AtomicUsize::new(0));
+        let (second2, runs2) = (second.clone(), runs.clone());
+        let _handle = quoin_core::create_effect(move || {
+            let _value = second2.get();
+            runs2.fetch_add(1, Ordering::SeqCst);
+        });
+        assert_eq!(runs.load(Ordering::SeqCst), 1);
+        // Mutating through a *different* handle of the same global cell must
+        // still reach the effect: the dependency lives in the shared cell.
+        first.set(7);
+        assert_eq!(
+            runs.load(Ordering::SeqCst),
+            2,
+            "globals share one dependency cell"
+        );
+        assert_eq!(second.get(), 7);
     }
 }
