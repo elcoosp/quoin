@@ -12,6 +12,7 @@
 //! update request when it ends.
 
 use crate::batch;
+use crate::effect::DepHandle;
 use crate::signal::Signal;
 use std::sync::{Arc, RwLock};
 
@@ -21,10 +22,15 @@ use std::sync::{Arc, RwLock};
 /// they need (a shared notifier slot, a framework context) when building the
 /// signal. The closure must be `Send + Sync` so the signal can cross threads
 /// like every other quoin signal.
+///
+/// Every mutation also notifies the signal's effect dependency cell (see
+/// [`crate::effect`]), so core effects re-run on GPUI/Xilem-style signals
+/// without adapter support.
 #[derive(Clone)]
 pub struct NotifierSignal<T: Clone + 'static> {
     inner: Arc<RwLock<T>>,
     notify: Arc<dyn Fn() + Send + Sync>,
+    dep: DepHandle,
 }
 
 impl<T: Clone + 'static> NotifierSignal<T> {
@@ -34,6 +40,7 @@ impl<T: Clone + 'static> NotifierSignal<T> {
         Self {
             inner: Arc::new(RwLock::new(initial)),
             notify: Arc::new(notify),
+            dep: DepHandle::new(),
         }
     }
 }
@@ -49,15 +56,18 @@ impl<T: Clone + 'static> NotifierSignal<T> {
 
 impl<T: Clone + 'static> Signal<T> for NotifierSignal<T> {
     fn get(&self) -> T {
+        self.dep.track_read();
         self.inner.read().unwrap().clone()
     }
 
     fn with<U>(&self, f: impl FnOnce(&T) -> U) -> U {
+        self.dep.track_read();
         f(&self.inner.read().unwrap())
     }
 
     fn set(&self, value: T) {
         *self.inner.write().unwrap() = value;
+        self.dep.notify();
         self.notify_after_mutation();
     }
 
@@ -67,6 +77,7 @@ impl<T: Clone + 'static> Signal<T> for NotifierSignal<T> {
         let mut guard = self.inner.write().unwrap();
         f(&mut guard);
         drop(guard);
+        self.dep.notify();
         self.notify_after_mutation();
     }
 
@@ -82,8 +93,15 @@ impl<T: Clone + 'static> Signal<T> for NotifierSignal<T> {
         }
         *guard = value;
         drop(guard);
+        self.dep.notify();
         self.notify_after_mutation();
         true
+    }
+}
+
+impl<T: Clone + 'static> crate::effect::TrackedSignal<T> for NotifierSignal<T> {
+    fn dep_handle(&self) -> DepHandle {
+        self.dep.clone()
     }
 }
 
