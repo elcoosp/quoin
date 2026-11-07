@@ -315,7 +315,9 @@ pub(crate) mod choice {
     }
 
     /// The canonical `button` variant (or `Err` for an unknown value).
-    pub(crate) fn canonical_button_variant(el: &Element) -> Option<Result<&'static str, String>> {
+    pub(crate) fn canonical_button_variant(
+        el: &Element,
+    ) -> Option<Result<&'static str, String>> {
         canonical_choice(
             el,
             "variant",
@@ -454,10 +456,7 @@ mod tests {
         #[test]
         fn string_variant_wins_over_sugar() {
             let el = element(quote::quote! { button(variant: "destructive", ghost: true) { "x" } });
-            assert_eq!(
-                canonical_button_variant(&el).unwrap().unwrap(),
-                "destructive"
-            );
+            assert_eq!(canonical_button_variant(&el).unwrap().unwrap(), "destructive");
         }
 
         #[test]
