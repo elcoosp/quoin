@@ -1,0 +1,61 @@
+---
+title: Architecture
+description: How the Quoin workspace is organized — the facade, the core traits, the adapter crates, and the shared machinery beneath them.
+type: explanation
+---
+
+import { LinkCard } from '@astrojs/starlight/components';
+
+Quoin's architecture separates three concerns: a small trait contract, five adapters that implement it natively, and shared machinery that keeps the adapters consistent. Everything composes through the `quoin` facade crate.
+
+## The layers
+
+```text
+        your app / your hook library
+                    │
+              quoin (facade)          ← feature flags pick one backend
+        ┌─────────┼─────────┐
+   quoin-macros  quoin-ui   quoin-core   ← contract + tooling
+        │           │          │
+   quoin-macros-core quoin-style      ← parsing & codegen
+        │
+   ┌────┴─────┬──────────┬───────────┬──────────┐
+ quoin-gpui quoin-leptos quoin-dioxus quoin-xilem quoin-floem
+        └──────────┴──────────┴─────┬─────┴──────────┘
+                    shared machinery in quoin-core
+              join · globals · NotifierSignal · batch · pool
+```
+
+## The contract layer
+
+`quoin-core` defines the traits every adapter implements: `Signal<T>`, `ReactiveContext`, `Executor`, plus the blanket extension traits (`SignalExt`, `ExecutorExt`, `ReactiveContextExt`) that are implemented once, generically, so every adapter gets them for free with zero per-adapter code. Portable conveniences also live here: derived/memo/zip, resources, batching, cancellation, `spawn_local`, timers, and pooling.
+
+## The adapter layer
+
+Each adapter crate (`quoin-gpui`, `quoin-leptos`, `quoin-dioxus`, `quoin-xilem`, `quoin-floem`) provides a concrete `ReactiveContext` for its framework. Adapters share machinery that used to be hand-copied five times:
+
+- **join** — the `JoinHandle` lifecycle (await / abort / detach / abort-on-drop) is written once; only the "how do we cancel the underlying task" part differs per framework.
+- **globals** — the thread-local, `TypeId`-keyed store behind `provide_global`/`use_global` on the pull-based adapters.
+- **NotifierSignal** — the cell-plus-notifier signal implementation with batch awareness.
+
+On `wasm32`, the Leptos and Dioxus executors run futures on the main thread via `wasm_bindgen_futures`; on native they use threads like the other adapters.
+
+## The macro layer
+
+`quoin-macros` is a thin `proc_macro` boundary over `quoin-macros-core`, which parses `component!`/`quoin_render!`/`effect!` once and emits per-backend code through `FrameworkEmitter` implementations. Class strings are parsed by `quoin-style` into a typed IR (`Decl` lists per state) — one parse, many lowerings, no runtime class parsing. Unrecognized classes become compile errors with did-you-mean suggestions.
+
+## The protocol and tooling layer
+
+- `quoin-ui` declares the Universal Component Protocol traits and node vocabulary; `quoin-ui-gpui` is the first full implementation.
+- `quoin-testkit` supplies `TestContext` and deterministic executors for headless testing.
+- `quoin-devtools` wraps any context with `Instrumented` and records events into a ring buffer.
+- `quoin-conformance` holds the shared suite that every adapter must pass — the mechanism behind [backend parity](/explanation/backend-parity/).
+
+## Facade composition
+
+The `quoin` facade re-exports all of the above behind feature flags. Framework features are mutually exclusive (a `compile_error!` fires otherwise); `testkit` and `devtools` are additive. This keeps a typical application at one dependency line while letting framework-free libraries depend on `quoin-core` alone.
+
+## Next steps
+
+- <LinkCard title="The Reactivity Model" href="/explanation/reactivity-model/" description="How the contract maps onto pull-based and fine-grained frameworks." />
+- <LinkCard title="Crates" href="/reference/crates/" description="The per-crate reference table." />

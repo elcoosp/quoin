@@ -1,0 +1,43 @@
+---
+title: Backend Parity
+description: How Quoin guarantees identical adapter behavior — the shared conformance suite, macro expansion tests, and the class-engine parity harness.
+type: explanation
+---
+
+import { LinkCard } from '@astrojs/starlight/components';
+
+"Works identically on every adapter" is a testable claim, and Quoin tests it from three directions: behavior, code generation, and styling.
+
+## The conformance suite
+
+`quoin-conformance` contains a shared suite of 30+ checks that every adapter must pass. The suite exercises the full shared contract: signals and `set_eq`, derived and memo behavior, batching, shared globals, the join-handle lifecycle (await / abort / detach / drop-cancels), `spawn_with_token`, cancellation cascades, and executor timers (`executor_sleep_resolves`, `executor_spawned_task_sleeps`). Adapter crates run the same suite in their own test targets — for example `just test-conformance-gpui` — and CI runs it for every adapter on every push.
+
+Because the checks live in one suite rather than five hand-written test folders, a new behavior lands as one new check that immediately applies to all backends. The GPUI suite covers the full shared contract (31 checks, previously 19).
+
+## Macro expansion testing
+
+Three layers verify that one macro source produces correct code on each backend:
+
+- `quoin-macros-tests` — trybuild UI tests that assert both successful expansions (GPUI, Leptos, Dioxus pass cases) and exact compiler diagnostics for invalid input (missing `render`, unknown elements, missing defaults, unexpected identifiers).
+- `quoin-expand-test` — expansion snapshot testing via `just expand`.
+- `quoin-grsx-compiletest` — compiles full engine expansions (new vocabulary, variants, dynamic classes, control flow, handlers) against the vendored GPUI stub so emitted builder chains type-check without building real GPUI.
+
+## Class-engine parity
+
+`interop-tests` is the parity harness for the GPUI class engine. It gates:
+
+- **34/34 theme-token classes byte-identical** through gpui-rsx's `Theme`
+- **The GPUI ⊇ web vocabulary-superset gate** — everything the shared parser accepts must lower on GPUI
+- **The Tailwind-scale gate** — spacing utilities match the Tailwind 4 px scale
+- The variant table, plus diagnostic probes
+
+Under the `gpui-rsx-classes` flag, classes Quoin already knows keep their byte-identical lowering — the same parity tests verify it.
+
+## What parity means for you
+
+You can treat the adapter as an implementation detail. A hook that passes its conformance-backed contract — signals, effects, tasks, cancellation, globals — behaves the same whether the binary links GPUI or Leptos, which is what makes feature-flag re-targeting (the [tutorial's](/tutorials/build-a-counter/) final step) safe.
+
+## Next steps
+
+- <LinkCard title="The Reactivity Model" href="/explanation/reactivity-model/" description="What the conformance suite verifies about push vs pull adapters." />
+- <LinkCard title="Testing with quoin-testkit" href="/guides/testing/" description="Apply the same rigor to your own hooks." />

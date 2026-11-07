@@ -1,0 +1,40 @@
+---
+title: The Reactivity Model
+description: How Quoin's signal model works — tracking on fine-grained frameworks, notifications on pull-based ones, and what batching, memos, and resources do under the hood.
+type: explanation
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+
+Quoin's five adapters fall into two families, and the reactivity model is designed so one set of user code behaves correctly on both.
+
+## Two families of frameworks
+
+**Fine-grained (Leptos, Dioxus, Floem).** The framework tracks which signals a render scope reads and re-runs that scope when a tracked signal changes. Quoin's signal reads participate in the native tracking, so a `derived` signal's source read inside the derive closure is tracked by the reactive graph — any consumer reading the derived value in a reactive scope re-runs when the source changes.
+
+**Pull-based (GPUI, Xilem).** The framework re-renders a component when it is notified. Quoin's signals call `request_update()` on mutation through the context notifier; the next render pulls fresh values, and derived signals recompute on their next read.
+
+The same hook is correct on both because it never assumes push or pull: it writes through `Signal` methods and reads wherever it needs values.
+
+## What each primitive does under the hood
+
+**Signals.** The shared implementation is `NotifierSignal` in `quoin-core` — a cell plus a batch-aware notifier. Adapters may use it directly or wrap their native signal types; either way the trait surface (`get`/`set`/`update`/`with`/`set_if_eq`) is identical.
+
+**Derived and memos.** `derived` recomputes the closure on every read; `Memo` remembers the last source value and caches its output until the source differs. On fine-grained frameworks tracking makes derived reads reactive; on pull-based ones the mutation-triggered re-render does the equivalent job.
+
+**Batching.** A thread-local depth counter. Inside `batch::with`, pull-based signals consult `should_notify()` and skip their notifier calls; when the outermost batch ends, one `request_update()` fires. Fine-grained frameworks batch internally and ignore the mechanism, so calling `cx.batch` is always safe.
+
+**Resources.** Built from a `Signal` holding `ResourceState` plus an `Executor` task. Each reload increments a generation counter; when a request completes it may only write its result if its generation is still current — that is what makes reloads race-free. The request also holds a `CancellationToken`, and the task is aborted through the executor's join handle, so a reload cancels the in-flight work both cooperatively (token) and structurally (abort).
+
+**Globals.** A thread-local, `TypeId`-keyed map keyed by context type and value type. This matches the main-thread assumptions of GPUI, Xilem, and Floem; the fine-grained adapters map their own stores onto the same observable semantics — one shared cell per (context, type) pair.
+
+**Local tasks.** On WASM, `spawn_local` delegates to `wasm_bindgen_futures::spawn_local` (browser main thread). On native, a `!Send` future cannot cross threads soundly, so tasks enter a thread-local FIFO queue and `run_local_tasks()` drives them one completion at a time — deterministic enough for tests.
+
+<Aside type="note">
+  The practical consequence: whether your app runs on a push-based renderer or a pull-based one, batching is an optimization (never a correctness fix), derived values are always consistent with their sources, and dropping a task handle always cancels the task.
+</Aside>
+
+## Next steps
+
+- <LinkCard title="Backend Parity" href="/explanation/backend-parity/" description="How identical behavior is verified with a shared conformance suite." />
+- <LinkCard title="Batched Updates" href="/reference/batching/" description="The batching API reference." />

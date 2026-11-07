@@ -1,0 +1,35 @@
+---
+title: Why Quoin Exists
+description: The problems Quoin solves — framework lock-in, untestable UI logic, and duplicated reactivity code across the Rust GUI ecosystem.
+type: explanation
+---
+
+import { LinkCard } from '@astrojs/starlight/components';
+
+Building cross-platform Rust UI applications usually means choosing a framework and being locked into its reactivity model. GPUI, Leptos, Dioxus, Xilem, and Floem each define their own signal systems, task spawners, and state idioms. A search box, a todo store, or a data-fetching pipeline written for one of them cannot run on another.
+
+## The four problems
+
+**Write once, run anywhere.** The same reactive hooks — signals, derived values, async tasks — should work in GPUI, Leptos, Dioxus, Xilem, and Floem. Quoin defines those primitives once, as traits, and each framework adapter implements them.
+
+**Test in isolation.** UI logic that is welded to a framework is hard to test: you spin up windows or browsers to exercise a counter. Quoin decouples business logic from the view layer, so you mock a `ReactiveContext` — or use the headless `quoin-testkit` — and test with plain `cargo test`.
+
+**Switch frameworks without rewriting logic.** Change a feature flag and recompile; your hooks stay unchanged. The view layer is the only thing you rewrite, and the declarative macros shrink that too.
+
+**Share libraries.** Framework-agnostic crates that work with any Quoin-supported UI can be published and reused — the counter hook in the [tutorial](/tutorials/build-a-counter/) is one example, and `todo-core` and `fetch-core` in the repository are tested, end-to-end examples of the pattern.
+
+## The design stance
+
+- **Traits over wrappers.** Quoin does not hide the frameworks; it defines the smallest common contract (`Signal`, `ReactiveContext`, `Executor`) and lets adapters optimize natively.
+- **Compile-time selection.** Exactly one framework feature is enabled per crate, enforced with `compile_error!`. There is no runtime dispatch and no hidden priority between backends.
+- **Parity is tested, not assumed.** A shared conformance suite runs 30+ checks per adapter, so "works identically everywhere" is a CI gate rather than an aspiration.
+- **No unsafe code.** The workspace forbids `unsafe` outright and runs pedantic Clippy with warnings as errors.
+
+## What Quoin is not
+
+It is not a rendering framework, a widget toolkit replacement, or a virtual DOM. Rendering stays native to each framework; Quoin owns the reactive layer beneath it, plus optional declarative macros that emit native view code per framework.
+
+## Next steps
+
+- <LinkCard title="Build a Cross-Framework Counter" href="/tutorials/build-a-counter/" description="See the decoupling in action end to end." />
+- <LinkCard title="Architecture" href="/explanation/architecture/" description="How the crates and adapters are organized." />
