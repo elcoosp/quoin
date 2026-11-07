@@ -16,7 +16,9 @@ and Floem.
 |------|-----|-------|
 | Core traits | `ReactiveContext`, `Signal<T>`, `Executor`, `JoinHandle<T>` | The contract every adapter implements. |
 | Extensions | `SignalExt`, `ExecutorExt`, `ReactiveContextExt` | Blanket impls: `set_eq`, `replace`/`take`, `map`, `spawn_with_token`, `create_resource`, `batch`, `update_global`, `use_global_or_init`. |
-| Derived signals | `derived()`, `Derived`, `zip()`, `Zipped` | Computed views recomputed on read; tracked by fine-grained frameworks. |
+| Derived signals | `derived()`, `Derived`, `memo()`, `Memo`, `zip()`, `Zipped` | Computed views recomputed on read; `memo` caches until the source changes. |
+| Effects | `create_effect()`, `watch()`, `EffectHandle`, `EffectScope`, `TrackedSignal`, `DepHandle` | Push-based reactive effects with automatic dependency tracking — complete the reactive triangle portably (see below). |
+| Erased signals | `AnySignal<T>` | ADR-002's opt-in dynamic-dispatch wrapper for storing heterogeneous signal handles. |
 | Resources | `Resource`, `ResourceState` | `Idle → Loading → Ready(T) / Failed(E)` with race-free reloads and cooperative cancellation. |
 | Batching | `batch` module, `BatchGuard` | Suppress redundant re-render requests inside a scope. |
 | Local tasks | `LocalExecutor`, `LocalJoinHandle`, `LocalTask`, `spawn_local_task`, `run_local_tasks` | `!Send` futures: platform-driven on WASM, deterministic thread-local queue on native. |
@@ -25,6 +27,33 @@ and Floem.
 | Test helpers | `test_support` module | Minimal `StaticContext`/`StaticSignal`/`StaticExecutor` for doctests; use `quoin-testkit` for real test suites. |
 
 `#![forbid(unsafe_code)]` — the entire crate is safe Rust.
+
+## 🔁 Reactive effects (`create_effect` / `watch`)
+
+The derived layer is *pull-based* (recompute on read). Effects are the push
+side — "when any signal I read changes, run this" — implemented once in the
+core so they work headlessly and on every tracked-signal adapter:
+
+```rust
+use quoin_core::prelude::*;
+
+let query = quoin_core::test_support::static_signal("rust".to_string());
+let runs = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+
+let (query2, runs2) = (query.clone(), runs.clone());
+let handle = create_effect(move || {
+    let q = query2.get();                 // read = dependency
+    runs2.fetch_add(q.len(), std::sync::atomic::Ordering::Relaxed);
+});
+// Initial run happened; `query.set(...)` re-runs it. Batched writes
+// coalesce into one re-run; `handle.dispose()` stops the effect;
+// `EffectScope` disposes groups of effects on drop (component lifetime).
+```
+
+Semantics: dynamic dependency sets rebuilt per run, batch-aware flush, FIFO
+propagation, deferred self-writes (no recursion), detached-by-default
+handles owned by the runtime until disposed. Reads outside effect runs pay
+one thread-local flag check — see `docs/BENCHMARKS.md`.
 
 ## 📦 Usage
 
