@@ -73,6 +73,52 @@ cross-framework semantics, harden testing, and ship developer tooling.
 
 ---
 
+## Phase 1.6: Portable Reactivity (Current)
+
+**Goal:** Complete the reactive triangle in `quoin-core` — push-based
+reactions alongside the pull-based derived layer — and land the remaining
+half of ADR-002, so framework-agnostic logic libraries can express "when
+this changes, do that" without a framework effect system.
+
+### Milestones
+
+#### M1.6.1: Core Reactive Effects ✅
+- [x] `quoin-core::effect` — dependency-tracked effects with automatic,
+      per-run dependency sets (`create_effect`, `EffectHandle`,
+      `EffectScope`, `watch`, `TrackedSignal`, `DepHandle`).
+- [x] Batch integration: mutations inside `batch::with` coalesce into one
+      effect re-run at batch end (the effect-side twin of the single
+      `request_update`).
+- [x] Zero-cost gates: one relaxed atomic load per read when idle; the
+      dependency-cell lock is skipped entirely while no undisposed effect
+      exists (verified by `just bench-core`, see `docs/BENCHMARKS.md`).
+- [x] Detached-by-default handle semantics (runtime-owned registry,
+      explicit `dispose()`), FIFO propagation, deferred self-writes,
+      panic-propagation contract.
+- [x] Tracked cells: `StaticSignal`, `NotifierSignal` (the GPUI/Xilem
+      backing type), and the testkit `TestSignal` notify the core graph;
+      globals share one dependency cell.
+
+#### M1.6.2: Type-Erased Signals (ADR-002 second half) ✅
+- [x] `AnySignal<T>` — opt-in dynamic dispatch for storing heterogeneous
+      signal handles; `new_tracked` forwards the dependency cell; measured
+      read overhead ≈ 0 ns (`docs/BENCHMARKS.md`).
+
+#### M1.6.3: Conformance & Testkit ✅
+- [x] `quoin-conformance::effects` — 11 portable checks plus the
+      `define_effect_tests!` macro, executed against the testkit
+      `TestContext` in CI.
+- [x] `quoin-testkit` — `TestSignal` implements `TrackedSignal`; effect
+      re-runs do not inflate the update counter; global handles share one
+      dependency cell.
+
+**Follow-ups (next milestone candidates):** effect conformance for the
+fine-grained adapters once their signals bridge into the core graph; a
+`effect!` macro emitter for Xilem backed by the core runtime (replacing the
+`unsupported` row in `docs/BACKEND-PARITY.md`).
+
+---
+
 ## Phase 0: Foundation (Current)
 
 **Goal:** Implement the `quoin` core crate with the traits defined in the architecture specification, establish CI/CD, and publish initial development versions.
