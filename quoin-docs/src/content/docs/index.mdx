@@ -1,0 +1,44 @@
+---
+title: Quoin Documentation
+description: One reactive core, many frameworks — write reactive Rust UI logic once and run it on GPUI, Leptos, Dioxus, Xilem, or Floem.
+type: explanation
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+Quoin is a framework-agnostic reactive abstraction layer for Rust. You write your business logic once against a small set of traits — signals, effects, async tasks, cancellation, global state — and the same code runs under GPUI, Leptos, Dioxus, Xilem, or Floem. You enable exactly one framework feature at compile time, and the shared [conformance suite](/explanation/backend-parity/) guarantees every adapter behaves identically.
+
+## Choose your path
+
+<CardGrid stagger>
+  <Card title="Build a cross-framework counter">
+    Follow the golden-path tutorial: install Quoin, write a portable counter hook, render it in GPUI, then re-target another framework.
+  </Card>
+  <Card title="Ship a feature">
+    Browse task-focused guides: async data loading, cancellation, global state, declarative macros, styling, testing, and tracing.
+  </Card>
+  <Card title="Look up an API">
+    Reference pages cover every trait, macro, and feature flag with signatures, defaults, and examples.
+  </Card>
+  <Card title="Understand the design">
+    Explanations describe why Quoin exists, how the crate graph fits together, and how the reactivity model works under the hood.
+  </Card>
+</CardGrid>
+
+## Supported frameworks
+
+| Framework | Adapter crate | Status |
+| --- | --- | --- |
+| [GPUI](https://github.com/zed-industries/zed) | `quoin-gpui` | Full support |
+| [Leptos](https://leptos.dev/) | `quoin-leptos` | Full support |
+| [Dioxus](https://dioxuslabs.com/) | `quoin-dioxus` | Full support |
+| [Xilem](https://github.com/linebender/xilem) | `quoin-xilem` | Full support |
+| [Floem](https://github.com/lapce/floem) | `quoin-floem` | Full support |
+
+Enable exactly one framework feature in your `Cargo.toml` — Quoin enforces this with a compile-time check.
+
+## Next steps
+
+- <LinkCard title="Build a Cross-Framework Counter" href="/tutorials/build-a-counter/" description="The golden-path tutorial from zero to a running app." />
+- <LinkCard title="Installation" href="/guides/installation/" description="Add Quoin to an existing project with the right feature flags." />
+- <LinkCard title="Why Quoin Exists" href="/explanation/why-quoin/" description="The problem Quoin solves and the design goals behind it." />

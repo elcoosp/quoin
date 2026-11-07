@@ -1,0 +1,161 @@
+---
+title: Build a Cross-Framework Counter
+description: The golden-path tutorial — install Quoin, write a portable counter hook, render it in GPUI, then re-target the same hook to another framework.
+type: tutorial
+---
+
+import { Steps, Tabs, TabItem, Aside, LinkCard } from '@astrojs/starlight/components';
+
+You will build a counter application whose reactive logic lives in a framework-agnostic library crate and whose view layer runs on GPUI. At the end you re-target the same hook to Leptos by changing a single feature flag. The counter is the smallest program that exercises every layer of Quoin: a [signal](/reference/signals/) for state, a portable hook written against [`ReactiveContext`](/reference/reactive-context/), and a framework view that reads the signal.
+
+**Prerequisites:** Rust stable 1.88 or newer (`rustup update stable`), and a terminal. No GPUI system libraries are needed for the logic crate; GPUI itself needs the usual Linux windowing headers listed in the [installation guide](/guides/installation/#prerequisites).
+
+## Create the project
+
+<Steps>
+1. Create a Cargo workspace with two crates: a library for the portable logic and a binary for the GPUI view.
+
+    ```sh
+    cargo new counter --lib
+    cargo new counter-gpui --bin
+    ```
+
+2. Add Quoin to both manifests. The library depends on `quoin-core` (traits only, no framework). The binary depends on `quoin` with the `gpui` feature.
+
+    ```toml
+    # counter/Cargo.toml
+    [dependencies]
+    quoin-core = "0.1"
+    ```
+
+    ```toml
+    # counter-gpui/Cargo.toml
+    [dependencies]
+    counter = { path = "../counter" }
+    quoin = { version = "0.1", features = ["gpui"] }
+    ```
+
+    <Aside type="caution">
+      The version on crates.io may lag the repository. If you are building against a checkout of the [Quoin repository](https://github.com/elcoosp/quoin), use path dependencies instead, as the examples in the repository do:
+
+      ```toml
+      quoin = { path = "../quoin", features = ["gpui"] }
+      ```
+    </Aside>
+</Steps>
+
+## Write the portable hook
+
+The hook is an ordinary Rust function generic over `ReactiveContext`. It knows nothing about GPUI, windows, or rendering.
+
+```rust
+// counter/src/lib.rs
+use quoin_core::prelude::*;
+use std::rc::Rc;
+
+pub struct Counter<S: Signal<u32>> {
+    pub count: S,
+    pub increment: Rc<dyn Fn()>,
+}
+
+pub fn use_counter<C: ReactiveContext>(cx: &C) -> Counter<C::Signal<u32>> {
+    let count = cx.create_signal(0u32);
+    let increment = {
+        let count = count.clone();
+        Rc::new(move || count.update(|c| *c += 1))
+    };
+    Counter { count, increment }
+}
+```
+
+Key points:
+
+- `cx.create_signal(0u32)` allocates reactive state through the context. The returned type is `C::Signal<u32>` — whatever the active framework provides.
+- `count.update(|c| *c += 1)` mutates in place and requests a re-render on pull-based adapters.
+- The `Signal<T>` trait bound keeps the struct usable with any adapter's signal type.
+
+## Render it in GPUI
+
+Now wire the hook into a GPUI component and bootstrap the app with `run_app!`.
+
+```rust
+// counter-gpui/src/main.rs
+use counter::use_counter;
+use quoin::prelude::*;
+
+struct CounterView {
+    counter: counter::Counter<quoin::GpuiSignal<u32>>,
+    _ctx: GpuiContext,
+}
+
+impl Render for CounterView {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let count = self.counter.count.get();
+        div()
+            .flex()
+            .child(format!("Count: {count}"))
+            .child(
+                div()
+                    .child("Increment")
+                    .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, _| {
+                        (this.counter.increment)();
+                    }))
+            )
+    }
+}
+
+fn main() {
+    let ctx = GpuiContext::new();
+    let counter = use_counter(&ctx);
+    run_app!(CounterView { counter, _ctx: ctx });
+}
+```
+
+Run it:
+
+```sh
+cargo run -p counter-gpui
+```
+
+**Expected output:** a native window showing `Count: 0` with an `Increment` button; each click updates the label.
+
+## Re-target the same hook to Leptos
+
+Change the feature flag and swap the view. The hook crate is untouched.
+
+```toml
+# counter-leptos/Cargo.toml
+[dependencies]
+counter = { path = "../counter" }
+quoin = { version = "0.1", features = ["leptos"] }
+```
+
+```rust
+// counter-leptos/src/lib.rs
+use counter::use_counter;
+use quoin::prelude::*;
+
+#[component]
+pub fn App() -> impl IntoView {
+    let ctx = LeptosContext::new();
+    let counter = use_counter(&ctx);
+    view! {
+        <div>
+            <p>"Count: " {move || counter.count.get()}</p>
+            <button on:click=move |_| (counter.increment)()>"Increment"</button>
+        </div>
+    }
+}
+```
+
+<Aside type="note">
+  Enable exactly one framework feature per crate. Enabling two triggers a `compile_error!` that names the offending configuration — the backends are mutually exclusive by design.
+</Aside>
+
+You can also skip the view layer entirely: the [testing guide](/guides/testing/) runs the same hook headlessly with `quoin-testkit`, and the [devtools guide](/guides/devtools/) traces every signal mutation it performs.
+
+## Next steps
+
+- <LinkCard title="Writing Portable Hooks" href="/guides/portable-hooks/" description="Patterns for hooks that stay framework-agnostic: derived state, effects, and batching." />
+- <LinkCard title="Declarative UI Macros" href="/guides/ui-macros/" description="Replace hand-written view code with component!, quoin_render!, and effect!." />
+- <LinkCard title="Signals Reference" href="/reference/signals/" description="Every method on Signal and SignalExt." />
