@@ -98,7 +98,10 @@ pub(crate) fn emit_card(el: &Element) -> TokenStream {
 
 /// `card_header` — title block above the card body.
 pub(crate) fn emit_card_header(el: &Element) -> TokenStream {
-    let chain = shim_chrome(quote! { ::gpui::div() }, "flex flex-col gap-2");
+    let chain = shim_chrome(
+        quote! { ::gpui::div() },
+        "flex flex-col gap-2",
+    );
     finish_with_class_children_handlers(el, chain)
 }
 
@@ -113,19 +116,28 @@ pub(crate) fn emit_card_title(el: &Element) -> TokenStream {
 
 /// `card_description` — muted supporting text under the title.
 pub(crate) fn emit_card_description(el: &Element) -> TokenStream {
-    let chain = shim_chrome(quote! { ::gpui::div() }, "text-sm text-muted-foreground");
+    let chain = shim_chrome(
+        quote! { ::gpui::div() },
+        "text-sm text-muted-foreground",
+    );
     finish_with_class_children_handlers(el, chain)
 }
 
 /// `card_content` — the card body region.
 pub(crate) fn emit_card_content(el: &Element) -> TokenStream {
-    let chain = shim_chrome(quote! { ::gpui::div() }, "flex flex-col gap-4");
+    let chain = shim_chrome(
+        quote! { ::gpui::div() },
+        "flex flex-col gap-4",
+    );
     finish_with_class_children_handlers(el, chain)
 }
 
 /// `card_footer` — action row at the card bottom.
 pub(crate) fn emit_card_footer(el: &Element) -> TokenStream {
-    let chain = shim_chrome(quote! { ::gpui::div() }, "flex items-center gap-2");
+    let chain = shim_chrome(
+        quote! { ::gpui::div() },
+        "flex items-center gap-2",
+    );
     finish_with_class_children_handlers(el, chain)
 }
 
@@ -145,10 +157,7 @@ pub(crate) fn emit_card_action(el: &Element) -> TokenStream {
 /// the border and text through the theme's destructive token.
 pub(crate) fn emit_alert(el: &Element) -> TokenStream {
     let choice = crate::emit::shadcn_spec::canonical_alert_variant(el);
-    if let Some(error) = choice
-        .as_ref()
-        .and_then(crate::emit::shadcn_spec::choice_error)
-    {
+    if let Some(error) = choice.as_ref().and_then(crate::emit::shadcn_spec::choice_error) {
         return error;
     }
     let chrome = match choice.and_then(|c| c.ok()) {
@@ -177,13 +186,19 @@ pub(crate) fn emit_alert(el: &Element) -> TokenStream {
 
 /// `alert_title` — the alert's medium-weight heading row.
 pub(crate) fn emit_alert_title(el: &Element) -> TokenStream {
-    let chain = shim_chrome(quote! { ::gpui::div() }, "text-sm font-medium");
+    let chain = shim_chrome(
+        quote! { ::gpui::div() },
+        "text-sm font-medium",
+    );
     finish_with_class_children_handlers(el, chain)
 }
 
 /// `alert_description` — the alert's muted body text.
 pub(crate) fn emit_alert_description(el: &Element) -> TokenStream {
-    let chain = shim_chrome(quote! { ::gpui::div() }, "text-sm text-muted-foreground");
+    let chain = shim_chrome(
+        quote! { ::gpui::div() },
+        "text-sm text-muted-foreground",
+    );
     finish_with_class_children_handlers(el, chain)
 }
 
