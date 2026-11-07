@@ -15,8 +15,8 @@
 
 pub use crate::batch;
 pub use crate::{
-    CancelGuard, CancellationToken, Cancelled, CancelledFuture, Derived, Executor, ExecutorExt,
-    JoinHandle, LocalExecutor, LocalJoinHandle, LocalTask, Memo, ReactiveContext,
+    AnySignal, CancelGuard, CancellationToken, Cancelled, CancelledFuture, Derived, Executor,
+    ExecutorExt, JoinHandle, LocalExecutor, LocalJoinHandle, LocalTask, Memo, ReactiveContext,
     ReactiveContextExt, Resource, ResourceState, RunUntilCancelled, Signal, SignalExt, SleepFuture,
-    SyncSleepFuture, derived, memo, sleep,
+    SyncSleepFuture, create_effect, derived, memo, sleep, watch,
 };
