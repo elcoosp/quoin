@@ -87,9 +87,11 @@
 // deny(clippy::allow_attributes)) is defined once in the workspace root
 // `Cargo.toml` under `[workspace.lints]` and inherited via `[lints]`.
 
+pub mod any_signal;
 pub mod batch;
 pub mod cancellation;
 pub mod derived;
+pub mod effect;
 pub mod ev;
 pub mod executor;
 pub mod ext;
@@ -105,10 +107,12 @@ pub mod signal;
 pub mod test_support;
 pub mod timer;
 
+pub use any_signal::AnySignal;
 pub use cancellation::{
     CancelGuard, CancellationToken, Cancelled, CancelledFuture, RunUntilCancelled,
 };
 pub use derived::{Derived, Memo, Zipped, derived, memo, zip};
+pub use effect::{DepHandle, EffectHandle, EffectScope, TrackedSignal, create_effect, watch};
 pub use executor::{Executor, JoinHandle};
 pub use ext::{ExecutorExt, ReactiveContextExt, SignalExt};
 pub use join::{AbortJoinHandle, AbortTask, RawTask, SharedJoinHandle, spawn_abortable};
