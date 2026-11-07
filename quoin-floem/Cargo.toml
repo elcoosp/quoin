@@ -31,7 +31,7 @@ floem = { git = "https://github.com/lapce/floem" }
 # resolve it. Consumers embedding quoin elsewhere can point the path at
 # their own checkout, or drop it once the upstream fix is published and
 # switch to the git source.
-floem-shadcn = { git = "https://github.com/elcoosp/floem-shadcn", optional = true }
+floem-shadcn = { path = "../../floem-shadcn", optional = true }
 # Same bare-git rule as `floem` above (one source id per resolved rev).
 floem_reactive = { git = "https://github.com/lapce/floem" }
 futures = "0.3"
@@ -62,7 +62,7 @@ quoin = { path = "../quoin", default-features = false, features = ["floem"] }
 # dependencies. Test-only; consumers get the dep through the `shadcn`
 # feature. Requires the floem-shadcn sibling checkout (see the main
 # dependency block above).
-floem-shadcn = { git = "https://github.com/elcoosp/floem-shadcn" }
+floem-shadcn = { path = "../../floem-shadcn" }
 dhat = "0.3"
 
 [lints]
