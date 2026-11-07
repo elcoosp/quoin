@@ -248,14 +248,7 @@ fn main() {
     for token in Token::ALL {
         let s = token.surface_hex().value >> 8;
         let t = token.text_hex().value >> 8;
-        let note = if s == t {
-            "(same)"
-        } else {
-            "(DIFFER -> preset *-foreground vocabulary)"
-        };
-        println!(
-            "  {:?} surface {s:#06x} text {t:#06x} {note}",
-            token.fn_name()
-        );
+        let note = if s == t { "(same)" } else { "(DIFFER -> preset *-foreground vocabulary)" };
+        println!("  {:?} surface {s:#06x} text {t:#06x} {note}", token.fn_name());
     }
 }
