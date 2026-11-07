@@ -1,0 +1,81 @@
+---
+title: Executors & Tasks
+description: API reference for the Executor trait, JoinHandle lifecycle, local (!Send) tasks, and portable timers.
+type: reference
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+
+`Executor` spawns futures onto the framework's native async runtime. Every adapter implements the same trait and the same join-handle lifecycle, so task code is portable.
+
+Import: `use quoin_core::prelude::*;`
+
+## Executor methods
+
+| Method | Signature | Description |
+| --- | --- | --- |
+| `spawn` | `fn spawn<F>(&self, fut: F) -> JoinHandle<F::Output>` where `F: Future + Send + 'static`, `F::Output: Send + 'static` | Spawns a `Send` future on the framework runtime. |
+| `sleep` | `fn sleep(&self, duration: Duration) -> SleepFuture` | Portable timer; futures-timer on native, browser timer on WASM. |
+
+## ExecutorExt methods
+
+| Method | Signature | Description |
+| --- | --- | --- |
+| `spawn_with_token` | `fn spawn_with_token<F, Fut>(&self, f: impl FnOnce(CancellationToken) -> Fut) -> (JoinHandle<…>, CancellationToken)` | Creates a token, passes it to the future, and returns both the handle and the token — the fetch-and-cancel pattern in one call. |
+
+## JoinHandle lifecycle
+
+All adapters implement the same three lifecycle operations on `JoinHandle<T>`, plus `Future`:
+
+| Operation | Effect |
+| --- | --- |
+| `handle.await` | Waits for the result. The task runs to completion. |
+| `handle.abort()` | Cancels the task at its next suspension point. Later awaits resolve with `Err(Canceled)`. |
+| `handle.detach()` | Fire-and-forget: the task runs to completion, its result is discarded. |
+| `drop(handle)` | Cancels the task (structured concurrency — no orphaned tasks mutating UI state). Use `detach()` when you explicitly want fire-and-forget. |
+
+Cancellation is cooperative on the thread-based adapters (Leptos, Dioxus, Floem): the future stops at its next `.await` point. GPUI and Xilem cancel natively (dropping a GPUI `Task` / aborting a tokio task).
+
+## Local (!Send) tasks
+
+The `LocalExecutor` machinery handles futures that are not `Send`:
+
+| Item | Description |
+| --- | --- |
+| `spawn_local` | Spawns a `!Send` future. On `wasm32` it runs on the browser main thread via `wasm_bindgen_futures`; on native it enters a deterministic thread-local FIFO queue. |
+| `run_local_tasks` | Native driver: runs queued tasks to their next completion, one at a time. |
+| `LocalTask` / `LocalJoinHandle` | Handles mirroring the join lifecycle: `abort` stops at the next suspension point, `detach` opts out of drop-cancellation, dropping cancels. |
+
+GPUI does **not** implement `LocalExecutor` — its executor is `!Send` by design; use `Executor::spawn` there.
+
+<Aside type="note">
+  On `wasm32` targets, the Leptos and Dioxus executors run futures on the main thread via `wasm_bindgen_futures` instead of spawning threads.
+</Aside>
+
+## Standalone timer functions
+
+| Item | Signature | Description |
+| --- | --- | --- |
+| `sleep` | `pub fn sleep(duration: Duration) -> SyncSleepFuture` | Free-function timer future, independent of any executor. |
+| `SleepFuture` | — | The future returned by `Executor::sleep`. |
+| `SyncSleepFuture` | — | The future returned by the free `sleep` function. |
+
+## Example
+
+```rust
+let handle = executor.spawn(async {
+    let data = fetch_from_api().await;
+    signal.set(data);
+});
+let result = handle.await?;        // Err(Canceled) if aborted
+
+let (h, token) = executor.spawn_with_token(|t| async move {
+    while !t.is_cancelled() { do_work().await; }
+});
+executor.sleep(Duration::from_millis(250)).await;
+```
+
+## Next steps
+
+- <LinkCard title="Loading Async Data" href="/guides/async-data/" description="Task-focused guide covering resources, spawns, and timers." />
+- <LinkCard title="Cancellation Tokens" href="/reference/cancellation/" description="The token types used by spawn_with_token and resources." />

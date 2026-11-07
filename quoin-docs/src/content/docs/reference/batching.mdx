@@ -1,0 +1,49 @@
+---
+title: Batched Updates
+description: API reference for batch::with, BatchGuard, and the notification suppression machinery shared by pull-based adapters.
+type: reference
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+
+On pull-based adapters (GPUI, Xilem) every signal mutation calls `request_update()`. When a handler mutates several signals in a row this produces redundant re-render requests. Batching suppresses those intermediate notifications and issues a single update when the batch ends.
+
+Import: `use quoin_core::prelude::*;` (the module) or `use quoin_core::batch;`
+
+## API
+
+| Item | Signature | Description |
+| --- | --- | --- |
+| `batch::with` | `pub fn with<C, R>(cx: &C, f: impl FnOnce() -> R) -> R` where `C: ReactiveContext` | Runs `f` inside a batch scope and then requests a single UI update on `cx`. |
+| `BatchGuard` | `pub struct BatchGuard` | RAII guard that increments the batch depth on creation and decrements it on drop. Create with `BatchGuard::enter()`. |
+| `in_batch` | `pub fn in_batch() -> bool` | Returns `true` while inside a `with` scope. |
+| `should_notify` | `pub fn should_notify() -> bool` | Used by adapter signal implementations: `true` when a mutation should notify (i.e. no batch is active). |
+
+`ReactiveContextExt::batch` offers the same behavior as a method on the context: `cx.batch(\|\| …)`.
+
+## How it works
+
+A thread-local depth counter tracks nested batches. The signal implementations of the pull-based adapters consult `should_notify()` before invoking the update notifier. Fine-grained frameworks (Leptos, Dioxus, Floem) batch internally and ignore this mechanism, so the helper is safe to call everywhere.
+
+## Example
+
+```rust
+let a = cx.create_signal(0u32);
+let b = cx.create_signal(0u32);
+
+quoin_core::batch::with(&cx, || {
+    a.set(1);
+    b.set(2);
+});
+assert_eq!((a.get(), b.get()), (1, 2));
+// One re-render request instead of two.
+```
+
+<Aside type="note">
+  Batch bookkeeping is intentionally cheap (two thread-local accesses). Nesting works: only when the outermost batch ends is the update requested.
+</Aside>
+
+## Next steps
+
+- <LinkCard title="Testing with quoin-testkit" href="/guides/testing/" description="Assert that a batch collapses N writes into one update." />
+- <LinkCard title="The Reactivity Model" href="/explanation/reactivity-model/" description="Why pull-based adapters need batching and fine-grained ones do not." />

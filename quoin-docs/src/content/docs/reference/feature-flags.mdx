@@ -1,0 +1,60 @@
+---
+title: Feature Flags
+description: API reference for every cargo feature on the quoin facade, including dependencies between flags.
+type: reference
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+
+The `quoin` facade crate composes the ecosystem behind feature flags. **Exactly one framework feature may be enabled per crate** — Quoin enforces this with `compile_error!` diagnostics naming the mutually exclusive features.
+
+## Framework features
+
+| Feature | Pulls in | Also enables |
+| --- | --- | --- |
+| `gpui` | `gpui-pre`, `quoin-gpui`, `quoin-ui-gpui`, `quoin-macros` | `rsx`, `gpui-rsx-classes` |
+| `leptos` | `quoin-leptos`, `quoin-macros` | — |
+| `dioxus` | `quoin-dioxus`, `quoin-macros` | — |
+| `xilem` | `quoin-xilem`, `quoin-macros` | — |
+| `floem` | `quoin-floem`, `quoin-macros` | — |
+
+## Tooling and protocol features
+
+| Feature | Pulls in | Notes |
+| --- | --- | --- |
+| `macros` | `quoin-macros` | Macro entry points without a framework. |
+| `ui` | `quoin-ui` | Universal Component Protocol traits. |
+| `rsx` | `gpui-rsx` | Re-exports `rsx!`, `rsx_strict!`, `rsx_permissive!`, `rsx_tw!`, `rsx_fragment!`, `rsx_expand!`, `rsx_runtime!`, `#[component]` — the escape hatch for GPUI-only subtrees. Enabled automatically by `gpui`; standalone for raw-macro users. |
+| `gpui-rsx-classes` | `quoin-macros` (forwarded as `quoin-macros/gpui-rsx-classes`) | Extended Tailwind engine for GPUI: full Tailwind 4 palette, extra state variants, dynamic `class:` expressions, `rsx.toml` custom tokens. Requires `macros` or any framework feature. |
+| `testkit` | `quoin-testkit` | Headless testing re-exports. |
+| `devtools` | `quoin-devtools` | Signal-tracing re-exports. |
+
+## shadcn backing features
+
+Use together with the matching framework feature; they activate the shadcn feature on the adapter crate **and** switch the macro emitter to target shadcn components:
+
+| Feature | Requires |
+| --- | --- |
+| `leptos-shadcn` | `leptos` |
+| `dioxus-shadcn` | `dioxus` |
+| `floem-shadcn` | `floem` (expects a sibling `floem-shadcn` checkout consumed as a path dependency by `quoin-floem`) |
+
+<Aside type="caution">
+  The Floem shadcn backing is a standalone sibling checkout (v0.2.0 of the modified floem-shadcn tree), not a crates.io dependency. Cloning only the quoin repository is not enough to compile `floem-shadcn` builds — see the layout contract in the `quoin-floem` manifest.
+</Aside>
+
+## Example
+
+```toml
+[dependencies]
+# Application targeting GPUI with UCP widgets, testkit, and devtools:
+quoin = { version = "0.1", features = ["gpui", "testkit", "devtools"] }
+
+# Framework-free hook library:
+quoin-core = "0.1"
+```
+
+## Next steps
+
+- <LinkCard title="Installation" href="/guides/installation/" description="How to choose flags when adding Quoin to a project." />
+- <LinkCard title="Crates" href="/reference/crates/" description="What each workspace crate contains." />

@@ -1,0 +1,57 @@
+---
+title: quoin-testkit
+description: API reference for TestContext, the deterministic executors, and UpdateRecorder in quoin-testkit.
+type: reference
+---
+
+import { LinkCard } from '@astrojs/starlight/components';
+
+`quoin-testkit` provides concrete, dependency-light implementations of the core traits designed for tests. Reactive business logic written against `ReactiveContext` runs headlessly — no window manager, no browser, fully deterministic.
+
+Import: `use quoin_testkit::{TestContext, ImmediateExecutor, …};` or through the facade with the `testkit` feature.
+
+## Components
+
+| Component | Purpose |
+| --- | --- |
+| `TestContext` | Full `ReactiveContext` with update counting and a shared global store. Construct with `TestContext::with_executor(executor)`. |
+| `ImmediateExecutor` | Runs futures inline to completion — fully deterministic, but blocking. |
+| `ThreadedExecutor` | Runs each future on a dedicated thread — real concurrency, real abort semantics. |
+| `TokioExecutor` *(feature `tokio`)* | Runs futures on a real tokio runtime; `sleep` delegates to `tokio::time::sleep`, so paused-time tests (`start_paused` + `advance`) drive executor timers deterministically. |
+| `UpdateRecorder` | Assert how many times the UI was asked to re-render. |
+| `TestSignal<T>` | Standalone thread-safe signal backed by `Arc<RwLock<T>>`; mutations bump the owning context's update counter, mirroring pull-based adapters. |
+
+## TestContext API
+
+| Method | Description |
+| --- | --- |
+| `with_executor(e)` | Builds a context around the chosen executor. |
+| `updates()` | Returns the update recorder; `.count()` gives the number of re-render requests so far. |
+
+## Executor selection
+
+| You are testing | Choose |
+| --- | --- |
+| Pure state machines, reducers, derived pipelines | `ImmediateExecutor` — synchronous and deterministic |
+| Logic that awaits timers/channels; abort/detach semantics | `ThreadedExecutor` or `TokioExecutor` |
+
+`ImmediateExecutor` cannot model mid-flight cancellation because futures finish before the handle exists.
+
+## Example
+
+```rust
+use quoin_core::prelude::*;
+use quoin_testkit::{ImmediateExecutor, TestContext};
+
+let mut cx = TestContext::with_executor(ImmediateExecutor);
+let count = cx.create_signal(0u32);
+count.set(41);
+count.update(|v| *v += 1);
+assert_eq!(count.get(), 42);
+assert_eq!(cx.updates().count(), 2, "set + update each requested a re-render");
+```
+
+## Next steps
+
+- <LinkCard title="Testing with quoin-testkit" href="/guides/testing/" description="Task-focused guide with batching and store test patterns." />
+- <LinkCard title="Executors & Tasks" href="/reference/executors/" description="The production-side executor contract the testkit mirrors." />

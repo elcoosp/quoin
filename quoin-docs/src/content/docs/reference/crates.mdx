@@ -1,0 +1,59 @@
+---
+title: Crates
+description: API reference for the workspace layout — what every crate in the Quoin repository contains and which ones you depend on.
+type: reference
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+
+Quoin is a Cargo workspace of small, focused crates. You normally depend on one of two crates only: `quoin` (applications) or `quoin-core` (framework-free libraries). The rest exist to keep that surface small.
+
+## The crates you depend on
+
+| Crate | Purpose |
+| --- | --- |
+| `quoin` | Facade — re-exports everything behind feature flags; the application entry point. |
+| `quoin-core` | Core traits plus derived/resource/batch/local/pool machinery and the shared adapter infrastructure: `join` (join-handle lifecycle), `globals` (thread-local store), `NotifierSignal` (cell + batch-aware notifier). |
+
+## Internal crates
+
+| Crate | Role |
+| --- | --- |
+| `quoin-macros` | Proc-macro entry points: `component!`, `quoin_render!`, `quoin_element!`, `effect!`, `run_app!`. |
+| `quoin-macros-core` | Macro parsing and code generation for every backend. |
+| `quoin-style` | Typed style IR shared by every backend; compile-time Tailwind subset parsing. |
+| `quoin-gpui` | GPUI adapter. |
+| `quoin-leptos` | Leptos adapter. |
+| `quoin-dioxus` | Dioxus adapter. |
+| `quoin-xilem` | Xilem adapter. |
+| `quoin-floem` | Floem adapter. |
+| `quoin-ui` | Universal Component Protocol traits and node vocabulary. |
+| `quoin-ui-gpui` | GPUI implementation of the UCP traits. |
+| `quoin-testkit` | Headless testing: `TestContext` + deterministic executors. |
+| `quoin-devtools` | Signal tracing and update logging. |
+| `quoin-conformance` | Shared conformance test suite (30+ checks per adapter). |
+
+## Supporting infrastructure
+
+| Path | Role |
+| --- | --- |
+| `examples/` | Runnable demos per framework, plus headless e2e suites (`todo-core`, `fetch-core`, `devtools-demo`). |
+| `interop-tests/` | Parity harness for the GPUI class engine (34/34 theme-token classes byte-identical, vocabulary-superset and Tailwind-scale gates). |
+| `quoin-macros-tests/` | trybuild UI tests for macro diagnostics. |
+| `quoin-grsx-compiletest/` | Compiles full engine expansions against the vendored GPUI stub. |
+| `third_party/` | `gpui-stub` (fast type-checking of emitted chains) and `muda-stub` (Linux menu stand-in). |
+
+## Workspace-wide policies
+
+- Edition 2024, `rust-version = "1.88"`, version `0.1.0`.
+- Lint policy defined once in the root manifest and inherited by every crate: `clippy::pedantic` + `clippy::all` + `missing_docs` with warnings denied by CI (`-D warnings`), `unsafe_code = "forbid"`, and `clippy::allow_attributes` denied — `#[allow(...)]` attributes are banned outright.
+- Changelog generated from Conventional Commits by git-cliff.
+
+<Aside type="note">
+  The GPUI adapter depends on `gpui-pre` 0.3.10 (pinned). The `muda` replacement means native menus are unsupported on Linux in this configuration.
+</Aside>
+
+## Next steps
+
+- <LinkCard title="Architecture" href="/explanation/architecture/" description="How the crates relate and where shared machinery lives." />
+- <LinkCard title="Feature Flags" href="/reference/feature-flags/" description="Which flags pull in which crates." />

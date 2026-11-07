@@ -1,0 +1,71 @@
+---
+title: Universal Component Protocol
+description: API reference for the quoin-ui traits, node types, and variant enums that abstract rich widgets across frameworks.
+type: reference
+---
+
+import { LinkCard } from '@astrojs/starlight/components';
+
+The `quoin-ui` crate defines framework-agnostic adapter traits for complex UI components. Adapter crates such as `quoin-ui-gpui` provide concrete implementations. Your code depends on the traits; the framework feature pulls in the implementation.
+
+Import: `use quoin_ui::{ButtonAdapter, ButtonVariant, ComponentSize, …};`
+
+## Adapter traits
+
+| Trait | Purpose |
+| --- | --- |
+| `VirtualListAdapter` | Efficiently render large, scrollable lists (marker trait, `Default + Clone + Send + Sync`). |
+| `TableAdapter` | Sortable, striped data tables. |
+| `TextInputAdapter` | Two-way bound text inputs. |
+| `ButtonAdapter` | Styled buttons (primary, ghost, destructive). |
+| `DropdownMenuAdapter` | Dropdown menus with items. |
+| `TabBarAdapter` | Tab navigation. |
+| `Clipboard` | Read/write the system clipboard. |
+| `QuoinTheme` | Theme token resolution. |
+
+## Node vocabulary
+
+The `node` module models widget trees as typed nodes, produced by factory functions:
+
+| Factory / node | Models |
+| --- | --- |
+| `div` → `DivNode`, `DivBuilder` | Containers with styling. |
+| `text` → `TextNode`, `StyledTextNode` | Text runs with `NodeFontWeight`. |
+| `button` → `ButtonNode` | Buttons with `NodeButtonVariant` and `NodeKeySpec`. |
+| `input` → `InputNode` | Text inputs with `InputValues`. |
+| `data_table` → `TableNode`, `ColumnSpec` | Tables with per-column specs and `ScrollRestorationNode` support. |
+| `virtual_list` → `VirtualListNode` | Windowed lists. |
+| `tab_bar` → `TabBarNode`, `TabSpec` | Tab bars. |
+| `dropdown_menu` → `MenuItem`, `MenuProvider` | Menus. |
+| `icon` → `IconNode` | Icons. |
+| `clipboard` → `ClipboardNode` | Copy-to-clipboard affordances. |
+| `custom` → `CustomNode` | Escape hatch for arbitrary widgets, with `NodeEventCtx` and `NodeHandler`. |
+
+Supporting types: `Node`, `NodeChild`, `NodeEnv`, `NodeFactory`, `NodeStyle`, `StyleCmd`.
+
+## Variant enums
+
+| Enum | Variants | Default |
+| --- | --- | --- |
+| `ComponentSize` | `Small`, `Medium`, `Large` | `Medium` |
+| `SortDirection` | `None`, `Asc`, `Desc` | `None` |
+| `ButtonVariant` | Struct with `primary: bool`, `ghost: bool`, `destructive: bool`, `size: ComponentSize` | — |
+| `NodeKeySpec` | Key handling specs for focusable nodes | — |
+
+## Example
+
+```rust
+use quoin_ui::{ButtonAdapter, ButtonVariant, ComponentSize};
+
+let adapter = GpuiButtonAdapter::default();
+let button = adapter.render(Some("Click Me".into()), ButtonVariant {
+    primary: true,
+    size: ComponentSize::Medium,
+    ..Default::default()
+});
+```
+
+## Next steps
+
+- <LinkCard title="Composing UCP Components" href="/guides/ucp-components/" description="Task-focused guide to tables, lists, and buttons." />
+- <LinkCard title="Feature Flags" href="/reference/feature-flags/" description="The ui feature and its per-adapter availability." />

@@ -1,0 +1,77 @@
+---
+title: Macros
+description: API reference for component!, quoin_render!, quoin_element!, effect!, and run_app!.
+type: reference
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+
+All parsing and code generation lives in `quoin-macros-core`; the `quoin-macros` crate is the `proc_macro` boundary. The backend dispatch selects exactly one framework — enabling two framework features is a compile error, by design.
+
+Import: `use quoin_macros::{component, effect, quoin_element, quoin_render, run_app};` (re-exported through the `quoin` facade when a framework feature is enabled).
+
+## component!
+
+Defines a framework-agnostic reactive component. Recognized blocks:
+
+| Block | Contents |
+| --- | --- |
+| `props` | Typed input fields with defaults, e.g. `initial_count: u32 = 0`. |
+| `state` | Reactive fields with initial values; each becomes a signal. |
+| `globals` | Global values retrieved from context; suffix `observe` to track changes. |
+| `on_mount` / `on_unmount` | Lifecycle hooks run at mount / unmount. |
+| `fn …` | Actions — plain functions over the state signals. |
+| `render` | The view tree; runs each render pass. |
+
+Framework output: a `struct` with a `Render` impl (GPUI), `#[component] fn … -> impl IntoView` (Leptos), `#[component] fn … -> Element` (Dioxus).
+
+## quoin_render!
+
+JSX-like declarative UI with Tailwind class transpilation.
+
+| Syntax | Meaning |
+| --- | --- |
+| `div(class: "…") { … }` | Element with classes and children. |
+| `if[cond] { … }` | Conditional subtree. |
+| `for[item in items] { … }` | Repetition over an iterable. |
+| `attr: value` | Named attribute (classes, handlers, configuration). |
+| `on_click: \|ev\| …` | Handler receiving a [typed event](/reference/events/). |
+
+Element vocabulary includes `div`, `button`, `tabs`/`tab`, `data_table`/`column`, `virtual_list`, `dropdown_menu`, `input`, `checkbox`, `radio`, `switch`, `slider`, `icon`, `badge`, `tooltip`, `progress`, `skeleton`, `scroll_area`, `separator`, `styled_text`, and `clipboard_button`.
+
+## quoin_element!
+
+Declares a named custom element with typed props and a render closure:
+
+```rust
+quoin_element!("my-widget", { width: u32 }, |props| quoin_render! { div { "w" } });
+```
+
+## effect!
+
+Runs side effects reactively. Two syntaxes:
+
+| Form | Shape |
+| --- | --- |
+| Legacy | `effect! { watch: [signal], \|\| … }` |
+| Structured | `effect! { deps: […], run: \|\| …, cleanup: \|\| … }` — `cleanup` optional |
+
+Expansion per framework: `create_effect` + `on_cleanup` (Leptos), `use_effect` + `use_drop` (Dioxus), run-on-execute + cleanup-on-drop (GPUI).
+
+## run_app!
+
+Bootstraps the application with a single line.
+
+| Form | Behavior |
+| --- | --- |
+| `run_app!(MyComponent)` | GPUI with default window options; Leptos/Dioxus mount to body. |
+| `run_app!(MyComponent, window_opts: custom_opts)` | GPUI with custom window options. |
+
+<Aside type="note">
+  To inspect the generated code for a component, run `just expand component="ucp-lib" feature="gpui"` from the repository root.
+</Aside>
+
+## Next steps
+
+- <LinkCard title="Declarative UI Macros" href="/guides/ui-macros/" description="Worked examples for every macro." />
+- <LinkCard title="Styling with Tailwind Classes" href="/guides/styling/" description="How class strings compile to native styling." />

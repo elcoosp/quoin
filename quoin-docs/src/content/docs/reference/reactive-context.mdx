@@ -1,0 +1,56 @@
+---
+title: Reactive Context
+description: API reference for the ReactiveContext trait and the ReactiveContextExt extension methods.
+type: reference
+---
+
+import { LinkCard } from '@astrojs/starlight/components';
+
+`ReactiveContext` is the entry point for creating signals and accessing framework services. Adapter crates provide the concrete implementations (`GpuiContext`, `LeptosContext`, …); your code depends only on the trait.
+
+Import: `use quoin_core::prelude::*;`
+
+## ReactiveContext methods
+
+| Method | Signature | Description |
+| --- | --- | --- |
+| `Signal` (assoc.) | `type Signal<T: Clone + Send + 'static>: Signal<T>` | The adapter's signal type. |
+| `Executor` (assoc.) | `type Executor: Executor` | The adapter's executor type. |
+| `create_signal` | `fn create_signal<T: Clone + Send + 'static>(&self, initial: T) -> Self::Signal<T>` | Creates reactive state. |
+| `executor` | `fn executor(&self) -> Self::Executor` | Returns the async task spawner. |
+| `request_update` | `fn request_update(&self)` | Marks the UI as dirty. |
+| `provide_global` | `fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T)` | Stores an app-wide value keyed by type. |
+| `use_global` | `fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>>` | Returns a handle to the stored global, if present. Every adapter returns a handle to the same shared cell. |
+
+## ReactiveContextExt methods
+
+Blanket-implemented over every `ReactiveContext`; included in the prelude.
+
+| Method | Signature | Description |
+| --- | --- | --- |
+| `create_resource` | `fn create_resource<T, E, F, Fut>(&self, fetch: F) -> Resource<…>` | Creates an async data resource with race-free reloads and cooperative cancellation. |
+| `batch` | `fn batch<R>(&self, f: impl FnOnce() -> R) -> R` | Runs `f` inside a batch scope and issues a single update request afterwards. |
+| `update_global` | `fn update_global<T, R>(&self, f: impl FnOnce(&mut T) -> R) -> R` | Mutates a stored global; type-keyed access. |
+| `use_global_or_init` | `fn use_global_or_init<T>(&self, init: impl FnOnce() -> T) -> Self::Signal<T>` | Returns the global handle, initializing it on first use. |
+
+## Example
+
+```rust
+let signal = cx.create_signal(0);            // create reactive state
+let executor = cx.executor();                // async task spawner
+cx.request_update();                         // mark UI as dirty
+
+cx.provide_global(Theme::Dark);
+if let Some(theme) = cx.use_global::<Theme>() {
+    let current = theme.get();
+}
+
+let res = cx.create_resource(|token| async move { /* fetch */ });
+cx.batch(|| { a.set(1); b.set(2); });        // one update request
+let settings = cx.use_global_or_init(Settings::default);
+```
+
+## Next steps
+
+- <LinkCard title="Sharing Global State" href="/guides/global-state/" description="Task-focused guide to provide_global, update_global, and use_global_or_init." />
+- <LinkCard title="Executors & Tasks" href="/reference/executors/" description="What the executor returned by cx.executor() can do." />

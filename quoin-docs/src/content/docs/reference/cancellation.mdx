@@ -1,0 +1,60 @@
+---
+title: Cancellation Tokens
+description: API reference for CancellationToken, CancelGuard, and the futures used for cooperative cancellation.
+type: reference
+---
+
+import { LinkCard } from '@astrojs/starlight/components';
+
+`CancellationToken` is a lightweight, cloneable token that signals cancellation to spawned futures. It integrates seamlessly with the async executors provided by UI frameworks and behaves identically on all five adapters.
+
+Import: `use quoin_core::prelude::*;`
+
+## CancellationToken methods
+
+| Method | Signature | Description |
+| --- | --- | --- |
+| `new` | `pub fn new() -> Self` | Creates a fresh token. |
+| `cancel` | `pub fn cancel(&self)` | Marks the token cancelled and wakes all waiters. |
+| `is_cancelled` | `pub fn is_cancelled(&self) -> bool` | Returns whether the token has fired. |
+| `child_token` | `pub fn child_token(&self) -> Self` | Creates a token that cancels together with the parent but can also cancel independently. |
+| `guard` | `pub fn guard(&self) -> CancelGuard` | RAII guard: cancels the token when dropped. |
+| `cancelled` | `pub fn cancelled(&self) -> Cancelled<'_>` | Future that resolves when the token is cancelled. |
+| `into_cancelled` | `pub fn into_cancelled(self) -> CancelledFuture` | Owned variant of `cancelled`. |
+| `run_until_cancelled` | `pub fn run_until_cancelled<F: Future>(&self, future: F) -> RunUntilCancelled<'_, F>` | Races a future against the token. |
+
+## Supporting types
+
+| Type | Description |
+| --- | --- |
+| `CancelGuard` | RAII guard created by `guard()`; cancels the token when dropped. |
+| `Cancelled<'a>` | Future resolving when the associated token is cancelled; created by `cancelled()`. |
+| `CancelledFuture` | Owned variant created by `into_cancelled()`. |
+| `RunUntilCancelled<'a, F>` | Resolves with `Some(output)` when the wrapped future finishes first, or `None` when the token wins. |
+
+## Example
+
+```rust
+let token = CancellationToken::new();
+executor.spawn({
+    let token = token.clone();
+    async move {
+        while !token.is_cancelled() {
+            do_work().await;
+        }
+        cleanup().await;
+    }
+});
+token.cancel();
+
+// Toolkit patterns:
+let parent = CancellationToken::new();
+let per_request = parent.child_token();        // cancels with the parent
+let _guard = parent.guard();                   // RAII: cancels on drop
+let value = parent.run_until_cancelled(work()).await;
+```
+
+## Next steps
+
+- <LinkCard title="Cancelling Work" href="/guides/cancelling-work/" description="Task-focused guide: token trees, guards, and races." />
+- <LinkCard title="Executors & Tasks" href="/reference/executors/" description="spawn_with_token pairs an executor task with a token." />

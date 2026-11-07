@@ -1,0 +1,43 @@
+---
+title: Typed Events
+description: API reference for the ev module — small value-type events that keep handler source identical on all five backends.
+type: reference
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+
+The `ev` module (re-exported from the `quoin` facade as `quoin::ev`) defines typed events shared by every backend. Handlers receive small value types instead of framework-native event objects, so the same handler source compiles on all five adapters. Each adapter converts from its own event type through `From` impls that are `#[inline(always)]` in generated code.
+
+Import: `use quoin::ev;` (facade) — the types are value structs.
+
+## Payload contract
+
+| Handler arity | Contract |
+| --- | --- |
+| Zero parameters (`\|\| …`) | Valid on every backend; the adapter calls the handler with no payload. |
+| One parameter | Receives one of the payload structs below. During the transition period `()` still coerces for zero-arg handlers, which keeps existing GPUI source compiling unchanged. |
+
+## Event types
+
+| Type | Fired by | Notes |
+| --- | --- | --- |
+| `Click` | Primary click / activation | Floem's `action` decorator and Xilem's button callbacks fire this. It is a unit-like struct (`Click {}`) with a `Click::new()` constructor. Adapters with richer pointer data widen the struct in later milestones without changing handler arity. |
+
+## Example
+
+```rust
+// Zero-parameter handler — valid on every backend:
+button(class: "px-4 py-2", on_click: || increment())
+
+// One-parameter handler receiving the typed payload:
+button(on_click: |ev: quoin::ev::Click| { /* ... */ })
+```
+
+<Aside type="note">
+  Because payloads are plain value types with `From` conversions in the generated code, a handler written against `ev` types never mentions a framework event type — that is what keeps the render tree portable.
+</Aside>
+
+## Next steps
+
+- <LinkCard title="Declarative UI Macros" href="/guides/ui-macros/" description="Where event handlers attach to elements in quoin_render!." />
+- <LinkCard title="Backend Parity" href="/explanation/backend-parity/" description="How identical handler semantics are verified across adapters." />

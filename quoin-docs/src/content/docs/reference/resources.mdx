@@ -1,0 +1,69 @@
+---
+title: Resources
+description: API reference for Resource and ResourceState — the async data loading primitive shared by all adapters.
+type: reference
+---
+
+import { LinkCard } from '@astrojs/starlight/components';
+
+`Resource` models the full lifecycle of an async computation whose result feeds the UI. It is the framework-agnostic equivalent of Leptos' `Resource` and Dioxus' `use_resource`, and works on every adapter because it is built from two primitives every adapter provides: a `Signal` and an `Executor`.
+
+Import: `use quoin_core::prelude::*;`
+
+## Lifecycle
+
+```text
+Idle → Loading → Ready(T) | Failed(E)
+```
+
+Every reload cancels the in-flight request and returns the resource to `Loading`. A generation counter makes reloads race-free: a stale request can never overwrite a newer one's result.
+
+## ResourceState
+
+| Variant | Meaning |
+| --- | --- |
+| `Idle` | Created but not started, or cancelled after starting. |
+| `Loading` | A request is in flight. |
+| `Ready(T)` | The latest request completed successfully. |
+| `Failed(Arc<E>)` | The latest request failed. |
+
+## Resource methods
+
+| Method | Signature | Description |
+| --- | --- | --- |
+| `state` | `fn state(&self) -> &S` | Returns the signal holding the current `ResourceState` — read it reactively from the UI. |
+| `read` | `fn read(&self) -> Option<T>` | Convenience read of the current `Ready` value, if any. |
+| `reload_with` | `fn reload_with<C, F, Fut>(&self, cx: &C, fetch: F)` | Re-runs the fetch closure on the given context, cancelling any in-flight request. |
+
+## Creating a resource
+
+Created via `ReactiveContextExt::create_resource`; cloning a `Resource` shares the same underlying state.
+
+```rust
+let user = cx.create_resource(|token| async move {
+    // Real fetch here; check `token.is_cancelled()` between awaits.
+    Ok::<User, FetchError>(fetch_user(&token).await?)
+});
+
+// UI reads:
+match user.state().get() {
+    ResourceState::Loading => spinner(),
+    ResourceState::Ready(user) => profile(&user),
+    ResourceState::Failed(err) => error(&err),
+    ResourceState::Idle => placeholder(),
+}
+
+// Reload — cancels the in-flight request first:
+user.reload_with(&cx, fetch_user_closure);
+```
+
+## Design guarantees
+
+- **Race-free** — generation counting; stale responses are discarded.
+- **Cooperative cancellation** — reloads cancel the in-flight request via its `CancellationToken` and abort the task through the executor's join handle.
+- **Reactive** — the state lives in a framework signal, so UI reads re-render automatically on transitions.
+
+## Next steps
+
+- <LinkCard title="Loading Async Data" href="/guides/async-data/" description="Task-focused guide with fetch, reload, and cancellation patterns." />
+- <LinkCard title="Cancellation Tokens" href="/reference/cancellation/" description="The token handed to the fetch closure." />

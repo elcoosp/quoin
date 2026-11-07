@@ -1,0 +1,59 @@
+---
+title: Derived Signals & Memos
+description: API reference for derived(), map(), zip(), and Memo — computed views over signals on every adapter.
+type: reference
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+
+A `Derived` signal wraps an existing `Signal` and computes its value lazily from the source signal on every read. It mirrors "computed" primitives from fine-grained reactive frameworks but works uniformly across all adapters: on Leptos, Dioxus, and Floem the source read inside the closure is tracked by the reactive graph; on GPUI and Xilem a source mutation triggers a re-render and the next read recomputes.
+
+Import: `use quoin_core::prelude::*;`
+
+## Functions
+
+| Item | Signature | Description |
+| --- | --- | --- |
+| `derived` | `pub fn derived<S, T, U, F>(source: &S, f: F) -> Derived<S, T, U, F>` where `F: Fn(&T) -> U + Clone + 'static` | Creates a read-only signal computing `U` from the source's `T`. The closure runs on every read — keep it cheap. |
+| `zip` | `pub fn zip<A, B, TA, TB>(a: &A, b: &B) -> Zipped<A, B, TA, TB>` | Combines two signals into a read-only signal of their tuple, recomputed on each read. |
+| `memo` | `pub fn memo<S, T, U, F>(source: &S, f: F) -> Memo<S, T, U, F>` | A derived signal that caches its last output until the source value changes. |
+
+## Types
+
+| Type | Description |
+| --- | --- |
+| `Derived<S, T, U, F>` | Read-only computed signal. Implements `Signal<U>`; reading clones the computed value. |
+| `Zipped<A, B, TA, TB>` | Read-only signal combining two sources into a tuple. Created by `zip`. |
+| `Memo<S, T, U, F>` | Caching derived signal: plain `derived` recomputes the closure on every read, `Memo` recomputes only when the source value differs from the last seen value. |
+
+## SignalExt sugar
+
+| Method | Description |
+| --- | --- |
+| `.map(f)` | Equivalent to `derived(self, f)` — chainable for multi-step computations. |
+
+## Example
+
+```rust
+let count = cx.create_signal(2u32);
+
+let label = count.map(|n| format!("count = {n}"));   // recomputed on read
+assert_eq!(label.get(), "count = 2");
+
+let doubled = quoin_core::derived(&count, |v| v * 2);
+assert_eq!(doubled.get(), 4);
+
+let both = quoin_core::zip(&a, &b);                  // tuple of two signals
+assert_eq!(both.get(), (1, 2));
+
+let expensive = quoin_core::memo(&source, heavy_transform);
+```
+
+<Aside type="caution">
+  Derived closures must be pure and cheap — they run on every read. Move expensive or allocation-heavy computations into a `Memo`, which caches until the source changes.
+</Aside>
+
+## Next steps
+
+- <LinkCard title="Writing Portable Hooks" href="/guides/portable-hooks/" description="Where derived signals fit in portable hook design." />
+- <LinkCard title="The Reactivity Model" href="/explanation/reactivity-model/" description="How pull-based and fine-grained adapters both support derived state." />

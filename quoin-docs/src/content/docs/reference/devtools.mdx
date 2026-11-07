@@ -1,0 +1,62 @@
+---
+title: quoin-devtools
+description: API reference for Instrumented, EventLog, EventKind, and the record helpers in quoin-devtools.
+type: reference
+---
+
+import { LinkCard } from '@astrojs/starlight/components';
+
+`quoin-devtools` is a framework-agnostic instrumentation layer. Wrap any adapter's `ReactiveContext` and every signal creation, read-triggering mutation, task spawn, and UI update request is recorded into an inspectable `EventLog`.
+
+Import: `use quoin_devtools::{Instrumented, EventLog, EventKind, …};` or through the facade with the `devtools` feature.
+
+## Module layout
+
+| Module | Contents |
+| --- | --- |
+| `event` | `Event`, `EventKind`, and the ring-buffer `EventLog` with its aggregate views. |
+| `record` | The global log, the `QUOIN_TRACE` bootstrap, and the recording helpers shared by every wrapper. |
+| `instrumented` | The `Instrumented` context, `TracedSignal`, and `TracedExecutor`. |
+
+## Public API
+
+| Item | Description |
+| --- | --- |
+| `Instrumented::wrap(raw_ctx, label)` | Drop-in wrapper around any adapter context; `label` names the session in events. |
+| `global_log()` | Access to the process-wide `EventLog`. |
+| `EventLog::dump()` | Prints a table to stderr. |
+| `EventLog::hot_signals()` | Ranked mutation counts per signal. |
+| `EventLog::events()` | Raw snapshot of `Event` values. |
+| `EventLog::capacity()` | Ring capacity (default `DEFAULT_LOG_CAPACITY = 4096`). |
+| `EventKind` | Event categories; `UpdateRequested` labels as `"update"`. |
+| `enable()` / `disable()` / `enabled()` | Programmatic recording gate. |
+| `init_from_env()` / `parse_trace_flag()` | The `QUOIN_TRACE=1` (or `on`) environment bootstrap. |
+| `record()` / `snapshot()` / `thread_label()` | Shared recording helpers. |
+
+## Zero-cost when disabled
+
+Unless `enabled()` is turned on (default: the `QUOIN_TRACE` environment variable, or an explicit `enable()` call), the `Instrumented` wrapper short-circuits every recording call behind one relaxed atomic load, and no events are allocated.
+
+The optional `tracing` feature forwards events into the `tracing` ecosystem.
+
+## Example
+
+```rust
+use quoin_devtools::Instrumented;
+
+let ctx = Instrumented::wrap(raw_ctx, "app");   // use ctx everywhere
+
+// From a debug hotkey, a panel, or on exit:
+quoin_devtools::global_log().dump();            // stderr table
+quoin_devtools::global_log().hot_signals();     // ranked mutation counts
+quoin_devtools::global_log().events();          // raw snapshot
+```
+
+```sh
+QUOIN_TRACE=1 ./myapp    # enable recording from the environment
+```
+
+## Next steps
+
+- <LinkCard title="Tracing with quoin-devtools" href="/guides/devtools/" description="Task-focused guide including the live xilem demo." />
+- <LinkCard title="Testing with quoin-testkit" href="/guides/testing/" description="Deterministic headless testing that pairs well with tracing." />
