@@ -853,3 +853,399 @@ macro_rules! define_conformance_tests {
         );
     };
 }
+
+// -----------------------------------------------------------------------------
+// Core effect conformance checks
+// -----------------------------------------------------------------------------
+
+/// Conformance checks for the **core reactive effect runtime**
+/// ([`quoin_core::create_effect`], [`quoin_core::watch`],
+/// [`quoin_core::EffectScope`]).
+///
+/// These checks are *opt-in* and separate from [`define_conformance_tests!`]:
+/// effects re-run when a mutation reaches a signal's dependency cell, which
+/// requires the adapter's signal type to implement
+/// [`TrackedSignal`](quoin_core::TrackedSignal). The core cells
+/// (`StaticSignal`, `NotifierSignal` — the GPUI/Xilem backing type — and the
+/// testkit `TestSignal`) implement it; adapters built on fine-grained
+/// framework signals adopt this suite once their signals bridge into the
+/// core dependency graph. Wire the checks with [`define_effect_tests!`].
+pub mod effects {
+    use quoin_core::{
+        EffectScope, ReactiveContext, ReactiveContextExt, Signal, SignalExt, TrackedSignal,
+        create_effect, watch,
+    };
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::{Arc, Mutex};
+
+    fn counter() -> Arc<AtomicUsize> {
+        Arc::new(AtomicUsize::new(0))
+    }
+
+    fn runs(c: &Arc<AtomicUsize>) -> usize {
+        c.load(Ordering::SeqCst)
+    }
+
+    /// The initial effect run happens at creation time, before any mutation.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn effect_runs_immediately_on_creation<C>(cx: &C)
+    where
+        C: ReactiveContext,
+        C::Signal<u32>: TrackedSignal<u32> + Send + 'static,
+    {
+        let source = cx.create_signal(1u32);
+        let count = counter();
+        let (source2, count2) = (source.clone(), count.clone());
+        let _handle = create_effect(move || {
+            let _value = source2.get();
+            count2.fetch_add(1, Ordering::SeqCst);
+        });
+        assert_eq!(runs(&count), 1, "initial run at creation");
+        assert_eq!(source.get(), 1, "no mutation happened yet");
+    }
+
+    /// Mutating a signal the effect read re-runs the effect, which observes
+    /// the fresh value.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn effect_reruns_on_dependency_change<C>(cx: &C)
+    where
+        C: ReactiveContext,
+        C::Signal<u32>: TrackedSignal<u32> + Send + 'static,
+    {
+        let source = cx.create_signal(1u32);
+        let seen = counter();
+        let (source2, seen2) = (source.clone(), seen.clone());
+        let _handle = create_effect(move || {
+            seen2.store(source2.get() as usize, Ordering::SeqCst);
+        });
+        source.set(42);
+        assert_eq!(
+            seen.load(Ordering::SeqCst),
+            42,
+            "re-run observes the new value"
+        );
+    }
+
+    /// Every signal read during a run is a dependency; mutating any of them
+    /// re-runs the effect.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn effect_tracks_multiple_dependencies<C>(cx: &C)
+    where
+        C: ReactiveContext,
+        C::Signal<u32>: TrackedSignal<u32> + Send + 'static,
+    {
+        let a = cx.create_signal(0u32);
+        let b = cx.create_signal(0u32);
+        let count = counter();
+        let (a2, b2, count2) = (a.clone(), b.clone(), count.clone());
+        let _handle = create_effect(move || {
+            let _ = (a2.get(), b2.get());
+            count2.fetch_add(1, Ordering::SeqCst);
+        });
+        assert_eq!(runs(&count), 1);
+        a.set(1);
+        assert_eq!(runs(&count), 2);
+        b.set(1);
+        assert_eq!(runs(&count), 3);
+    }
+
+    /// The dependency set is rebuilt on every run: only the signals actually
+    /// read on the *latest* run are tracked.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn effect_dependency_set_is_dynamic<C>(cx: &C)
+    where
+        C: ReactiveContext,
+        C::Signal<bool>: TrackedSignal<bool> + Send + 'static,
+        C::Signal<u32>: TrackedSignal<u32> + Send + 'static,
+        C::Signal<String>: TrackedSignal<String> + Send + 'static,
+    {
+        let mode = cx.create_signal(true);
+        let on = cx.create_signal("on".to_string());
+        let off = cx.create_signal("off".to_string());
+        let count = counter();
+        let (m2, o2, f2, count2) = (mode.clone(), on.clone(), off.clone(), count.clone());
+        let _handle = create_effect(move || {
+            let _text = if m2.get() { o2.get() } else { f2.get() };
+            count2.fetch_add(1, Ordering::SeqCst);
+        });
+        assert_eq!(runs(&count), 1);
+        off.set("OFF".to_string());
+        assert_eq!(runs(&count), 1, "branch not taken: not a dependency");
+        mode.set(false);
+        assert_eq!(runs(&count), 2);
+        on.set("on2".to_string());
+        assert_eq!(runs(&count), 2, "old branch unsubscribed after re-run");
+        off.set("off2".to_string());
+        assert_eq!(runs(&count), 3, "new branch tracked after re-run");
+    }
+
+    /// Disposal unsubscribes the effect: no further re-runs, idempotent.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn effect_dispose_stops_reruns<C>(cx: &C)
+    where
+        C: ReactiveContext,
+        C::Signal<u32>: TrackedSignal<u32> + Send + 'static,
+    {
+        let source = cx.create_signal(1u32);
+        let count = counter();
+        let (source2, count2) = (source.clone(), count.clone());
+        let handle = create_effect(move || {
+            let _value = source2.get();
+            count2.fetch_add(1, Ordering::SeqCst);
+        });
+        handle.dispose();
+        assert!(handle.is_disposed());
+        source.set(2);
+        assert_eq!(runs(&count), 1, "disposed effect never re-runs");
+        handle.dispose();
+        assert!(handle.is_disposed(), "dispose is idempotent");
+    }
+
+    /// An [`EffectScope`] disposes every effect it created when dropped.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn effect_scope_disposes_children_on_drop<C>(cx: &C)
+    where
+        C: ReactiveContext,
+        C::Signal<u32>: TrackedSignal<u32> + Send + 'static,
+    {
+        let source = cx.create_signal(1u32);
+        let count = counter();
+        let (source2, count2) = (source.clone(), count.clone());
+        let scope = EffectScope::new();
+        scope.create_effect(move || {
+            let _value = source2.get();
+            count2.fetch_add(1, Ordering::SeqCst);
+        });
+        assert_eq!(runs(&count), 1);
+        drop(scope);
+        source.set(2);
+        assert_eq!(runs(&count), 1, "scope drop disposed the effect");
+    }
+
+    /// Mutations inside a batch defer effect re-runs; the batch end runs
+    /// each reading effect at most once.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn batch_coalesces_effect_reruns<C>(cx: &C)
+    where
+        C: ReactiveContext,
+        C::Signal<u32>: TrackedSignal<u32> + Send + 'static,
+    {
+        let a = cx.create_signal(0u32);
+        let b = cx.create_signal(0u32);
+        let count = counter();
+        let (a2, b2, count2) = (a.clone(), b.clone(), count.clone());
+        let _handle = create_effect(move || {
+            let _ = (a2.get(), b2.get());
+            count2.fetch_add(1, Ordering::SeqCst);
+        });
+        assert_eq!(runs(&count), 1);
+        cx.batch(|| {
+            a.set(1);
+            b.set(1);
+            a.set(2);
+            assert_eq!(runs(&count), 1, "no re-run inside the batch");
+        });
+        assert_eq!(runs(&count), 2, "N batched writes → one re-run");
+    }
+
+    /// `watch` fires only for writes after subscription — never for the
+    /// initial value — and receives the new value.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn watch_fires_only_after_subscription<C>(cx: &C)
+    where
+        C: ReactiveContext,
+        C::Signal<String>: TrackedSignal<String> + Send + 'static,
+    {
+        let name = cx.create_signal("ada".to_string());
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let (name2, seen2) = (name.clone(), seen.clone());
+        let _handle = watch(&name2, move |value: &String| {
+            seen2.lock().unwrap().push(value.clone());
+        });
+        assert!(
+            seen.lock().unwrap().is_empty(),
+            "watch must not fire for the initial value"
+        );
+        name.set("grace".to_string());
+        assert_eq!(*seen.lock().unwrap(), vec!["grace".to_string()]);
+    }
+
+    /// `watch` is write-driven: a plain `set` of an equal value notifies,
+    /// while `set_eq` with an equal value suppresses the notification.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn watch_respects_set_if_eq_suppression<C>(cx: &C)
+    where
+        C: ReactiveContext,
+        C::Signal<String>: TrackedSignal<String> + Send + 'static,
+    {
+        let name = cx.create_signal("v1".to_string());
+        let count = counter();
+        let (name2, count2) = (name.clone(), count.clone());
+        let _handle = watch(&name2, move |_value: &String| {
+            count2.fetch_add(1, Ordering::SeqCst);
+        });
+        assert_eq!(runs(&count), 0);
+        name.set("v1".to_string());
+        assert_eq!(runs(&count), 1, "plain set notifies even for equal values");
+        assert!(!name.set_eq("v1".to_string()), "set_eq equal write skipped");
+        assert_eq!(runs(&count), 1, "set_eq equal write does not notify");
+        assert!(name.set_eq("v2".to_string()));
+        assert_eq!(runs(&count), 2);
+    }
+
+    /// Effects chain in FIFO order within one flush: an effect that writes a
+    /// second effect's dependency runs before it.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn effect_chains_propagate_fifo<C>(cx: &C)
+    where
+        C: ReactiveContext,
+        C::Signal<u32>: TrackedSignal<u32> + Send + 'static,
+    {
+        let a = cx.create_signal(0u32);
+        let b = cx.create_signal(0u32);
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let (a2, b2, log2) = (a.clone(), b.clone(), log.clone());
+        let _first = create_effect(move || {
+            let value = a2.get();
+            b2.set(value * 10);
+            log2.lock().unwrap().push("upstream");
+        });
+        let (b3, log3) = (b.clone(), log.clone());
+        let _second = create_effect(move || {
+            let _value = b3.get();
+            log3.lock().unwrap().push("downstream");
+        });
+        log.lock().unwrap().clear();
+        a.set(1);
+        assert_eq!(
+            *log.lock().unwrap(),
+            vec!["upstream", "downstream"],
+            "downstream runs after upstream in the same flush"
+        );
+        assert_eq!(b.get(), 10);
+    }
+
+    /// A self-write from a re-run is deferred (no recursion, no deadlock)
+    /// and bounded by the body's own condition.
+    ///
+    /// # Panics
+    /// Panics when an assertion in this conformance check fails.
+    pub fn effect_self_write_defers<C>(cx: &C)
+    where
+        C: ReactiveContext,
+        C::Signal<u32>: TrackedSignal<u32> + Send + 'static,
+    {
+        let trigger = cx.create_signal(0u32);
+        let state = cx.create_signal(0u32);
+        let count = counter();
+        let (t2, s2, count2) = (trigger.clone(), state.clone(), count.clone());
+        let _handle = create_effect(move || {
+            let _t = t2.get();
+            count2.fetch_add(1, Ordering::SeqCst);
+            let n = s2.get();
+            if n < 2 {
+                s2.set(n + 1);
+            }
+        });
+        assert_eq!(runs(&count), 1, "initial run cannot self-trigger");
+        trigger.set(1);
+        assert_eq!(runs(&count), 3, "re-run + deferred self-write re-run");
+        assert_eq!(state.get(), 2);
+    }
+}
+
+/// Generates the effect conformance suite for a harness whose signal types
+/// implement [`TrackedSignal`](quoin_core::TrackedSignal).
+///
+/// The mirror of [`define_conformance_tests!`] for the core effect runtime:
+///
+/// ```rust,ignore
+/// use quoin_conformance::{define_effect_tests, TestContextProvider};
+///
+/// struct MyHarness { … }
+/// impl ReactiveContext for MyHarness { … }
+/// impl TestContextProvider for MyHarness {
+///     fn setup_context() -> Self { … }
+/// }
+///
+/// define_effect_tests!(MyHarness);
+/// ```
+#[macro_export]
+macro_rules! define_effect_tests {
+    ($cx_type:ty) => {
+        use $crate::TestContextProvider;
+        use $crate::effects::*;
+
+        macro_rules! __quoin_effect_test {
+            ($test_name:ident, $fn_name:ident) => {
+                #[test]
+                fn $test_name() {
+                    let cx = <$cx_type>::setup_context();
+                    $fn_name(&cx);
+                }
+            };
+        }
+
+        __quoin_effect_test!(
+            test_effect_runs_immediately,
+            effect_runs_immediately_on_creation
+        );
+        __quoin_effect_test!(
+            test_effect_reruns_on_dependency_change,
+            effect_reruns_on_dependency_change
+        );
+        __quoin_effect_test!(
+            test_effect_tracks_multiple_dependencies,
+            effect_tracks_multiple_dependencies
+        );
+        __quoin_effect_test!(
+            test_effect_dependency_set_is_dynamic,
+            effect_dependency_set_is_dynamic
+        );
+        __quoin_effect_test!(
+            test_effect_dispose_stops_reruns,
+            effect_dispose_stops_reruns
+        );
+        __quoin_effect_test!(
+            test_effect_scope_disposes_children_on_drop,
+            effect_scope_disposes_children_on_drop
+        );
+        __quoin_effect_test!(
+            test_batch_coalesces_effect_reruns,
+            batch_coalesces_effect_reruns
+        );
+        __quoin_effect_test!(
+            test_watch_fires_only_after_subscription,
+            watch_fires_only_after_subscription
+        );
+        __quoin_effect_test!(
+            test_watch_respects_set_if_eq_suppression,
+            watch_respects_set_if_eq_suppression
+        );
+        __quoin_effect_test!(
+            test_effect_chains_propagate_fifo,
+            effect_chains_propagate_fifo
+        );
+        __quoin_effect_test!(test_effect_self_write_defers, effect_self_write_defers);
+    };
+}
