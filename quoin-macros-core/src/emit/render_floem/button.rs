@@ -31,17 +31,13 @@ pub(crate) fn emit_button(
     {
         // Canonical `variant:`/`size:` — unknown values are hard errors.
         let variant = crate::emit::shadcn_spec::canonical_button_variant(el);
-        if let Some(error) = variant
-            .as_ref()
-            .and_then(crate::emit::shadcn_spec::choice_error)
+        if let Some(error) =
+            variant.as_ref().and_then(crate::emit::shadcn_spec::choice_error)
         {
             return error;
         }
         let size = crate::emit::shadcn_spec::canonical_button_size(el);
-        if let Some(error) = size
-            .as_ref()
-            .and_then(crate::emit::shadcn_spec::choice_error)
-        {
+        if let Some(error) = size.as_ref().and_then(crate::emit::shadcn_spec::choice_error) {
             return error;
         }
 
