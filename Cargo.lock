@@ -2799,7 +2799,6 @@ dependencies = [
 [[package]]
 name = "floem-shadcn"
 version = "0.2.0"
-source = "git+https://github.com/elcoosp/floem-shadcn#4f24d73c92d40e77abc57b2faa9e1457bfdc287d"
 dependencies = [
  "floem",
  "floem-tailwind",
