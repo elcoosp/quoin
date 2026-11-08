@@ -67,9 +67,10 @@
 //! copy text, used internally by the `clipboard_button` element in `quoin_render!`.
 
 use leptos::prelude::*;
-use quoin_core::{Executor, ReactiveContext, Signal as QuoinSignal};
+use quoin_core::{DepHandle, Executor, ReactiveContext, Signal as QuoinSignal, TrackedSignal};
 use send_wrapper::SendWrapper;
 use std::future::Future;
+use std::marker::PhantomData;
 
 #[derive(Clone, Default)]
 /// Leptos reactive context.
@@ -92,7 +93,10 @@ impl ReactiveContext for LeptosContext {
 
     fn create_signal<T: Clone + Send + 'static>(&self, initial: T) -> Self::Signal<T> {
         let inner = RwSignal::new(SendWrapper::new(initial));
-        LeptosSignal { inner }
+        LeptosSignal {
+            inner,
+            dep: DepHandle::new(),
+        }
     }
 
     fn executor(&self) -> Self::Executor {
@@ -104,36 +108,72 @@ impl ReactiveContext for LeptosContext {
     }
 
     fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T) {
+        // Store the shared dep cell alongside the reactive cell so every
+        // `use_global` consumer observes core-effect notifications from
+        // writes through any other consumer's handle (the shared-cell
+        // contract, kept at the dependency level).
+        leptos::prelude::provide_context(GlobalDep::<T> {
+            dep: DepHandle::new(),
+            _marker: PhantomData,
+        });
         leptos::prelude::provide_context(leptos::prelude::RwSignal::new(SendWrapper::new(value)));
     }
 
     fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>> {
-        leptos::prelude::use_context::<leptos::prelude::RwSignal<SendWrapper<T>>>()
-            .map(|sig| LeptosSignal { inner: sig })
+        leptos::prelude::use_context::<leptos::prelude::RwSignal<SendWrapper<T>>>().map(|sig| {
+            let dep = leptos::prelude::use_context::<GlobalDep<T>>()
+                .map(|shared| shared.dep)
+                .unwrap_or_default();
+            LeptosSignal { inner: sig, dep }
+        })
     }
+}
+
+/// The shared dependency cell behind `provide_global` (see
+/// [`ReactiveContext::provide_global`]): keyed by `T` through leptos's
+/// type-keyed context map, so every `use_global::<T>` handle observes the
+/// same core-effect graph node.
+#[derive(Clone)]
+struct GlobalDep<T> {
+    dep: DepHandle,
+    _marker: PhantomData<fn() -> T>,
 }
 
 #[derive(Clone)]
 /// Leptos-backed reactive signal.
 pub struct LeptosSignal<T: Clone + 'static> {
     inner: RwSignal<SendWrapper<T>>,
+    /// Core effect-graph cell: reads track it, writes notify it (see
+    /// [`TrackedSignal`]). Clones share the same cell via `SendWrapper`'s
+    /// shared `RwSignal` storage.
+    dep: DepHandle,
 }
 
 impl<T: Clone + 'static> QuoinSignal<T> for LeptosSignal<T> {
     fn get(&self) -> T {
+        self.dep.track_read();
         self.inner.get().take()
     }
 
     fn with<U>(&self, f: impl FnOnce(&T) -> U) -> U {
+        self.dep.track_read();
         self.inner.with(|wrapper| f(&**wrapper))
     }
 
     fn set(&self, value: T) {
         self.inner.set(SendWrapper::new(value));
+        self.dep.notify();
     }
 
     fn update(&self, f: impl FnOnce(&mut T)) {
         self.inner.update(|wrapper| f(&mut **wrapper));
+        self.dep.notify();
+    }
+}
+
+impl<T: Clone + 'static> TrackedSignal<T> for LeptosSignal<T> {
+    fn dep_handle(&self) -> DepHandle {
+        self.dep.clone()
     }
 }
 
@@ -176,7 +216,8 @@ impl<T: Clone + std::fmt::Debug + 'static> std::fmt::Debug for LeptosSignal<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LeptosSignal")
             .field("value", &self.inner.get())
-            .finish()
+            // The dep cell is shared bookkeeping, not part of the value.
+            .finish_non_exhaustive()
     }
 }
 
