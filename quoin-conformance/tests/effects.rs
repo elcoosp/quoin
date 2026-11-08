@@ -7,7 +7,7 @@
 //! [`TrackedSignal`](quoin_core::TrackedSignal) wire the identical checks
 //! with [`define_effect_tests!`](quoin_conformance::define_effect_tests).
 
-use quoin_conformance::define_effect_tests;
+use quoin_conformance::{TestContextProvider, define_effect_tests};
 use quoin_core::ReactiveContext;
 use quoin_testkit::{ImmediateExecutor, TestContext};
 
