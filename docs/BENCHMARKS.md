@@ -189,11 +189,53 @@ with-keys rows is the `compile_error!` token block being written into the
 expansion — paid exactly once, on a component that is about to fail
 compilation anyway. Enforcing the contract is free.
 
+## quoin-leptos / quoin-dioxus / quoin-floem (`examples/bench-effects.rs`)
+
+The bridged-signal effect path (fine-grained effect conformance, M1.10): a
+`LeptosSignal` / `DioxusSignal` / `FloemSignal` read inside a core
+`create_effect` now subscribes through the adapter's dependency cell, so the
+portable effect runtime observes fine-grained-adapter writes exactly as it
+observes GPUI/Xilem `NotifierSignal`s. The idle path (no live effects) adds
+one thread-local flag check per read — the zero-cost gate.
+
+| Benchmark | Ops | ns/op | Notes |
+| --- | ---: | ---: | --- |
+| `leptos_signal.set` (no effects) | 1,000,000 | 143 | leptos write + dep notify (no subscribers) |
+| `leptos_signal.get` (clone u32) | 1,000,000 | 131 | tracked read through the `SendWrapper` cell |
+| `leptos_signal.set_eq` (equal: skipped) | 1,000,000 | 90 | default compare-then-write |
+| `effect.create` (bridged, 1 dep) | 100,000 | 349 | node alloc + registry + initial run + subscribe |
+| `leptos_signal.set` (effect re-runs) | 1,000,000 | 418 | full observed cycle over the bridge |
+| `leptos_signal.set` (batched ×10, 1 re-run) | 100,000 | 2,045 | 10 writes + one cycle — coalescing intact |
+| `dioxus_signal.set` (no effects) | 1,000,000 | 50 | dioxus write + dep notify (no subscribers) |
+| `dioxus_signal.get` (clone u32) | 1,000,000 | 20 | tracked read through the `SendWrapper` cell |
+| `dioxus_signal.set_eq` (equal: skipped) | 1,000,000 | 21 | default compare-then-write |
+| `effect.create` (bridged, 1 dep) | 100,000 | 277 | node alloc + registry + initial run + subscribe |
+| `dioxus_signal.set` (effect re-runs) | 1,000,000 | 227 | full observed cycle over the bridge |
+| `dioxus_signal.set` (batched ×10, 1 re-run) | 100,000 | 1,135 | 10 writes + one cycle — coalescing intact |
+| `floem_signal.set` (no effects) | 1,000,000 | 179 | mutex write + version bump + dep notify |
+| `floem_signal.get` (clone u32) | 1,000,000 | 58 | tracked read (dep cell + version counter) |
+| `floem_signal.set_eq` (equal: skipped) | 1,000,000 | 58 | single-lock compare (skips the version bump) |
+| `effect.create` (bridged, 1 dep) | 100,000 | 282 | node alloc + registry + initial run + subscribe |
+| `floem_signal.set` (effect re-runs) | 1,000,000 | 397 | full observed cycle over the bridge |
+| `floem_signal.set` (batched ×10, 1 re-run) | 100,000 | 2,213 | 10 writes + one cycle — coalescing intact |
+
+**Bridge takeaway:** effect creation and the observed-write cycle land in
+the same band on all five backends (277–349 ns create, 227–418 ns cycle —
+the spread is each framework's own signal machinery: leptos's
+`SendWrapper`-style reads are the priciest, dioxus's generational-box reads
+the cheapest). The adapter-side bridge adds no measurable idle cost: the
+no-effects `set` rows are dominated by the frameworks' own write paths.
+Batch coalescing survives the bridge everywhere — 10 writes still re-run
+the reading effect exactly once.
+
 ## Running on your machine
 
 ```bash
 just bench-core
 just bench-xilem
+just bench-leptos
+just bench-dioxus
+just bench-floem
 just bench-devtools
 just bench-web-expansion
 ```
