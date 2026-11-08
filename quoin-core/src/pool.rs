@@ -143,8 +143,9 @@ fn worker_loop(shared: &Arc<Shared>) {
 ///
 /// # Panics
 ///
-/// Panics only if the underlying OS refuses to spawn a thread (resource
-/// exhaustion). The pool counters are restored so a later job can retry.
+/// Never panics: if the OS refuses to spawn another worker thread (resource
+/// exhaustion) the job still runs on the existing workers and the pool
+/// counters are restored so a later job can retry growing.
 pub fn spawn_pooled<F>(future: F)
 where
     F: Future + Send + 'static,
