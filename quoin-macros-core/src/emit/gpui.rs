@@ -127,7 +127,6 @@ fn view_struct_tokens(ast: &ComponentAst) -> TokenStream {
         }
 
         impl #name {
-            #[allow(clippy::too_many_arguments)]
             pub fn new(cx: &mut gpui::Context<Self>, ctx: quoin::GpuiContext, props: #props_name) -> Self {
                 use quoin::ReactiveContext;
                 use quoin::Signal;
