@@ -40,6 +40,11 @@ test-headless-examples:
 bench-core:
     cargo run --release -p quoin-core --example bench
 
+# Micro-benchmarks for the Xilem effect path — the runtime the effect!
+# macro produces on that backend (release profile)
+bench-xilem:
+    cargo run --release -p quoin-xilem --example bench-effects
+
 # Micro-benchmarks for the devtools event log (release profile)
 bench-devtools:
     cargo run --release -p quoin-devtools --example bench-devtools
