@@ -30,6 +30,7 @@ fn test_active() -> quoin::test_support::StaticSignal<usize> {
 }
 
 /// The full Tier-1 + Tier-2 surface in one tree.
+#[must_use]
 pub fn shadcn_surface_view() -> impl IntoView {
     let expanded = test_expanded();
     let active = test_active();
@@ -85,6 +86,7 @@ pub fn shadcn_surface_view() -> impl IntoView {
 
 /// An uncontrolled accordion (no `expanded:` binding) must compile too —
 /// the lowering owns its state internally.
+#[must_use]
 pub fn uncontrolled_accordion_view() -> impl IntoView {
     quoin_render! {
         accordion() {
