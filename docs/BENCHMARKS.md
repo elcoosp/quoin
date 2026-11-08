@@ -6,6 +6,7 @@ release mode, so they run on any machine with zero extra setup.
 
 ```bash
 just bench-core                                        # quoin-core primitives
+just bench-xilem                                       # quoin-xilem effect path
 just bench-devtools                                    # quoin-devtools event log
 ```
 
@@ -85,6 +86,34 @@ beyond what the underlying cell already pays; only `with` changes shape
 model. Use erasure for storage and plumbing, concrete signal types on hot
 read paths.
 
+## quoin-xilem (`quoin-xilem/examples/bench-effects.rs`)
+
+The effect-path surfaces the Xilem `effect!` lowering actually produces
+(M1.7): the adapter's `NotifierSignal` cells, the two creation routing
+paths, and the observed-write cycle on top of the core runtime.
+
+| Benchmark | Ops | ns/op | Notes |
+| --- | ---: | ---: | --- |
+| `xilem_signal.set` (no effects) | 1,000,000 | 26 | cell write + notifier check (no notifier installed) |
+| `xilem_signal.get` (clone u32) | 1,000,000 | 14 | tracked read, zero-cost gate |
+| `xilem_signal.set_eq` (equal: skipped) | 1,000,000 | 13 | single write-lock compare |
+| `effect.create` (detached, 1 dep) | 100,000 | 255 | node alloc + registry + initial run + subscribe |
+| `effect.create` (component scope, 1 dep) | 100,000 | 299 | +~44 ns: thread-local push/pop around the same work |
+| `xilem_signal.set` (effect re-runs) | 1,000,000 | 186 | full observed cycle, matches the core 188 ns |
+| `xilem_signal.set` (batched ×10, 1 re-run) | 100,000 | 627 | 10 writes + one cycle — coalescing intact through the adapter |
+| set with cleanup: `slot.run` + body | 1,000,000 | 200 | +14 ns over the plain cycle (armed flag + slot mutex) |
+| `cleanup_slot.run` | 1,000,000 | 18 | one mutex lock, empty-work closure |
+
+**Effect-parity takeaway:** the Xilem `effect!` path costs the same as the
+core runtime it rides on (186 ns observed cycle here vs 188 ns in
+`bench-core` — within noise). The adapter-specific additions are constant
+and small: +44 ns for scope-routed effect creation (the thread-local
+component-scope lookup the `component!` expansion activates) and +14 ns per
+re-run for the armed-cleanup shape. The signal baseline carries the
+notifier check (26 ns vs the core cell's 15 ns) — the price of the
+context-routed rebuild request every `XilemSignal` write pays regardless of
+effects.
+
 ## quoin-devtools (`quoin-devtools/examples/bench-devtools.rs`)
 
 Aggregate views read **incremental counters** maintained on push and on ring
@@ -128,6 +157,7 @@ the raw retained slice for custom views.
 
 ```bash
 just bench-core
+just bench-xilem
 just bench-devtools
 ```
 
