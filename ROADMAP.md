@@ -166,6 +166,62 @@ parity gap.
 
 ---
 
+## Phase 1.8: Effect-Runtime Robustness (Current)
+
+**Goal:** Harden the reactive kernel that Phase 1.6/1.7 made load-bearing:
+a panicking effect body must leave the runtime exactly as it found it, a
+failed creation must leave no trace, disposal must not degrade as detached
+effects accumulate, and the ADR-002 erasure story must honour its documented
+effect-graph contract.
+
+### Milestones
+
+#### M1.8.1: Unwind-safe effect runtime ✅
+- [x] Tracking frames are RAII (`FrameGuard`): a panicking body pops its own
+      frame on the way out — the thread's `TRACKING` gate is restored and no
+      stale frame accumulates (before: every later tracked read on the
+      thread paid full frame bookkeeping and leaked a `DepHandle` clone into
+      the dead frame, forever).
+- [x] `create_effect` rolls back on an initial-run panic
+      (`RegistrationGuard`): no live effect, no registry entry, no disabled
+      zero-cost gate (`LIVE_EFFECTS` stays balanced).
+- [x] Panic contract documented in the module docs and pinned by tests:
+      the effect keeps its previous dependency set until a successful run
+      rebuilds it; `dispose()` remains the escape hatch.
+
+#### M1.8.2: O(1) effect disposal ✅
+- [x] The detached-effect registry is slot-indexed (`swap_remove` with slot
+      fix-up under the registry lock); `dispose` no longer scans it —
+      measured flat at ~68 ns with 100 or 1,000 live effects (was 147 ns at
+      1,000 and linear; `docs/BENCHMARKS.md`).
+- [x] Registry invariant (every entry's slot == its index) pinned by tests
+      across interior/head/tail removal and re-creation.
+
+#### M1.8.3: `TrackedSignal` for `AnySignal` ✅
+- [x] The documented ADR-002 contract is now real: `AnySignal` implements
+      `TrackedSignal`, forwarding the inner dependency cell when built with
+      `new_tracked`; `watch()` over an erased handle re-runs on inner
+      mutation.
+- [x] Plain erasures (`AnySignal::new`) fail loudly with named guidance
+      instead of silently never re-running.
+
+#### M1.8.4: Prelude completion ✅
+- [x] The prelude now really unlocks "the full framework-agnostic API in one
+      import": effect runtime (`create_effect`, `watch`, `EffectHandle`,
+      `EffectScope`, `DepHandle`, `TrackedSignal`), erasure
+      (`NotifierSignal`), computed layer (`zip`/`Zipped`), batching
+      (`BatchGuard`), and the task API (`spawn_abortable`,
+      `spawn_local_task`, their handles, `run_local_tasks` /
+      `pending_local_tasks`) — pinned by a compile-gate integration test.
+
+**Follow-ups (next milestone candidates):** effect conformance for the
+fine-grained adapters (bridge Leptos/Dioxus/Floem signals into the core
+graph); a `keys {..}` diagnostic for the Leptos/Dioxus emitters (parsed but
+silently ignored today); wire or delete the four orphaned `*_codegen`
+modules; `virtual_list` true virtualization on the web backends.
+
+---
+
 ## Phase 0: Foundation (Current)
 
 **Goal:** Implement the `quoin` core crate with the traits defined in the architecture specification, establish CI/CD, and publish initial development versions.

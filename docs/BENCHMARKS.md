@@ -69,6 +69,8 @@ live-effect gate). Costs appear only where reactivity is actually wired:
 | `effect.create` (initial run, 1 dep) | 100,000 | 292 | node alloc + registry insert + initial run + subscribe |
 | effect rerun (batched set ×10 → 1 run) | 100,000 | 661 | 10 sets + one re-run ≈ 10×14 + run — batch still coalesces |
 | `watch` callback (set → callback) | 1,000,000 | 180 | same flush cycle through the `watch` sugar |
+| `effect.dispose` (100 live effects) | 100 | 69 | slot-indexed removal: flat in the number of live effects |
+| `effect.dispose` (1,000 live effects) | 1,000 | 68 | == the 100-live row: O(1), was 147 ns before M1.8 |
 | `any_signal.get` (vtable dispatch) | 1,000,000 | 14 | erasure adds ~0 ns to reads |
 | `any_signal.set` (vtable dispatch) | 1,000,000 | 24 | same +10 ns shape as the unobserved-cell row above |
 | `any_signal.with` (clone + lend) | 1,000,000 | 16 | clone-based lend, ~`get` cost |
@@ -79,6 +81,13 @@ reactive-graph maintenance (notify, schedule, flush, rebuild the dependency
 set, resubscribe). Coalescing through `batch` amortizes it: 10 batched
 writes + one re-run cost ~661 ns ≈ 10 plain writes + one cycle, so batching
 still wins exactly as it does for update requests.
+
+**Dispose takeaway (M1.8):** the detached-effect registry is slot-indexed,
+so `dispose` no longer scans it: ~68 ns whether 100 or 1,000 effects are
+live (the pre-M1.8 `retain` scan made the 1,000-live row cost 147 ns and
+grew linearly from there). The creation path pays ~+6% (292 → ~310 ns) for
+the unwind-safety guards that roll a failed creation back; every re-run
+path is unchanged.
 
 **Erasure takeaway:** `AnySignal` adds no measurable cost to `get`/`set`
 beyond what the underlying cell already pays; only `with` changes shape
