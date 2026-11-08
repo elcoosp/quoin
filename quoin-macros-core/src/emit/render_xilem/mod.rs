@@ -21,6 +21,7 @@
 //! container in a `sized_box`, whose widget carries the `Dimensions`,
 //! `Background`, `BorderWidth`, `BorderColor` and `CornerRadius` properties.
 
+use crate::effect::Effect;
 use crate::emit::cfg::wrap_with_cfg;
 use crate::render_ast::{Element, RenderNode};
 use proc_macro2::TokenStream;
@@ -59,6 +60,64 @@ pub fn emit_render(node: &RenderNode) -> TokenStream {
     };
 
     wrap_with_cfg(node.attrs(), tokens)
+}
+
+#[must_use]
+/// Expands an `effect!` AST into the core-runtime lowering.
+///
+/// Xilem has no reactive graph of its own; the effect runs on the core
+/// runtime (`quoin_core::create_effect`), which observes the component's
+/// `XilemSignal`s through their dependency cells. The `component!`
+/// expansion holds the current effect scope during `on_mount`, so
+/// invocations there register into the component's `EffectScope` and are
+/// disposed with it; standalone invocations (outside a component mount)
+/// detach and run until disposed.
+///
+/// A standalone function (not an `Emitter` trait method) so expansion tests
+/// can compile against it while several framework features are enabled at
+/// once — the `Emitter` impls are gated on *exactly one* backend to keep
+/// their `impl` blocks conflict-free.
+pub fn emit_effect(eff: &Effect) -> TokenStream {
+    let body = &eff.body;
+    // The `run` field is a closure; it must actually be invoked — inlining
+    // it as a statement would evaluate a closure value and silently no-op.
+    let run_once = quote! { (#body)(); };
+    if let Some(cleanup) = &eff.cleanup {
+        // Cleanup: the user's one cleanup closure is installed in a shared
+        // slot (outside the effect, so the `Fn` effect closure never has to
+        // move it); the armed flag skips the initial run (nothing to tear
+        // down yet), every re-run runs it first, and the slot's last-handle
+        // drop fires it when the disposed effect node is dropped —
+        // component scope disposal in the `component!` path
+        // (quoin::xilem_effect).
+        quote! {
+            {
+                let __quoin_slot = ::quoin::xilem_effect::CleanupSlot::new();
+                __quoin_slot.set(
+                    Box::new(#cleanup) as Box<dyn ::core::ops::Fn() + Send + 'static>
+                );
+                let _ = ::quoin::xilem_effect::create_effect({
+                    let __quoin_slot = ::core::clone::Clone::clone(&__quoin_slot);
+                    let mut __quoin_armed = false;
+                    move || {
+                        // The initial run has no previous state to
+                        // tear down; every re-run cleans up first.
+                        if __quoin_armed {
+                            __quoin_slot.run();
+                        }
+                        __quoin_armed = true;
+                        #run_once
+                    }
+                });
+            }
+        }
+    } else {
+        quote! {
+            let _ = ::quoin::xilem_effect::create_effect(move || {
+                #run_once
+            });
+        }
+    }
 }
 
 /// Emission state threaded through the walker: hoisted `let` bindings, the

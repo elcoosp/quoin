@@ -253,7 +253,6 @@ mod xilem_impl {
     use super::{Emitter, FrameworkEmitter};
     use crate::emit::render_xilem::emit_render;
     use proc_macro2::TokenStream as TokenStream2;
-    use quote::quote;
     impl FrameworkEmitter for Emitter {
         fn emit_component(&self, ast: &crate::parse::ComponentAst) -> TokenStream2 {
             crate::emit::render_xilem::component::emit_component(ast)
@@ -262,54 +261,10 @@ mod xilem_impl {
             emit_render(node)
         }
         fn emit_effect(&self, eff: &crate::effect::Effect) -> TokenStream2 {
-            // Xilem has no reactive graph of its own; the effect runs on the
-            // core runtime (`quoin_core::create_effect`), which observes the
-            // component's `XilemSignal`s through their dependency cells. The
-            // `component!` expansion holds the current effect scope during
-            // `on_mount`, so invocations there register into the component's
-            // `EffectScope` and are disposed with it; standalone invocations
-            // (outside a component mount) detach and run until disposed.
-            let body = &eff.body;
-            // The `run` field is a closure; it must actually be invoked —
-            // inlining it as a statement would evaluate a closure value and
-            // silently no-op.
-            let run_once = quote! { (#body)(); };
-            if let Some(cleanup) = &eff.cleanup {
-                // Cleanup: the user's one cleanup closure is installed in a
-                // shared slot (outside the effect, so the `Fn` effect closure
-                // never has to move it); the armed flag skips the initial
-                // run (nothing to tear down yet), every re-run runs it
-                // first, and the slot's last-handle drop fires it when the
-                // disposed effect node is dropped — component scope disposal
-                // in the `component!` path (quoin::xilem_effect).
-                quote! {
-                    {
-                        let __quoin_slot = ::quoin::xilem_effect::CleanupSlot::new();
-                        __quoin_slot.set(
-                            Box::new(#cleanup) as Box<dyn ::core::ops::Fn() + Send + 'static>
-                        );
-                        let _ = ::quoin::xilem_effect::create_effect({
-                            let __quoin_slot = ::core::clone::Clone::clone(&__quoin_slot);
-                            let mut __quoin_armed = false;
-                            move || {
-                                // The initial run has no previous state to
-                                // tear down; every re-run cleans up first.
-                                if __quoin_armed {
-                                    __quoin_slot.run();
-                                }
-                                __quoin_armed = true;
-                                #run_once
-                            }
-                        });
-                    }
-                }
-            } else {
-                quote! {
-                    let _ = ::quoin::xilem_effect::create_effect(move || {
-                        #run_once
-                    });
-                }
-            }
+            // The core-runtime lowering lives in `render_xilem::emit_effect`
+            // so expansion tests can call it directly under combined
+            // features (the `Emitter` impls exist only per single backend).
+            crate::emit::render_xilem::emit_effect(eff)
         }
         fn emit_run_app(&self, input: &crate::run_app::RunAppInput) -> TokenStream2 {
             crate::emit::render_xilem::component::emit_run_app(input)

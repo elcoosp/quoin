@@ -250,10 +250,10 @@ fn run_app_expands_to_a_main_installing_the_pump() {
 
 fn emit_effect(source: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
     use quoin_macros_core::effect::Effect;
-    use quoin_macros_core::emit::{Emitter, FrameworkEmitter};
+    use quoin_macros_core::emit::render_xilem;
 
     let eff: Effect = syn::parse2(source).expect("effect AST should parse");
-    Emitter.emit_effect(&eff)
+    render_xilem::emit_effect(&eff)
 }
 
 #[test]
