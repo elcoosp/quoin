@@ -1,7 +1,8 @@
-//! Common imports for trait-only consumers of `quoin-core`.
+//! Common imports for consumers of `quoin-core`.
 //!
-//! Covers the core traits **plus** the blanket extension traits, so one
-//! import line unlocks the full framework-agnostic API:
+//! Covers the core traits, the blanket extension traits, the reactive-effect
+//! runtime, and the task helpers, so one import line unlocks the full
+//! framework-agnostic API:
 //!
 //! ```text
 //! use quoin_core::prelude::*;
@@ -11,12 +12,16 @@
 //! let label = count.map(|n| format!("count = {n}"));   // SignalExt
 //! let res = cx.create_resource(fetch);                  // ReactiveContextExt
 //! let (handle, token) = cx.executor().spawn_with_token(|t| async move { … });
+//! let _effect = watch(&count, |n| println!("count → {n}")); // effect runtime
 //! ```
 
-pub use crate::batch;
+pub use crate::batch::BatchGuard;
+pub use crate::local::{pending_local_tasks, run_local_tasks};
 pub use crate::{
-    AnySignal, CancelGuard, CancellationToken, Cancelled, CancelledFuture, Derived, Executor,
-    ExecutorExt, JoinHandle, LocalExecutor, LocalJoinHandle, LocalTask, Memo, ReactiveContext,
-    ReactiveContextExt, Resource, ResourceState, RunUntilCancelled, Signal, SignalExt, SleepFuture,
-    SyncSleepFuture, create_effect, derived, memo, sleep, watch,
+    AbortJoinHandle, AbortTask, AnySignal, CancelGuard, CancellationToken, Cancelled,
+    CancelledFuture, DepHandle, Derived, EffectHandle, EffectScope, Executor, ExecutorExt,
+    JoinHandle, LocalExecutor, LocalJoinHandle, LocalTask, Memo, NotifierSignal, RawTask,
+    ReactiveContext, ReactiveContextExt, Resource, ResourceState, RunUntilCancelled,
+    SharedJoinHandle, Signal, SignalExt, SleepFuture, SyncSleepFuture, TrackedSignal, Zipped,
+    create_effect, derived, memo, sleep, spawn_abortable, spawn_local_task, watch, zip,
 };
