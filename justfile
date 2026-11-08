@@ -54,6 +54,21 @@ bench-devtools:
 bench-web-expansion:
     cargo run --release -p quoin-macros-core --features leptos,dioxus --example bench-web-expansion
 
+# Micro-benchmarks for the Leptos effect path — the core effect graph
+# observed through the bridged LeptosSignal (release profile)
+bench-leptos:
+    cargo run --release -p quoin-leptos --example bench-effects
+
+# Micro-benchmarks for the Dioxus effect path — the core effect graph
+# observed through the bridged DioxusSignal (release profile)
+bench-dioxus:
+    cargo run --release -p quoin-dioxus --example bench-effects
+
+# Micro-benchmarks for the Floem effect path — the core effect graph
+# observed through the bridged FloemSignal (release profile)
+bench-floem:
+    cargo run --release -p quoin-floem --example bench-effects
+
 # Headless devtools demo with tracing enabled
 trace-demo:
     QUOIN_TRACE=1 cargo run -p devtools-demo

@@ -16,8 +16,8 @@ fn gpui_rsx_resolve(class: &str, tailwind_scale: bool) -> String {
         .map(|v| format!("[{}] ", v.method))
         .unwrap_or_default();
     match &analysis.outcome {
-        ClassOutcome::Supported(ts) => format!("SUPPORTED {variant}{}", ts),
-        ClassOutcome::PassThrough { tokens, .. } => format!("PASSTHRU  {variant}{}", tokens),
+        ClassOutcome::Supported(ts) => format!("SUPPORTED {variant}{ts}"),
+        ClassOutcome::PassThrough { tokens, .. } => format!("PASSTHRU  {variant}{tokens}"),
         ClassOutcome::Ignored { message } => format!("IGNORED   {message}"),
         ClassOutcome::Error { message } => format!("ERROR     {message}"),
         _ => "OTHER".to_string(),
@@ -130,13 +130,13 @@ fn main() {
     let only_quoin: Vec<&str> = KNOWN_CLASSES
         .iter()
         .copied()
-        .filter(|c| !grx.contains(&c.to_string()))
+        .filter(|c| !grx.contains(*c))
         .collect();
     println!(
         "quoin classes NOT in gpui-rsx known list: {}",
         only_quoin.len()
     );
     for chunk in only_quoin.chunks(12) {
-        println!("  {:?}", chunk);
+        println!("  {chunk:?}");
     }
 }

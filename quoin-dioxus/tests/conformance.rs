@@ -1,6 +1,6 @@
 //! Conformance tests for the quoin-dioxus adapter.
 use dioxus_core::{Element, ScopeId, VNode, VirtualDom};
-use quoin_conformance::define_conformance_tests;
+use quoin_conformance::{define_conformance_tests, define_effect_tests};
 use quoin_core::{Executor, ReactiveContext};
 use quoin_dioxus::{DioxusContext, DioxusExecutor};
 use std::future::Future;
@@ -114,3 +114,9 @@ impl quoin_conformance::TestContextProvider for TestHarness {
 }
 
 define_conformance_tests!(sync, TestHarness);
+
+// The effect conformance suite requires the adapter's signal type to bridge
+// into the core effect graph (`TrackedSignal`): the 11 portable effect checks
+// then run against the real `DioxusContext` harness (leaked VirtualDom
+// scope), the same reactive surface the `effect!` Dioxus emitter targets.
+define_effect_tests!(TestHarness);

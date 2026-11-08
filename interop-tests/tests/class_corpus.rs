@@ -57,8 +57,10 @@ fn is_theme_token_class(class: &str) -> bool {
 /// flip — that is the gap this gate prints.
 #[test]
 fn gpui_rsx_resolves_every_quoin_class() {
-    let grsx: std::collections::HashSet<&str> =
-        known_classes().iter().map(|s| s.as_str()).collect();
+    let grsx: std::collections::HashSet<&str> = known_classes()
+        .iter()
+        .map(std::string::String::as_str)
+        .collect();
     let tw_mode = ClassMode::PERMISSIVE.with_scale(SpacingScale::Tailwind);
 
     let mut broken: Vec<&str> = Vec::new();
@@ -151,7 +153,7 @@ fn tailwind_spacing_scale_is_active_and_distinct_from_default() {
          re-check SpacingScale::Tailwind)"
     );
     assert!(
-        px.contains("4") && !px.contains("16"),
+        px.contains('4') && !px.contains("16"),
         "default-scale `p-4` unexpectedly carries a 16: `{px}`"
     );
 }

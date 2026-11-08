@@ -53,40 +53,40 @@ const QUOIN_TOKEN_NAMES: &[&str] = &[
 /// ARGB (alpha `0xFF`), hence the `>> 8` where raw values are compared.
 /// 34 entries = 17 names × bg/text.
 const EXPECTED: &[(&str, u32)] = &[
-    ("bg-primary", 0x6366f1),
-    ("text-primary", 0x6366f1),
-    ("bg-secondary", 0x1e293b),
-    ("text-secondary", 0x94a3b8),
-    ("bg-background", 0x0f172a),
-    ("text-background", 0xfafafa),
-    ("bg-foreground", 0xfafafa),
-    ("text-foreground", 0xfafafa),
-    ("bg-muted", 0x1e293b),
-    ("text-muted", 0x94a3b8),
-    ("bg-muted-foreground", 0x1e293b),
-    ("text-muted-foreground", 0x94a3b8),
-    ("bg-accent", 0x6366f1),
-    ("text-accent", 0x6366f1),
-    ("bg-info", 0x1e3a5f),
-    ("text-info", 0x3b82f6),
-    ("bg-warning", 0x422006),
-    ("text-warning", 0xeab308),
-    ("bg-danger", 0x450a0a),
-    ("text-danger", 0xef4444),
-    ("bg-destructive", 0x450a0a),
-    ("text-destructive", 0xef4444),
-    ("bg-success", 0x14532d),
-    ("text-success", 0x22c55e),
-    ("bg-border", 0x1e293b),
-    ("text-border", 0xe2e8f0),
-    ("bg-input", 0x1e293b),
-    ("text-input", 0x1e293b),
-    ("bg-ring", 0x6366f1),
-    ("text-ring", 0x1e293b),
-    ("bg-card", 0x1e293b),
-    ("text-card", 0x1e293b),
-    ("bg-popover", 0x1e293b),
-    ("text-popover", 0x1e293b),
+    ("bg-primary", 0x63_66_f1),
+    ("text-primary", 0x63_66_f1),
+    ("bg-secondary", 0x1e_29_3b),
+    ("text-secondary", 0x94_a3_b8),
+    ("bg-background", 0x0f_17_2a),
+    ("text-background", 0xfa_fa_fa),
+    ("bg-foreground", 0xfa_fa_fa),
+    ("text-foreground", 0xfa_fa_fa),
+    ("bg-muted", 0x1e_29_3b),
+    ("text-muted", 0x94_a3_b8),
+    ("bg-muted-foreground", 0x1e_29_3b),
+    ("text-muted-foreground", 0x94_a3_b8),
+    ("bg-accent", 0x63_66_f1),
+    ("text-accent", 0x63_66_f1),
+    ("bg-info", 0x1e_3a_5f),
+    ("text-info", 0x3b_82_f6),
+    ("bg-warning", 0x42_20_06),
+    ("text-warning", 0xea_b3_08),
+    ("bg-danger", 0x45_0a_0a),
+    ("text-danger", 0xef_44_44),
+    ("bg-destructive", 0x45_0a_0a),
+    ("text-destructive", 0xef_44_44),
+    ("bg-success", 0x14_53_2d),
+    ("text-success", 0x22_c5_5e),
+    ("bg-border", 0x1e_29_3b),
+    ("text-border", 0xe2_e8_f0),
+    ("bg-input", 0x1e_29_3b),
+    ("text-input", 0x1e_29_3b),
+    ("bg-ring", 0x63_66_f1),
+    ("text-ring", 0x1e_29_3b),
+    ("bg-card", 0x1e_29_3b),
+    ("text-card", 0x1e_29_3b),
+    ("bg-popover", 0x1e_29_3b),
+    ("text-popover", 0x1e_29_3b),
 ];
 
 /// gpui-component@0.8.1 `ThemeColor` field per quoin token name — verified
@@ -112,7 +112,7 @@ const PRESET_FIELD: &[(&str, Option<&str>)] = &[
     ("popover", Some("popover")),
 ];
 
-/// quoin-side resolution of a single token class → (RGB, is_text_role).
+/// `quoin`-side resolution of a single token class → (`RGB`, `is_text_role`).
 fn quoin_baked_rgb(class: &str) -> Option<(u32, bool)> {
     let parsed = parse_tailwind(class);
     if !parsed.unknown.is_empty() {
@@ -122,7 +122,7 @@ fn quoin_baked_rgb(class: &str) -> Option<(u32, bool)> {
         match decl {
             Decl::Background(Col::Token(t)) => return Some((t.surface_hex().value >> 8, false)),
             Decl::TextColor(Col::Token(t)) => return Some((t.text_hex().value >> 8, true)),
-            _ => continue,
+            _ => {}
         }
     }
     None
@@ -208,7 +208,7 @@ fn rgb_of_expansion(expansion: &str) -> Option<u32> {
     let digits: String = rest
         .chars()
         .skip_while(|c| !c.is_ascii_digit())
-        .take_while(|c| c.is_ascii_digit())
+        .take_while(char::is_ascii_digit)
         .collect();
     digits.parse::<u32>().ok()
 }

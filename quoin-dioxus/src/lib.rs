@@ -28,14 +28,18 @@
 //! # Signal Threading Model
 //!
 //! Dioxus signals are `Copy` but tied to the Dioxus reactive graph. This adapter
-//! wraps them in `RefCell<Signal<T>>` to satisfy quoin's `Signal` trait, which
-//! requires `&self` access (no `&mut self`).
+//! wraps them in `RefCell<SendWrapper<Signal<T>>>` to satisfy quoin's `Signal`
+//! trait, which requires `&self` access (no `&mut self`).
 //!
 //! - `DioxusSignal<T>` is `Clone` and can be used within a single component tree.
 //! - The `RefCell` borrow rules apply: you cannot hold a `.read()` borrow while
 //!   calling `.write()`. In practice this means don't nest signal reads/writes
 //!   within the same expression.
-//! - Signals are **not** thread-safe. Do not send `DioxusSignal` across threads.
+//! - Signals must only be **accessed** on the thread that created them: the
+//!   underlying Dioxus `Signal` sits in a `SendWrapper`, which makes the handle
+//!   `Send` (core effect closures capture it and re-run on the notifying
+//!   thread) while any cross-thread dereference panics — the same threading
+//!   model the Leptos adapter documents. The handle stays `!Sync`.
 //!
 //! # Async Executor
 //!
@@ -67,9 +71,11 @@
 //! the current thread (native).
 
 use dioxus::prelude::*;
-use quoin_core::{Executor, ReactiveContext, Signal as QuoinSignal};
+use quoin_core::{DepHandle, Executor, ReactiveContext, Signal as QuoinSignal, TrackedSignal};
+use send_wrapper::SendWrapper;
 use std::cell::RefCell;
 use std::future::Future;
+use std::marker::PhantomData;
 
 #[derive(Clone, Default)]
 /// Dioxus reactive context.
@@ -92,7 +98,8 @@ impl ReactiveContext for DioxusContext {
 
     fn create_signal<T: Clone + Send + 'static>(&self, initial: T) -> Self::Signal<T> {
         DioxusSignal {
-            inner: RefCell::new(Signal::new(initial)),
+            inner: RefCell::new(SendWrapper::new(Signal::new(initial))),
+            dep: DepHandle::new(),
         }
     }
 
@@ -109,39 +116,79 @@ impl ReactiveContext for DioxusContext {
         // shares the same reactive cell: mutations through one consumer's
         // `use_global` signal are visible to all of them. This matches the
         // Leptos adapter's semantics (globals are shared, never copied).
+        //
+        // The shared core-effect dependency cell rides alongside as a second
+        // context, so every `use_global` consumer observes core-effect
+        // notifications from writes through any other consumer's handle.
+        dioxus::prelude::provide_context(GlobalDep::<T> {
+            dep: DepHandle::new(),
+            _marker: PhantomData,
+        });
         dioxus::prelude::provide_context(dioxus::prelude::Signal::new(value));
     }
 
     fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>> {
         dioxus::prelude::try_consume_context::<dioxus::prelude::Signal<T>>().map(|sig| {
+            let dep = dioxus::prelude::try_consume_context::<GlobalDep<T>>()
+                .map(|shared| shared.dep)
+                .unwrap_or_default();
             DioxusSignal {
-                inner: RefCell::new(sig),
+                inner: RefCell::new(SendWrapper::new(sig)),
+                dep,
             }
         })
     }
 }
 
+/// The shared dependency cell behind `provide_global` (see
+/// [`ReactiveContext::provide_global`]): keyed by `T` through dioxus's
+/// type-keyed context map, so every `use_global::<T>` handle observes the
+/// same core-effect graph node.
+#[derive(Clone)]
+struct GlobalDep<T> {
+    dep: DepHandle,
+    _marker: PhantomData<fn() -> T>,
+}
+
 #[derive(Clone)]
 /// Dioxus-backed reactive signal.
+///
+/// The underlying Dioxus `Signal` lives in a [`SendWrapper`]: the handle is
+/// `Send` (core effect closures capture it and re-run on the notifying
+/// thread) while every cross-thread dereference panics — access stays on the
+/// creating thread, the same model the Leptos adapter documents.
 pub struct DioxusSignal<T: Clone + 'static> {
-    inner: RefCell<Signal<T>>,
+    inner: RefCell<SendWrapper<Signal<T>>>,
+    /// Core effect-graph cell: reads track it, writes notify it (see
+    /// [`TrackedSignal`]); `derive(Clone)` shares the cell across handles.
+    dep: DepHandle,
 }
 
 impl<T: Clone + 'static> QuoinSignal<T> for DioxusSignal<T> {
     fn get(&self) -> T {
+        self.dep.track_read();
         self.inner.borrow().read().clone()
     }
 
     fn with<U>(&self, f: impl FnOnce(&T) -> U) -> U {
+        self.dep.track_read();
         f(&self.inner.borrow().read())
     }
 
     fn set(&self, value: T) {
         *self.inner.borrow_mut().write() = value;
+        self.dep.notify();
     }
 
     fn update(&self, f: impl FnOnce(&mut T)) {
         f(&mut *self.inner.borrow_mut().write());
+        self.dep.notify();
+    }
+}
+
+impl<T: Clone + 'static> TrackedSignal<T> for DioxusSignal<T> {
+    fn dep_handle(&self) -> DepHandle {
+        self.dep.clone()
     }
 }
 
@@ -199,7 +246,8 @@ impl<T: Clone + std::fmt::Debug + 'static> std::fmt::Debug for DioxusSignal<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DioxusSignal")
             .field("value", &self.inner.borrow().read())
-            .finish()
+            // The dep cell is shared bookkeeping, not part of the value.
+            .finish_non_exhaustive()
     }
 }
 

@@ -58,7 +58,7 @@ pub mod keys;
 pub mod theme;
 
 use floem_reactive::{SignalGet, SignalTrack, SignalUpdate};
-use quoin_core::{Executor, ReactiveContext, Signal};
+use quoin_core::{DepHandle, Executor, ReactiveContext, Signal, TrackedSignal};
 use std::any::TypeId;
 use std::collections::HashMap;
 use std::future::Future;
@@ -132,10 +132,12 @@ impl ReactiveContext for FloemContext {
 }
 
 /// The shared storage behind a [`FloemSignal`]: the authoritative value plus
-/// the version counter that drives floem's reactivity.
+/// the version counter that drives floem's reactivity and the core effect
+/// graph cell that portable effects subscribe to.
 struct FloemSignalInner<T> {
     value: Mutex<T>,
     version: floem_reactive::SyncRwSignal<u32>,
+    dep: DepHandle,
 }
 
 #[derive(Clone)]
@@ -163,21 +165,27 @@ impl<T: Clone + 'static> FloemSignal<T> {
             inner: Arc::new(FloemSignalInner {
                 value: Mutex::new(initial),
                 version: floem_reactive::SyncRwSignal::new_sync(0),
+                dep: DepHandle::new(),
             }),
         }
     }
 
-    /// Bumps the version counter, notifying floem subscribers.
+    /// Bumps the version counter, notifying floem subscribers and the core
+    /// effect graph (portable effects re-run on the write, FIFO and
+    /// batch-coalesced like every other tracked signal).
     fn bump(&self) {
         let next = self.inner.version.get_untracked().wrapping_add(1);
         self.inner.version.set(next);
+        self.inner.dep.notify();
     }
 }
 
 impl<T: Clone + Send + 'static> Signal<T> for FloemSignal<T> {
     fn get(&self) -> T {
         // Tracking the version is what registers this read with floem's
-        // reactive graph, so views re-run on the next write.
+        // reactive graph, so views re-run on the next write; the dep cell
+        // registers the same read with the core effect graph.
+        self.inner.dep.track_read();
         self.inner.version.track();
         self.inner
             .value
@@ -198,6 +206,7 @@ impl<T: Clone + Send + 'static> Signal<T> for FloemSignal<T> {
     /// path used by macro-generated views is `get()`, which clones in every
     /// adapter, so generated UI code pays no extra cost on this backend.
     fn with<U>(&self, f: impl FnOnce(&T) -> U) -> U {
+        // `get` tracks the dep cell (and the floem version counter).
         let value = self.get();
         f(&value)
     }
@@ -220,6 +229,12 @@ impl<T: Clone + Send + 'static> Signal<T> for FloemSignal<T> {
         f(&mut guard);
         drop(guard);
         self.bump();
+    }
+}
+
+impl<T: Clone + Send + 'static> TrackedSignal<T> for FloemSignal<T> {
+    fn dep_handle(&self) -> DepHandle {
+        self.inner.dep.clone()
     }
 }
 
@@ -279,7 +294,8 @@ impl<T: Clone + std::fmt::Debug + Send> std::fmt::Debug for FloemSignal<T> {
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         f.debug_struct("FloemSignal")
             .field("value", &*value)
-            .finish()
+            // The dep cell is shared bookkeeping, not part of the value.
+            .finish_non_exhaustive()
     }
 }
 

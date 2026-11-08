@@ -1,6 +1,6 @@
 //! Conformance tests for the quoin-leptos adapter.
 use leptos::prelude::*;
-use quoin_conformance::define_conformance_tests;
+use quoin_conformance::{define_conformance_tests, define_effect_tests};
 use quoin_core::{Executor, ReactiveContext};
 use quoin_leptos::{LeptosContext, LeptosExecutor};
 use std::future::Future;
@@ -94,3 +94,9 @@ impl TestContextProvider for TestHarness {
 }
 
 define_conformance_tests!(sync, TestHarness);
+
+// The effect conformance suite requires the adapter's signal type to bridge
+// into the core effect graph (`TrackedSignal`): the 11 portable effect checks
+// then run against the real `LeptosContext`, the same reactive surface the
+// `effect!` Leptos emitter targets.
+define_effect_tests!(TestHarness);

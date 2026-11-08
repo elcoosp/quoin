@@ -266,6 +266,56 @@ and clear the remaining emitter-surface debt flagged by Phase 1.8.
 
 ---
 
+## Phase 1.10: Fine-Grained Effect Conformance (Current)
+
+**Goal:** Close the last effect-parity seam the previous phases named as a
+follow-up: the portable effect runtime (`quoin_core::create_effect`,
+`watch`) could only observe the pull-based adapters (GPUI, Xilem), because
+only their signal types carried a core dependency cell. The fine-grained
+adapters' `effect!` lowerings already targeted the frameworks' own reactive
+runtimes — this phase bridges their *signal types* into the core graph, so
+framework-agnostic logic libraries get push-based reactions over
+Leptos/Dioxus/Floem state too.
+
+### Milestones
+
+#### M1.10.1: The signal bridge ✅
+- [x] `LeptosSignal`, `DioxusSignal`, and `FloemSignal` implement
+      `TrackedSignal`: reads track a core dependency cell, writes notify it.
+      The idle path stays zero-cost (one thread-local flag check per read);
+      the frameworks' own reactivity is untouched.
+- [x] `DioxusSignal` adopts the Leptos adapter's threading model: the
+      underlying Dioxus signal sits in a `SendWrapper`, making the handle
+      `Send` (core effect closures re-run on the notifying thread) while
+      cross-thread dereference panics. Dioxus offers no public constructor
+      for sync-storage signals, so the established adapter idiom replaces
+      the previous compile-time `!Send`.
+- [x] `provide_global`/`use_global` keep their shared-cell contract at the
+      dependency level on Leptos and Dioxus: the shared dep cell rides in a
+      second framework context, so a core effect observing one consumer's
+      handle re-runs on writes through any other consumer's handle.
+
+#### M1.10.2: Conformance ✅
+- [x] `define_effect_tests!` (the 11 portable effect checks) now runs
+      against the real `LeptosContext`, `DioxusContext`, and `FloemContext`
+      — 33 new checks across the three adapters, alongside the Xilem suite
+      from Phase 1.7. Every backend the `effect!` macro family targets is
+      now covered by the shared effect contract.
+
+#### M1.10.3: Benchmarks ✅
+- [x] `just bench-leptos` / `bench-dioxus` / `bench-floem`
+      (`examples/bench-effects.rs` in each adapter): signal baseline,
+      bridged effect creation, the observed-write cycle, batch coalescing
+      (see `docs/BENCHMARKS.md` — 227–418 ns observed cycles, idle reads
+      unchanged).
+
+**Follow-ups (next milestone candidates):** a real `keys` lowering for the
+web backends (a `quoin::floem_keys` counterpart; the diagnostic contract
+from Phase 1.9 stays in force until then); `virtual_list` true
+virtualization on the web backends.
+
+---
+
 ## Phase 0: Foundation (Current)
 
 **Goal:** Implement the `quoin` core crate with the traits defined in the architecture specification, establish CI/CD, and publish initial development versions.
