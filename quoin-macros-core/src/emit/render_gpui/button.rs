@@ -23,8 +23,8 @@ pub(crate) fn emit_button(el: &Element) -> TokenStream {
     // `variant:` values are a hard error (silence is never an option);
     // `outline`/`secondary`/`link` map onto the matching gpui-component
     // variants. The canonical contract lives in `emit::shadcn_spec`.
-    if let Some(choice) = crate::emit::shadcn_spec::canonical_button_variant(el) {
-        let error = crate::emit::shadcn_spec::choice_error(&choice);
+    if let Some(choice) = crate::emit::shadcn_spec::choice::canonical_button_variant(el) {
+        let error = crate::emit::shadcn_spec::choice::choice_error(&choice);
         if let Some(error) = error {
             return error;
         }
@@ -50,8 +50,8 @@ pub(crate) fn emit_button(el: &Element) -> TokenStream {
     }
 
     // Canonical `size:` alongside the historical boolean sizes.
-    if let Some(choice) = crate::emit::shadcn_spec::canonical_button_size(el) {
-        let error = crate::emit::shadcn_spec::choice_error(&choice);
+    if let Some(choice) = crate::emit::shadcn_spec::choice::canonical_button_size(el) {
+        let error = crate::emit::shadcn_spec::choice::choice_error(&choice);
         if let Some(error) = error {
             return error;
         }
