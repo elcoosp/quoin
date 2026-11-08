@@ -1,5 +1,3 @@
-#![allow(unused_variables)]
-
 use crate::emit::cfg::wrap_with_cfg;
 use crate::render_ast::{Element, RenderNode};
 use proc_macro2::TokenStream;
