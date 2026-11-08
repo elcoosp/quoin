@@ -37,7 +37,12 @@
 //! deadlock: the self-write is deferred, and the effect re-runs once the
 //! current run has finished (a `set_if_eq` write that does not change the
 //! value does not notify and breaks such cycles entirely). Panics inside an
-//! effect body propagate to the caller that triggered the run.
+//! effect body propagate to the caller that triggered the run; the runtime
+//! itself stays consistent — the panicking run's tracking frame is popped on
+//! the way out (the thread keeps tracking later effects correctly), the
+//! effect keeps its previous dependency set until a successful run rebuilds
+//! it, and a creation whose *initial* run panics is fully rolled back (no
+//! live effect, no registry entry, no disabled zero-cost gate).
 //!
 //! # Example
 //!
@@ -103,7 +108,15 @@ static LIVE_EFFECTS: AtomicUsize = AtomicUsize::new(0);
 /// the [`EffectHandle`] neither pauses nor disposes them), so the runtime
 /// owns every node here until [`EffectHandle::dispose`] removes it. Scope
 /// effects keep their entry too — disposal always goes through `dispose`.
+///
+/// Removal is O(1): every node stores its position (`EffectNode::slot`) and
+/// `swap_remove` fixes up the moved node's slot. All slot reads and writes
+/// happen under this lock, so the bookkeeping is race-free by construction.
 static DETACHED: Mutex<Vec<Arc<EffectNode>>> = Mutex::new(Vec::new());
+
+/// Sentinel slot for a node that is not registered (creation failed, or the
+/// registry lock was poisoned at registration time).
+const UNREGISTERED: usize = usize::MAX;
 
 // ---------------------------------------------------------------------------
 // Dependency cell
@@ -219,9 +232,10 @@ impl fmt::Debug for DepHandle {
 ///
 /// Implemented by the core signal cells ([`StaticSignal`](crate::test_support::StaticSignal),
 /// [`NotifierSignal`](crate::NotifierSignal), the testkit `TestSignal`, and
-/// [`AnySignal`](crate::AnySignal) when its inner signal is tracked). Reads
-/// of these cells inside an effect body register a dependency; a mutation
-/// schedules the effect for a re-run.
+/// [`AnySignal`](crate::AnySignal) — which forwards the inner cell when built
+/// with `new_tracked` and panics for plain erasures). Reads of these cells
+/// inside an effect body register a dependency; a mutation schedules the
+/// effect for a re-run.
 ///
 /// Framework-native signal types on the fine-grained adapters (Leptos,
 /// Dioxus, Floem) have their own reactive graphs and do not implement this
@@ -242,10 +256,20 @@ struct EffectNode {
     queued: AtomicBool,
     deps: Mutex<Vec<DepHandle>>,
     run: Mutex<Box<dyn FnMut() + Send>>,
+    /// Position in the detached registry (valid while registered); all
+    /// accesses happen under the registry lock.
+    slot: AtomicUsize,
 }
 
 impl EffectNode {
     /// Runs the body once, rebuilding the dependency subscription set.
+    ///
+    /// Unwind safety: the tracking frame is an RAII guard, so a panicking
+    /// body pops its own frame on the way out — the thread's tracking state
+    /// (gate + frame stack) is restored before the panic escapes. The
+    /// subscription rebuild is skipped on the unwind path: the effect keeps
+    /// its previous dependency set until a successful run rebuilds it, and
+    /// [`EffectHandle::dispose`] remains the escape hatch.
     fn run_once(self: &Arc<Self>) {
         if self.state.load(Ordering::Acquire) == DISPOSED {
             return;
@@ -254,9 +278,9 @@ impl EffectNode {
         if self.state.load(Ordering::Acquire) == DISPOSED {
             return;
         }
-        push_frame();
+        let frame = FrameGuard::enter();
         (run)();
-        let reads = pop_frame();
+        let reads = frame.finish();
         drop(run);
 
         let mut deps = self.lock_deps();
@@ -318,9 +342,7 @@ impl EffectHandle {
         }
         self.node.queued.store(false, Ordering::Release);
         LIVE_EFFECTS.fetch_sub(1, Ordering::Relaxed);
-        if let Ok(mut registry) = DETACHED.lock() {
-            registry.retain(|candidate| !Arc::ptr_eq(candidate, &self.node));
-        }
+        remove_from_registry(&self.node);
     }
 
     /// `true` after [`dispose`](EffectHandle::dispose) was called.
@@ -364,6 +386,99 @@ fn pop_frame() -> Vec<DepHandle> {
         }
         frame
     })
+}
+
+/// RAII twin of `push_frame`/`pop_frame`: an effect run opens a tracking
+/// frame and must close it on *every* exit path. A panicking body unwinds
+/// through [`FrameGuard::drop`], which pops the partial frame and restores
+/// the tracking gate — without the guard, the thread would keep `TRACKING`
+/// stuck on `true` and an ever-growing stale frame forever (every later
+/// tracked read on that thread would pay full frame bookkeeping and leak a
+/// `DepHandle` clone into the dead frame).
+struct FrameGuard {
+    active: bool,
+}
+
+impl FrameGuard {
+    fn enter() -> Self {
+        push_frame();
+        Self { active: true }
+    }
+
+    /// Successful-run path: pops the frame and returns the recorded reads.
+    fn finish(mut self) -> Vec<DepHandle> {
+        self.active = false;
+        pop_frame()
+    }
+}
+
+impl Drop for FrameGuard {
+    fn drop(&mut self) {
+        if self.active {
+            // Unwind path: discard the partial frame; the reads are not
+            // subscribed (the subscription rebuild is skipped after a panic).
+            drop(pop_frame());
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Registry (slot-indexed, O(1) removal)
+// ---------------------------------------------------------------------------
+
+fn register_in_registry(node: &Arc<EffectNode>) {
+    if let Ok(mut registry) = DETACHED.lock() {
+        let slot = registry.len();
+        registry.push(Arc::clone(node));
+        node.slot.store(slot, Ordering::Relaxed);
+    }
+    // A poisoned registry lock skips registration (the effect still runs);
+    // the node keeps the UNREGISTERED sentinel, so a later `dispose` will
+    // not touch the registry.
+}
+
+fn remove_from_registry(node: &Arc<EffectNode>) {
+    if let Ok(mut registry) = DETACHED.lock() {
+        let slot = node.slot.swap(UNREGISTERED, Ordering::Relaxed);
+        if slot >= registry.len() || !Arc::ptr_eq(&registry[slot], node) {
+            return; // never registered (or already removed)
+        }
+        let last = registry.len() - 1;
+        registry.swap_remove(slot);
+        if slot < last {
+            // The last node moved into `slot`: fix its position up.
+            registry[slot].slot.store(slot, Ordering::Relaxed);
+        }
+    }
+}
+
+/// Unwinds the [`create_effect`] registration when the initial run panics:
+/// marks the node disposed, releases the zero-cost gate, and removes the
+/// registry entry — a failed creation must leave no trace.
+struct RegistrationGuard {
+    node: Arc<EffectNode>,
+    armed: bool,
+}
+
+impl RegistrationGuard {
+    fn disarm(mut self) {
+        self.armed = false;
+    }
+}
+
+impl Drop for RegistrationGuard {
+    fn drop(&mut self) {
+        if !self.armed {
+            return;
+        }
+        self.node.state.store(DISPOSED, Ordering::Release);
+        let deps = std::mem::take(&mut *self.node.lock_deps());
+        for dep in deps {
+            dep.remove_subscriber(&self.node);
+        }
+        LIVE_EFFECTS.fetch_sub(1, Ordering::Relaxed);
+        remove_from_registry(&self.node);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -420,6 +535,7 @@ pub(crate) fn flush() {
 /// # Panics
 ///
 /// Panics if the initial run panics (the panic propagates to the caller).
+/// The failed creation is rolled back — no effect exists afterwards.
 ///
 /// # Example
 ///
@@ -451,16 +567,23 @@ where
         queued: AtomicBool::new(false),
         deps: Mutex::new(Vec::new()),
         run: Mutex::new(Box::new(run)),
+        slot: AtomicUsize::new(UNREGISTERED),
     });
     LIVE_EFFECTS.fetch_add(1, Ordering::Relaxed);
-    if let Ok(mut registry) = DETACHED.lock() {
-        registry.push(Arc::clone(&node));
-    }
+    register_in_registry(&node);
     {
         // Defer inline flushes while the initial run executes: a body that
-        // writes a dependency must not deadlock on its own run mutex.
+        // writes a dependency must not deadlock on its own run mutex. The
+        // registration guard undoes the registration if the initial run
+        // panics, so a failed creation leaves no live effect, no registry
+        // entry, and no disabled zero-cost gate behind.
+        let registration = RegistrationGuard {
+            node: Arc::clone(&node),
+            armed: true,
+        };
         let _guard = FlushGuard::enter();
         node.run_once();
+        registration.disarm();
     }
     flush();
     EffectHandle { node }
@@ -654,6 +777,36 @@ mod tests {
 
     fn runs(c: &Arc<AtomicUsize>) -> usize {
         c.load(Ordering::SeqCst)
+    }
+
+    /// Number of nodes currently registered in the detached registry.
+    fn registry_len() -> usize {
+        DETACHED
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .len()
+    }
+
+    /// The registry slot invariant: every registered node's stored slot
+    /// equals its index (kept under the registry lock by create/dispose).
+    fn registry_invariant_holds() -> bool {
+        let registry = DETACHED.lock().unwrap_or_else(PoisonError::into_inner);
+        registry
+            .iter()
+            .enumerate()
+            .all(|(index, node)| node.slot.load(Ordering::Relaxed) == index)
+    }
+
+    /// Serializes tests that observe the process-global effect counters
+    /// (`LIVE_EFFECTS`, `DETACHED`). The project runner (cargo-nextest)
+    /// executes every test in its own process; this guard keeps plain
+    /// `cargo test` in-process runs deterministic as well (same pattern as
+    /// devtools' `global_flag_lock`).
+    fn global_state_lock() -> std::sync::MutexGuard<'static, ()> {
+        static LOCK: std::sync::OnceLock<Mutex<()>> = std::sync::OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
     }
 
     #[test]
@@ -1066,5 +1219,165 @@ mod tests {
         let source = static_signal(0u32);
         source.set(1);
         assert_eq!(source.get(), 1);
+    }
+
+    // -- Unwind safety ------------------------------------------------------
+    //
+    // A panicking effect body must leave the *thread's* tracking state
+    // (TRACKING gate + FRAMES stack) exactly as it found it, and a failed
+    // `create_effect` must leave no trace in the runtime's global registry.
+    // These assertions read the module thread-locals and the global counters
+    // directly; the project runner (cargo-nextest) executes every test in
+    // its own process, so the globals are per-test there. Under a plain
+    // `cargo test` the assertions still hold because each test body creates
+    // and reaps its own effects around the observed window.
+
+    #[test]
+    fn panic_in_body_leaves_tracking_state_clean() {
+        let source = static_signal(0u32);
+        let armed = Arc::new(AtomicBool::new(false));
+        let (s2, armed2) = (source.clone(), armed.clone());
+        let _handle = create_effect(move || {
+            s2.get();
+            assert!(!armed2.swap(true, Ordering::SeqCst), "boom on the re-run");
+        });
+        assert!(!TRACKING.with(Cell::get), "idle between runs");
+        assert!(FRAMES.with(|frames| frames.borrow().is_empty()));
+
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            source.set(1); // triggers the panicking re-run
+        }));
+        assert!(result.is_err(), "the re-run panic propagates to the caller");
+
+        assert!(
+            !TRACKING.with(Cell::get),
+            "a panicking body must not leave the tracking gate stuck on"
+        );
+        assert!(
+            FRAMES.with(|frames| frames.borrow().is_empty()),
+            "a panicking body must not leave a stale frame behind"
+        );
+    }
+
+    #[test]
+    fn panic_in_body_leaves_no_frame_growth_for_plain_reads() {
+        let source = static_signal(0u32);
+        let run_count = Arc::new(AtomicUsize::new(0));
+        let (s2, rc2) = (source.clone(), run_count.clone());
+        let handle = create_effect(move || {
+            s2.get();
+            // Panic exactly once (on the first re-run); later re-runs are
+            // well-behaved so the effect stays a harmless neighbour.
+            assert!(
+                rc2.fetch_add(1, Ordering::SeqCst) != 1,
+                "boom on the re-run"
+            );
+        });
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            source.set(1);
+        }));
+        assert!(result.is_err());
+        handle.dispose(); // the documented escape hatch after a body panic
+
+        // Tracked reads outside any effect run pay one thread-local flag
+        // check and must not accumulate state anywhere: the thread recovered.
+        for _ in 0..1_000 {
+            source.get();
+        }
+        assert!(FRAMES.with(|frames| frames.borrow().is_empty()));
+        assert!(!TRACKING.with(Cell::get));
+
+        // And a fresh effect on the recovered thread still tracks correctly.
+        let recovered = counter();
+        let (s3, c2) = (source.clone(), recovered.clone());
+        let fresh = create_effect(move || {
+            s3.get();
+            c2.fetch_add(1, Ordering::SeqCst);
+        });
+        source.set(2);
+        assert_eq!(runs(&recovered), 2, "fresh effect tracks after recovery");
+        fresh.dispose();
+    }
+
+    #[test]
+    fn initial_run_panic_releases_the_zero_cost_gate() {
+        let _serial = global_state_lock();
+        let before = LIVE_EFFECTS.load(Ordering::SeqCst);
+        let source = static_signal(0u32);
+        let source2 = source.clone();
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            create_effect(move || {
+                source2.get();
+                panic!("boom inside the initial run");
+            });
+        }));
+        assert!(result.is_err());
+
+        assert_eq!(
+            LIVE_EFFECTS.load(Ordering::SeqCst),
+            before,
+            "a failed creation must not keep the zero-cost gate disabled"
+        );
+    }
+
+    #[test]
+    fn initial_run_panic_does_not_leak_the_registry() {
+        let _serial = global_state_lock();
+        let before = registry_len();
+        let source = static_signal(0u32);
+        let source2 = source.clone();
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            create_effect(move || {
+                source2.get();
+                panic!("boom inside the initial run");
+            });
+        }));
+        assert!(result.is_err());
+
+        assert_eq!(
+            registry_len(),
+            before,
+            "a failed creation must not leave a node in the registry"
+        );
+        assert!(registry_invariant_holds());
+    }
+
+    #[test]
+    fn registry_slots_stay_consistent_through_dispose() {
+        let _serial = global_state_lock();
+        let handles: Vec<EffectHandle> = (0..8)
+            .map(|_| {
+                let source = static_signal(0u32);
+                let s2 = source.clone();
+                create_effect(move || {
+                    s2.get();
+                })
+            })
+            .collect();
+        let before = registry_len();
+
+        handles[3].dispose(); // interior removal (swap_remove moves the last)
+        assert!(registry_invariant_holds(), "after interior dispose");
+        handles[0].dispose(); // head removal
+        assert!(registry_invariant_holds(), "after head dispose");
+        handles[7].dispose(); // tail removal
+        assert!(registry_invariant_holds(), "after tail dispose");
+
+        // Fresh creations reuse the reclaimed capacity with valid slots.
+        let extra = {
+            let source = static_signal(0u32);
+            let s2 = source.clone();
+            create_effect(move || {
+                s2.get();
+            })
+        };
+        assert!(registry_invariant_holds(), "after re-creation");
+        extra.dispose();
+        assert!(registry_invariant_holds(), "after re-dispose");
+
+        // Eight creations, then one interior + one head + one tail disposal
+        // and one re-created + re-disposed effect: the registry holds exactly
+        // the still-live nodes.
+        assert_eq!(registry_len(), before - 3);
     }
 }
