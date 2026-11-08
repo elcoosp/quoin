@@ -113,9 +113,56 @@ this changes, do that" without a framework effect system.
       dependency cell.
 
 **Follow-ups (next milestone candidates):** effect conformance for the
-fine-grained adapters once their signals bridge into the core graph; a
-`effect!` macro emitter for Xilem backed by the core runtime (replacing the
+fine-grained adapters once their signals bridge into the core graph;
+a `effect!` macro emitter for Xilem backed by the core runtime (replacing the
 `unsupported` row in `docs/BACKEND-PARITY.md`).
+
+---
+
+## Phase 1.7: Render-Layer Effect Parity (Current)
+
+**Goal:** Make `effect!` first-class on every backend the `quoin_render!`
+macro family targets, by wiring the Xilem emitter to the core reactive
+runtime that Phase 1.6 landed — the last `unsupported` row in the
+non-element contracts of `docs/BACKEND-PARITY.md`.
+
+### Milestones
+
+#### M1.7.1: The Xilem `effect!` emitter ✅
+- [x] `quoin-xilem::xilem_effect` — `CleanupSlot` (the `Send + Sync`
+      counterpart of `quoin::floem_effect::CleanupSlot`: cleanup runs before
+      every re-run and a final time when the disposed effect node drops),
+      the component effect-scope registry (thread-local scope stack), and
+      the `effect!` entry point that routes into the active
+      `quoin_core::EffectScope` or detaches outside a component mount.
+- [x] `component!` on Xilem generates a `__quoin_effects` scope field;
+      `on_mount` runs inside it, so `effect!` invocations register into the
+      component's scope and are disposed when the component drops.
+- [x] `effect!` in the render body is a named compile error (a rebuild
+      would re-create the effect every time) — token-level detection with no
+      false positives on locals named `effect` or comparisons.
+- [x] Facade re-export `quoin::xilem_effect` (mirroring `floem_effect`).
+
+#### M1.7.2: Conformance ✅
+- [x] `define_effect_tests!` runs against the real `XilemContext` (11
+      portable checks): the adapter's signals bridge into the core effect
+      graph, so the shared contract holds without adapter code.
+- [x] `define_effect_tests!` no longer imports `TestContextProvider`
+      (fully qualified), so adapters can run both suites in one file.
+- [x] Expansion tests pin the emitter shapes: core-runtime lowering,
+      armed-cleanup slot, component-scope mount, render-body diagnostic.
+
+#### M1.7.3: Benchmarks ✅
+- [x] `quoin-xilem/examples/bench-effects.rs` (`just bench-xilem`): signal
+      baseline, both effect-creation paths, the observed-write cycle,
+      batch coalescing, the armed-cleanup shape, and `CleanupSlot::run`
+      (see `docs/BENCHMARKS.md`).
+
+**Follow-ups (next milestone candidates):** effect conformance for the
+fine-grained adapters (Leptos, Dioxus, Floem) once *their* signals bridge
+into the core graph — their `effect!` lowerings already target the
+frameworks' own reactive runtimes, so this is a hardening candidate, not a
+parity gap.
 
 ---
 
