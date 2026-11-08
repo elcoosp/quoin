@@ -9,3 +9,6 @@ dist/
 
 # Local commit driver (never commit the commit tool itself)
 commit.sh
+
+# Local release driver (never commit the release tool itself)
+ship.sh
