@@ -1,16 +1,18 @@
-// Imports in this module vary with the `leptos-shadcn`/`dioxus-shadcn` feature:
-// some are only used when the shadcn emit path is active. A file-level allow
-// keeps every feature combination compiling without per-line noise.
-#![allow(unused_imports)]
+// Imports in this module vary with the `leptos-shadcn` feature: some are
+// only used when the shadcn emit path is active, so those carry a matching
+// `cfg` instead of a file-level lint exception.
 
-use crate::emit::common::{find_arg_bool, find_arg_expr, find_arg_string};
+use crate::emit::common::find_arg_string;
+#[cfg(feature = "leptos-shadcn")]
+use crate::emit::common::{find_arg_bool, find_arg_expr};
 use crate::render_ast::Element;
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use super::{
-    bindings::next_extract_id, emit_node, generic::emit_html_tag_inner, handler::wrap_event_handler,
-};
+#[cfg(not(feature = "leptos-shadcn"))]
+use super::generic::emit_html_tag_inner;
+#[cfg(feature = "leptos-shadcn")]
+use super::{bindings::next_extract_id, emit_node, handler::wrap_event_handler};
 
 pub(crate) fn emit_button(
     el: &Element,
@@ -26,11 +28,14 @@ pub(crate) fn emit_button(
         // Canonical `variant:` first (`emit::shadcn_spec`), boolean sugar
         // (`primary:`/`destructive:`/`ghost:`) as the fallback. Unknown
         // values are a hard error.
-        let choice = crate::emit::shadcn_spec::canonical_button_variant(el);
-        if let Some(error) = choice.as_ref().and_then(crate::emit::shadcn_spec::choice_error) {
+        let choice = crate::emit::shadcn_spec::choice::canonical_button_variant(el);
+        if let Some(error) = choice
+            .as_ref()
+            .and_then(crate::emit::shadcn_spec::choice::choice_error)
+        {
             return error;
         }
-        let variant = match choice.and_then(|c| c.ok()) {
+        let variant = match choice.and_then(std::result::Result::ok) {
             Some("destructive") => quote! { { leptos_shadcn_ui::ButtonVariant::Destructive } },
             Some("ghost") => quote! { { leptos_shadcn_ui::ButtonVariant::Ghost } },
             Some("outline") => quote! { { leptos_shadcn_ui::ButtonVariant::Outline } },
