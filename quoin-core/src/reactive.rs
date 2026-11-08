@@ -60,8 +60,12 @@ pub trait ReactiveContext: Clone + Send + Sync + 'static {
 
     /// Creates a new signal with the given initial value.
     ///
-    /// The signal is owned by the current reactive scope. It will be
-    /// automatically cleaned up when the scope is disposed.
+    /// The returned handle shares one underlying cell across clones. Lifetime
+    /// ownership is adapter-specific: fine-grained frameworks tie their
+    /// signals to the owning scope, while the core cells (and the GPUI/Xilem
+    /// notifier cells) live as long as their handles — dispose effects
+    /// explicitly via [`EffectScope`](crate::EffectScope); signals need no
+    /// disposal.
     ///
     /// # Example
     ///
