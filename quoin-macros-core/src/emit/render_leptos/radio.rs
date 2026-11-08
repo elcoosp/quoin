@@ -61,6 +61,8 @@ pub(crate) fn emit_radio(
     } else {
         format!("{base} {user_class}")
     };
+    // The two emit paths consume different subsets of the values above.
+    let _ = (&name_expr, &full_class);
 
     #[cfg(feature = "leptos-shadcn")]
     {
