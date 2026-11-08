@@ -347,3 +347,77 @@ mod floem_impl {
         }
     }
 }
+
+// ── Combined-features fallback ──────────────────────────────────────────────
+// The per-backend impls above are gated on *exactly one* framework feature,
+// so a build that unifies two or more of them (workspace-wide tooling with
+// `--all-features`: clippy, tests, doc) would leave `Emitter` with no
+// `FrameworkEmitter` impl at all and fail with E0599 in `quoin-macros`. The
+// proc-macro build path always compiles exactly one backend; this fallback
+// exists only so the combined-feature graphs type-check. Expansion never
+// silently picks a backend here: every method expands to the same named
+// `compile_error!` the `quoin-macros` facade used to raise at crate-compile
+// time — the diagnostic moved to the expansion site (where it can actually
+// fire) so the crate itself compiles under tooling builds.
+#[cfg(any(
+    all(
+        feature = "gpui",
+        any(
+            feature = "leptos",
+            feature = "dioxus",
+            feature = "floem",
+            feature = "xilem"
+        )
+    ),
+    all(
+        feature = "leptos",
+        any(feature = "dioxus", feature = "floem", feature = "xilem")
+    ),
+    all(feature = "dioxus", any(feature = "floem", feature = "xilem")),
+    all(feature = "floem", feature = "xilem")
+))]
+mod multi_feature_impl {
+    use super::{Emitter, FrameworkEmitter};
+    use proc_macro2::TokenStream as TokenStream2;
+    use quote::quote;
+
+    const DIAGNOSTIC: &str = "multiple framework features enabled: quoin's backends are \
+         mutually exclusive; enable exactly one of `gpui`, `leptos`, `dioxus`, `floem` \
+         or `xilem`";
+
+    impl FrameworkEmitter for Emitter {
+        fn emit_component(&self, _: &crate::parse::ComponentAst) -> TokenStream2 {
+            quote! { ::core::compile_error!(#DIAGNOSTIC) }
+        }
+
+        fn emit_render(&self, _: &crate::render_ast::RenderNode) -> TokenStream2 {
+            quote! { ::core::compile_error!(#DIAGNOSTIC) }
+        }
+
+        fn emit_effect(&self, _: &crate::effect::Effect) -> TokenStream2 {
+            quote! { ::core::compile_error!(#DIAGNOSTIC) }
+        }
+
+        fn emit_run_app(&self, _: &crate::run_app::RunAppInput) -> TokenStream2 {
+            quote! { ::core::compile_error!(#DIAGNOSTIC) }
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::{Emitter, FrameworkEmitter};
+
+        /// The combined-features dispatcher must never silently pick a
+        /// backend: every expansion carries the named multi-feature
+        /// diagnostic at the expansion site.
+        #[test]
+        fn render_expands_the_named_multi_feature_diagnostic() {
+            let node: crate::render_ast::RenderNode = syn::parse_quote! { div() { "x" } };
+            let expanded = Emitter.emit_render(&node).to_string();
+            assert!(
+                expanded.contains("multiple framework features enabled"),
+                "expected the named multi-feature diagnostic, got: {expanded}"
+            );
+        }
+    }
+}

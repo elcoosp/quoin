@@ -8,39 +8,12 @@ use proc_macro::TokenStream;
 use quoin_macros_core::emit::FrameworkEmitter;
 
 // The backend dispatch selects exactly one framework: enabling two framework
-// features on `quoin-macros` (or the `quoin` facade) is a configuration error
-// and must fail loudly here rather than silently picking one.
-#[cfg(all(
-    feature = "gpui",
-    any(
-        feature = "leptos",
-        feature = "dioxus",
-        feature = "floem",
-        feature = "xilem",
-    )
-))]
-::core::compile_error!(
-    "multiple framework features enabled: quoin's backends are mutually exclusive; \
-     enable exactly one of `gpui`, `leptos`, `dioxus`, `floem` or `xilem`"
-);
-#[cfg(all(
-    feature = "leptos",
-    any(feature = "dioxus", feature = "floem", feature = "xilem",)
-))]
-::core::compile_error!(
-    "multiple framework features enabled: quoin's backends are mutually exclusive; \
-     enable exactly one of `gpui`, `leptos`, `dioxus`, `floem` or `xilem`"
-);
-#[cfg(all(feature = "dioxus", any(feature = "floem", feature = "xilem")))]
-::core::compile_error!(
-    "multiple framework features enabled: quoin's backends are mutually exclusive; \
-     enable exactly one of `gpui`, `leptos`, `dioxus`, `floem` or `xilem`"
-);
-#[cfg(all(feature = "floem", feature = "xilem"))]
-::core::compile_error!(
-    "multiple framework features enabled: quoin's backends are mutually exclusive; \
-     enable exactly one of `gpui`, `leptos`, `dioxus`, `floem` or `xilem`"
-);
+// features on `quoin-macros` (or the `quoin` facade) is a configuration error.
+// The diagnostic lives at the expansion site now — `quoin_macros_core::emit`'s
+// combined-features fallback expands every macro to a named `compile_error!`
+// instead of silently picking a backend — so tooling builds that unify
+// several framework features (workspace-wide clippy/tests) still compile this
+// crate, while an actual macro invocation keeps failing loudly.
 
 const fn emitter() -> quoin_macros_core::emit::Emitter {
     quoin_macros_core::emit::Emitter
