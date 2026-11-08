@@ -243,3 +243,156 @@ fn run_app_expands_to_a_main_installing_the_pump() {
         "one tokio runtime serves the context and the driver:\n{text}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// `effect!`: the core-runtime lowering (render-layer effect parity, M1.7)
+// ---------------------------------------------------------------------------
+
+fn emit_effect(source: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
+    use quoin_macros_core::effect::Effect;
+    use quoin_macros_core::emit::{Emitter, FrameworkEmitter};
+
+    let eff: Effect = syn::parse2(source).expect("effect AST should parse");
+    Emitter.emit_effect(&eff)
+}
+
+#[test]
+fn effect_expands_to_the_core_runtime_without_diagnostic() {
+    let expanded = emit_effect(quote::quote! {
+        deps: [count], run: || log(count.get())
+    });
+    let text = expanded.to_string();
+
+    syn::parse2::<syn::Stmt>(expanded.clone())
+        .expect("effect! expansion must parse as a statement");
+    assert!(
+        !text.contains("compile_error"),
+        "effect! is native on Xilem now; no diagnostic:\n{text}"
+    );
+    assert!(
+        text.contains(":: quoin :: xilem_effect :: create_effect"),
+        "the effect must run on the core runtime through the adapter module:\n{text}"
+    );
+    assert!(
+        text.contains("log (count . get ())"),
+        "the run closure must be invoked, not evaluated and dropped:\n{text}"
+    );
+}
+
+#[test]
+fn effect_with_cleanup_expands_to_the_armed_cleanup_slot() {
+    let expanded = emit_effect(quote::quote! {
+        deps: [query],
+        run: || fetch(query.get()),
+        cleanup: || cancel()
+    });
+    let text = expanded.to_string();
+
+    syn::parse2::<syn::Stmt>(expanded.clone())
+        .expect("effect! expansion must parse as a statement");
+    assert!(
+        text.contains(":: quoin :: xilem_effect :: CleanupSlot :: new ()"),
+        "cleanup lives in the shared Send+Sync slot:\n{text}"
+    );
+    assert!(
+        text.contains("__quoin_armed"),
+        "the initial run has nothing to tear down; an armed flag gates the cleanup:\n{text}"
+    );
+    // Ordering inside the closure: cleanup, then the body.
+    let slot_run = text
+        .find("__quoin_slot . run ()")
+        .expect("the re-run cleanup must call slot.run");
+    let body = text.find("fetch (query . get ())").expect("body invoked");
+    assert!(
+        slot_run < body,
+        "cleanup must run before the body on re-runs:\n{text}"
+    );
+}
+
+#[test]
+fn component_mounts_effects_into_a_component_scope() {
+    use quoin_macros_core::emit::render_xilem::component::emit_component;
+    use quoin_macros_core::parse::ComponentAst;
+
+    let ast: ComponentAst = syn::parse2(quote::quote! {
+        pub EffectsApp {
+            state { n: u32 = 0 }
+            on_mount {
+                effect! { deps: [n], run: || trace(n.get()) }
+            }
+            render {
+                quoin_render! { p() { "x" } }
+            }
+        }
+    })
+    .expect("component AST should parse");
+
+    let expanded = emit_component(&ast);
+    let text = expanded.to_string();
+    assert!(
+        !text.contains("compile_error"),
+        "effect! in on_mount is the supported placement:\n{text}"
+    );
+    assert!(
+        text.contains("__quoin_effects"),
+        "the struct owns the component effect scope:\n{text}"
+    );
+    assert!(
+        text.contains(":: quoin :: xilem_effect :: enter_effect_scope"),
+        "on_mount runs inside the component scope so effect! registers into it:\n{text}"
+    );
+    assert!(
+        text.contains("__quoin_scope_guard . pop ()"),
+        "the scope guard is popped once on_mount is done:\n{text}"
+    );
+}
+
+#[test]
+fn effect_in_render_body_is_a_named_diagnostic() {
+    use quoin_macros_core::emit::render_xilem::component::emit_component;
+    use quoin_macros_core::parse::ComponentAst;
+
+    let ast: ComponentAst = syn::parse2(quote::quote! {
+        pub RenderEffectsApp {
+            state { n: u32 = 0 }
+            render {
+                quoin_render! {
+                    p() { "x" }
+                    effect! { deps: [n], run: || trace(n.get()) }
+                }
+            }
+        }
+    })
+    .expect("component AST should parse");
+
+    let text = emit_component(&ast).to_string();
+    assert!(
+        text.contains("compile_error") && text.contains("on_mount"),
+        "effect! in the render body would re-create the effect per rebuild; the \
+         diagnostic must name the placement contract:\n{text}"
+    );
+}
+
+#[test]
+fn render_body_scan_ignores_non_macro_effect_mentions() {
+    use quoin_macros_core::emit::render_xilem::component::emit_component;
+    use quoin_macros_core::parse::ComponentAst;
+
+    let ast: ComponentAst = syn::parse2(quote::quote! {
+        pub ScanBaitApp {
+            state { n: u32 = 0 }
+            render {
+                quoin_render! {
+                    p() { { let effect = n.get(); let other = effect != 0; format!("{other}") } }
+                }
+            }
+        }
+    })
+    .expect("component AST should parse");
+
+    let text = emit_component(&ast).to_string();
+    assert!(
+        !text.contains("compile_error"),
+        "a local named `effect` or a comparison must not trip the diagnostic:\n{text}"
+    );
+}
