@@ -25,7 +25,7 @@
 
 use crate::parse::ComponentAst;
 use crate::run_app::RunAppInput;
-use proc_macro2::TokenStream;
+use proc_macro2::{TokenStream, TokenTree};
 use quote::quote;
 
 #[must_use]
@@ -46,6 +46,23 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
                  (see docs/BACKEND-PARITY.md)"
             );
         }
+    };
+
+    // `effect!` in the render body would re-create the effect on every
+    // rebuild (app_logic re-runs per action) — a named diagnostic, never a
+    // silent leak. Component-scope effects belong in `on_mount { .. }`.
+    let effect_error = if render_body_invokes_effect(&ast.render) {
+        quote! {
+            ::core::compile_error!(
+                "effect! inside the render body is not supported on the Xilem backend: \
+                 app_logic re-runs on every rebuild, so the effect would be re-created \
+                 each time; move it into the component's `on_mount { .. }` block, where \
+                 it registers into the component's effect scope and is disposed with it \
+                 (see docs/BACKEND-PARITY.md)"
+            );
+        }
+    } else {
+        quote! {}
     };
 
     let state_fields = ast.state.iter().map(|s| {
@@ -105,9 +122,15 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
     quote! {
         #keys_error
 
+        #effect_error
+
         #vis struct #name {
             #(#state_fields,)*
             #(#global_fields,)*
+            /// The component's effect scope: `effect!` invocations in
+            /// `on_mount` register into it, and dropping the component
+            /// disposes every effect (their final cleanup included).
+            __quoin_effects: ::core::sync::Arc<::quoin_core::EffectScope>,
         }
 
         impl #name {
@@ -115,9 +138,19 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
             /// runs the `on_mount` block once.
             #vis fn new(ctx: &::quoin::XilemContext) -> Self {
                 use ::quoin::ReactiveContext as _;
+                // The component effect scope: while `on_mount` runs below,
+                // `effect!` invocations register into it (thread-local
+                // current scope); the struct owns the scope so its `Drop`
+                // disposes the effects with the component.
+                let __quoin_effects =
+                    ::core::sync::Arc::new(::quoin_core::EffectScope::new());
+                let __quoin_scope_guard = ::quoin::xilem_effect::enter_effect_scope(
+                    ::core::clone::Clone::clone(&__quoin_effects),
+                );
                 let state = Self {
                     #(#state_inits,)*
                     #(#global_inits,)*
+                    __quoin_effects,
                 };
                 // The handles are in scope for `on_mount`, like on the
                 // other backends. The block carries `allow(unused_variables)`:
@@ -128,6 +161,7 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
                     #(#on_mount_locals)*
                     #(#on_mount_tokens)*
                 }
+                __quoin_scope_guard.pop();
                 state
             }
 
@@ -159,6 +193,50 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
             }
         }
     }
+}
+
+/// Detects an `effect ! { .. }` invocation in the raw render block: the
+/// token-level shape `effect` `!` brace-group, scanned recursively through
+/// nested groups (an `effect != x` comparison does not match; a brace group
+/// only follows in a macro invocation).
+fn render_body_invokes_effect(block: &syn::Block) -> bool {
+    fn scan(tokens: TokenStream) -> bool {
+        #[derive(PartialEq)]
+        enum State {
+            None,
+            SawEffect,
+            SawBang,
+        }
+        let mut state = State::None;
+        for tree in tokens {
+            match tree {
+                TokenTree::Group(group) => {
+                    if state == State::SawBang && group.delimiter() == proc_macro2::Delimiter::Brace
+                    {
+                        return true;
+                    }
+                    if scan(group.stream()) {
+                        return true;
+                    }
+                    state = State::None;
+                }
+                TokenTree::Ident(ref ident) if ident == "effect" => {
+                    state = State::SawEffect;
+                }
+                TokenTree::Punct(ref punct) if punct.as_char() == '!' => {
+                    if state == State::SawEffect {
+                        state = State::SawBang;
+                    } else {
+                        state = State::None;
+                    }
+                }
+                _ => state = State::None,
+            }
+        }
+        false
+    }
+    let tokens: TokenStream = block.stmts.iter().map(|stmt| quote! { #stmt }).collect();
+    scan(tokens)
 }
 
 #[must_use]
