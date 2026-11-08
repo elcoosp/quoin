@@ -2,11 +2,12 @@
 // some imports and helper variables are only exercised by one of the two
 // code paths. File-level allows keep every feature combination compiling
 // warning-free without per-line noise.
-#![allow(unused_imports, unused_variables)]
 
 use crate::emit::common::find_arg_expr;
 use crate::render_ast::{Element, RenderNode};
-use crate::transpile::{collect_handler_idents, force_move_on_closure};
+#[cfg(not(feature = "dioxus-shadcn"))]
+use crate::transpile::collect_handler_idents;
+use crate::transpile::force_move_on_closure;
 use proc_macro2::TokenStream;
 use quote::quote;
 
