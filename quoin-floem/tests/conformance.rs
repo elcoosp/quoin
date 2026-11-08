@@ -1,5 +1,5 @@
 //! Conformance tests for the quoin-floem adapter.
-use quoin_conformance::define_conformance_tests;
+use quoin_conformance::{define_conformance_tests, define_effect_tests};
 use quoin_core::{Executor, ReactiveContext};
 use quoin_floem::{FloemContext, FloemExecutor};
 use std::future::Future;
@@ -85,3 +85,9 @@ impl quoin_conformance::TestContextProvider for TestHarness {
 }
 
 define_conformance_tests!(sync, TestHarness);
+
+// The effect conformance suite requires the adapter's signal type to bridge
+// into the core effect graph (`TrackedSignal`): the 11 portable effect checks
+// then run against the real `FloemContext`, the same reactive surface the
+// `effect!` Floem emitter targets.
+define_effect_tests!(TestHarness);
