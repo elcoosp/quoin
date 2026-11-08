@@ -1193,14 +1193,16 @@ pub mod effects {
 #[macro_export]
 macro_rules! define_effect_tests {
     ($cx_type:ty) => {
-        use $crate::TestContextProvider;
+        // Fully qualified below instead of `use $crate::TestContextProvider;`:
+        // adapters run both suites in one file, and two macros importing the
+        // same trait would collide (E0252).
         use $crate::effects::*;
 
         macro_rules! __quoin_effect_test {
             ($test_name:ident, $fn_name:ident) => {
                 #[test]
                 fn $test_name() {
-                    let cx = <$cx_type>::setup_context();
+                    let cx = <$cx_type as $crate::TestContextProvider>::setup_context();
                     $fn_name(&cx);
                 }
             };
