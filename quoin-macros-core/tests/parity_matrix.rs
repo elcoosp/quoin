@@ -72,7 +72,7 @@ fn minimal_source(element: &str) -> Option<RenderNode> {
             parse_quote! { #ident() { "x" } }
         }
     };
-    Some(syn::parse2(source).ok()?)
+    syn::parse2(source).ok()
 }
 
 fn floem_text(node: &RenderNode) -> String {
