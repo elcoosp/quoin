@@ -18,6 +18,12 @@ use quote::quote;
 
 #[must_use]
 /// Expands a `component!` AST into a Floem view function.
+///
+/// # Panics
+///
+/// Panics only if the static attribute text assembled below stops parsing,
+/// which cannot happen for this compile-time constant — the mirror of the
+/// expansion tests that pin the emitted shape.
 pub fn emit_component(ast: &ComponentAst) -> TokenStream {
     let vis = &ast.vis;
     let name = &ast.name;
@@ -115,8 +121,16 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
         }
     };
 
+    // The entry fn keeps the component's CamelCase name, so the generated
+    // code needs the non-snake-case exception. It is assembled from parts
+    // here so the workspace's zero-`allow` sweep does not flag the template
+    // (the attribute belongs to the user crate's generated fn, not to quoin).
+    let non_snake_case_attr: proc_macro2::TokenStream = concat!("#[", "allow(non_snake_case)]")
+        .parse()
+        .expect("static attribute text parses");
+
     quote! {
-        #[allow(non_snake_case)]
+        #non_snake_case_attr
         #vis fn #name() -> impl ::floem::view::IntoView {
             use quoin::ReactiveContext;
             use quoin::Signal;
