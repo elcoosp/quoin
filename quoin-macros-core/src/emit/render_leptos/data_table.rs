@@ -14,6 +14,7 @@ pub(crate) fn emit_data_table(
     bindings: &mut Vec<TokenStream>,
     inside_for: bool,
 ) -> TokenStream {
+    let _ = &inside_for; // read only by the plain-HTML path
     #[cfg(feature = "leptos-shadcn")]
     {
         emit_data_table_shadcn(el, bindings)
