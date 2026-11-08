@@ -13,15 +13,18 @@
 
 // Imports vary with the `floem-shadcn` feature; a file-level allow keeps
 // every feature combination compiling without per-line noise.
-#![allow(unused_imports)]
 
-use crate::emit::common::{find_arg_bool, find_arg_expr, find_arg_string};
+use crate::emit::common::find_arg_string;
 use crate::render_ast::Element;
 use proc_macro2::TokenStream;
 use quote::quote;
 
 use super::{emit_node, generic, handler, style};
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one linear quote! template per shadcn path"
+)]
 pub(crate) fn emit_button(
     el: &Element,
     ctx: &mut super::EmitterCtx,
@@ -30,14 +33,18 @@ pub(crate) fn emit_button(
     #[cfg(feature = "floem-shadcn")]
     {
         // Canonical `variant:`/`size:` — unknown values are hard errors.
-        let variant = crate::emit::shadcn_spec::canonical_button_variant(el);
-        if let Some(error) =
-            variant.as_ref().and_then(crate::emit::shadcn_spec::choice_error)
+        let variant = crate::emit::shadcn_spec::choice::canonical_button_variant(el);
+        if let Some(error) = variant
+            .as_ref()
+            .and_then(crate::emit::shadcn_spec::choice::choice_error)
         {
             return error;
         }
-        let size = crate::emit::shadcn_spec::canonical_button_size(el);
-        if let Some(error) = size.as_ref().and_then(crate::emit::shadcn_spec::choice_error) {
+        let size = crate::emit::shadcn_spec::choice::canonical_button_size(el);
+        if let Some(error) = size
+            .as_ref()
+            .and_then(crate::emit::shadcn_spec::choice::choice_error)
+        {
             return error;
         }
 
@@ -61,7 +68,7 @@ pub(crate) fn emit_button(
             }
         };
 
-        let variant_chain = match variant.and_then(|c| c.ok()) {
+        let variant_chain = match variant.and_then(std::result::Result::ok) {
             Some("destructive") => {
                 quote! { .with_variant(::floem_shadcn::components::button::ButtonVariant::Destructive) }
             }
@@ -80,7 +87,7 @@ pub(crate) fn emit_button(
             // `default`/`primary`/unspecified — the shadcn default look.
             _ => quote! {},
         };
-        let size_chain = match size.and_then(|c| c.ok()) {
+        let size_chain = match size.and_then(std::result::Result::ok) {
             Some("sm") => {
                 quote! { .with_size(::floem_shadcn::components::button::ButtonSize::Sm) }
             }
