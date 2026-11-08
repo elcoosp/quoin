@@ -46,6 +46,13 @@ compile_error!(
 
 pub use futures_core;
 pub use quoin_core::*;
+// Explicit twin of the `effect` module inside the `quoin_core::*` glob: the
+// adapter globs below also carry a module literally named `effect`
+// (`quoin_floem::effect`, `quoin_xilem::effect`), which would make the bare
+// `quoin::effect` path ambiguous. The explicit re-export wins over globs and
+// pins `effect` to the core module; the adapters stay reachable under their
+// unambiguous `floem_effect` / `xilem_effect` aliases.
+pub use quoin_core::effect;
 
 // ── GPUI adapter ───────────────────────────────────────────────────────────
 
@@ -66,6 +73,10 @@ pub use quoin_leptos::*;
 
 // ── Xilem adapter ──────────────────────────────────────────────────────────
 
+#[cfg(feature = "xilem")]
+/// The Xilem component effect scope under an unambiguous name: the emitter's
+/// `effect!` expansion references `::quoin::xilem_effect::…`.
+pub use quoin_xilem::effect as xilem_effect;
 #[cfg(feature = "xilem")]
 /// The Xilem rebuild pump (see `quoin-xilem/src/pump.rs`).
 pub use quoin_xilem::pump as xilem_pump;
