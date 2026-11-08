@@ -37,8 +37,8 @@ const QUOIN_TOKEN_NAMES: &[&str] = &[
     "popover",
 ];
 
-/// gpui-component@0.8.1 `ThemeColor` fields matching each quoin token.
-/// `card` has no counterpart (verified against GPUI_COMPONENT_THEME_COLORS).
+/// `gpui-component@0.8.1` `ThemeColor` fields matching each `quoin` token.
+/// `card` has no counterpart (verified against `GPUI_COMPONENT_THEME_COLORS`).
 const PRESET_FIELD: &[(&str, Option<&str>)] = &[
     ("primary", Some("primary")),
     ("secondary", Some("secondary")),
@@ -100,16 +100,16 @@ fn parity_theme() -> Theme {
                 alpha: false,
             },
         );
-        if let Some((_, text_hex, _)) = quoin_token_hex(&text_class) {
-            if text_hex != surface_hex {
-                builder = builder.color(
-                    format!("{name}-fg"),
-                    TokenValue::Color {
-                        hex: text_hex >> 8,
-                        alpha: false,
-                    },
-                );
-            }
+        if let Some((_, text_hex, _)) = quoin_token_hex(&text_class)
+            && text_hex != surface_hex
+        {
+            builder = builder.color(
+                format!("{name}-fg"),
+                TokenValue::Color {
+                    hex: text_hex >> 8,
+                    alpha: false,
+                },
+            );
         }
     }
     builder.build()
@@ -151,14 +151,14 @@ fn hex_of_expansion(expansion: &str) -> Option<u32> {
         let digits: String = rest
             .chars()
             .skip_while(|c| !c.is_ascii_digit())
-            .take_while(|c| c.is_ascii_digit())
+            .take_while(char::is_ascii_digit)
             .collect();
         return digits.parse::<u32>().ok();
     }
     let start = expansion.find("0x")?;
     let hex: String = expansion[start + 2..]
         .chars()
-        .take_while(|c| c.is_ascii_hexdigit())
+        .take_while(char::is_ascii_hexdigit)
         .collect();
     u32::from_str_radix(&hex, 16).ok()
 }
