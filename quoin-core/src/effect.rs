@@ -811,6 +811,7 @@ mod tests {
 
     #[test]
     fn effect_runs_immediately_on_create() {
+        let _serial = global_state_lock();
         let count = counter();
         let c2 = count.clone();
         let _handle = create_effect(move || {
@@ -821,6 +822,7 @@ mod tests {
 
     #[test]
     fn effect_reruns_on_dependency_mutation() {
+        let _serial = global_state_lock();
         let source = static_signal(1u32);
         let count = counter();
         let (s2, c2) = (source.clone(), count.clone());
@@ -837,6 +839,7 @@ mod tests {
 
     #[test]
     fn effect_reads_fresh_value_each_run() {
+        let _serial = global_state_lock();
         let source = static_signal(1u32);
         let seen = Arc::new(Mutex::new(Vec::new()));
         let (s2, seen2) = (source.clone(), seen.clone());
@@ -850,6 +853,7 @@ mod tests {
 
     #[test]
     fn effect_tracks_multiple_dependencies() {
+        let _serial = global_state_lock();
         let a = static_signal(0u32);
         let b = static_signal(0u32);
         let count = counter();
@@ -868,6 +872,7 @@ mod tests {
 
     #[test]
     fn effect_reads_are_visible_after_mutation() {
+        let _serial = global_state_lock();
         let source = static_signal(1u32);
         let seen = counter();
         let (s2, seen2) = (source.clone(), seen.clone());
@@ -880,6 +885,7 @@ mod tests {
 
     #[test]
     fn effect_dependency_set_is_dynamic() {
+        let _serial = global_state_lock();
         let mode = static_signal(true);
         let on = static_signal("on".to_string());
         let off = static_signal("off".to_string());
@@ -920,6 +926,7 @@ mod tests {
 
     #[test]
     fn derived_over_tracked_source_triggers_effect() {
+        let _serial = global_state_lock();
         let source = static_signal(2u32);
         let doubled = crate::derived(&source, |v| v * 2);
         let seen = counter();
@@ -938,6 +945,7 @@ mod tests {
 
     #[test]
     fn effect_dispose_stops_reruns() {
+        let _serial = global_state_lock();
         let source = static_signal(1u32);
         let count = counter();
         let (s2, c2) = (source.clone(), count.clone());
@@ -956,6 +964,7 @@ mod tests {
 
     #[test]
     fn cloned_handle_shares_dispose_state() {
+        let _serial = global_state_lock();
         let source = static_signal(1u32);
         let count = counter();
         let (s2, c2) = (source.clone(), count.clone());
@@ -970,6 +979,7 @@ mod tests {
 
     #[test]
     fn dropping_handle_detaches_but_keeps_effect_running() {
+        let _serial = global_state_lock();
         let source = static_signal(1u32);
         let count = counter();
         let (s2, c2) = (source.clone(), count.clone());
@@ -985,6 +995,7 @@ mod tests {
 
     #[test]
     fn effect_scope_disposes_children_on_drop() {
+        let _serial = global_state_lock();
         let source = static_signal(1u32);
         let count = counter();
         let (s2, c2) = (source.clone(), count.clone());
@@ -1003,6 +1014,7 @@ mod tests {
 
     #[test]
     fn effect_scope_dispose_all_is_explicit_and_reusable() {
+        let _serial = global_state_lock();
         let source = static_signal(1u32);
         let count = counter();
         let (s2, c2) = (source.clone(), count.clone());
@@ -1021,6 +1033,7 @@ mod tests {
 
     #[test]
     fn batch_coalesces_effect_reruns() {
+        let _serial = global_state_lock();
         let a = static_signal(0u32);
         let b = static_signal(0u32);
         let count = counter();
@@ -1041,6 +1054,7 @@ mod tests {
 
     #[test]
     fn self_write_defers_not_deadlocks() {
+        let _serial = global_state_lock();
         // The initial run cannot self-trigger (its subscriptions install
         // after the body), so an external mutation starts the chain. From
         // the second run on, a self-write is deferred: the effect re-runs
@@ -1071,6 +1085,7 @@ mod tests {
 
     #[test]
     fn chained_effects_propagate_in_fifo_order() {
+        let _serial = global_state_lock();
         let a = static_signal(0u32);
         let b = static_signal(0u32);
         let log = Arc::new(Mutex::new(Vec::new()));
@@ -1105,6 +1120,7 @@ mod tests {
 
     #[test]
     fn nested_create_effect_gets_its_own_frame() {
+        let _serial = global_state_lock();
         let a = static_signal(0u32);
         let b = static_signal(0u32);
         let outer = counter();
@@ -1138,6 +1154,7 @@ mod tests {
 
     #[test]
     fn watch_does_not_fire_for_initial_value() {
+        let _serial = global_state_lock();
         let source = static_signal(1u32);
         let seen = Arc::new(Mutex::new(Vec::new()));
         let (s2, seen2) = (source.clone(), seen.clone());
@@ -1155,6 +1172,7 @@ mod tests {
 
     #[test]
     fn watch_fires_on_equal_write_but_not_after_set_if_eq_equal() {
+        let _serial = global_state_lock();
         let source = static_signal("v1".to_string());
         let count = counter();
         let (s2, c2) = (source.clone(), count.clone());
@@ -1175,6 +1193,7 @@ mod tests {
 
     #[test]
     fn watch_over_notifier_signal() {
+        let _serial = global_state_lock();
         let source = crate::NotifierSignal::new(0u32, || {});
         let seen = counter();
         let seen2 = seen.clone();
@@ -1189,6 +1208,7 @@ mod tests {
 
     #[test]
     fn effect_body_panic_propagates_and_runtime_survives() {
+        let _serial = global_state_lock();
         let source = static_signal(0u32);
         let source_in_panic = source.clone();
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -1213,6 +1233,7 @@ mod tests {
 
     #[test]
     fn unobserved_mutation_skips_subscriber_lock() {
+        let _serial = global_state_lock();
         // No effects exist in this test: `notify` must short-circuit on the
         // live-effect counter (LIVE_EFFECTS == 0). This test simply asserts
         // the observable behaviour is unaffected.
@@ -1234,6 +1255,7 @@ mod tests {
 
     #[test]
     fn panic_in_body_leaves_tracking_state_clean() {
+        let _serial = global_state_lock();
         let source = static_signal(0u32);
         let armed = Arc::new(AtomicBool::new(false));
         let (s2, armed2) = (source.clone(), armed.clone());
@@ -1261,6 +1283,7 @@ mod tests {
 
     #[test]
     fn panic_in_body_leaves_no_frame_growth_for_plain_reads() {
+        let _serial = global_state_lock();
         let source = static_signal(0u32);
         let run_count = Arc::new(AtomicUsize::new(0));
         let (s2, rc2) = (source.clone(), run_count.clone());
