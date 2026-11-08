@@ -16,6 +16,8 @@
 //! - dynamic `class:` expressions through the inline `rsx_runtime` module;
 //! - `h1` defaults, `on_click` handlers, `if[..]`/`for[..]` control flow.
 
+// The `quoin_render!` expansion calls gpui builder trait methods; the
+// prelude brings those traits into scope for the generated chains.
 use gpui::prelude::*;
 use quoin_macros::quoin_render;
 
