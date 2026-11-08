@@ -131,6 +131,9 @@ fn main() {
     // --- Effects (dependency-tracking reactive runtime) ---------------------
     bench_effects(cx);
 
+    // --- Effect disposal at scale -------------------------------------------
+    bench_disposal();
+
     // --- Type-erased signals (AnySignal dispatch overhead) ------------------
     bench_erasure(cx, &counter);
 
@@ -210,6 +213,28 @@ fn bench_effects(cx: quoin_core::test_support::StaticContext) {
     bench("watch callback (set → callback)", 1_000_000, || {
         watched.set(1);
     });
+}
+
+/// Effect disposal at scale: removing a node from the runtime registry must
+/// not get more expensive as the number of live detached effects grows —
+/// `dispose` is O(1) (slot-indexed swap-remove), so both rows should land in
+/// the same ballpark.
+fn bench_disposal() {
+    println!();
+    for live in [100u32, 1_000] {
+        let mut handles: Vec<quoin_core::EffectHandle> = (0..live)
+            .map(|_| quoin_core::create_effect(|| {}))
+            .collect();
+        bench(
+            &format!("effect.dispose ({live} live effects)"),
+            live,
+            move || {
+                if let Some(handle) = handles.pop() {
+                    handle.dispose();
+                }
+            },
+        );
+    }
 }
 
 /// `AnySignal` dispatch overhead: compare each row with the plain-signal
