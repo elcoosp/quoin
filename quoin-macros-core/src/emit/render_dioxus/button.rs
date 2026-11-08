@@ -1,14 +1,20 @@
 // Imports in this module vary with the `leptos-shadcn`/`dioxus-shadcn` feature:
 // some are only used when the shadcn emit path is active. A file-level allow
 // keeps every feature combination compiling without per-line noise.
-#![allow(unused_imports)]
 
-use crate::emit::common::{find_arg_bool, find_arg_expr, find_arg_string};
+#[cfg(feature = "dioxus-shadcn")]
+use super::handler::wrap_dioxus_handler;
+use crate::emit::common::find_arg_string;
+#[cfg(feature = "dioxus-shadcn")]
+use crate::emit::common::{find_arg_bool, find_arg_expr};
 use crate::render_ast::Element;
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use super::{emit_render_inner, generic::emit_html_el_inner, handler::wrap_dioxus_handler};
+#[cfg(feature = "dioxus-shadcn")]
+use super::emit_render_inner;
+#[cfg(not(feature = "dioxus-shadcn"))]
+use super::generic::emit_html_el_inner;
 
 pub(crate) fn emit_button(el: &Element) -> TokenStream {
     #[cfg(all(feature = "dioxus", feature = "dioxus-shadcn"))]
@@ -21,18 +27,19 @@ pub(crate) fn emit_button(el: &Element) -> TokenStream {
         // as the fallback; unknown values are a hard error. The variant
         // lowers to its shadcn Tailwind class string (the Dioxus shadcn
         // path is class-based — no component import needed).
-        let choice = crate::emit::shadcn_spec::canonical_button_variant(el);
-        if let Some(error) = choice.as_ref().and_then(crate::emit::shadcn_spec::choice_error) {
+        let choice = crate::emit::shadcn_spec::choice::canonical_button_variant(el);
+        if let Some(error) = choice
+            .as_ref()
+            .and_then(crate::emit::shadcn_spec::choice::choice_error)
+        {
             return error;
         }
-        let variant_class = match choice.and_then(|c| c.ok()) {
+        let variant_class = match choice.and_then(std::result::Result::ok) {
             Some("destructive") => {
                 "bg-destructive text-destructive-foreground hover:bg-destructive/90"
             }
             Some("ghost") => "hover:bg-accent hover:text-accent-foreground",
-            Some("secondary") => {
-                "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-            }
+            Some("secondary") => "bg-secondary text-secondary-foreground hover:bg-secondary/80",
             Some("link") => "text-primary underline-offset-4 hover:underline",
             Some("outline") | None => {
                 "border border-input bg-background hover:bg-accent hover:text-accent-foreground"
