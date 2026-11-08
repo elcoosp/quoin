@@ -84,7 +84,10 @@ impl<T: Clone + 'static> AnySignal<T> {
     /// dependency cell; use [`new_tracked`](AnySignal::new_tracked) when the
     /// inner signal is tracked and effect plumbing should see through the
     /// erasure. Reads inside [`create_effect`](crate::effect::create_effect)
-    /// track the inner cell either way.
+    /// track the inner cell either way, but the
+    /// [`TrackedSignal`](crate::effect::TrackedSignal) implementation of a
+    /// plain erasure panics — explicit-dependency plumbing
+    /// ([`watch`](crate::effect::watch)) requires `new_tracked`.
     pub fn new<S>(signal: S) -> Self
     where
         S: Signal<T> + Send + Sync + 'static,
@@ -168,10 +171,33 @@ impl<T: Clone + 'static> Signal<T> for AnySignal<T> {
     }
 }
 
+impl<T: Clone + 'static> crate::effect::TrackedSignal<T> for AnySignal<T> {
+    /// Forwards the inner signal's dependency cell (erased through
+    /// [`new_tracked`](AnySignal::new_tracked)).
+    ///
+    /// # Panics
+    ///
+    /// Panics when this handle was built with [`new`](AnySignal::new), which
+    /// stores no dependency cell. The panic names the fix — a plain erasure
+    /// that silently never re-ran would be a worse contract than a loud one.
+    /// Reads *inside* a [`create_effect`](crate::effect::create_effect) body
+    /// track the inner cell either way; only the explicit-dependency plumbing
+    /// ([`watch`](crate::effect::watch), [`EffectScope`] consumers) needs the
+    /// forwarded cell.
+    fn dep_handle(&self) -> DepHandle {
+        match &self.dep {
+            Some(dep) => dep.clone(),
+            None => panic!(
+                "AnySignal was built with `new`, which stores no effect \\\n                 dependency cell; build it with `AnySignal::new_tracked` to \\\n                 join the core effect graph"
+            ),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::effect::{TrackedSignal, create_effect};
+    use crate::effect::{TrackedSignal, create_effect, watch};
     use crate::test_support::static_signal;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -256,5 +282,34 @@ mod tests {
         assert_eq!(count.load(Ordering::SeqCst), 1);
         source.set(2);
         assert_eq!(count.load(Ordering::SeqCst), 2, "tracked through erasure");
+    }
+
+    #[test]
+    fn any_signal_implements_tracked_signal() {
+        // Compile gate: `AnySignal` must satisfy the effect-graph bound.
+        fn assert_tracked<T: TrackedSignal<u32> + Send + Sync + 'static>(_signal: &T) {}
+        let source = static_signal(0u32);
+        let erased: AnySignal<u32> = AnySignal::new_tracked(&source);
+        assert_tracked(&erased);
+
+        // Runtime: `watch` over the erased handle re-runs on inner mutation.
+        let seen = Arc::new(AtomicUsize::new(0));
+        let (e2, s2) = (erased.clone(), seen.clone());
+        let _handle = watch(&e2, move |value: &u32| {
+            s2.store(*value as usize, Ordering::SeqCst);
+        });
+        assert_eq!(seen.load(Ordering::SeqCst), 0, "no fire for initial value");
+        source.set(5);
+        assert_eq!(seen.load(Ordering::SeqCst), 5, "watch observes the erasure");
+    }
+
+    #[test]
+    #[should_panic(expected = "new_tracked")]
+    fn untracked_any_signal_fails_loudly_on_dep_handle() {
+        let source = static_signal(0u32);
+        let erased: AnySignal<u32> = AnySignal::new(source);
+        // Fully qualified so the trait method (panicking) is called instead
+        // of the inherent fallible one.
+        let _ = TrackedSignal::dep_handle(&erased);
     }
 }
