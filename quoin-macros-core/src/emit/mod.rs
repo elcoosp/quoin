@@ -5,13 +5,13 @@
 
 /// `#[cfg]` attribute helpers shared by all emitters.
 pub mod cfg;
+/// The machine-checked rendering-parity table (Floem + Xilem columns),
+/// shared by the parity-matrix test and `docs/BACKEND-PARITY.md`.
+pub mod parity;
 /// The canonical shadcn element contract (rich-elements Phase 0): the
 /// Tier-1 element set, the canonical `variant:`/`size:` grammar, and the
 /// per-framework backing map. See `docs/quoin-shadcn-rich-elements-evaluation.md`.
 pub mod shadcn_spec;
-/// The machine-checked rendering-parity table (Floem + Xilem columns),
-/// shared by the parity-matrix test and `docs/BACKEND-PARITY.md`.
-pub mod parity;
 // Shared helpers are consumed exclusively by the framework backends; the
 // default (no-framework) build would otherwise carry dead code.
 #[cfg(any(
@@ -261,18 +261,54 @@ mod xilem_impl {
         fn emit_render(&self, node: &crate::render_ast::RenderNode) -> TokenStream2 {
             emit_render(node)
         }
-        fn emit_effect(&self, _eff: &crate::effect::Effect) -> TokenStream2 {
-            // Permanent diagnostic contract (docs/BACKEND-PARITY.md): Xilem
-            // has no reactive graph to run effects on — the app logic IS the
-            // effect. Background work goes through a `task`/`worker` view;
-            // `quoin::xilem_pump` turns signal writes into rebuilds.
-            quote! {
-                ::core::compile_error!(
-                    "effect! has no equivalent on the Xilem backend (no reactive graph; \
-                     this is a documented permanent contract, see docs/BACKEND-PARITY.md); \
-                     run the work in the app logic or a `task`/`worker` view — the rebuild \
-                     pump (quoin::xilem_pump) turns signal writes into rebuilds"
-                )
+        fn emit_effect(&self, eff: &crate::effect::Effect) -> TokenStream2 {
+            // Xilem has no reactive graph of its own; the effect runs on the
+            // core runtime (`quoin_core::create_effect`), which observes the
+            // component's `XilemSignal`s through their dependency cells. The
+            // `component!` expansion holds the current effect scope during
+            // `on_mount`, so invocations there register into the component's
+            // `EffectScope` and are disposed with it; standalone invocations
+            // (outside a component mount) detach and run until disposed.
+            let body = &eff.body;
+            // The `run` field is a closure; it must actually be invoked —
+            // inlining it as a statement would evaluate a closure value and
+            // silently no-op.
+            let run_once = quote! { (#body)(); };
+            if let Some(cleanup) = &eff.cleanup {
+                // Cleanup: the user's one cleanup closure is installed in a
+                // shared slot (outside the effect, so the `Fn` effect closure
+                // never has to move it); the armed flag skips the initial
+                // run (nothing to tear down yet), every re-run runs it
+                // first, and the slot's last-handle drop fires it when the
+                // disposed effect node is dropped — component scope disposal
+                // in the `component!` path (quoin::xilem_effect).
+                quote! {
+                    {
+                        let __quoin_slot = ::quoin::xilem_effect::CleanupSlot::new();
+                        __quoin_slot.set(
+                            Box::new(#cleanup) as Box<dyn ::core::ops::Fn() + Send + 'static>
+                        );
+                        let _ = ::quoin::xilem_effect::create_effect({
+                            let __quoin_slot = ::core::clone::Clone::clone(&__quoin_slot);
+                            let mut __quoin_armed = false;
+                            move || {
+                                // The initial run has no previous state to
+                                // tear down; every re-run cleans up first.
+                                if __quoin_armed {
+                                    __quoin_slot.run();
+                                }
+                                __quoin_armed = true;
+                                #run_once
+                            }
+                        });
+                    }
+                }
+            } else {
+                quote! {
+                    let _ = ::quoin::xilem_effect::create_effect(move || {
+                        #run_once
+                    });
+                }
             }
         }
         fn emit_run_app(&self, input: &crate::run_app::RunAppInput) -> TokenStream2 {
