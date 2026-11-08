@@ -12,6 +12,7 @@
 //! | [`XilemSignal<T>`] | A `Clone + Send + Sync` signal backed by `Arc<RwLock<T>>`. |
 //! | [`XilemExecutor`] | Spawns tasks on the provided tokio runtime. |
 //! | [`XilemJoinHandle<T>`] | A `JoinHandle` wrapping a `tokio::task::JoinHandle` with abort support. |
+//! | [`effect`] | Component-scoped effects for the `effect!` macro, running on the core reactive runtime. |
 //!
 //! # Creating a Context
 //!
@@ -73,6 +74,7 @@
 //! queues `!Send` futures on the current thread, driven by
 //! `quoin_core::local::run_local_tasks()`.
 
+pub mod effect;
 pub mod pump;
 pub mod theme;
 
