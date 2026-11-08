@@ -1,5 +1,5 @@
 //! Conformance tests for the quoin-xilem adapter.
-use quoin_conformance::define_conformance_tests;
+use quoin_conformance::{define_conformance_tests, define_effect_tests};
 use quoin_core::{Executor, JoinHandle, ReactiveContext};
 use quoin_xilem::{XilemContext, XilemExecutor};
 use std::future::Future;
@@ -91,6 +91,12 @@ impl quoin_conformance::TestContextProvider for TestHarness {
 }
 
 define_conformance_tests!(sync, TestHarness);
+
+// The effect conformance suite: Xilem's signals are `NotifierSignal`s whose
+// dependency cells bridge into the core effect graph, so the 11 portable
+// effect checks run against the real `XilemContext` — the same runtime the
+// `effect!` Xilem emitter targets (render-layer effect parity, M1.7).
+define_effect_tests!(TestHarness);
 
 // ---------------------------------------------------------------------------
 // Additional test: JoinHandle::abort actually cancels the task
