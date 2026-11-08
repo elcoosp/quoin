@@ -31,8 +31,6 @@
 //! to the real component library; disabling it must keep everything
 //! compiling — the cfg-switched emitters enforce that both ways.
 
-use proc_macro2::TokenStream;
-
 /// How a canonical element is realized per framework. Purely documentary
 /// today (the parity matrix owns the machine-checked dynamic-backend
 /// contract); the strings name the exact backing module/crate so the table
@@ -45,7 +43,7 @@ pub struct CanonicalElement {
     pub floem: &'static str,
     /// `leptos-shadcn-ui` component-crate feature backing the Leptos lowering.
     pub leptos: &'static str,
-    /// `shadcn-dioxus` (MBeliou) module or fallback note for Dioxus.
+    /// `shadcn-dioxus` (`MBeliou`) module or fallback note for Dioxus.
     pub dioxus: &'static str,
     /// gpui-component backing (or the shim note until upstream lands it).
     pub gpui: &'static str,
@@ -250,34 +248,32 @@ pub const BADGE_VARIANTS: &[&str] = &["default", "secondary", "destructive", "ou
 /// The canonical `alert` variant set.
 pub const ALERT_VARIANTS: &[&str] = &["default", "destructive"];
 
-/// Turns a `canonical_choice` result into the emitted diagnostic for an
-/// unknown value; the `Ok` branch is the caller's mapping job.
-///
-/// `allow(dead_code)`: the readers are consumed by framework emitters whose
-/// cargo features may all be off (e.g. the floem+xilem parity build) — that
-/// combination must stay warning-clean.
-#[allow(dead_code)]
-pub(crate) fn choice_error(value: &Result<&'static str, String>) -> Option<TokenStream> {
-    match value {
-        Ok(_) => None,
-        Err(message) => Some(quote::quote! { ::core::compile_error!(#message) }),
-    }
-}
-
-// The choice readers consume the shared argument helpers, which only exist
-// on framework builds — same gate as `emit::common`.
+// The choice readers consume the shared argument helpers (`emit::common`,
+// which only exists on framework builds), so the module needs one base
+// feature AND the shadcn flavor that actually consumes it. The GPUI shims
+// are unconditional on `gpui`; the other backends call it under their
+// `-shadcn` features.
 #[cfg(any(
     feature = "gpui",
-    feature = "leptos",
-    feature = "dioxus",
-    feature = "floem",
-    feature = "xilem"
+    all(feature = "leptos", feature = "leptos-shadcn"),
+    all(feature = "dioxus", feature = "dioxus-shadcn"),
+    all(feature = "floem", feature = "floem-shadcn")
 ))]
-#[allow(dead_code)]
 pub(crate) mod choice {
-    use super::{ALERT_VARIANTS, BADGE_VARIANTS, BUTTON_SIZES, BUTTON_VARIANTS};
+    use super::BUTTON_VARIANTS;
     use crate::emit::common::{find_arg_bool, find_arg_string};
     use crate::render_ast::Element;
+
+    /// Turns a `canonical_choice` result into the emitted diagnostic for an
+    /// unknown value; the `Ok` branch is the caller's mapping job.
+    pub(crate) fn choice_error(
+        value: &Result<&'static str, String>,
+    ) -> Option<proc_macro2::TokenStream> {
+        match value {
+            Ok(_) => None,
+            Err(message) => Some(quote::quote! { ::core::compile_error!(#message) }),
+        }
+    }
 
     /// Reads the canonical `variant:`/`size:` choice off an element.
     ///
@@ -315,9 +311,7 @@ pub(crate) mod choice {
     }
 
     /// The canonical `button` variant (or `Err` for an unknown value).
-    pub(crate) fn canonical_button_variant(
-        el: &Element,
-    ) -> Option<Result<&'static str, String>> {
+    pub(crate) fn canonical_button_variant(el: &Element) -> Option<Result<&'static str, String>> {
         canonical_choice(
             el,
             "variant",
@@ -334,16 +328,20 @@ pub(crate) mod choice {
     }
 
     /// The canonical `button` size (or `Err` for an unknown value).
+    /// Consumed by the GPUI button shim and the Floem shadcn lowering.
+    #[cfg(any(feature = "gpui", all(feature = "floem", feature = "floem-shadcn")))]
     pub(crate) fn canonical_button_size(el: &Element) -> Option<Result<&'static str, String>> {
-        canonical_choice(el, "size", BUTTON_SIZES, &[])
+        canonical_choice(el, "size", super::BUTTON_SIZES, &[])
     }
 
     /// The canonical `badge` variant (or `Err` for an unknown value).
+    /// Only the Floem shadcn lowering picks badge variants today.
+    #[cfg(all(feature = "floem", feature = "floem-shadcn"))]
     pub(crate) fn canonical_badge_variant(el: &Element) -> Option<Result<&'static str, String>> {
         canonical_choice(
             el,
             "variant",
-            BADGE_VARIANTS,
+            super::BADGE_VARIANTS,
             &[
                 ("secondary", "secondary"),
                 ("destructive", "destructive"),
@@ -353,28 +351,17 @@ pub(crate) mod choice {
     }
 
     /// The canonical `alert` variant (or `Err` for an unknown value).
+    /// Consumed by the GPUI alert shim and the Floem shadcn lowering.
+    #[cfg(any(feature = "gpui", all(feature = "floem", feature = "floem-shadcn")))]
     pub(crate) fn canonical_alert_variant(el: &Element) -> Option<Result<&'static str, String>> {
         canonical_choice(
             el,
             "variant",
-            ALERT_VARIANTS,
+            super::ALERT_VARIANTS,
             &[("destructive", "destructive")],
         )
     }
 }
-
-#[cfg(any(
-    feature = "gpui",
-    feature = "leptos",
-    feature = "dioxus",
-    feature = "floem",
-    feature = "xilem"
-))]
-#[allow(unused_imports)]
-pub(crate) use choice::{
-    canonical_alert_variant, canonical_badge_variant, canonical_button_size,
-    canonical_button_variant, canonical_choice,
-};
 
 #[cfg(test)]
 mod tests {
@@ -433,15 +420,10 @@ mod tests {
     }
 
     /// The choice readers (and the emitters that consume them) are compiled
-    /// on every framework build; exercise the grammar here so the
-    /// "string arg wins, sugar breaks ties" rule cannot regress.
-    #[cfg(any(
-        feature = "gpui",
-        feature = "leptos",
-        feature = "dioxus",
-        feature = "floem",
-        feature = "xilem"
-    ))]
+    /// on every framework build with a shadcn lowering; exercise the grammar
+    /// here so the "string arg wins, sugar breaks ties" rule cannot regress.
+    /// The Floem shadcn build is the superset consumer (all four readers).
+    #[cfg(all(feature = "floem", feature = "floem-shadcn"))]
     mod choice_grammar {
         use super::choice::*;
         use crate::render_ast::{Element, RenderNode};
@@ -456,7 +438,10 @@ mod tests {
         #[test]
         fn string_variant_wins_over_sugar() {
             let el = element(quote::quote! { button(variant: "destructive", ghost: true) { "x" } });
-            assert_eq!(canonical_button_variant(&el).unwrap().unwrap(), "destructive");
+            assert_eq!(
+                canonical_button_variant(&el).unwrap().unwrap(),
+                "destructive"
+            );
         }
 
         #[test]
@@ -473,7 +458,7 @@ mod tests {
             let el = element(quote::quote! { button(variant: "sparkly") { "x" } });
             let err = canonical_button_variant(&el).unwrap().unwrap_err();
             assert!(err.contains("sparkly") && err.contains("destructive"));
-            assert!(super::choice_error(&canonical_button_variant(&el).unwrap()).is_some());
+            assert!(super::choice::choice_error(&canonical_button_variant(&el).unwrap()).is_some());
         }
 
         #[test]
