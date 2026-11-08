@@ -63,6 +63,20 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
         })
         .collect::<Vec<_>>();
 
+    // `keys { .. }` has no web routing yet — the documented diagnostic
+    // contract (docs/BACKEND-PARITY.md), never a silent drop.
+    let keys_error = if ast.keys.is_empty() {
+        quote! {}
+    } else {
+        quote! {
+            ::core::compile_error!(
+                "keys { .. } is not supported on the Dioxus backend (no global key \
+                 routing in v1); attach key events on the specific widget instead \
+                 (see docs/BACKEND-PARITY.md)"
+            );
+        }
+    };
+
     let render_stmts = &ast.render.stmts;
 
     // Dioxus 0.7's #[component] requires the function body to return
@@ -90,6 +104,7 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
         #vis fn #name() -> dioxus::prelude::Element {
             use quoin::ReactiveContext;
             use quoin::Signal;
+            #keys_error
             let ctx = dioxus::prelude::use_hook(quoin::DioxusContext::new);
             #(#state_inits)*
             #(#global_inits)*

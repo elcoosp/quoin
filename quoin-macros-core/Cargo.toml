@@ -53,12 +53,28 @@ name = "floem_expansion"
 required-features = ["floem"]
 
 [[test]]
+name = "floem_keys_expansion"
+required-features = ["floem"]
+
+[[test]]
+name = "leptos_expansion"
+required-features = ["leptos"]
+
+[[test]]
+name = "dioxus_expansion"
+required-features = ["dioxus"]
+
+[[test]]
 name = "xilem_expansion"
 required-features = ["xilem"]
 
 [[test]]
 name = "parity_matrix"
 required-features = ["floem", "xilem"]
+
+[[example]]
+name = "bench-web-expansion"
+required-features = ["leptos", "dioxus"]
 
 [lints]
 workspace = true

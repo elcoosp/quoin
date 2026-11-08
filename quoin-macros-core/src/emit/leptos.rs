@@ -37,6 +37,20 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
         None => quote! {},
     };
 
+    // `keys { .. }` has no web routing yet — the documented diagnostic
+    // contract (docs/BACKEND-PARITY.md), never a silent drop.
+    let keys_error = if ast.keys.is_empty() {
+        quote! {}
+    } else {
+        quote! {
+            ::core::compile_error!(
+                "keys { .. } is not supported on the Leptos backend (no global key \
+                 routing in v1); attach key events on the specific widget instead \
+                 (see docs/BACKEND-PARITY.md)"
+            );
+        }
+    };
+
     let global_inits: Vec<_> = ast
         .globals
         .iter()
@@ -71,6 +85,7 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
             use quoin::ReactiveContext;
             use quoin::Signal;
             use leptos::prelude::ElementChild;
+            #keys_error
             let ctx = quoin::LeptosContext::new();
             #(#state_inits)*
             #(#global_inits)*
