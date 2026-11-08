@@ -44,7 +44,7 @@ Building cross‑platform Rust UI applications often means choosing a framework 
 ## Features
 - **Unified Reactive API** — `Signal<T>`, `ReactiveContext`, and `Executor` traits that abstract over framework‑specific implementations.
 - **Derived Signals** — `derived(&source, |v| …)`, `.map()`, and `zip()` computed views that work identically on every adapter.
-- **Reactive Effects** — `create_effect(run)` and `watch(signal, f)`: push-based, dependency-tracked reactions implemented once in `quoin-core` (batch-aware flush, dynamic dependency sets, `EffectScope` disposal) — no per-adapter effect system required.
+- **Reactive Effects** — `create_effect(run)` and `watch(signal, f)`: push-based, dependency-tracked reactions implemented once in `quoin-core` (batch-aware flush, dynamic dependency sets, `EffectScope` disposal) — no per-adapter effect system required. The `effect!` macro lowers to this runtime on Xilem (component-scoped via `quoin::xilem_effect`) and to the frameworks' own reactive graphs everywhere else — native on all five backends.
 - **Resources** — `cx.create_resource(fetch)` gives every framework the Leptos/Dioxus async-data lifecycle (`Loading → Ready | Failed`) with race-free reloads and cooperative cancellation.
 - **Batched Updates** — `cx.batch(|| …)` collapses N signal writes into one re-render request on GPUI/Xilem.
 - **`spawn_local` Everywhere** — `LocalExecutor` runs `!Send` futures: platform-driven on WASM, deterministic thread-local queue on native.
@@ -252,6 +252,8 @@ effect! {
 - **Leptos:** `create_effect` + `on_cleanup`
 - **Dioxus:** `use_effect` + `use_drop`
 - **GPUI:** The `run` closure is executed, and cleanup is called on drop.
+- **Floem:** `floem::reactive::Effect::new`; `cleanup:` runs before each re-run and when the owning reactive scope is disposed (`quoin::floem_effect::CleanupSlot`)
+- **Xilem:** the core reactive runtime (`quoin::xilem_effect::create_effect`) observing the component's `XilemSignal`s through their dependency cells; `cleanup:` runs before each re-run and when the effect is disposed with its component scope (`quoin::xilem_effect::CleanupSlot`). Effects belong in `on_mount { .. }` — `effect!` in the render body is a named compile error (a rebuild would re-create the effect every time)
 
 ### `run_app!`
 Bootstrap your application with a single line.
