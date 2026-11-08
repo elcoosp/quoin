@@ -9,12 +9,14 @@
 //!------------------------|-------------|
 //! [`tailwind`]           | Transpiles Tailwind CSS class strings into GPUI builder-method chains. |
 //! [`tailwind_grsx`]      | `gpui-rsx-classes` engine: gpui-rsx-backed lowering for classes quoin does not know, dynamic classes, and `rsx.toml` themes. |
-//! [`table_codegen`]      | Generates data-table render code for each framework. |
-//! [`dropdown_codegen`]   | Generates dropdown menu code for each framework. |
-//! [`virtual_list_codegen`]| Generates virtual list code (currently falls back to scrollable div). |
-//! [`rich_text_codegen`]  | Generates rich text / styled text render code. |
 //! [`icon_codegen`]       | Maps icon names to inline SVG token streams. |
 //! [`theme_tokens`]       | Maps theme token names to Tailwind CSS classes. |
+//!
+//! The per-framework render code for `data_table`, `dropdown_menu`,
+//! `virtual_list` and rich/styled text lives in the backend emitters
+//! (`emit::render_*`); the former shared `*_codegen` modules here were
+//! superseded duplicates and were removed (ROADMAP Phase 1.8 follow-up:
+//! "wire or delete the four orphaned `*_codegen` modules" — deleted).
 //!
 //! # Shared Utilities
 //!
@@ -25,10 +27,7 @@
 //! - [`collect_handler_idents_excluding_params`] — like above but filters out closure params.
 //! - [`force_move_on_closure`] — ensures the outermost closure has the `move` keyword.
 
-pub mod dropdown_codegen;
 pub mod icon_codegen;
-pub mod rich_text_codegen;
-pub mod table_codegen;
 pub mod tailwind;
 // The gpui-rsx engine lowers classes only for the GPUI backend, so it is
 // compiled when both switches are on. `gpui-rsx-classes` alone (without
@@ -36,7 +35,6 @@ pub mod tailwind;
 #[cfg(all(feature = "gpui", feature = "gpui-rsx-classes"))]
 pub mod tailwind_grsx;
 pub mod theme_tokens;
-pub mod virtual_list_codegen;
 
 use syn::visit::Visit;
 use syn::visit_mut::VisitMut;
