@@ -162,12 +162,40 @@ scan of the retained window (pinned by regression tests).
 **Aggregate-view takeaway:** `with_events` still gives zero-copy access to
 the raw retained slice for custom views.
 
+## quoin-macros-core (`quoin-macros-core/examples/bench-web-expansion.rs`)
+
+The web-backend `component!` expansion path, after the Phase 1.9
+`keys { .. }` diagnostic. Two shapes: **emit-only** (pre-parsed AST — the
+delta is the diagnostic branch plus the `compile_error!` token block it
+emits) and **parse+emit** (end to end — the with-keys delta is dominated by
+the extra `keys { .. }` section the parser reads). 20,000 iterations,
+release profile:
+
+| Benchmark | Ops | ns/op |
+| --- | ---: | ---: |
+| leptos emit-only (no keys) | 20,000 | 4,999 |
+| leptos emit-only (keys diagnostic) | 20,000 | 6,235 |
+| dioxus emit-only (no keys) | 20,000 | 5,521 |
+| dioxus emit-only (keys diagnostic) | 20,000 | 6,101 |
+| leptos parse+emit (no keys) | 20,000 | 7,961 |
+| leptos parse+emit (keys diagnostic) | 20,000 | 11,553 |
+| dioxus parse+emit (no keys) | 20,000 | 8,345 |
+| dioxus parse+emit (keys diagnostic) | 20,000 | 12,482 |
+
+**Diagnostic takeaway:** the keys-free expansion path — every component
+that compiles — is unchanged (pre/post: 5,049 → 4,999 ns leptos,
+5,312 → 5,521 ns dioxus, within run-to-run noise). The +0.6–1.2 µs on the
+with-keys rows is the `compile_error!` token block being written into the
+expansion — paid exactly once, on a component that is about to fail
+compilation anyway. Enforcing the contract is free.
+
 ## Running on your machine
 
 ```bash
 just bench-core
 just bench-xilem
 just bench-devtools
+just bench-web-expansion
 ```
 
 Record before/after numbers in your PR when a change is meant to move these

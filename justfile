@@ -49,6 +49,11 @@ bench-xilem:
 bench-devtools:
     cargo run --release -p quoin-devtools --example bench-devtools
 
+# Micro-benchmarks for the web-backend component! expansion path — the
+# keys-diagnostic branch is pinned as unmeasurable (release profile)
+bench-web-expansion:
+    cargo run --release -p quoin-macros-core --features leptos,dioxus --example bench-web-expansion
+
 # Headless devtools demo with tracing enabled
 trace-demo:
     QUOIN_TRACE=1 cargo run -p devtools-demo
