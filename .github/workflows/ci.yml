@@ -44,6 +44,11 @@ jobs:
             -p quoin-macros -p quoin-ui -p quoin-conformance \
             -p quoin-testkit -p quoin-devtools -- -D warnings
 
+      - name: Web emitter expansion gates
+        run: |
+          cargo nextest run -p quoin-macros-core --features leptos --test leptos_expansion
+          cargo nextest run -p quoin-macros-core --features dioxus --test dioxus_expansion
+
   # -----------------------------------------------------------------------
   # Core + facade tests (fast, no framework dependencies)
   # -----------------------------------------------------------------------
