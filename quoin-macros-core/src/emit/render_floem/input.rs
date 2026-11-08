@@ -29,27 +29,26 @@ pub(crate) fn emit_input(el: &Element, ctx: &mut super::EmitterCtx) -> TokenStre
         let value_expr = find_arg_expr(el, "value").unwrap_or(&value_fallback);
         let value_capture = handler::capture_shadows(value_expr, ctx);
 
-        let on_update = match find_arg_expr(el, "on_input") {
-            Some(handler_expr) => {
-                let (block, _name) = handler::handler_block(handler_expr, ctx);
-                let call = if handler::handler_arity_is_zero(handler_expr) {
-                    quote! { __h() }
-                } else {
-                    quote! { __h(::quoin::ev::Input::new(__edited.to_owned())) }
-                };
-                quote! {
-                    .on_update(move |__edited: &str| {
-                        #block
-                        ::quoin::Signal::set(&__value, __edited.to_owned());
-                        #call;
-                    })
-                }
+        let on_update = if let Some(handler_expr) = find_arg_expr(el, "on_input") {
+            let (block, _name) = handler::handler_block(handler_expr, ctx);
+            let call = if handler::handler_arity_is_zero(handler_expr) {
+                quote! { __h() }
+            } else {
+                quote! { __h(::quoin::ev::Input::new(__edited.to_owned())) }
+            };
+            quote! {
+                .on_update(move |__edited: &str| {
+                    #block
+                    ::quoin::Signal::set(&__value, __edited.to_owned());
+                    #call;
+                })
             }
-            None => quote! {
+        } else {
+            quote! {
                 .on_update(move |__edited: &str| {
                     ::quoin::Signal::set(&__value, __edited.to_owned());
                 })
-            },
+            }
         };
 
         let input_view = if el.name == "textarea" {

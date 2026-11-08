@@ -31,7 +31,10 @@ fn quoin_resolve(class: &str) -> String {
     }
     let n_base = parsed.base.len();
     let n_hover = parsed.hover.len();
-    format!("OK        decls(base={n_base}, hover={n_hover}): {:?} {:?}", parsed.base, parsed.hover)
+    format!(
+        "OK        decls(base={n_base}, hover={n_hover}): {:?} {:?}",
+        parsed.base, parsed.hover
+    )
 }
 
 fn main() {
@@ -110,7 +113,12 @@ fn main() {
     println!("\n=== FULL STRING ===");
     let full = "flex flex-col gap-4 p-4 bg-gray-900 text-white hover:text-blue-400";
     let q = parse_tailwind(full);
-    println!("quoin: base={} hover={} unknown={:?}", q.base.len(), q.hover.len(), q.unknown);
+    println!(
+        "quoin: base={} hover={} unknown={:?}",
+        q.base.len(),
+        q.hover.len(),
+        q.unknown
+    );
     for class in full.split_whitespace() {
         let _ = gpui_rsx_resolve(class, true);
     }
@@ -119,8 +127,15 @@ fn main() {
     // 4. Overlap analysis
     println!("\n=== OVERLAP ===");
     let grx: std::collections::HashSet<String> = grx_known.into_iter().collect();
-    let only_quoin: Vec<&str> = KNOWN_CLASSES.iter().copied().filter(|c| !grx.contains(&c.to_string())).collect();
-    println!("quoin classes NOT in gpui-rsx known list: {}", only_quoin.len());
+    let only_quoin: Vec<&str> = KNOWN_CLASSES
+        .iter()
+        .copied()
+        .filter(|c| !grx.contains(&c.to_string()))
+        .collect();
+    println!(
+        "quoin classes NOT in gpui-rsx known list: {}",
+        only_quoin.len()
+    );
     for chunk in only_quoin.chunks(12) {
         println!("  {:?}", chunk);
     }

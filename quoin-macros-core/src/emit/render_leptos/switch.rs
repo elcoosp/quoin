@@ -128,7 +128,7 @@ fn emit_switch_html(
         None => quote! {},
     };
 
-    let role_prop = quote! { role="switch" };
+    let _role_prop = quote! { role="switch" };
     let type_prop = quote! { r#type="checkbox"# };
 
     let track_class_id = next_extract_id();

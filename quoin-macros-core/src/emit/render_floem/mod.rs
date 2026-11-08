@@ -174,8 +174,9 @@ fn emit_element_inner(el: &Element, ctx: &mut EmitterCtx, inside_for: bool) -> T
         // parents carry the copy as args).
         "card" => widgets::emit_card(el, ctx, inside_for),
         "card_header" => widgets::emit_card_header(el, ctx, inside_for),
-        "card_title" | "card_description" | "card_content" | "card_footer"
-        | "card_action" => widgets::emit_card_part(el, ctx, inside_for),
+        "card_title" | "card_description" | "card_content" | "card_footer" | "card_action" => {
+            widgets::emit_card_part(el, ctx, inside_for)
+        }
         "alert" => widgets::emit_alert(el, ctx, inside_for),
         "spinner" => widgets::emit_spinner(el, ctx, inside_for),
         "kbd" => widgets::emit_kbd(el, ctx, inside_for),

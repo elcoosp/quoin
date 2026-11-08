@@ -8,7 +8,7 @@ use super::{bindings::next_extract_id, handler::wrap_event_handler};
 pub(crate) fn emit_slider(
     el: &Element,
     bindings: &mut Vec<TokenStream>,
-    inside_for: bool,
+    _inside_for: bool,
 ) -> TokenStream {
     let value_expr = find_arg_expr(el, "value");
     let min_expr = find_arg_expr(el, "min");

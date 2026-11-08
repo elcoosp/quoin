@@ -13,7 +13,7 @@
 use std::sync::Arc;
 
 use gpui_rsx_core::{
-    ClassMode, ClassOutcome, SpacingScale, SUPPORTED_VARIANTS, analyze_class, known_classes,
+    ClassMode, ClassOutcome, SUPPORTED_VARIANTS, SpacingScale, analyze_class, known_classes,
 };
 use quoin_style::KNOWN_CLASSES;
 
@@ -185,7 +185,10 @@ fn multi_class_demo_string_resolves_under_the_engine() {
     // The documented gap itself: text-blue-400 is exactly the class quoin
     // rejects and the engine resolves (report §4.2).
     let parsed = quoin_style::parse_tailwind("text-blue-400");
-    assert!(!parsed.unknown.is_empty(), "text-blue-400 should be outside quoin's palette");
+    assert!(
+        !parsed.unknown.is_empty(),
+        "text-blue-400 should be outside quoin's palette"
+    );
     assert!(
         matches!(
             analyze_class("text-blue-400", tw_mode).outcome,

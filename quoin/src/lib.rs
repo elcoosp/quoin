@@ -145,7 +145,10 @@ pub use quoin_macros::{component, effect, quoin_element, quoin_render, run_app};
 /// gpui-rsx's 1 px-per-unit default. Strictness: [`rsx_strict`] errors on
 /// unknown classes with suggestions, matching quoin's own contract.
 #[cfg(feature = "rsx")]
-pub use gpui_rsx::{component as rsx_component, rsx, rsx_expand, rsx_fragment, rsx_permissive, rsx_runtime, rsx_strict, rsx_tw};
+pub use gpui_rsx::{
+    component as rsx_component, rsx, rsx_expand, rsx_fragment, rsx_permissive, rsx_runtime,
+    rsx_strict, rsx_tw,
+};
 
 // ── UCP traits ─────────────────────────────────────────────────────────────
 

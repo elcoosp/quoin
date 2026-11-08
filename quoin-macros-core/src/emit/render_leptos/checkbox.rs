@@ -8,7 +8,7 @@ use super::{bindings::next_extract_id, handler::wrap_event_handler};
 pub(crate) fn emit_checkbox(
     el: &Element,
     bindings: &mut Vec<TokenStream>,
-    inside_for: bool,
+    _inside_for: bool,
 ) -> TokenStream {
     let checked_expr = find_arg_expr(el, "checked");
     let on_change_expr =
