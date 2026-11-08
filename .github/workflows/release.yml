@@ -39,8 +39,17 @@ jobs:
       - name: Verify the tagged version matches the crate versions
         run: |
           TAG="${GITHUB_REF#refs/tags/v}"
+          # Workspace version (crates declaring `version.workspace = true`
+          # resolve to this; `grep '^version'` on their manifests finds the
+          # inheritance line, not a number).
+          workspace_version=$(grep -m1 '^version' Cargo.toml | sed 's/version *= *"\(.*\)"/\1/')
           for crate in quoin quoin-core quoin-macros quoin-macros-core; do
-            crate_version=$(grep -m1 '^version' "$crate/Cargo.toml" | sed 's/version *= *"\(.*\)"/\1/')
+            line=$(grep -m1 '^version' "$crate/Cargo.toml")
+            if printf '%s' "$line" | grep -q 'version\.workspace'; then
+              crate_version=$workspace_version
+            else
+              crate_version=$(printf '%s' "$line" | sed 's/version *= *"\(.*\)"/\1/')
+            fi
             if [ "$crate_version" != "$TAG" ]; then
               echo "::error::tag v$TAG does not match $crate version $crate_version"
               exit 1
