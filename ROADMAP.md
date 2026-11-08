@@ -216,9 +216,53 @@ effect-graph contract.
 
 **Follow-ups (next milestone candidates):** effect conformance for the
 fine-grained adapters (bridge Leptos/Dioxus/Floem signals into the core
-graph); a `keys {..}` diagnostic for the Leptos/Dioxus emitters (parsed but
-silently ignored today); wire or delete the four orphaned `*_codegen`
-modules; `virtual_list` true virtualization on the web backends.
+graph); `virtual_list` true virtualization on the web backends.
+
+---
+
+## Phase 1.9: Web-Emitter Contract Enforcement (Current)
+
+**Goal:** Close the last silent-drop seam in the emitter surface: the web
+reference backends (Leptos, Dioxus) parsed `keys { .. }` and silently
+ignored it, violating the project's own contract vocabulary ("unsupported —
+emits a named `compile_error!` at the element site, never a silent drop"),
+and clear the remaining emitter-surface debt flagged by Phase 1.8.
+
+### Milestones
+
+#### M1.9.1: `keys { .. }` diagnostics on the web backends ✅
+- [x] `component!` on Leptos and Dioxus emits the named `compile_error!`
+      for `keys { .. }` (mirroring the Xilem contract): "no global key
+      routing in v1; attach key events on the specific widget instead
+      (see docs/BACKEND-PARITY.md)" — a real lowering (a `quoin::floem_keys`
+      counterpart for the web) remains future work, and the diagnostic
+      makes that a contract, not an accident.
+- [x] Expansion gates `quoin-macros-core/tests/leptos_expansion.rs` and
+      `dioxus_expansion.rs` (`[[test]] required-features`, mirroring the
+      floem/xilem gates): the diagnostic fires, keys-free components stay
+      clean, and the component lowerings (state init, hooks, Element
+      fallback) are pinned.
+- [x] `docs/BACKEND-PARITY.md` documents the shared web contract.
+
+#### M1.9.2: Emitter-surface debt ✅
+- [x] The four orphaned `transpile::*_codegen` modules
+      (`dropdown_codegen`, `table_codegen`, `rich_text_codegen`,
+      `virtual_list_codegen`) are deleted — superseded duplicates of the
+      per-backend `emit::render_*` lowerings, referenced nowhere (ROADMAP
+      Phase 1.8 follow-up "wire or delete": deleted).
+- [x] `xilem_expansion.rs` no longer routes its `effect!` checks through
+      the single-backend `Emitter` dispatch: the core-runtime lowering is a
+      standalone `render_xilem::emit_effect`, so the expansion gate
+      compiles under combined `floem,xilem` features (previously E0599 —
+      CI only ran the parity-matrix target, never the whole combined test
+      suite).
+
+#### M1.9.3: Expansion-cost benchmarks ✅
+- [x] `just bench-web-expansion`
+      (`quoin-macros-core/examples/bench-web-expansion.rs`): parse + emit
+      through both web emitters, keys-free vs keys-diagnostic components —
+      the contract branch is unmeasurable at expansion time
+      (`docs/BENCHMARKS.md`).
 
 ---
 

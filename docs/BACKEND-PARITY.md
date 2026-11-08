@@ -70,6 +70,14 @@ appear inside their parent element and have no standalone lowering.
 | `component!`         | native — a plain `fn` creating signals once and returning the view | native — state struct + `fn new(ctx)` + `fn app_logic()` rendering beside the rebuild pump |
 | `run_app!`           | native — `floem::launch`                          | native — `Xilem::new_simple_with_tokio` + pump notifier, sharing the context's tokio runtime |
 
+The web backends share Xilem's `unsupported` contract for `keys { .. }`:
+both `component!` emitters emit the named `compile_error!` ("no global key
+routing in v1; attach key events on the specific widget instead"), so the
+block can never silently do nothing. GPUI lowers `keys` natively through its
+action/bindings system. (Until the web-emitter diagnostic landed, Leptos and
+Dioxus parsed the block and silently dropped it — the last silent-drop seam
+in the emitter surface.)
+
 ## Known allowed differences
 
 - Xilem has no style inheritance: text decls on a container are compiled
