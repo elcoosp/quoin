@@ -2,7 +2,6 @@
 // some imports and helper variables are only exercised by one of the two
 // code paths. File-level allows keep every feature combination compiling
 // warning-free without per-line noise.
-#![allow(unused_imports, unused_variables)]
 
 use crate::emit::common::{find_arg_bool, find_arg_expr, find_arg_string};
 use crate::render_ast::Element;
@@ -31,6 +30,8 @@ pub(crate) fn emit_checkbox(el: &Element) -> TokenStream {
     } else {
         &user_class
     };
+    // The two emit paths consume different subsets of the values above.
+    let _ = (&base, &full_class);
 
     let checked_attr = match checked_expr {
         Some(val) => quote! { checked: #val, },
@@ -138,6 +139,8 @@ pub(crate) fn emit_radio(el: &Element) -> TokenStream {
     let disabled = find_arg_bool(el, "disabled");
 
     let base = "h-4 w-4 rounded-full border border-input accent-primary-500 cursor-pointer";
+    let _ = &base; // read only by the plain-HTML path
+    let _ = &base; // read only by the plain-HTML path
     let checked_attr = match checked_expr {
         Some(v) => quote! { checked: #v, },
         None => quote! {},
@@ -146,6 +149,7 @@ pub(crate) fn emit_radio(el: &Element) -> TokenStream {
         Some(n) => quote! { name: #n, },
         None => quote! {},
     };
+    let _ = &name_attr; // read only by the plain-HTML path
     let value_attr = match value_expr {
         Some(v) => quote! { value: #v },
         None => quote! {},
@@ -186,6 +190,7 @@ pub(crate) fn emit_slider(el: &Element) -> TokenStream {
 
     let base =
         "w-full h-2 rounded-lg appearance-none cursor-pointer accent-primary-500 bg-transparent";
+    let _ = &base; // read only by the plain-HTML path
 
     let value_attr = match value_expr {
         Some(v) => quote! { value: #v, },
