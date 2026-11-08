@@ -29,6 +29,10 @@ use proc_macro2::{TokenStream, TokenTree};
 use quote::quote;
 
 #[must_use]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one linear quote! template per shadcn path"
+)]
 /// Expands a `component!` AST into the Xilem state struct + `new` + `app_logic`.
 pub fn emit_component(ast: &ComponentAst) -> TokenStream {
     let vis = &ast.vis;
@@ -93,7 +97,9 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
     };
 
     // Handles bound ahead of `on_mount` so the block sees the same names
-    // the other backends' component scopes provide.
+    // the other backends' component scopes provide. Each binding carries a
+    // no-op borrow so an `on_mount` that ignores a field stays
+    // warning-clean without a lint exception in the generated code.
     let on_mount_locals = ast
         .state
         .iter()
@@ -102,6 +108,7 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
         .map(|fname| {
             quote! {
                 let #fname = ::core::clone::Clone::clone(&state.#fname);
+                let _ = &#fname;
             }
         });
 
@@ -153,10 +160,8 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
                     __quoin_effects,
                 };
                 // The handles are in scope for `on_mount`, like on the
-                // other backends. The block carries `allow(unused_variables)`:
-                // every state field gets a handle whether or not this
-                // component's `on_mount` reads it.
-                #[allow(unused_variables)]
+                // other backends; their no-op borrows keep the block
+                // warning-clean when `on_mount` ignores some of them.
                 {
                     #(#on_mount_locals)*
                     #(#on_mount_tokens)*
