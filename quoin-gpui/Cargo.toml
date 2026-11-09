@@ -9,13 +9,13 @@ repository.workspace = true
 
 [dependencies]
 quoin-core = { path = "../quoin-core" }
-gpui = { package = "gpui-pre", version = "=0.3.10" }
+gpui = { package = "gpui-pre", version = "=0.3.12" }
 gpui_platform = { package = "gpui-pre-platform", version = "=0.3.12", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
 futures = "0.3"
 send_wrapper = "0.6"
 
 [dev-dependencies]
-gpui = { package = "gpui-pre", version = "=0.3.10", features = ["test-support"] }
+gpui = { package = "gpui-pre", version = "=0.3.12", features = ["test-support"] }
 quoin-conformance = { path = "../quoin-conformance", features = ["gpui"] }
 
 [lints]

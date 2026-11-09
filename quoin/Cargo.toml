@@ -37,7 +37,7 @@ quoin-ui-gpui   = { path = "../quoin-ui-gpui",   optional = true }
 quoin-testkit   = { path = "../quoin-testkit",   optional = true }
 quoin-devtools  = { path = "../quoin-devtools",  optional = true }
 
-gpui = { package = "gpui-pre", version = "=0.3.10", optional = true }
+gpui = { package = "gpui-pre", version = "=0.3.12", optional = true }
 [features]
 default = []
 # The GPUI adapter ships the full gpui-rsx class engine by default
