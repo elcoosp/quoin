@@ -24,7 +24,7 @@ path = "src/lib.rs"
 # Accelerators parse against keyboard-types' Code/Modifiers, exactly like
 # upstream muda 0.17. Pure Rust, no system dependencies.
 [dependencies]
-keyboard-types = "0.7"
+keyboard-types = "0.8"
 
 # Floem depends on muda with `gtk` on Linux; the stub declares the feature
 # (empty) so dependency resolution succeeds without GTK development files.
