@@ -14,7 +14,7 @@ quoin-style = { path = "../quoin-style" }
 # only). Optional — pulled in by the `gpui-rsx-classes` feature. Pinned to the
 # same 0.10.2 release whose tables are generated from quoin's pinned GPUI
 # snapshot (gpui-pre 0.3.10); bump together with any gpui-pre bump.
-gpui-rsx-core = { version = "0.10.2", optional = true }
+gpui-rsx-core = { version = "0.12.0", optional = true }
 # gpui-rsx-core is built on syn 2; quoin-macros-core uses syn 3. The rename
 # lets both major versions coexist (needed for `generate_runtime_module`'s
 # typed `&syn::Path` argument).

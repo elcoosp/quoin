@@ -7,7 +7,7 @@ description = "Phase-0 parity harness between quoin-style and gpui-rsx-core (mig
 
 [dependencies]
 quoin-style = { path = "../quoin-style" }
-gpui-rsx-core = "0.10.2"
+gpui-rsx-core = "0.12.0"
 
 [[bin]]
 name = "class_engine_probe"
