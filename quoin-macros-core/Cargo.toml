@@ -18,7 +18,7 @@ gpui-rsx-core = { version = "0.12.0", optional = true }
 # gpui-rsx-core is built on syn 2; quoin-macros-core uses syn 3. The rename
 # lets both major versions coexist (needed for `generate_runtime_module`'s
 # typed `&syn::Path` argument).
-syn2 = { package = "syn", version = "2", optional = true }
+syn2 = { package = "syn", version = "3", optional = true }
 
 # The framework features are pure `cfg` switches: the emitters *generate*
 # framework code as token streams, they never link against the frameworks
