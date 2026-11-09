@@ -97,6 +97,7 @@ pub mod executor;
 pub mod ext;
 pub mod globals;
 pub mod join;
+pub mod keys;
 pub mod local;
 pub mod macros;
 pub mod notify_signal;

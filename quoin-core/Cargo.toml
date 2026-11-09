@@ -36,6 +36,11 @@ floem = []
 wasm-bindgen-futures = "0.4"
 # Browser timer backing `Executor::sleep` on wasm.
 gloo-timers = { version = "0.3", features = ["futures"] }
+# `keys { .. }` window-listener runtime (the web backends' shared matcher
+# and attach path, see `keys.rs`): DOM keyboard events on the browser window.
+wasm-bindgen = "0.2"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = ["Window", "EventTarget", "KeyboardEvent", "Event"] }
 
 [lints]
 workspace = true
