@@ -8,7 +8,7 @@ license = "MIT"
 [dependencies]
 quoin-ui = { path = "../quoin-ui" }
 log = "0.4"
-gpui = { package = "gpui-pre", version = "=0.3.10" }
+gpui = { package = "gpui-pre", version = "=0.3.12" }
 gpui-component = "0.8.1"
 
 [lints]

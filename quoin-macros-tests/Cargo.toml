@@ -13,7 +13,7 @@ quoin-macros = { path = "../quoin-macros" }
 # gpui-pre is zed's gpui published to crates.io; using it (instead of the
 # zed git repository) keeps the trybuild scratch builds reproducible and
 # avoids a 500 MB git checkout per test run.
-gpui = { package = "gpui-pre", version = "=0.3.10", optional = true }
+gpui = { package = "gpui-pre", version = "=0.3.12", optional = true }
 quoin-gpui = { path = "../quoin-gpui", optional = true }
 quoin-ui-gpui = { path = "../quoin-ui-gpui", optional = true }
 gpui-component = { version = "0.8.1", optional = true }
