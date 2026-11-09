@@ -230,7 +230,7 @@ checksum = "0ae92a5119aa49cdbcf6b9f893fe4e1d98b04ccbf82ee0584ad948a44a734dea"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -452,7 +452,7 @@ checksum = "3b43422f69d8ff38f95f1b2bb76517c91589a924d1559a0e935d7c8ce0274c11"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -528,7 +528,7 @@ checksum = "9035ad2d096bed7955a320ee7e2230574d28fd3c3a0f186cbea1ff3c7eed5dbb"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -727,7 +727,7 @@ dependencies = [
  "regex",
  "rustc-hash 2.1.2",
  "shlex",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -876,7 +876,7 @@ checksum = "f9abbd1bc6865053c427f7198e6af43bfdedc55ab791faed4fbd361d789575ff"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -959,7 +959,7 @@ dependencies = [
  "quote",
  "serde",
  "serde_json",
- "syn 2.0.117",
+ "syn 2.0.119",
  "tempfile",
  "toml 0.8.23",
 ]
@@ -1281,7 +1281,7 @@ checksum = "4f160aad86b4343e8d4e261fee9965c3005b2fd6bc117d172ab65948779e4acf"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -1292,7 +1292,7 @@ checksum = "42571ed01eb46d2e1adcf99c8ca576f081e46f2623d13500eba70d1d99a4c439"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -1663,7 +1663,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "strsim",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -1676,7 +1676,7 @@ dependencies = [
  "ident_case",
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -1687,7 +1687,7 @@ checksum = "fc34b93ccb385b40dc71c6fceac4b2ad23662c7eeb248cf10d529b7e055b6ead"
 dependencies = [
  "darling_core 0.20.11",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -1698,7 +1698,7 @@ checksum = "d38308df82d1080de0afee5d069fa14b0326a88c14f15c5ccda35b4a6c414c81"
 dependencies = [
  "darling_core 0.21.3",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -1755,7 +1755,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rustc_version",
- "syn 2.0.117",
+ "syn 2.0.119",
  "unicode-xid",
 ]
 
@@ -1766,7 +1766,7 @@ source = "git+https://github.com/zed-industries/zed#2542b71a24097ec37643e484bab1
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -1846,9 +1846,9 @@ checksum = "f43f2d511d3c3c439a2fb7f863668b84caf8e0d2440cbfbcbb28521e26ba7f44"
 
 [[package]]
 name = "dioxus-core"
-version = "0.7.4"
+version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb3dd61889e6a09daec93d44db86047fb8e6603beedcf9351b8528582254e075"
+checksum = "1b232228ada232c0adc151e41ebd9ef70cc04683db097fa0dc6015979fa01722"
 dependencies = [
  "anyhow",
  "const_format",
@@ -1876,14 +1876,14 @@ dependencies = [
  "dioxus-rsx",
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
 name = "dioxus-core-types"
-version = "0.7.4"
+version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b99d7d199aad72431b549759550002e7d72c8a257eba500dca9fbdb2122de103"
+checksum = "96007ed6cbad951dfed82d83c581aabd95bc591f351f5666d454ddbe7845b324"
 
 [[package]]
 name = "dioxus-devtools"
@@ -1992,7 +1992,7 @@ dependencies = [
  "convert_case 0.8.0",
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -2033,7 +2033,7 @@ dependencies = [
  "proc-macro2-diagnostics 0.10.1",
  "quote",
  "rustversion",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -2073,7 +2073,7 @@ dependencies = [
  "convert_case 0.8.0",
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -2176,7 +2176,7 @@ checksum = "97369cbbc041bc366949bc74d34658d6cda5621039731c6310521892a3a20ae0"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -2324,7 +2324,7 @@ checksum = "685adfa4d6f3d765a26bc5dbc936577de9abf756c1feeb3089b01dd395034842"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -2345,7 +2345,7 @@ checksum = "67c78a4d8fdf9953a5c9d458f9efe940fd97a0cab0941c075a813ac594733827"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -2356,7 +2356,7 @@ checksum = "2f9ed6b3789237c8a0c1c505af1c7eb2c560df6186f01b098c3a1064ea532f38"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -2377,7 +2377,7 @@ dependencies = [
  "darling 0.21.3",
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -2397,7 +2397,7 @@ checksum = "44f23cf4b44bfce11a86ace86f8a73ffdec849c9fd00a386a53d278bd9e81fb3"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -2526,7 +2526,7 @@ checksum = "a0aca10fb742cb43f9e7bb8467c91aa9bcb8e3ffbc6a6f7389bb93ffc920577d"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -2700,7 +2700,7 @@ checksum = "1a5c6c585bc94aaf2c7b51dd4c2ba22680844aba4c687be581871a6f518c5742"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -2876,9 +2876,9 @@ dependencies = [
 
 [[package]]
 name = "generational-box"
-version = "0.7.4"
+version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ede46ff252793f9b6ef752c506ba8600c69d73cad2ef9bbf2e6dee85019a3bc"
+checksum = "b8b2dc9b873cd1a8adb80aa5dcef9a8205f781a8a313d5ffb867248cb3bcb764"
 dependencies = [
  "parking_lot",
  "tracing",
@@ -3273,7 +3273,7 @@ dependencies = [
  "proc-macro-crate",
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -3417,7 +3417,7 @@ checksum = "2998b1cebbaa0fa004fe4939a513bbf4103c7fb69ae2e84ee73634554e3f7edc"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -3555,7 +3555,7 @@ dependencies = [
  "proc-macro-crate",
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -3788,6 +3788,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e0f9dae92b9bc15baa6e530c90bdd4c689d3710bd4d18c3566deb1d6ae182daf"
 
 [[package]]
+name = "gpui-rsx"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c19743c160475cf453ef3445d56767cd778c8ffefb3b8c5ae343da4abaa6b948"
+dependencies = [
+ "gpui-rsx-core",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "gpui-rsx-core"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6b65fb576d618435087f89d8cb10c6d02637952c2afc1e7466ca585aa7dce827"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "gpui_macros"
 version = "0.1.0"
 source = "git+https://github.com/zed-industries/zed#2542b71a24097ec37643e484bab17e6ed031a957"
@@ -3795,7 +3818,7 @@ dependencies = [
  "heck 0.5.0",
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -4012,7 +4035,7 @@ dependencies = [
  "markup5ever",
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -4419,7 +4442,7 @@ checksum = "c34819042dc3d3971c46c2190835914dfbe0c3c13f61449b2997f4e9722dfa60"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -4557,7 +4580,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "38c0b942f458fe50cdac086d2f946512305e5631e720728f2a61aabcd47a6264"
 dependencies = [
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -4762,6 +4785,62 @@ dependencies = [
 ]
 
 [[package]]
+name = "leptos-shadcn-accordion"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-alert"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-alert-dialog"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-avatar"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-shadcn-signal-management",
+ "leptos-style",
+ "tailwind_fuse",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
 name = "leptos-shadcn-badge"
 version = "0.9.1"
 source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
@@ -4777,6 +4856,62 @@ dependencies = [
 
 [[package]]
 name = "leptos-shadcn-button"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-card"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-checkbox"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-collapsible"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-dialog"
 version = "0.9.1"
 source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
 dependencies = [
@@ -4819,7 +4954,84 @@ dependencies = [
 ]
 
 [[package]]
+name = "leptos-shadcn-kbd"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+]
+
+[[package]]
+name = "leptos-shadcn-label"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-popover"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-progress"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-radio-group"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse",
+]
+
+[[package]]
 name = "leptos-shadcn-scroll-area"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-separator"
 version = "0.9.1"
 source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
 dependencies = [
@@ -4846,6 +5058,56 @@ dependencies = [
 ]
 
 [[package]]
+name = "leptos-shadcn-skeleton"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-slider"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-spinner"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+]
+
+[[package]]
+name = "leptos-shadcn-switch"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse",
+ "web-sys",
+]
+
+[[package]]
 name = "leptos-shadcn-table"
 version = "0.9.1"
 source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
@@ -4861,6 +5123,34 @@ dependencies = [
 
 [[package]]
 name = "leptos-shadcn-tabs"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-textarea"
+version = "0.9.1"
+source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
+dependencies = [
+ "leptos",
+ "leptos-node-ref",
+ "leptos-shadcn-signal-management",
+ "leptos-struct-component",
+ "leptos-style",
+ "tailwind_fuse",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos-shadcn-toggle"
 version = "0.9.1"
 source = "git+https://github.com/harana-oss/leptos-shadcn-ui?rev=b16956f25868b369100178e06f6c5b0afd7eb2be#b16956f25868b369100178e06f6c5b0afd7eb2be"
 dependencies = [
@@ -4896,13 +5186,33 @@ dependencies = [
  "gloo-timers",
  "leptos",
  "leptos-node-ref",
+ "leptos-shadcn-accordion",
+ "leptos-shadcn-alert",
+ "leptos-shadcn-alert-dialog",
+ "leptos-shadcn-avatar",
  "leptos-shadcn-badge",
  "leptos-shadcn-button",
+ "leptos-shadcn-card",
+ "leptos-shadcn-checkbox",
+ "leptos-shadcn-collapsible",
+ "leptos-shadcn-dialog",
  "leptos-shadcn-dropdown-menu",
  "leptos-shadcn-input",
+ "leptos-shadcn-kbd",
+ "leptos-shadcn-label",
+ "leptos-shadcn-popover",
+ "leptos-shadcn-progress",
+ "leptos-shadcn-radio-group",
  "leptos-shadcn-scroll-area",
+ "leptos-shadcn-separator",
+ "leptos-shadcn-skeleton",
+ "leptos-shadcn-slider",
+ "leptos-shadcn-spinner",
+ "leptos-shadcn-switch",
  "leptos-shadcn-table",
  "leptos-shadcn-tabs",
+ "leptos-shadcn-textarea",
+ "leptos-shadcn-toggle",
  "leptos-shadcn-tooltip",
  "leptos-struct-component",
  "leptos-style",
@@ -4928,7 +5238,7 @@ checksum = "a40efd792acc28a115605b84ecb39e89397a278950bc8f2aad1bdcc7af2033af"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -5300,7 +5610,7 @@ checksum = "1b27834086c65ec3f9387b096d66e99f221cf081c2b738042aa252bcd41204e3"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -5353,7 +5663,7 @@ dependencies = [
  "manganis-core",
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -5878,7 +6188,7 @@ checksum = "ed3955f1a9c7c0c15e092f9c887db08b1fc683305fdf6eb6684f22555355e202"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -5951,7 +6261,7 @@ dependencies = [
  "proc-macro-crate",
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -6560,7 +6870,7 @@ dependencies = [
  "phf_shared 0.13.1",
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -6604,7 +6914,7 @@ checksum = "d9b20ed30f105399776b9c883e68e536ef602a16ae6f596d2c473591d6ad64c6"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -6778,7 +7088,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "479ca8adacdd7ce8f1fb39ce9ecccbfe93a3f1344b3d0d97f20bc0196208f62b"
 dependencies = [
  "proc-macro2",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -6819,7 +7129,7 @@ dependencies = [
  "proc-macro-error-attr2",
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -6835,9 +7145,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.106"
+version = "1.0.107"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fd00f0bb2e90d81d1044c2b32617f68fcb9fa3bb7640c23e9c748e53fb30934"
+checksum = "985e7ec9bb745e6ce6535b544d84d6cd6f7ad8bd711c398938ae983b91a766d9"
 dependencies = [
  "unicode-ident",
 ]
@@ -6850,7 +7160,7 @@ checksum = "af066a9c399a26e020ada66a034357a868728e72cd426f3adcd35f80d88d88c8"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
  "version_check",
 ]
 
@@ -6882,7 +7192,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "52717f9a02b6965224f95ca2a81e2e0c5c43baacd28ca057577988930b6c3d5b"
 dependencies = [
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -6992,10 +7302,11 @@ dependencies = [
 
 [[package]]
 name = "quoin"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "futures-core",
  "gpui-pre",
+ "gpui-rsx",
  "quoin-core",
  "quoin-dioxus",
  "quoin-gpui",
@@ -7006,20 +7317,23 @@ dependencies = [
 
 [[package]]
 name = "quoin-core"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "futures-channel",
  "futures-core",
  "futures-timer",
  "futures-util",
  "gloo-timers",
+ "js-sys",
  "send_wrapper",
+ "wasm-bindgen",
  "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]
 name = "quoin-dioxus"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "dioxus",
  "dioxus-core",
@@ -7032,7 +7346,7 @@ dependencies = [
 
 [[package]]
 name = "quoin-gpui"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "futures",
  "gpui-pre",
@@ -7043,7 +7357,7 @@ dependencies = [
 
 [[package]]
 name = "quoin-leptos"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "futures",
  "leptos",
@@ -7056,7 +7370,7 @@ dependencies = [
 
 [[package]]
 name = "quoin-macros"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "proc-macro2",
  "quoin-macros-core",
@@ -7068,12 +7382,19 @@ dependencies = [
 name = "quoin-macros-core"
 version = "0.1.0"
 dependencies = [
+ "gpui-rsx-core",
  "proc-macro2",
+ "quoin-style",
  "quote",
+ "syn 2.0.119",
  "syn 3.0.9",
  "thiserror 2.0.18",
  "uuid",
 ]
+
+[[package]]
+name = "quoin-style"
+version = "0.4.0"
 
 [[package]]
 name = "quoin-ui"
@@ -7091,9 +7412,9 @@ dependencies = [
 
 [[package]]
 name = "quote"
-version = "1.0.45"
+version = "1.0.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41f2619966050689382d2b44f664f4bc593e129785a36d6ee376ddf37259b924"
+checksum = "1fbf4db142a473a8d80c26bbf18454ed458bf8d26c8219c331daecfdbd079001"
 dependencies = [
  "proc-macro2",
 ]
@@ -7447,7 +7768,7 @@ checksum = "b7186006dcb21920990093f30e3dea63b7d6e977bf1256be20c3563a5db070da"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -7609,7 +7930,7 @@ dependencies = [
  "quote",
  "rust-embed-utils",
  "shellexpand",
- "syn 2.0.117",
+ "syn 2.0.119",
  "walkdir",
 ]
 
@@ -7649,7 +7970,7 @@ dependencies = [
  "rust-i18n-support",
  "serde",
  "serde_json",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -7867,7 +8188,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "serde_derive_internals",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -7976,7 +8297,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b8050abb251097357e24aff63ba2c52a6309ecb7d23a5474023df960a02694d8"
 dependencies = [
  "annotate-snippets",
- "base64 0.22.1",
+ "base64 0.23.1",
  "encoding_rs_io",
  "granit-parser",
  "nohash-hasher",
@@ -8024,7 +8345,7 @@ checksum = "d540f220d3187173da220f885ab66608367b6574e925011a9353e4badda91d79"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -8035,7 +8356,7 @@ checksum = "18d26a20a969b9e3fdf2fc2d9f21eda6c40e2de84c9408bb5d3b05d499aae711"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -8094,7 +8415,7 @@ checksum = "175ee3e80ae9982737ca543e96133087cbd9a485eecc3bc4de9c1a37b47ea59c"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -8327,7 +8648,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bb251b407f50028476a600541542b605bb864d35d9ee1de4f6cab45d88475e6d"
 dependencies = [
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -8455,7 +8776,7 @@ checksum = "172175341049678163e979d9107ca3508046d4d2a7c6682bee46ac541b17db69"
 dependencies = [
  "proc-macro-error2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -8537,7 +8858,7 @@ dependencies = [
  "heck 0.5.0",
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -8549,14 +8870,14 @@ dependencies = [
  "heck 0.5.0",
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
 name = "subsecond"
-version = "0.7.4"
+version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5dbb9f2928b6654ccc28d4ddfef5213e97ed66afed4907774d049b376c62a838"
+checksum = "d350d5788fa94d560d92269266a50efc77b036bfca6675e420b64df7b3211f37"
 dependencies = [
  "js-sys",
  "libc",
@@ -8573,9 +8894,9 @@ dependencies = [
 
 [[package]]
 name = "subsecond-types"
-version = "0.7.4"
+version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "388bb28e6ddbee717745963b8932d9a6e24a5d3c93350655f733e938de04d81f"
+checksum = "dcf32d66269b5fbb8558334e8d22b657b2f7af0dd2ef56c231541099a862e464"
 dependencies = [
  "serde",
 ]
@@ -8715,9 +9036,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.117"
+version = "2.0.119"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e665b8803e7b1d2a727f4023456bbbbe74da67099c585258af0ad9c5013b9b99"
+checksum = "872831b642d1a07999a962a351ed35b955ea2cfc8f3862091e2a240a84f17297"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -8752,7 +9073,7 @@ checksum = "728a70f3dbaf5bab7f0c4b1ac8d7ae5ea60a4b5549c8a5914361c99147a709d2"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -8873,7 +9194,7 @@ dependencies = [
  "darling 0.20.11",
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -8964,7 +9285,7 @@ checksum = "4fee6c4efc90059e10f81e6d42c60a18f76588c3d74cb83a0b242a2b6c7504c1"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -8975,7 +9296,7 @@ checksum = "ebc4ee7f67670e9b64d05fa4253e753e016c6c95ff35b89b7941d6b856dec1d5"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -9300,7 +9621,7 @@ checksum = "7490cfa5ec963746568740651ac6781f701c9c5ea257c58e057f3ba8cf69e8da"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -9413,7 +9734,7 @@ checksum = "076a02dc54dd46795c2e9c8282ed40bcfb1e22747e955de9389a1de28190fb26"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -9662,7 +9983,7 @@ source = "git+https://github.com/zed-industries/zed#2542b71a24097ec37643e484bab1
 dependencies = [
  "perf",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -9801,7 +10122,7 @@ checksum = "59195a1db0e95b920366d949ba5e0d3fc0e70b67c09be15ce5abb790106b0571"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -9950,7 +10271,7 @@ dependencies = [
  "base16",
  "quote",
  "sha2",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -10494,7 +10815,7 @@ checksum = "9107ddc059d5b6fbfbffdfa7a7fe3e22a226def0b2608f72e9d552763d3e1ad7"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -10505,7 +10826,7 @@ checksum = "2bbd5b46c938e506ecbce286b6628a02171d56153ba733b6c741fc627ec9579b"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -10516,7 +10837,7 @@ checksum = "053e2e040ab57b9dc951b72c264860db7eb3b0200ba345b4e4c3b14f67855ddf"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -10527,7 +10848,7 @@ checksum = "29bee4b38ea3cde66011baa44dba677c432a78593e202392d1e9070cf2a7fca7"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -10538,7 +10859,7 @@ checksum = "053c4c462dc91d3b1504c6fe5a726dd15e216ba718e84a0e46a88fbe5ded3515"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -10549,7 +10870,7 @@ checksum = "3f316c4a2570ba26bbec722032c4099d8c8bc095efccdc15688708623367e358"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -11073,7 +11394,7 @@ dependencies = [
  "heck 0.5.0",
  "indexmap",
  "prettyplease 0.2.37",
- "syn 2.0.117",
+ "syn 2.0.119",
  "wasm-metadata",
  "wit-bindgen-core",
  "wit-component",
@@ -11089,7 +11410,7 @@ dependencies = [
  "prettyplease 0.2.37",
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
  "wit-bindgen-core",
  "wit-bindgen-rust",
 ]
@@ -11301,7 +11622,7 @@ checksum = "de844c262c8848816172cef550288e7dc6c7b7814b4ee56b3e1553f275f1858e"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
  "synstructure",
 ]
 
@@ -11358,7 +11679,7 @@ checksum = "10da05367f3a7b7553c8cdf8fa91aee6b64afebe32b51c95177957efc47ca3a0"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
  "zbus-lockstep",
  "zbus_xml",
  "zvariant",
@@ -11373,7 +11694,7 @@ dependencies = [
  "proc-macro-crate",
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
  "zbus_names",
  "zvariant",
  "zvariant_utils 3.3.0",
@@ -11540,7 +11861,7 @@ checksum = "70e3cd084b1788766f53af483dd21f93881ff30d7320490ec3ef7526d203bad4"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -11560,7 +11881,7 @@ checksum = "11532158c46691caf0f2593ea8358fed6bbf68a0315e80aae9bd41fbade684a1"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
  "synstructure",
 ]
 
@@ -11581,7 +11902,7 @@ checksum = "85a5b4158499876c763cb03bc4e49185d3cccbabb15b33c627f7884f43db852e"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -11614,7 +11935,7 @@ checksum = "625dc425cab0dca6dc3c3319506e6593dcb08a9f387ea3b284dbd52a92c40555"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -11727,7 +12048,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "serde",
- "syn 2.0.117",
+ "syn 2.0.119",
  "winnow 0.7.15",
 ]
 
