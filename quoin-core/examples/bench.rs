@@ -9,7 +9,9 @@
 //! Numbers are machine-relative; treat them as regression baselines to
 //! compare across commits on the same machine, not absolute truth.
 
+use quoin_core::keys::{KeyEvent, Modifiers, keystroke_matches};
 use quoin_core::prelude::*;
+use std::hint::black_box;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
@@ -137,6 +139,9 @@ fn main() {
     // --- Type-erased signals (AnySignal dispatch overhead) ------------------
     bench_erasure(cx, &counter);
 
+    // --- Web keys (the `keys { .. }` matcher behind Leptos/Dioxus) ----------
+    bench_web_keys();
+
     println!("\nbaseline recorded — compare across commits on the same machine.");
 }
 
@@ -255,5 +260,70 @@ fn bench_erasure(cx: quoin_core::test_support::StaticContext, counter: &Arc<Atom
     let erased = quoin_core::AnySignal::new(signal.clone());
     bench("any_signal.with (clone + lend)", 1_000_000, || {
         erased.with(|v| counter.fetch_add(*v as usize, Ordering::Relaxed));
+    });
+}
+
+/// The `keys { .. }` web matcher (`quoin_core::keys`): the per-event cost a
+/// Leptos/Dioxus window `keydown` listener pays. The exact-hit row is the
+/// common shortcut case; the modifier-miss row is an early-out; the 8-arm
+/// chain matching on its last entry is the worst case a component with
+/// eight bindings pays per keystroke.
+fn bench_web_keys() {
+    println!();
+
+    // The matcher is a pure comparison chain — `black_box` keeps the event
+    // in memory and consumes the result so the rows measure the real
+    // per-keystroke comparisons instead of a folded-away constant.
+    let ctrl_shift = black_box(Modifiers::CTRL.union(Modifiers::SHIFT));
+    let ctrl_shift_d = black_box(KeyEvent::new("KeyD", "D", ctrl_shift));
+    bench("keys.keystroke_matches (exact hit)", 1_000_000, || {
+        black_box(keystroke_matches(
+            black_box(&ctrl_shift_d),
+            ctrl_shift,
+            black_box("d"),
+        ));
+    });
+    bench("keys.keystroke_matches (modifier miss)", 1_000_000, || {
+        black_box(keystroke_matches(
+            black_box(&ctrl_shift_d),
+            Modifiers::EMPTY,
+            black_box("d"),
+        ));
+    });
+
+    // An eight-entry arm chain (one window listener, eight `keys` entries)
+    // where only the last arm matches — the per-keystroke worst case.
+    let chain: [KeyEvent; 8] = [
+        KeyEvent::new("KeyA", "a", Modifiers::EMPTY),
+        KeyEvent::new("KeyB", "b", Modifiers::CTRL),
+        KeyEvent::new("KeyC", "c", Modifiers::EMPTY),
+        KeyEvent::new("Escape", "Escape", Modifiers::EMPTY),
+        KeyEvent::new("KeyP", "p", Modifiers::CTRL),
+        KeyEvent::new("KeyS", "s", ctrl_shift),
+        KeyEvent::new("KeyK", "k", Modifiers::META),
+        KeyEvent::new("KeyD", "D", ctrl_shift),
+    ];
+    let chain = black_box(chain);
+    bench("keys.arm chain of 8 (last hits)", 1_000_000, || {
+        let hit = if keystroke_matches(black_box(&chain[0]), Modifiers::EMPTY, "a") {
+            0
+        } else if keystroke_matches(&chain[1], Modifiers::CTRL, "b") {
+            1
+        } else if keystroke_matches(&chain[2], Modifiers::EMPTY, "c") {
+            2
+        } else if keystroke_matches(&chain[3], Modifiers::EMPTY, "Escape") {
+            3
+        } else if keystroke_matches(&chain[4], Modifiers::CTRL, "p") {
+            4
+        } else if keystroke_matches(&chain[5], ctrl_shift, "s") {
+            5
+        } else if keystroke_matches(&chain[6], Modifiers::META, "k") {
+            6
+        } else if keystroke_matches(&chain[7], ctrl_shift, "d") {
+            7
+        } else {
+            8
+        };
+        black_box(hit);
     });
 }

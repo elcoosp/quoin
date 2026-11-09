@@ -37,20 +37,6 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
         None => quote! {},
     };
 
-    // `keys { .. }` has no web routing yet — the documented diagnostic
-    // contract (docs/BACKEND-PARITY.md), never a silent drop.
-    let keys_error = if ast.keys.is_empty() {
-        quote! {}
-    } else {
-        quote! {
-            ::core::compile_error!(
-                "keys { .. } is not supported on the Leptos backend (no global key \
-                 routing in v1); attach key events on the specific widget instead \
-                 (see docs/BACKEND-PARITY.md)"
-            );
-        }
-    };
-
     let global_inits: Vec<_> = ast
         .globals
         .iter()
@@ -62,6 +48,21 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
             }
         })
         .collect::<Vec<_>>();
+
+    // `keys { .. }` lowers natively on Leptos: one window-level `keydown`
+    // listener per component through `quoin::keys::attach_window_keydown`,
+    // disposed with the component (`on_cleanup`) — the web counterpart of
+    // the Floem one-listener contract (docs/BACKEND-PARITY.md). Native
+    // (SSR) builds compile the same expansion: the attach is the documented
+    // no-op there, since SSR never routes keyboard input.
+    let keys_block = crate::emit::web_keys::component_keys_block(
+        &ast.keys,
+        &crate::emit::web_keys::state_globals_set(
+            ast.state.iter().map(|s| s.name.to_string()),
+            ast.globals.iter().map(|g| g.name.to_string()),
+        ),
+        &quote! { ::leptos::prelude::on_cleanup(move || __quoin_keys_handle.remove()); },
+    );
 
     // FIXED: Shadow-clone all state signals and globals BEFORE the outer
     // move || closure. Any inner move || inside render_stmts (e.g.
@@ -85,11 +86,11 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
             use quoin::ReactiveContext;
             use quoin::Signal;
             use leptos::prelude::ElementChild;
-            #keys_error
             let ctx = quoin::LeptosContext::new();
             #(#state_inits)*
             #(#global_inits)*
             #(#action_closures)*
+            #keys_block
             #(#on_mount_tokens)*
             #on_unmount_tokens
             #(#state_clones)*

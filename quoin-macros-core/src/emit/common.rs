@@ -138,3 +138,18 @@ pub fn action_closure_tokens(ast: &ComponentAst) -> Vec<TokenStream> {
         })
         .collect()
 }
+
+/// Whether the user handler takes an event parameter.
+///
+/// The shared handler calling convention for `keys { .. }` and decorator
+/// lowerings: a zero-parameter closure is called with no payload, a
+/// one-parameter closure receives the shared `quoin::ev` payload, and any
+/// other expression is inlined verbatim (GPUI parity). Defined once here so
+/// the Floem and web backends cannot drift.
+#[cfg(any(feature = "floem", feature = "leptos", feature = "dioxus"))]
+pub(crate) fn handler_arity_is_zero(handler: &Expr) -> bool {
+    match handler {
+        Expr::Closure(c) => c.inputs.is_empty(),
+        _ => false,
+    }
+}

@@ -6,7 +6,7 @@
   </p>
   <p>
     <img src="https://img.shields.io/badge/Rust-1.88%2B-orange?style=flat-square&logo=rust" alt="Rust"/>
-    <img src="https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue?style=flat-square" alt="License"/>
+    <img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License"/>
     <img src="https://img.shields.io/badge/Frameworks-GPUI%20%7C%20Leptos%20%7C%20Dioxus%20%7C%20Xilem%20%7C%20Floem-262D3A?style=flat-square" alt="Frameworks"/>
     <img src="https://img.shields.io/badge/Architecture-10%2B%20Crates-6F4E37?style=flat-square" alt="Crates"/>
     <img src="https://img.shields.io/badge/Reactivity-Signals%20%2B%20Effects-6A0DAD?style=flat-square" alt="Reactivity"/>

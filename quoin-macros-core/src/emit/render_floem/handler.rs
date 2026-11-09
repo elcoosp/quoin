@@ -60,13 +60,10 @@ pub(crate) fn capture_shadows(handler: &Expr, ctx: &mut super::EmitterCtx) -> Ve
     shadows
 }
 
-/// Whether the user handler takes an event parameter.
-pub(crate) fn handler_arity_is_zero(handler: &Expr) -> bool {
-    match handler {
-        Expr::Closure(c) => c.inputs.is_empty(),
-        _ => false,
-    }
-}
+/// Whether the user handler takes an event parameter: defined once in
+/// [`crate::emit::common`] so the web backends share the same calling
+/// convention.
+pub(crate) use crate::emit::common::handler_arity_is_zero;
 
 /// Lowers `on_click` into the Floem `.action(move || __h(payload))`
 /// decorator, wrapped in the capture block.

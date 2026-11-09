@@ -74,6 +74,9 @@ live-effect gate). Costs appear only where reactivity is actually wired:
 | `any_signal.get` (vtable dispatch) | 1,000,000 | 14 | erasure adds ~0 ns to reads |
 | `any_signal.set` (vtable dispatch) | 1,000,000 | 24 | same +10 ns shape as the unobserved-cell row above |
 | `any_signal.with` (clone + lend) | 1,000,000 | 16 | clone-based lend, ~`get` cost |
+| `keys.keystroke_matches` (exact hit) | 1,000,000 | 2 | the web `keys { .. }` matcher, one arm (M1.11) |
+| `keys.keystroke_matches` (modifier miss) | 1,000,000 | 1 | early-out on the first flag compare |
+| `keys.arm chain of 8` (last hits) | 1,000,000 | 1 | worst case per keystroke: eight bindings, last matches |
 
 **Effect-cycle takeaway:** an observed `set` costs ~188 ns for a trivial
 body — roughly 13× a plain write, which is the price of the full
@@ -94,6 +97,12 @@ beyond what the underlying cell already pays; only `with` changes shape
 (clone + lend instead of borrow), matching the documented erasure cost
 model. Use erasure for storage and plumbing, concrete signal types on hot
 read paths.
+
+**Web-keys takeaway (M1.11):** the `keys { .. }` matcher the Leptos/Dioxus
+lowerings emit costs 1–2 ns per keystroke — four flag compares plus one
+`eq_ignore_ascii_case`, the same cost class as a hand-written DOM `keydown`
+handler. Even the eight-binding worst case stays flat: one listener, one
+if/else chain per component, no per-event allocation.
 
 ## quoin-xilem (`quoin-xilem/examples/bench-effects.rs`)
 
@@ -164,30 +173,33 @@ the raw retained slice for custom views.
 
 ## quoin-macros-core (`quoin-macros-core/examples/bench-web-expansion.rs`)
 
-The web-backend `component!` expansion path, after the Phase 1.9
-`keys { .. }` diagnostic. Two shapes: **emit-only** (pre-parsed AST — the
-delta is the diagnostic branch plus the `compile_error!` token block it
-emits) and **parse+emit** (end to end — the with-keys delta is dominated by
+The web-backend `component!` expansion path, after the Phase 1.11 real
+`keys { .. }` lowering (Phase 1.9's diagnostic was its predecessor). Two
+shapes: **emit-only** (pre-parsed AST — the delta is the with-keys branch
+emitting the shared keystroke parser's shadows, matcher arms, and cleanup
+hook) and **parse+emit** (end to end — the with-keys delta is dominated by
 the extra `keys { .. }` section the parser reads). 20,000 iterations,
 release profile:
 
 | Benchmark | Ops | ns/op |
 | --- | ---: | ---: |
-| leptos emit-only (no keys) | 20,000 | 4,999 |
-| leptos emit-only (keys diagnostic) | 20,000 | 6,235 |
-| dioxus emit-only (no keys) | 20,000 | 5,521 |
-| dioxus emit-only (keys diagnostic) | 20,000 | 6,101 |
-| leptos parse+emit (no keys) | 20,000 | 7,961 |
-| leptos parse+emit (keys diagnostic) | 20,000 | 11,553 |
-| dioxus parse+emit (no keys) | 20,000 | 8,345 |
-| dioxus parse+emit (keys diagnostic) | 20,000 | 12,482 |
+| leptos emit-only (no keys) | 20,000 | 5,874 |
+| leptos emit-only (keys lowering) | 20,000 | 15,705 |
+| dioxus emit-only (no keys) | 20,000 | 6,275 |
+| dioxus emit-only (keys lowering) | 20,000 | 15,057 |
+| leptos parse+emit (no keys) | 20,000 | 8,792 |
+| leptos parse+emit (keys lowering) | 20,000 | 21,105 |
+| dioxus parse+emit (no keys) | 20,000 | 9,196 |
+| dioxus parse+emit (keys lowering) | 20,000 | 21,826 |
 
-**Diagnostic takeaway:** the keys-free expansion path — every component
-that compiles — is unchanged (pre/post: 5,049 → 4,999 ns leptos,
-5,312 → 5,521 ns dioxus, within run-to-run noise). The +0.6–1.2 µs on the
-with-keys rows is the `compile_error!` token block being written into the
-expansion — paid exactly once, on a component that is about to fail
-compilation anyway. Enforcing the contract is free.
+**Keys-lowering takeaway:** the keys-free expansion path — every component
+that compiles without shortcuts — is unchanged. The +9–13 µs on the
+with-keys rows is the lowerings being *written* into the expansion (parsed
+keystrokes, one listener, one arm per entry) — compile-time work paid once
+per component, against a 1–2 ns/op runtime matcher (`quoin-core` rows
+above). The Phase 1.9 diagnostic rows measured the same +0.6–1.2 µs shape;
+the real lowering adds ~10 µs of token assembly, still noise at compile
+time.
 
 ## quoin-leptos / quoin-dioxus / quoin-floem (`examples/bench-effects.rs`)
 

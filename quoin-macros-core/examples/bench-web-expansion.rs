@@ -1,9 +1,14 @@
 //! Micro-benchmarks for the web-backend (`component!`) expansion path.
 //!
-//! The `keys { .. }` diagnostic is a compile-time branch on
-//! `ComponentAst::keys`; these benches pin that the branch costs nothing
-//! measurable at expansion time — the with-keys and without-keys expansions
-//! run at the same ns/op, so enforcing the contract is free.
+//! The `keys { .. }` branch is a compile-time switch on `ComponentAst::keys`;
+//! since the Phase 1.11 web-keys milestone the with-keys branch emits the
+//! real lowering (shared keystroke parser, one window listener, one matcher
+//! arm per entry) rather than the Phase 1.9 diagnostic. These benches pin
+//! the expansion cost of both shapes: the keys-free path — every component
+//! without shortcuts — is unchanged, and the with-keys delta is ~10 µs of
+//! token assembly paid once per component at compile time (the runtime
+//! matcher it emits costs 1–2 ns/op; see the `quoin-core` rows in
+//! `docs/BENCHMARKS.md`).
 //!
 //! No benchmark framework — plain `std::time::Instant` so this runs anywhere:
 //!
@@ -66,13 +71,13 @@ fn main() {
     bench("leptos emit-only (no keys)", ITERATIONS, || {
         let _ = emit_leptos(&plain_ast);
     });
-    bench("leptos emit-only (keys diagnostic)", ITERATIONS, || {
+    bench("leptos emit-only (keys lowering)", ITERATIONS, || {
         let _ = emit_leptos(&keyed_ast);
     });
     bench("dioxus emit-only (no keys)", ITERATIONS, || {
         let _ = emit_dioxus(&plain_ast);
     });
-    bench("dioxus emit-only (keys diagnostic)", ITERATIONS, || {
+    bench("dioxus emit-only (keys lowering)", ITERATIONS, || {
         let _ = emit_dioxus(&keyed_ast);
     });
 
@@ -83,7 +88,7 @@ fn main() {
         let ast: ComponentAst = syn::parse2(plain.clone()).expect("parses");
         let _ = emit_leptos(&ast);
     });
-    bench("leptos parse+emit (keys diagnostic)", ITERATIONS, || {
+    bench("leptos parse+emit (keys lowering)", ITERATIONS, || {
         let ast: ComponentAst = syn::parse2(keyed.clone()).expect("parses");
         let _ = emit_leptos(&ast);
     });
@@ -91,7 +96,7 @@ fn main() {
         let ast: ComponentAst = syn::parse2(plain.clone()).expect("parses");
         let _ = emit_dioxus(&ast);
     });
-    bench("dioxus parse+emit (keys diagnostic)", ITERATIONS, || {
+    bench("dioxus parse+emit (keys lowering)", ITERATIONS, || {
         let ast: ComponentAst = syn::parse2(keyed.clone()).expect("parses");
         let _ = emit_dioxus(&ast);
     });

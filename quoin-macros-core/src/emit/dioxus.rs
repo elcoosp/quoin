@@ -63,19 +63,20 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
         })
         .collect::<Vec<_>>();
 
-    // `keys { .. }` has no web routing yet — the documented diagnostic
-    // contract (docs/BACKEND-PARITY.md), never a silent drop.
-    let keys_error = if ast.keys.is_empty() {
-        quote! {}
-    } else {
-        quote! {
-            ::core::compile_error!(
-                "keys { .. } is not supported on the Dioxus backend (no global key \
-                 routing in v1); attach key events on the specific widget instead \
-                 (see docs/BACKEND-PARITY.md)"
-            );
-        }
-    };
+    // `keys { .. }` lowers natively on Dioxus: one window-level `keydown`
+    // listener per component through `quoin::keys::attach_window_keydown`,
+    // disposed with the component scope (`use_drop`) — the web counterpart
+    // of the Floem one-listener contract (docs/BACKEND-PARITY.md). Native
+    // (desktop/SSR) builds compile the same expansion: the attach is the
+    // documented no-op there (the browser webview routing is future work).
+    let keys_block = crate::emit::web_keys::component_keys_block(
+        &ast.keys,
+        &crate::emit::web_keys::state_globals_set(
+            ast.state.iter().map(|s| s.name.to_string()),
+            ast.globals.iter().map(|g| g.name.to_string()),
+        ),
+        &quote! { ::dioxus::prelude::use_drop(move || __quoin_keys_handle.remove()); },
+    );
 
     let render_stmts = &ast.render.stmts;
 
@@ -104,11 +105,11 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
         #vis fn #name() -> dioxus::prelude::Element {
             use quoin::ReactiveContext;
             use quoin::Signal;
-            #keys_error
             let ctx = dioxus::prelude::use_hook(quoin::DioxusContext::new);
             #(#state_inits)*
             #(#global_inits)*
             #(#action_closures)*
+            #keys_block
             #on_mount_tokens
             #on_unmount_tokens
 

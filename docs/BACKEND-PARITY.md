@@ -65,18 +65,30 @@ appear inside their parent element and have no standalone lowering.
 | `if[c] { .. }`       | native — `dyn_container`, exactly one boxing seam | native — branch-selected view, one `boxed()` seam |
 | `for[item in list, key: k]` | native — diffing `dyn_stack`                | native — index-keyed `Vec` sequence               |
 | `for[item in list]` (unkeyed) | native for pure-text bodies (`dyn_container` full rebuild); named diagnostic when the body captures state or contains interactive elements | native |
-| `keys { .. }`        | native — focusable root + one `KeyDown` listener through `quoin::floem_keys`; exact-modifier, GPUI-grammar keystrokes | `xilem: unsupported` — no global key routing in v1; handle input on the specific widget |
+| `keys { .. }`        | native — focusable root + one `KeyDown` listener through `quoin::floem_keys`; exact-modifier, GPUI-grammar keystrokes | `xilem: unsupported` — no global key routing in v1; handle input on the specific widget. The web backends lower natively: one window-level `keydown` listener through `quoin::keys::attach_window_keydown`, disposed with the component's cleanup hook |
 | `effect! { .. }`     | native — `Effect::new`; `cleanup:` runs before each re-run and when the owning reactive scope is disposed (`quoin::floem_effect::CleanupSlot`) | `xilem: native` — `quoin::xilem_effect::create_effect` over the core reactive graph: the effect observes the component's `XilemSignal`s through their dependency cells, re-runs FIFO and batch-coalesced; `cleanup:` runs before each re-run and a final time when the effect is disposed with its component scope (`quoin::xilem_effect::CleanupSlot`). Effects belong at component scope (`on_mount { .. }`, where `component!` holds the component's `EffectScope`); `effect!` in the render body is a named compile error — `app_logic` re-runs per rebuild, so the effect would be re-created every time |
 | `component!`         | native — a plain `fn` creating signals once and returning the view | native — state struct + `fn new(ctx)` + `fn app_logic()` rendering beside the rebuild pump |
 | `run_app!`           | native — `floem::launch`                          | native — `Xilem::new_simple_with_tokio` + pump notifier, sharing the context's tokio runtime |
 
-The web backends share Xilem's `unsupported` contract for `keys { .. }`:
-both `component!` emitters emit the named `compile_error!` ("no global key
-routing in v1; attach key events on the specific widget instead"), so the
-block can never silently do nothing. GPUI lowers `keys` natively through its
-action/bindings system. (Until the web-emitter diagnostic landed, Leptos and
-Dioxus parsed the block and silently dropped it — the last silent-drop seam
-in the emitter surface.)
+Xilem keeps the `unsupported` contract for `keys { .. }`: no global key
+routing in v1, so its emitter still raises the named `compile_error!`
+("attach key events on the specific widget instead"). The web backends
+(Leptos, Dioxus) lower `keys { .. }` natively since the web-keys milestone:
+the GPUI-grammar keystroke string is parsed at macro time by the shared
+parser
+(`quoin_macros_core::emit::keystroke`) — the same parse the Floem emitter
+consumes — into the exact modifier flags plus the DOM `key` name, and each
+entry becomes one `if` arm inside a single window-level `keydown` listener
+per component (`quoin::keys::attach_window_keydown`, disposed through the
+component's cleanup hook). Matching is exact-modifier, case-insensitive on
+character keys, with `cmd`/`super`/`meta` folded into the shared
+`quoin::ev::Key::ctrl` payload (matching the Floem single-platform-modifier
+flag) — measured at 1–2 ns/op per keystroke (`just bench-core`, the
+`keys.*` rows in `docs/BENCHMARKS.md`). The listener registers on `wasm32`
+only: native SSR builds have no DOM window, so the attach is the documented
+no-op there (the same platform boundary as the adapters'
+`clipboard_write_text`), and dioxus-desktop webview routing is future work.
+GPUI lowers `keys` natively through its action/bindings system.
 
 ## Known allowed differences
 

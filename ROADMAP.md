@@ -316,6 +316,67 @@ virtualization on the web backends.
 
 ---
 
+## Phase 1.11: Web Keys Lowering (Current)
+
+**Goal:** Close the `keys { .. }` seam Phase 1.9 named as its follow-up:
+the web backends (Leptos, Dioxus) carried the Phase 1.9 diagnostic because
+no routing existed — while GPUI lowers `keys` through its action/bindings
+system and Floem through `quoin::floem_keys`, and the Phase 1.10 signal
+bridge had already made every handler-facing signal a first-class core-graph
+citizen. What was missing was the last mile: one listener, one matcher, one
+parse — all of which now exist behind the same contract vocabulary the
+project enforces everywhere else.
+
+### Milestones
+
+#### M1.11.1: The shared keystroke runtime (`quoin::keys`) ✅
+- [x] `quoin_core::keys` — the framework-free web keystroke vocabulary:
+      `KeyEvent` (the W3C `code`/`key` snapshot plus the exact modifier
+      mask), `keystroke_matches` (exact-modifier, case-insensitive on
+      character keys — the same semantics as the Floem matcher), and
+      `attach_window_keydown` → `KeydownHandle::remove`: one window-level
+      `keydown` listener per component on `wasm32`, a documented no-op on
+      native targets (SSR/desktop have no DOM window — the same platform
+      boundary as the adapters' `clipboard_write_text`).
+- [x] The facade re-exports the module explicitly (`pub use quoin_core::keys`)
+      so the Floem adapter glob's own `keys` module cannot shadow it — the
+      same explicit-twin pattern as `quoin::effect`.
+
+#### M1.11.2: The web lowerings ✅
+- [x] One shared macro-time parser (`emit::keystroke`) now feeds every
+      backend that lowers `keys`: the GPUI grammar is parsed once into the
+      exact modifier flags, the W3C code name, and the DOM key value; the
+      Floem emitter maps the same parse onto native `NamedKey`/`Character`
+      values (its expansion tokens unchanged — `floem_keys_expansion` and
+      the parity matrix stay byte-identical), and the handler-arity probe
+      moved to `emit::common` so no backend can drift.
+- [x] `component!` on Leptos and Dioxus emits the real listener block:
+      handler state shadow-cloned into the listener closure, one
+      `if/else`-chained matcher arm per keystroke, cleanup wired through
+      `on_cleanup` (Leptos) / `use_drop` (Dioxus). Malformed keystrokes
+      still fail with the named `compile_error!` at the element site.
+- [x] `docs/BACKEND-PARITY.md` documents the web contract (and keeps Xilem
+      as the deliberate `unsupported` row).
+
+#### M1.11.3: Gates & benchmarks ✅
+- [x] Expansion gates `leptos_expansion` / `dioxus_expansion` pin the
+      lowering: one listener per component, exact-modifier arms, the shared
+      `quoin::ev::Key` payload, the cleanup hook, the named malformed
+      diagnostic — and the keys-free expansion stays clean.
+- [x] Trybuild compile gates `component_keys_leptos_pass` /
+      `component_keys_dioxus_pass` compile the emitted code against the
+      real framework stacks (native builds exercise the no-op attach).
+- [x] `quoin-core` unit tests pin the matcher semantics; `just bench-core`
+      gains the `keys.*` rows — 1–2 ns/op per keystroke, the same cost
+      class as a hand-written `keydown` handler (`docs/BENCHMARKS.md`).
+
+**Follow-ups (next milestone candidates):** dioxus-desktop webview key
+routing (the desktop webview has a real window; the adapter's dependency
+graph does not reach it yet); `virtual_list` true virtualization on the web
+backends.
+
+---
+
 ## Phase 0: Foundation (Current)
 
 **Goal:** Implement the `quoin` core crate with the traits defined in the architecture specification, establish CI/CD, and publish initial development versions.
