@@ -27,7 +27,7 @@ quoin-macros    = { path = "../quoin-macros",    optional = true }
 # gpui-rsx proc-macro shell (rsx!, rsx_strict!, #[component], …). Pure token
 # machinery (its core has no GPUI dependency), re-exported as the escape hatch
 # for GPUI-only subtrees — see `docs/gpui-rsx-classes.md`.
-gpui-rsx = { version = "0.10.2", optional = true }
+gpui-rsx = { version = "0.12.0", optional = true }
 
 # UCP crates (optional)
 quoin-ui        = { path = "../quoin-ui",        optional = true }
