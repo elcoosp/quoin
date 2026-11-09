@@ -54,6 +54,14 @@ pub use quoin_core::*;
 // unambiguous `floem_effect` / `xilem_effect` aliases.
 pub use quoin_core::effect;
 
+// Same explicit twin for `keys`: the Floem adapter glob carries a module
+// literally named `keys` (`quoin_floem::keys`, aliased `floem_keys` below),
+// which would make the bare `quoin::keys` path ambiguous under the `floem`
+// feature. The explicit re-export pins `keys` to the core module — the
+// shared web keystroke runtime the Leptos/Dioxus `keys { .. }` lowerings
+// emit (`quoin::keys::attach_window_keydown`, `quoin::keys::keystroke_matches`).
+pub use quoin_core::keys;
+
 // ── GPUI adapter ───────────────────────────────────────────────────────────
 
 #[cfg(feature = "gpui")]
