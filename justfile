@@ -50,7 +50,7 @@ bench-devtools:
     cargo run --release -p quoin-devtools --example bench-devtools
 
 # Micro-benchmarks for the web-backend component! expansion path — the
-# keys-diagnostic branch is pinned as unmeasurable (release profile)
+# with-keys lowering branch is pinned as compile-time-only (release profile)
 bench-web-expansion:
     cargo run --release -p quoin-macros-core --features leptos,dioxus --example bench-web-expansion
 
