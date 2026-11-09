@@ -5,6 +5,11 @@
 
 /// `#[cfg]` attribute helpers shared by all emitters.
 pub mod cfg;
+/// The shared macro-time keystroke parser for `keys { .. }` blocks: one
+/// GPUI-grammar parse feeding the Floem native listener and the web
+/// window-listener lowerings alike.
+#[cfg(any(feature = "floem", feature = "leptos", feature = "dioxus"))]
+pub mod keystroke;
 /// The machine-checked rendering-parity table (Floem + Xilem columns),
 /// shared by the parity-matrix test and `docs/BACKEND-PARITY.md`.
 pub mod parity;
@@ -33,6 +38,11 @@ pub mod gpui;
 /// Leptos backend for `component!` and `effect!`.
 #[cfg(feature = "leptos")]
 pub mod leptos;
+
+/// `keys { .. }` lowering shared by the web backends (Leptos, Dioxus): one
+/// window-level `keydown` listener per component through `quoin::keys`.
+#[cfg(any(feature = "leptos", feature = "dioxus"))]
+pub mod web_keys;
 
 /// Dioxus backend for `quoin_render!`.
 #[cfg(feature = "dioxus")]
