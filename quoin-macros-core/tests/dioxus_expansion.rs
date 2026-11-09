@@ -69,28 +69,74 @@ fn component_without_keys_expands_cleanly() {
 }
 
 #[test]
-fn component_with_keys_is_a_named_diagnostic() {
+fn keys_lower_to_one_window_listener_with_exact_matcher_arms() {
     let text = expand(quote::quote! {
         pub KeysApp {
-            state { n: u32 = 0 }
-            keys { "escape" => n.set(0) }
+            state { draft: String = String::new() }
+            keys {
+                "escape" => draft.set(String::new()),
+                "ctrl-shift-d" => |key: quoin::ev::Key| draft.set(key.code.to_string()),
+            }
             render {
                 quoin_render! { p() { "x" } }
             }
         }
     });
     assert!(
-        text.contains("compile_error") && text.contains("keys"),
-        "keys on Dioxus must fail with the documented diagnostic, not silently \
-         drop the block:\n{text}"
+        !text.contains("compile_error"),
+        "keys {{ .. }} on Dioxus lowers natively now — no diagnostic:\n{text}"
     );
     assert!(
-        text.contains("Dioxus"),
-        "the diagnostic must name the backend:\n{text}"
+        text.contains(":: quoin :: keys :: attach_window_keydown"),
+        "one window-level keydown listener per component (the Floem \
+         one-listener contract):\n{text}"
     );
     assert!(
-        text.contains("docs/BACKEND-PARITY.md"),
-        "the diagnostic must point at the contract document:\n{text}"
+        text.contains("keys :: keystroke_matches"),
+        "arms must route through the shared runtime matcher:\n{text}"
+    );
+    assert!(
+        text.contains("\"Escape\""),
+        "the keystroke is parsed at macro time into the DOM key name:\n{text}"
+    );
+    assert!(
+        text.contains("Modifiers :: EMPTY"),
+        "bare keystrokes carry the empty modifier mask:\n{text}"
+    );
+    assert!(
+        text.contains(
+            ":: quoin :: keys :: Modifiers :: CTRL | :: quoin :: keys :: Modifiers :: SHIFT"
+        ),
+        "ctrl-shift-d parses into its exact modifier flags:\n{text}"
+    );
+    assert!(
+        text.contains(":: quoin :: ev :: Key"),
+        "one-parameter handlers receive the shared Key payload:\n{text}"
+    );
+    assert!(
+        text.contains("use_drop"),
+        "the listener must be disposed with the component scope:\n{text}"
+    );
+    assert!(
+        text.contains("Clone :: clone (& draft)"),
+        "handler state must be shadow-cloned into the listener closure:\n{text}"
+    );
+}
+
+#[test]
+fn malformed_keystroke_is_a_named_compile_error() {
+    let text = expand(quote::quote! {
+        pub KeysBadApp {
+            state { n: u32 = 0 }
+            keys { "ctrl-bogus" => n.set(1) }
+            render {
+                quoin_render! { p() { "x" } }
+            }
+        }
+    });
+    assert!(
+        text.contains("compile_error") && text.contains("ctrl-bogus"),
+        "a malformed keystroke must fail with the input named:\n{text}"
     );
 }
 
