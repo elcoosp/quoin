@@ -1,23 +1,45 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import astroTakumi from 'astro-takumi';
+import fs from 'node:fs';
+import { makeRender } from './src/og-render.mjs';
 import starlightLinksValidator from 'starlight-links-validator';
 import starlightImageZoom from 'starlight-image-zoom';
 import starlightHeadingBadges from 'starlight-heading-badges';
 import starlightLlmsTxt from 'starlight-llms-txt';
 
+const __logoB64 = fs.readFileSync("./src/assets/logo.png").toString("base64");
+const __render = makeRender({
+  logoDataUrl: "data:image/png;base64," + __logoB64,
+  accentHex: "#74593e",
+  accentHexA12: "#74593e1a",
+  domain: "quoin-docs.vercel.app",
+  projectName: "Quoin",
+});
+
 export default defineConfig({
+	vite: {
+		ssr: { external: ["jsdom", "astro-takumi"] },
+	},
   // Provisional deployment origin. The `starlight-llms-txt` plugin requires a
   // `site` value to emit absolute URLs in llms.txt / llms-full.txt. Replace
   // with the real production origin when one exists — see
   // docs/decisions/0004-site-url-and-llms-txt.md.
-  site: 'https://quoin-docs.example.com',
+  site: 'https://quoin-docs.vercel.app',
   integrations: [
     starlight({
+			routeMiddleware: "./src/routeData.ts",
+      expressiveCode: {
+      	themes: ['github-light', 'github-dark'],
+      },
       title: 'Quoin',
       description:
         'One reactive core, many frameworks. Write reactive business logic once in Rust and run it on GPUI, Leptos, Dioxus, Xilem, or Floem.',
+
+
       logo: { src: './src/assets/logo.png' },
+      favicon: '/favicon.png',
       customCss: ['./src/styles/custom.css'],
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/elcoosp/quoin' },
@@ -106,5 +128,16 @@ export default defineConfig({
         }),
       ],
     }),
-  ],
+  
+		astroTakumi({
+			options: {
+				domBackend: "linkedom",
+				fonts: [fs.readFileSync("./node_modules/@fontsource/roboto/files/roboto-latin-400-normal.woff2")],
+				width: 1200,
+				height: 630,
+				format: "png",
+			},
+			render: __render,
+		}),
+	],
 });
