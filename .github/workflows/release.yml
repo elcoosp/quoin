@@ -67,10 +67,10 @@ jobs:
           cargo test --doc --workspace
 
       - name: Generate the full changelog with git-cliff
-        run: git cliff --verbose --output CHANGELOG.md
+        run: git cliff --config-url https://raw.githubusercontent.com/elcoosp/docs-toolkit/main/git-cliff/cliff.toml --verbose --output CHANGELOG.md
 
       - name: Extract the notes for the released version
-        run: git cliff --latest --strip all > release_notes.md
+        run: git cliff --config-url https://raw.githubusercontent.com/elcoosp/docs-toolkit/main/git-cliff/cliff.toml --latest --strip all > release_notes.md
 
       - name: Publish the GitHub Release
         run: |
