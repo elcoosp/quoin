@@ -4,7 +4,7 @@ description: API reference for the quoin-ui traits, node types, and variant enum
 type: reference
 ---
 
-import { LinkCard } from '@astrojs/starlight/components';
+import { Code, LinkCard } from '@astrojs/starlight/components';
 
 The `quoin-ui` crate defines framework-agnostic adapter traits for complex UI components. Adapter crates such as `quoin-ui-gpui` provide concrete implementations. Your code depends on the traits; the framework feature pulls in the implementation.
 
@@ -54,16 +54,14 @@ Supporting types: `Node`, `NodeChild`, `NodeEnv`, `NodeFactory`, `NodeStyle`, `S
 
 ## Example
 
-```rust
-use quoin_ui::{ButtonAdapter, ButtonVariant, ComponentSize};
+<Code lang="rust" code={`use quoin_ui::{ButtonAdapter, ButtonVariant, ComponentSize};
 
 let adapter = GpuiButtonAdapter::default();
 let button = adapter.render(Some("Click Me".into()), ButtonVariant {
     primary: true,
     size: ComponentSize::Medium,
     ..Default::default()
-});
-```
+});`} />
 
 ## Next steps
 

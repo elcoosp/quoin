@@ -4,7 +4,7 @@ description: API reference for Instrumented, EventLog, EventKind, and the record
 type: reference
 ---
 
-import { LinkCard } from '@astrojs/starlight/components';
+import { Code, LinkCard } from '@astrojs/starlight/components';
 
 `quoin-devtools` is a framework-agnostic instrumentation layer. Wrap any adapter's `ReactiveContext` and every signal creation, read-triggering mutation, task spawn, and UI update request is recorded into an inspectable `EventLog`.
 
@@ -41,20 +41,16 @@ The optional `tracing` feature forwards events into the `tracing` ecosystem.
 
 ## Example
 
-```rust
-use quoin_devtools::Instrumented;
+<Code lang="rust" code={`use quoin_devtools::Instrumented;
 
 let ctx = Instrumented::wrap(raw_ctx, "app");   // use ctx everywhere
 
 // From a debug hotkey, a panel, or on exit:
 quoin_devtools::global_log().dump();            // stderr table
 quoin_devtools::global_log().hot_signals();     // ranked mutation counts
-quoin_devtools::global_log().events();          // raw snapshot
-```
+quoin_devtools::global_log().events();          // raw snapshot`} />
 
-```sh
-QUOIN_TRACE=1 ./myapp    # enable recording from the environment
-```
+<Code lang="sh" code={`QUOIN_TRACE=1 ./myapp    # enable recording from the environment`} />
 
 ## Next steps
 

@@ -4,7 +4,7 @@ description: API reference for component!, quoin_render!, quoin_element!, effect
 type: reference
 ---
 
-import { Aside, LinkCard } from '@astrojs/starlight/components';
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
 
 All parsing and code generation lives in `quoin-macros-core`; the `quoin-macros` crate is the `proc_macro` boundary. The backend dispatch selects exactly one framework — enabling two framework features is a compile error, by design.
 
@@ -43,9 +43,7 @@ Element vocabulary includes `div`, `button`, `tabs`/`tab`, `data_table`/`column`
 
 Declares a named custom element with typed props and a render closure:
 
-```rust
-quoin_element!("my-widget", { width: u32 }, |props| quoin_render! { div { "w" } });
-```
+<Code lang="rust" code={`quoin_element!("my-widget", { width: u32 }, |props| quoin_render! { div { "w" } });`} />
 
 ## effect!
 

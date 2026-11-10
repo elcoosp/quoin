@@ -4,7 +4,7 @@ description: Build data tables, virtual lists, inputs, buttons, dropdowns, and t
 type: how-to
 ---
 
-import { Aside, LinkCard } from '@astrojs/starlight/components';
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
 
 You will build rich components — tables, virtual lists, dropdown menus, clipboard access — through the Universal Component Protocol (UCP), so the composition code stays framework-agnostic while an adapter crate supplies the native rendering.
 
@@ -23,27 +23,23 @@ Your code talks to the traits; the framework feature pulls in the implementation
 
 `ButtonVariant` selects emphasis (`primary`, `ghost`, `destructive`) and density (`ComponentSize::Small | Medium | Large`):
 
-```rust
-use quoin_ui::{ButtonAdapter, ButtonVariant, ComponentSize};
+<Code lang="rust" code={`use quoin_ui::{ButtonAdapter, ButtonVariant, ComponentSize};
 
 let adapter = GpuiButtonAdapter::default();
 let button = adapter.render(Some("Click Me".into()), ButtonVariant {
     primary: true,
     size: ComponentSize::Medium,
     ..Default::default()
-});
-```
+});`} />
 
 ## Declare a sortable data table
 
 Inside `quoin_render!`, the `data_table` element declares columns with keys, labels, and render closures; sorting and striping come from attributes:
 
-```rust
-data_table(rows: people, striped: true) {
+<Code lang="rust" code={`data_table(rows: people, striped: true) {
     column(key: "name", label: "Name", render: |p: &Person| p.name.clone())
     column(key: "age",  label: "Age",  render: |p: &Person| p.age.to_string())
-}
-```
+}`} />
 
 `SortDirection` (`None | Asc | Desc`) models the per-column sort state on the `TableAdapter` side.
 
@@ -55,9 +51,7 @@ data_table(rows: people, striped: true) {
 
 The `Clipboard` trait abstracts the system clipboard; the `clipboard_button` element wires a button that copies text and reports success:
 
-```rust
-clipboard_button(copy_text: "Copied!") { "Copy" }
-```
+<Code lang="rust" code={`clipboard_button(copy_text: "Copied!") { "Copy" }`} />
 
 ## Theme tokens
 

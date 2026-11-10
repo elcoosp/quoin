@@ -4,7 +4,7 @@ description: API reference for every cargo feature on the quoin facade, includin
 type: reference
 ---
 
-import { Aside, LinkCard } from '@astrojs/starlight/components';
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
 
 The `quoin` facade crate composes the ecosystem behind feature flags. **Exactly one framework feature may be enabled per crate** — Quoin enforces this with `compile_error!` diagnostics naming the mutually exclusive features.
 
@@ -45,14 +45,12 @@ Use together with the matching framework feature; they activate the shadcn featu
 
 ## Example
 
-```toml
-[dependencies]
+<Code lang="toml" code={`[dependencies]
 # Application targeting GPUI with UCP widgets, testkit, and devtools:
 quoin = { version = "0.1", features = ["gpui", "testkit", "devtools"] }
 
 # Framework-free hook library:
-quoin-core = "0.1"
-```
+quoin-core = "0.1"`} />
 
 ## Next steps
 

@@ -4,7 +4,7 @@ description: Add Quoin to a Rust project, choose the right feature flags, and sa
 type: how-to
 ---
 
-import { Tabs, TabItem, Aside, LinkCard } from '@astrojs/starlight/components';
+import { Aside, Code, LinkCard, TabItem, Tabs } from '@astrojs/starlight/components';
 
 This guide gets Quoin into an existing Cargo project and explains every feature flag you can enable. Quoin supports Rust 1.88 and newer (the workspace declares `rust-version = "1.88"`).
 
@@ -20,38 +20,26 @@ Enable exactly **one** framework feature — this choice selects the adapter com
 
 <Tabs>
   <TabItem label="GPUI">
-    ```sh
-    cargo add quoin --features gpui
-    ```
+    <Code lang="sh" code={`cargo add quoin --features gpui`} />
   </TabItem>
   <TabItem label="Leptos">
-    ```sh
-    cargo add quoin --features leptos
-    ```
+    <Code lang="sh" code={`cargo add quoin --features leptos`} />
   </TabItem>
   <TabItem label="Dioxus">
-    ```sh
-    cargo add quoin --features dioxus
-    ```
+    <Code lang="sh" code={`cargo add quoin --features dioxus`} />
   </TabItem>
   <TabItem label="Xilem">
-    ```sh
-    cargo add quoin --features xilem
-    ```
+    <Code lang="sh" code={`cargo add quoin --features xilem`} />
   </TabItem>
   <TabItem label="Floem">
-    ```sh
-    cargo add quoin --features floem
-    ```
+    <Code lang="sh" code={`cargo add quoin --features floem`} />
   </TabItem>
 </Tabs>
 
 This is equivalent to editing `Cargo.toml`:
 
-```toml
-[dependencies]
-quoin = { version = "0.1", features = ["gpui"] }
-```
+<Code lang="toml" code={`[dependencies]
+quoin = { version = "0.1", features = ["gpui"] }`} />
 
 <Aside type="caution">
   Enabling two framework features on the same crate is a compile error. Quoin emits a `compile_error!` naming the mutually exclusive features rather than silently picking one.
@@ -61,10 +49,8 @@ quoin = { version = "0.1", features = ["gpui"] }
 
 If you are writing a shared hook or store crate that must stay framework-free, depend on `quoin-core` instead of `quoin`. It contains the traits and portable machinery with no adapter compiled in:
 
-```toml
-[dependencies]
-quoin-core = "0.1"
-```
+<Code lang="toml" code={`[dependencies]
+quoin-core = "0.1"`} />
 
 Consumers of your crate then pick the framework by enabling one feature on their `quoin` dependency and passing your hook any context that implements `ReactiveContext`.
 
@@ -93,8 +79,7 @@ The full reference with dependencies between flags lives in [Feature Flags](/ref
 
 Create a signal and read it back in a unit test using `quoin-testkit` — no window, no browser:
 
-```rust
-use quoin::prelude::*;
+<Code lang="rust" code={`use quoin::prelude::*;
 use quoin::testkit::{TestContext, ImmediateExecutor};
 
 #[test]
@@ -103,12 +88,9 @@ fn signal_round_trip() {
     let count = cx.create_signal(0u32);
     count.set(42);
     assert_eq!(count.get(), 42);
-}
-```
+}`} />
 
-```sh
-cargo test
-```
+<Code lang="sh" code={`cargo test`} />
 
 **Expected output:** the test passes, confirming the adapter compiled and the context works.
 

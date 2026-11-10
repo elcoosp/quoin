@@ -4,7 +4,7 @@ description: API reference for the Signal trait and the SignalExt extension meth
 type: reference
 ---
 
-import { Aside, LinkCard } from '@astrojs/starlight/components';
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
 
 `Signal<T>` is a readable and writable reactive value. Signals are `Clone`, which makes them convenient to pass into closures and store in structs. Every adapter implements the same trait, and the blanket `SignalExt` extension adds convenience methods with zero per-adapter overhead.
 
@@ -31,8 +31,7 @@ Import: `use quoin_core::prelude::*;`
 
 ## Example
 
-```rust
-let signal = cx.create_signal(42u32);
+<Code lang="rust" code={`let signal = cx.create_signal(42u32);
 assert_eq!(signal.get(), 42);
 signal.with(|v| println!("{v}"));   // borrow without cloning
 signal.set(100);
@@ -41,8 +40,7 @@ assert_eq!(signal.get(), 101);
 
 signal.set_eq(101);                 // false — unchanged, no update requested
 let old = signal.replace(7);        // old == 101
-let taken = signal.take();          // taken == 7, signal now 0
-```
+let taken = signal.take();          // taken == 7, signal now 0`} />
 
 <Aside type="note">
   On pull-based adapters (GPUI, Xilem) every mutation calls `request_update()`. Prefer `set_eq` for values that frequently receive equal writes.

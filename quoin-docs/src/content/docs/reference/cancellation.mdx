@@ -4,7 +4,7 @@ description: API reference for CancellationToken, CancelGuard, and the futures u
 type: reference
 ---
 
-import { LinkCard } from '@astrojs/starlight/components';
+import { Code, LinkCard } from '@astrojs/starlight/components';
 
 `CancellationToken` is a lightweight, cloneable token that signals cancellation to spawned futures. It integrates seamlessly with the async executors provided by UI frameworks and behaves identically on all five adapters.
 
@@ -34,8 +34,7 @@ Import: `use quoin_core::prelude::*;`
 
 ## Example
 
-```rust
-let token = CancellationToken::new();
+<Code lang="rust" code={`let token = CancellationToken::new();
 executor.spawn({
     let token = token.clone();
     async move {
@@ -51,8 +50,7 @@ token.cancel();
 let parent = CancellationToken::new();
 let per_request = parent.child_token();        // cancels with the parent
 let _guard = parent.guard();                   // RAII: cancels on drop
-let value = parent.run_until_cancelled(work()).await;
-```
+let value = parent.run_until_cancelled(work()).await;`} />
 
 ## Next steps
 

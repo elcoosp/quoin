@@ -1,10 +1,21 @@
 ---
 title: Quoin Documentation
+template: splash
 description: One reactive core, many frameworks — write reactive Rust UI logic once and run it on GPUI, Leptos, Dioxus, Xilem, or Floem.
 type: explanation
+hero:
+  title: "Quoin Documentation"
+  tagline: "One reactive core, many frameworks — write reactive Rust UI logic once and run it on GPUI, Leptos, Dioxus, Xilem, or Floem."
+  image:
+    file: ../../assets/logo.png
+    alt: "Quoin Documentation"
+  actions:
+    - text: Start the tutorial
+      link: /tutorials/build-a-counter/
+      icon: right-arrow
 ---
 
-import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+import { Card, CardGrid, LinkButton, LinkCard } from '@astrojs/starlight/components';
 
 Quoin is a framework-agnostic reactive abstraction layer for Rust. You write your business logic once against a small set of traits — signals, effects, async tasks, cancellation, global state — and the same code runs under GPUI, Leptos, Dioxus, Xilem, or Floem. You enable exactly one framework feature at compile time, and the shared [conformance suite](/explanation/backend-parity/) guarantees every adapter behaves identically.
 
@@ -24,6 +35,8 @@ Quoin is a framework-agnostic reactive abstraction layer for Rust. You write you
     Explanations describe why Quoin exists, how the crate graph fits together, and how the reactivity model works under the hood.
   </Card>
 </CardGrid>
+
+<LinkButton href="/tutorials/build-a-counter/" icon="right-arrow">Start the tutorial</LinkButton>
 
 ## Supported frameworks
 

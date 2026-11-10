@@ -4,7 +4,7 @@ description: Define components, render JSX-like trees, run effects, and bootstra
 type: how-to
 ---
 
-import { Aside, LinkCard, Badge } from '@astrojs/starlight/components';
+import { Aside, Badge, Code, LinkCard } from '@astrojs/starlight/components';
 
 You will replace hand-written framework view code with Quoin's declarative macros. One syntax expands to native code for your chosen framework: a `Render` impl on GPUI, a `#[component]` function on Leptos and Dioxus.
 
@@ -14,8 +14,7 @@ You will replace hand-written framework view code with Quoin's declarative macro
 
 `component!` declares props, reactive state, globals, lifecycle hooks, actions, and the render tree in one block:
 
-```rust
-use quoin_macros::component;
+<Code lang="rust" code={`use quoin_macros::component;
 
 component! {
     pub DemoApp {
@@ -56,8 +55,7 @@ component! {
             }
         }
     }
-}
-```
+}`} />
 
 Framework output:
 
@@ -71,8 +69,7 @@ State fields declared in `state` become signals; plain Rust code inside `render`
 
 The render syntax is JSX-like with named attributes, conditional blocks, and loops:
 
-```rust
-use quoin_macros::quoin_render;
+<Code lang="rust" code={`use quoin_macros::quoin_render;
 
 quoin_render! {
     div(class: "flex flex-col gap-4 p-4 bg-gray-900 text-white h-full") {
@@ -93,8 +90,7 @@ quoin_render! {
         }
         clipboard_button(copy_text: "Copied!") { "Copy" }
     }
-}
-```
+}`} />
 
 Beyond `div` and `button`, the element vocabulary includes the rich components the emitters support per framework: `tabs`, `data_table`, `virtual_list`, `dropdown_menu`, `input`, `checkbox`, `radio`, `switch`, `slider`, `icon`, `badge`, `tooltip`, `progress`, `skeleton`, `scroll_area`, `separator`, and `styled_text`. Handlers receive [typed events](/reference/events/), so the same handler source compiles on all backends.
 
@@ -102,8 +98,7 @@ Beyond `div` and `button`, the element vocabulary includes the rich components t
 
 `effect!` has a structured form with dependencies, a run closure, and optional cleanup:
 
-```rust
-use quoin_macros::effect;
+<Code lang="rust" code={`use quoin_macros::effect;
 
 effect! { watch: [count], || println!("Count changed: {}", count.get()) }
 
@@ -116,8 +111,7 @@ effect! {
     cleanup: || {
         cancel_pending_request();
     }
-}
-```
+}`} />
 
 - **Leptos** expands to `create_effect` + `on_cleanup`.
 - **Dioxus** expands to `use_effect` + `use_drop`.
@@ -127,11 +121,9 @@ effect! {
 
 One line mounts your component:
 
-```rust
-run_app!(MyComponent);                            // GPUI with default window options
+<Code lang="rust" code={`run_app!(MyComponent);                            // GPUI with default window options
 run_app!(MyComponent, window_opts: custom_opts);  // GPUI with a custom window
-run_app!(MyComponent);                            // Leptos/Dioxus mount to body
-```
+run_app!(MyComponent);                            // Leptos/Dioxus mount to body`} />
 
 ## Define reusable elements with `quoin_element!`
 
@@ -139,11 +131,9 @@ run_app!(MyComponent);                            // Leptos/Dioxus mount to body
 
 `quoin_element!` declares a named custom element with typed props, rendered through a `quoin_render!` closure:
 
-```rust
-quoin_element!("my-widget", { width: u32 }, |props| quoin_render! {
+<Code lang="rust" code={`quoin_element!("my-widget", { width: u32 }, |props| quoin_render! {
     div { "w" }
-});
-```
+});`} />
 
 <Aside type="note">
   The GPUI backend additionally re-exports the gpui-rsx escape hatch (`rsx!`, `rsx_strict!`, `#[component]`, …) under the `rsx` feature for GPUI-only subtrees inside `quoin_render!` render blocks — see the [styling guide](/guides/styling/#escape-hatch-for-gpui-only-subtrees).

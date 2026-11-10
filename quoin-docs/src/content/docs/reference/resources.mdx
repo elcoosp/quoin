@@ -4,7 +4,7 @@ description: API reference for Resource and ResourceState — the async data loa
 type: reference
 ---
 
-import { LinkCard } from '@astrojs/starlight/components';
+import { Code, LinkCard } from '@astrojs/starlight/components';
 
 `Resource` models the full lifecycle of an async computation whose result feeds the UI. It is the framework-agnostic equivalent of Leptos' `Resource` and Dioxus' `use_resource`, and works on every adapter because it is built from two primitives every adapter provides: a `Signal` and an `Executor`.
 
@@ -12,9 +12,7 @@ Import: `use quoin_core::prelude::*;`
 
 ## Lifecycle
 
-```text
-Idle → Loading → Ready(T) | Failed(E)
-```
+<Code lang="text" code={`Idle → Loading → Ready(T) | Failed(E)`} />
 
 Every reload cancels the in-flight request and returns the resource to `Loading`. A generation counter makes reloads race-free: a stale request can never overwrite a newer one's result.
 
@@ -39,9 +37,8 @@ Every reload cancels the in-flight request and returns the resource to `Loading`
 
 Created via `ReactiveContextExt::create_resource`; cloning a `Resource` shares the same underlying state.
 
-```rust
-let user = cx.create_resource(|token| async move {
-    // Real fetch here; check `token.is_cancelled()` between awaits.
+<Code lang="rust" code={`let user = cx.create_resource(|token| async move {
+    // Real fetch here; check \`token.is_cancelled()\` between awaits.
     Ok::<User, FetchError>(fetch_user(&token).await?)
 });
 
@@ -54,8 +51,7 @@ match user.state().get() {
 }
 
 // Reload — cancels the in-flight request first:
-user.reload_with(&cx, fetch_user_closure);
-```
+user.reload_with(&cx, fetch_user_closure);`} />
 
 ## Design guarantees
 

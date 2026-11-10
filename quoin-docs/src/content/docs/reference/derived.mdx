@@ -4,7 +4,7 @@ description: API reference for derived(), map(), zip(), and Memo — computed vi
 type: reference
 ---
 
-import { Aside, LinkCard } from '@astrojs/starlight/components';
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
 
 A `Derived` signal wraps an existing `Signal` and computes its value lazily from the source signal on every read. It mirrors "computed" primitives from fine-grained reactive frameworks but works uniformly across all adapters: on Leptos, Dioxus, and Floem the source read inside the closure is tracked by the reactive graph; on GPUI and Xilem a source mutation triggers a re-render and the next read recomputes.
 
@@ -34,8 +34,7 @@ Import: `use quoin_core::prelude::*;`
 
 ## Example
 
-```rust
-let count = cx.create_signal(2u32);
+<Code lang="rust" code={`let count = cx.create_signal(2u32);
 
 let label = count.map(|n| format!("count = {n}"));   // recomputed on read
 assert_eq!(label.get(), "count = 2");
@@ -46,8 +45,7 @@ assert_eq!(doubled.get(), 4);
 let both = quoin_core::zip(&a, &b);                  // tuple of two signals
 assert_eq!(both.get(), (1, 2));
 
-let expensive = quoin_core::memo(&source, heavy_transform);
-```
+let expensive = quoin_core::memo(&source, heavy_transform);`} />
 
 <Aside type="caution">
   Derived closures must be pure and cheap — they run on every read. Move expensive or allocation-heavy computations into a `Memo`, which caches until the source changes.

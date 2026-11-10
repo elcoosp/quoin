@@ -4,7 +4,7 @@ description: Fetch remote data with race-free resources, spawn async tasks on th
 type: how-to
 ---
 
-import { Aside, LinkCard } from '@astrojs/starlight/components';
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
 
 You will load remote data into the UI without races between stale and fresh responses, and you will run background work on the framework's native async runtime.
 
@@ -14,8 +14,7 @@ You will load remote data into the UI without races between stale and fresh resp
 
 `cx.create_resource` gives every adapter the async-data lifecycle familiar from Leptos and Dioxus: `Idle → Loading → Ready(T) | Failed(E)`. Pass a closure that receives a [`CancellationToken`](/reference/cancellation/) and returns a future:
 
-```rust
-let user = cx.create_resource(|token| async move {
+<Code lang="rust" code={`let user = cx.create_resource(|token| async move {
     // Check the token between awaits so reloads stop stale work:
     Ok::<User, FetchError>(fetch_user(&token).await?)
 });
@@ -26,8 +25,7 @@ match user.state().get() {
     ResourceState::Loading => render_spinner(),
     ResourceState::Failed(err) => render_error(&err),
     ResourceState::Idle => render_placeholder(),
-}
-```
+}`} />
 
 The resource handles the two problems that plague hand-rolled fetch loops:
 
@@ -40,14 +38,12 @@ Call `user.reload_with(&cx, fetch)` to re-run the fetch closure; the state retur
 
 For work that is not tied to a resource, spawn onto the framework runtime with the executor:
 
-```rust
-let handle = cx.executor().spawn(async {
+<Code lang="rust" code={`let handle = cx.executor().spawn(async {
     let data = fetch_from_api().await;
     signal.set(data);
 });
 
-// Later: await the result (Err(Canceled) if aborted), abort(), or detach().
-```
+// Later: await the result (Err(Canceled) if aborted), abort(), or detach().`} />
 
 Every adapter implements the same join-handle lifecycle:
 
@@ -64,25 +60,21 @@ Cancellation is cooperative on the thread-based adapters (Leptos, Dioxus, Floem)
 
 `spawn_with_token` (from `ExecutorExt`, in the prelude) creates a cancellation token and hands it to your future:
 
-```rust
-let (handle, token) = cx.executor().spawn_with_token(|t| async move {
+<Code lang="rust" code={`let (handle, token) = cx.executor().spawn_with_token(|t| async move {
     while !t.is_cancelled() {
         do_work().await;
     }
 });
 // User navigated away:
-token.cancel();
-```
+token.cancel();`} />
 
 ## Run !Send futures with spawn_local
 
 Browsers run WASM on a single thread and most DOM-touching futures are `!Send`. The `LocalExecutor` machinery covers both worlds:
 
-```rust
-use quoin_core::LocalExecutor;
+<Code lang="rust" code={`use quoin_core::LocalExecutor;
 
-cx.executor().spawn_local(async { update_dom().await });
-```
+cx.executor().spawn_local(async { update_dom().await });`} />
 
 - **On `wasm32`** tasks run on the browser main thread via `wasm_bindgen_futures`.
 - **On native** tasks enter a deterministic thread-local FIFO queue driven by `quoin_core::local::run_local_tasks()` — useful in tests.
@@ -95,9 +87,7 @@ cx.executor().spawn_local(async { update_dom().await });
 
 Timers are part of the executor contract. `executor.sleep(duration)` returns a future on every adapter (futures-timer on native, browser timers on WASM), and the free function `quoin_core::sleep` gives you a standalone `SyncSleepFuture`:
 
-```rust
-cx.executor().sleep(Duration::from_millis(250)).await;
-```
+<Code lang="rust" code={`cx.executor().sleep(Duration::from_millis(250)).await;`} />
 
 ## Next steps
 

@@ -4,7 +4,7 @@ description: API reference for the Executor trait, JoinHandle lifecycle, local (
 type: reference
 ---
 
-import { Aside, LinkCard } from '@astrojs/starlight/components';
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
 
 `Executor` spawns futures onto the framework's native async runtime. Every adapter implements the same trait and the same join-handle lifecycle, so task code is portable.
 
@@ -62,8 +62,7 @@ GPUI does **not** implement `LocalExecutor` — its executor is `!Send` by desig
 
 ## Example
 
-```rust
-let handle = executor.spawn(async {
+<Code lang="rust" code={`let handle = executor.spawn(async {
     let data = fetch_from_api().await;
     signal.set(data);
 });
@@ -72,8 +71,7 @@ let result = handle.await?;        // Err(Canceled) if aborted
 let (h, token) = executor.spawn_with_token(|t| async move {
     while !t.is_cancelled() { do_work().await; }
 });
-executor.sleep(Duration::from_millis(250)).await;
-```
+executor.sleep(Duration::from_millis(250)).await;`} />
 
 ## Next steps
 

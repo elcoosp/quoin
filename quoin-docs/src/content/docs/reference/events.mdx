@@ -4,7 +4,7 @@ description: API reference for the ev module — small value-type events that ke
 type: reference
 ---
 
-import { Aside, LinkCard } from '@astrojs/starlight/components';
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
 
 The `ev` module (re-exported from the `quoin` facade as `quoin::ev`) defines typed events shared by every backend. Handlers receive small value types instead of framework-native event objects, so the same handler source compiles on all five adapters. Each adapter converts from its own event type through `From` impls that are `#[inline(always)]` in generated code.
 
@@ -25,13 +25,11 @@ Import: `use quoin::ev;` (facade) — the types are value structs.
 
 ## Example
 
-```rust
-// Zero-parameter handler — valid on every backend:
+<Code lang="rust" code={`// Zero-parameter handler — valid on every backend:
 button(class: "px-4 py-2", on_click: || increment())
 
 // One-parameter handler receiving the typed payload:
-button(on_click: |ev: quoin::ev::Click| { /* ... */ })
-```
+button(on_click: |ev: quoin::ev::Click| { /* ... */ })`} />
 
 <Aside type="note">
   Because payloads are plain value types with `From` conversions in the generated code, a handler written against `ev` types never mentions a framework event type — that is what keeps the render tree portable.

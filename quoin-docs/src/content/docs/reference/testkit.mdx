@@ -4,7 +4,7 @@ description: API reference for TestContext, the deterministic executors, and Upd
 type: reference
 ---
 
-import { LinkCard } from '@astrojs/starlight/components';
+import { Code, LinkCard } from '@astrojs/starlight/components';
 
 `quoin-testkit` provides concrete, dependency-light implementations of the core traits designed for tests. Reactive business logic written against `ReactiveContext` runs headlessly — no window manager, no browser, fully deterministic.
 
@@ -39,8 +39,7 @@ Import: `use quoin_testkit::{TestContext, ImmediateExecutor, …};` or through t
 
 ## Example
 
-```rust
-use quoin_core::prelude::*;
+<Code lang="rust" code={`use quoin_core::prelude::*;
 use quoin_testkit::{ImmediateExecutor, TestContext};
 
 let mut cx = TestContext::with_executor(ImmediateExecutor);
@@ -48,8 +47,7 @@ let count = cx.create_signal(0u32);
 count.set(41);
 count.update(|v| *v += 1);
 assert_eq!(count.get(), 42);
-assert_eq!(cx.updates().count(), 2, "set + update each requested a re-render");
-```
+assert_eq!(cx.updates().count(), 2, "set + update each requested a re-render");`} />
 
 ## Next steps
 

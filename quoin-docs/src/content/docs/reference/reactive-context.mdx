@@ -4,7 +4,7 @@ description: API reference for the ReactiveContext trait and the ReactiveContext
 type: reference
 ---
 
-import { LinkCard } from '@astrojs/starlight/components';
+import { Code, LinkCard } from '@astrojs/starlight/components';
 
 `ReactiveContext` is the entry point for creating signals and accessing framework services. Adapter crates provide the concrete implementations (`GpuiContext`, `LeptosContext`, …); your code depends only on the trait.
 
@@ -35,8 +35,7 @@ Blanket-implemented over every `ReactiveContext`; included in the prelude.
 
 ## Example
 
-```rust
-let signal = cx.create_signal(0);            // create reactive state
+<Code lang="rust" code={`let signal = cx.create_signal(0);            // create reactive state
 let executor = cx.executor();                // async task spawner
 cx.request_update();                         // mark UI as dirty
 
@@ -47,8 +46,7 @@ if let Some(theme) = cx.use_global::<Theme>() {
 
 let res = cx.create_resource(|token| async move { /* fetch */ });
 cx.batch(|| { a.set(1); b.set(2); });        // one update request
-let settings = cx.use_global_or_init(Settings::default);
-```
+let settings = cx.use_global_or_init(Settings::default);`} />
 
 ## Next steps
 

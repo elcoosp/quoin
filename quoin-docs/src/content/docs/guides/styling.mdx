@@ -4,7 +4,7 @@ description: Style quoin_render! trees with Tailwind utility classes that compil
 type: how-to
 ---
 
-import { Aside, LinkCard, Badge } from '@astrojs/starlight/components';
+import { Aside, Badge, Code, LinkCard } from '@astrojs/starlight/components';
 
 You will style declarative components with Tailwind utility classes. Class strings are parsed **at compile time** into Quoin's typed style IR and lowered to framework-native builder calls — there is no runtime class parsing and no string lookup in the emitted code.
 
@@ -12,23 +12,19 @@ You will style declarative components with Tailwind utility classes. Class strin
 
 ## Write classes in the tree
 
-```rust
-quoin_render! {
+<Code lang="rust" code={`quoin_render! {
     div(class: "flex flex-col gap-4 p-4 bg-gray-900 text-white h-full") {
         div(class: "text-2xl font-bold hover:text-blue-400") { "Hello" }
         button(class: "px-4 py-2 bg-blue-600 rounded-md", on_click: move |_| increment()) {
             "Increment"
         }
     }
-}
-```
+}`} />
 
 On GPUI this compiles to method chains:
 
-```rust
-.flex().flex_col().gap(px(16.0)).p(px(16.0)).bg(rgb(0x111827))
-.hover(|s| s.text_color(rgb(0x60a5fa)))
-```
+<Code lang="rust" code={`.flex().flex_col().gap(px(16.0)).p(px(16.0)).bg(rgb(0x111827))
+.hover(|s| s.text_color(rgb(0x60a5fa)))`} />
 
 The same class string lowers to each backend's native styling mechanism, so one source serves all frameworks.
 

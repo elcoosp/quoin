@@ -4,7 +4,7 @@ description: Write reusable reactive hooks — signals, derived state, and effec
 type: how-to
 ---
 
-import { Aside, LinkCard } from '@astrojs/starlight/components';
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
 
 You will extract reactive business logic into hook functions that know nothing about the view framework. This is the core Quoin workflow: hooks depend only on the `ReactiveContext` and `Signal` traits, so the same function serves GPUI, Leptos, Dioxus, Xilem, and Floem.
 
@@ -14,8 +14,7 @@ You will extract reactive business logic into hook functions that know nothing a
 
 Write hooks as free functions generic over `C: ReactiveContext` and return your own struct so callers get a typed handle:
 
-```rust
-use quoin_core::prelude::*;
+<Code lang="rust" code={`use quoin_core::prelude::*;
 use std::rc::Rc;
 
 pub struct SearchBox<S: Signal<String>> {
@@ -30,8 +29,7 @@ pub fn use_search<C: ReactiveContext>(cx: &C) -> SearchBox<C::Signal<String>> {
         Rc::new(move || query.set(String::new()))
     };
     SearchBox { query, clear }
-}
-```
+}`} />
 
 Import with `use quoin_core::prelude::*;` (framework-free crates) or `use quoin::prelude::*;` (application crates). The prelude includes the extension traits, so `.map()`, `set_eq()`, and `create_resource()` are available without extra imports.
 
@@ -39,8 +37,7 @@ Import with `use quoin_core::prelude::*;` (framework-free crates) or `use quoin:
 
 Never store what you can compute. Derived signals recompute on read and work on every adapter:
 
-```rust
-let count = cx.create_signal(2u32);
+<Code lang="rust" code={`let count = cx.create_signal(2u32);
 
 // Free function form:
 let label = quoin_core::derived(&count, |n| format!("count = {n}"));
@@ -50,8 +47,7 @@ assert_eq!(label.get(), "count = 2");
 let doubled = count.map(|n| n * 2);
 
 // Combine two signals into a tuple:
-let both = quoin_core::zip(&a, &b);
-```
+let both = quoin_core::zip(&a, &b);`} />
 
 Keep derive closures cheap — they run on every read. When the computation is expensive, wrap it in a [`Memo`](/reference/derived/), which caches its output until the source value changes.
 
@@ -59,8 +55,7 @@ Keep derive closures cheap — they run on every read. When the computation is e
 
 The `effect!` macro runs a side effect whenever its dependencies change, with optional cleanup:
 
-```rust
-use quoin_macros::effect;
+<Code lang="rust" code={`use quoin_macros::effect;
 
 effect! {
     deps: [query],
@@ -71,8 +66,7 @@ effect! {
     cleanup: || {
         cancel_pending_request();
     }
-}
-```
+}`} />
 
 Each adapter lowers this to its native mechanism: `create_effect` + `on_cleanup` on Leptos, `use_effect` + `use_drop` on Dioxus, and run-on-execute with cleanup-on-drop on GPUI. See the [macros reference](/reference/macros/) for the legacy `watch: [...]` syntax and full semantics.
 
@@ -80,12 +74,10 @@ Each adapter lowers this to its native mechanism: `create_effect` + `on_cleanup`
 
 When a handler writes several signals, wrap the writes in a batch so pull-based adapters (GPUI, Xilem) receive one re-render request instead of one per write:
 
-```rust
-cx.batch(|| {
+<Code lang="rust" code={`cx.batch(|| {
     a.set(1);
     b.set(2);
-});
-```
+});`} />
 
 Fine-grained frameworks batch internally, so the call is safe on every adapter.
 

@@ -1,0 +1,2163 @@
+---
+title: Architecture
+description: How the Quoin workspace is organized — the facade, the core traits, the adapter crates, and the shared machinery beneath them.
+type: explanation
+---
+
+import { Code, LinkCard } from '@astrojs/starlight/components';
+
+Quoin's architecture separates three concerns: a small trait contract, five adapters that implement it natively, and shared machinery that keeps the adapters consistent. Everything composes through the `quoin` facade crate.
+
+## The layers
+
+<Code lang="text" code={`        your app / your hook library
+                    │
+              quoin (facade)          ← feature flags pick one backend
+        ┌─────────┼─────────┐
+   quoin-macros  quoin-ui   quoin-core   ← contract + tooling
+        │           │          │
+   quoin-macros-core quoin-style      ← parsing & codegen
+        │
+   ┌────┴─────┬──────────┬───────────┬──────────┐
+ quoin-gpui quoin-leptos quoin-dioxus quoin-xilem quoin-floem
+        └──────────┴──────────┴─────┬─────┴──────────┘
+                    shared machinery in quoin-core
+              join · globals · NotifierSignal · batch · pool`} />
+
+## The contract layer
+
+`quoin-core` defines the traits every adapter implements: `Signal<T>`, `ReactiveContext`, `Executor`, plus the blanket extension traits (`SignalExt`, `ExecutorExt`, `ReactiveContextExt`) that are implemented once, generically, so every adapter gets them for free with zero per-adapter code. Portable conveniences also live here: derived/memo/zip, resources, batching, cancellation, `spawn_local`, timers, and pooling.
+
+## The adapter layer
+
+Each adapter crate (`quoin-gpui`, `quoin-leptos`, `quoin-dioxus`, `quoin-xilem`, `quoin-floem`) provides a concrete `ReactiveContext` for its framework. Adapters share machinery that used to be hand-copied five times:
+
+- **join** — the `JoinHandle` lifecycle (await / abort / detach / abort-on-drop) is written once; only the "how do we cancel the underlying task" part differs per framework.
+- **globals** — the thread-local, `TypeId`-keyed store behind `provide_global`/`use_global` on the pull-based adapters.
+- **NotifierSignal** — the cell-plus-notifier signal implementation with batch awareness.
+
+On `wasm32`, the Leptos and Dioxus executors run futures on the main thread via `wasm_bindgen_futures`; on native they use threads like the other adapters.
+
+## The macro layer
+
+`quoin-macros` is a thin `proc_macro` boundary over `quoin-macros-core`, which parses `component!`/`quoin_render!`/`effect!` once and emits per-backend code through `FrameworkEmitter` implementations. Class strings are parsed by `quoin-style` into a typed IR (`Decl` lists per state) — one parse, many lowerings, no runtime class parsing. Unrecognized classes become compile errors with did-you-mean suggestions.
+
+## The protocol and tooling layer
+
+- `quoin-ui` declares the Universal Component Protocol traits and node vocabulary; `quoin-ui-gpui` is the first full implementation.
+- `quoin-testkit` supplies `TestContext` and deterministic executors for headless testing.
+- `quoin-devtools` wraps any context with `Instrumented` and records events into a ring buffer.
+- `quoin-conformance` holds the shared suite that every adapter must pass — the mechanism behind [backend parity](/explanation/backend-parity/).
+
+## Facade composition
+
+The `quoin` facade re-exports all of the above behind feature flags. Framework features are mutually exclusive (a `compile_error!` fires otherwise); `testkit` and `devtools` are additive. This keeps a typical application at one dependency line while letting framework-free libraries depend on `quoin-core` alone.
+
+## Next steps
+
+- <LinkCard title="The Reactivity Model" href="/explanation/reactivity-model/" description="How the contract maps onto pull-based and fine-grained frameworks." />
+- <LinkCard title="Crates" href="/reference/crates/" description="The per-crate reference table." />
+
+
+---
+
+---
+title: Backend Parity
+description: How Quoin guarantees identical adapter behavior — the shared conformance suite, macro expansion tests, and the class-engine parity harness.
+type: explanation
+---
+
+import { LinkCard } from '@astrojs/starlight/components';
+
+"Works identically on every adapter" is a testable claim, and Quoin tests it from three directions: behavior, code generation, and styling.
+
+## The conformance suite
+
+`quoin-conformance` contains a shared suite of 30+ checks that every adapter must pass. The suite exercises the full shared contract: signals and `set_eq`, derived and memo behavior, batching, shared globals, the join-handle lifecycle (await / abort / detach / drop-cancels), `spawn_with_token`, cancellation cascades, and executor timers (`executor_sleep_resolves`, `executor_spawned_task_sleeps`). Adapter crates run the same suite in their own test targets — for example `just test-conformance-gpui` — and CI runs it for every adapter on every push.
+
+Because the checks live in one suite rather than five hand-written test folders, a new behavior lands as one new check that immediately applies to all backends. The GPUI suite covers the full shared contract (31 checks, previously 19).
+
+## Macro expansion testing
+
+Three layers verify that one macro source produces correct code on each backend:
+
+- `quoin-macros-tests` — trybuild UI tests that assert both successful expansions (GPUI, Leptos, Dioxus pass cases) and exact compiler diagnostics for invalid input (missing `render`, unknown elements, missing defaults, unexpected identifiers).
+- `quoin-expand-test` — expansion snapshot testing via `just expand`.
+- `quoin-grsx-compiletest` — compiles full engine expansions (new vocabulary, variants, dynamic classes, control flow, handlers) against the vendored GPUI stub so emitted builder chains type-check without building real GPUI.
+
+## Class-engine parity
+
+`interop-tests` is the parity harness for the GPUI class engine. It gates:
+
+- **34/34 theme-token classes byte-identical** through gpui-rsx's `Theme`
+- **The GPUI ⊇ web vocabulary-superset gate** — everything the shared parser accepts must lower on GPUI
+- **The Tailwind-scale gate** — spacing utilities match the Tailwind 4 px scale
+- The variant table, plus diagnostic probes
+
+Under the `gpui-rsx-classes` flag, classes Quoin already knows keep their byte-identical lowering — the same parity tests verify it.
+
+## What parity means for you
+
+You can treat the adapter as an implementation detail. A hook that passes its conformance-backed contract — signals, effects, tasks, cancellation, globals — behaves the same whether the binary links GPUI or Leptos, which is what makes feature-flag re-targeting (the [tutorial's](/tutorials/build-a-counter/) final step) safe.
+
+## Next steps
+
+- <LinkCard title="The Reactivity Model" href="/explanation/reactivity-model/" description="What the conformance suite verifies about push vs pull adapters." />
+- <LinkCard title="Testing with quoin-testkit" href="/guides/testing/" description="Apply the same rigor to your own hooks." />
+
+
+---
+
+---
+title: The Reactivity Model
+description: How Quoin's signal model works — tracking on fine-grained frameworks, notifications on pull-based ones, and what batching, memos, and resources do under the hood.
+type: explanation
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+
+Quoin's five adapters fall into two families, and the reactivity model is designed so one set of user code behaves correctly on both.
+
+## Two families of frameworks
+
+**Fine-grained (Leptos, Dioxus, Floem).** The framework tracks which signals a render scope reads and re-runs that scope when a tracked signal changes. Quoin's signal reads participate in the native tracking, so a `derived` signal's source read inside the derive closure is tracked by the reactive graph — any consumer reading the derived value in a reactive scope re-runs when the source changes.
+
+**Pull-based (GPUI, Xilem).** The framework re-renders a component when it is notified. Quoin's signals call `request_update()` on mutation through the context notifier; the next render pulls fresh values, and derived signals recompute on their next read.
+
+The same hook is correct on both because it never assumes push or pull: it writes through `Signal` methods and reads wherever it needs values.
+
+## What each primitive does under the hood
+
+**Signals.** The shared implementation is `NotifierSignal` in `quoin-core` — a cell plus a batch-aware notifier. Adapters may use it directly or wrap their native signal types; either way the trait surface (`get`/`set`/`update`/`with`/`set_if_eq`) is identical.
+
+**Derived and memos.** `derived` recomputes the closure on every read; `Memo` remembers the last source value and caches its output until the source differs. On fine-grained frameworks tracking makes derived reads reactive; on pull-based ones the mutation-triggered re-render does the equivalent job.
+
+**Batching.** A thread-local depth counter. Inside `batch::with`, pull-based signals consult `should_notify()` and skip their notifier calls; when the outermost batch ends, one `request_update()` fires. Fine-grained frameworks batch internally and ignore the mechanism, so calling `cx.batch` is always safe.
+
+**Resources.** Built from a `Signal` holding `ResourceState` plus an `Executor` task. Each reload increments a generation counter; when a request completes it may only write its result if its generation is still current — that is what makes reloads race-free. The request also holds a `CancellationToken`, and the task is aborted through the executor's join handle, so a reload cancels the in-flight work both cooperatively (token) and structurally (abort).
+
+**Globals.** A thread-local, `TypeId`-keyed map keyed by context type and value type. This matches the main-thread assumptions of GPUI, Xilem, and Floem; the fine-grained adapters map their own stores onto the same observable semantics — one shared cell per (context, type) pair.
+
+**Local tasks.** On WASM, `spawn_local` delegates to `wasm_bindgen_futures::spawn_local` (browser main thread). On native, a `!Send` future cannot cross threads soundly, so tasks enter a thread-local FIFO queue and `run_local_tasks()` drives them one completion at a time — deterministic enough for tests.
+
+<Aside type="note">
+  The practical consequence: whether your app runs on a push-based renderer or a pull-based one, batching is an optimization (never a correctness fix), derived values are always consistent with their sources, and dropping a task handle always cancels the task.
+</Aside>
+
+## Next steps
+
+- <LinkCard title="Backend Parity" href="/explanation/backend-parity/" description="How identical behavior is verified with a shared conformance suite." />
+- <LinkCard title="Batched Updates" href="/reference/batching/" description="The batching API reference." />
+
+
+---
+
+---
+title: Why Quoin Exists
+description: The problems Quoin solves — framework lock-in, untestable UI logic, and duplicated reactivity code across the Rust GUI ecosystem.
+type: explanation
+---
+
+import { LinkCard } from '@astrojs/starlight/components';
+
+Building cross-platform Rust UI applications usually means choosing a framework and being locked into its reactivity model. GPUI, Leptos, Dioxus, Xilem, and Floem each define their own signal systems, task spawners, and state idioms. A search box, a todo store, or a data-fetching pipeline written for one of them cannot run on another.
+
+## The four problems
+
+**Write once, run anywhere.** The same reactive hooks — signals, derived values, async tasks — should work in GPUI, Leptos, Dioxus, Xilem, and Floem. Quoin defines those primitives once, as traits, and each framework adapter implements them.
+
+**Test in isolation.** UI logic that is welded to a framework is hard to test: you spin up windows or browsers to exercise a counter. Quoin decouples business logic from the view layer, so you mock a `ReactiveContext` — or use the headless `quoin-testkit` — and test with plain `cargo test`.
+
+**Switch frameworks without rewriting logic.** Change a feature flag and recompile; your hooks stay unchanged. The view layer is the only thing you rewrite, and the declarative macros shrink that too.
+
+**Share libraries.** Framework-agnostic crates that work with any Quoin-supported UI can be published and reused — the counter hook in the [tutorial](/tutorials/build-a-counter/) is one example, and `todo-core` and `fetch-core` in the repository are tested, end-to-end examples of the pattern.
+
+## The design stance
+
+- **Traits over wrappers.** Quoin does not hide the frameworks; it defines the smallest common contract (`Signal`, `ReactiveContext`, `Executor`) and lets adapters optimize natively.
+- **Compile-time selection.** Exactly one framework feature is enabled per crate, enforced with `compile_error!`. There is no runtime dispatch and no hidden priority between backends.
+- **Parity is tested, not assumed.** A shared conformance suite runs 30+ checks per adapter, so "works identically everywhere" is a CI gate rather than an aspiration.
+- **No unsafe code.** The workspace forbids `unsafe` outright and runs pedantic Clippy with warnings as errors.
+
+## What Quoin is not
+
+It is not a rendering framework, a widget toolkit replacement, or a virtual DOM. Rendering stays native to each framework; Quoin owns the reactive layer beneath it, plus optional declarative macros that emit native view code per framework.
+
+## Next steps
+
+- <LinkCard title="Build a Cross-Framework Counter" href="/tutorials/build-a-counter/" description="See the decoupling in action end to end." />
+- <LinkCard title="Architecture" href="/explanation/architecture/" description="How the crates and adapters are organized." />
+
+
+---
+
+---
+title: Loading Async Data
+description: Fetch remote data with race-free resources, spawn async tasks on the framework runtime, and use portable timers.
+type: how-to
+---
+
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
+
+You will load remote data into the UI without races between stale and fresh responses, and you will run background work on the framework's native async runtime.
+
+**Prerequisites:** a working Quoin setup and a context that implements `ReactiveContext` (see [Writing Portable Hooks](/guides/portable-hooks/)).
+
+## Load data with a resource
+
+`cx.create_resource` gives every adapter the async-data lifecycle familiar from Leptos and Dioxus: `Idle → Loading → Ready(T) | Failed(E)`. Pass a closure that receives a [`CancellationToken`](/reference/cancellation/) and returns a future:
+
+<Code lang="rust" code={`let user = cx.create_resource(|token| async move {
+    // Check the token between awaits so reloads stop stale work:
+    Ok::<User, FetchError>(fetch_user(&token).await?)
+});
+
+// Anywhere in the UI:
+match user.state().get() {
+    ResourceState::Ready(user) => render_user(&user),
+    ResourceState::Loading => render_spinner(),
+    ResourceState::Failed(err) => render_error(&err),
+    ResourceState::Idle => render_placeholder(),
+}`} />
+
+The resource handles the two problems that plague hand-rolled fetch loops:
+
+- **Race-free reloads** — every reload bumps a generation counter, so a stale request can never overwrite a newer result.
+- **Cooperative cancellation** — reloading cancels the in-flight request through its token and aborts the task through the executor's join handle.
+
+Call `user.reload_with(&cx, fetch)` to re-run the fetch closure; the state returns to `Loading` until the new request settles.
+
+## Spawn one-off tasks
+
+For work that is not tied to a resource, spawn onto the framework runtime with the executor:
+
+<Code lang="rust" code={`let handle = cx.executor().spawn(async {
+    let data = fetch_from_api().await;
+    signal.set(data);
+});
+
+// Later: await the result (Err(Canceled) if aborted), abort(), or detach().`} />
+
+Every adapter implements the same join-handle lifecycle:
+
+| Operation | Effect |
+| --- | --- |
+| `handle.await` | Waits for the result; the task runs to completion. |
+| `handle.abort()` | Cancels at the next suspension point; later awaits resolve with `Err(Canceled)`. |
+| `handle.detach()` | Fire-and-forget; the task runs to completion, its result is discarded. |
+| `drop(handle)` | Cancels the task — structured concurrency, no orphaned tasks mutating UI state. |
+
+Cancellation is cooperative on the thread-based adapters (Leptos, Dioxus, Floem): the future stops at its next `.await` point. GPUI and Xilem cancel natively.
+
+## Fetch-and-cancel in one call
+
+`spawn_with_token` (from `ExecutorExt`, in the prelude) creates a cancellation token and hands it to your future:
+
+<Code lang="rust" code={`let (handle, token) = cx.executor().spawn_with_token(|t| async move {
+    while !t.is_cancelled() {
+        do_work().await;
+    }
+});
+// User navigated away:
+token.cancel();`} />
+
+## Run !Send futures with spawn_local
+
+Browsers run WASM on a single thread and most DOM-touching futures are `!Send`. The `LocalExecutor` machinery covers both worlds:
+
+<Code lang="rust" code={`use quoin_core::LocalExecutor;
+
+cx.executor().spawn_local(async { update_dom().await });`} />
+
+- **On `wasm32`** tasks run on the browser main thread via `wasm_bindgen_futures`.
+- **On native** tasks enter a deterministic thread-local FIFO queue driven by `quoin_core::local::run_local_tasks()` — useful in tests.
+
+<Aside type="caution">
+  GPUI does not implement `LocalExecutor` — its executor is `!Send` by design. Use `Executor::spawn` there.
+</Aside>
+
+## Sleep without an async runtime
+
+Timers are part of the executor contract. `executor.sleep(duration)` returns a future on every adapter (futures-timer on native, browser timers on WASM), and the free function `quoin_core::sleep` gives you a standalone `SyncSleepFuture`:
+
+<Code lang="rust" code={`cx.executor().sleep(Duration::from_millis(250)).await;`} />
+
+## Next steps
+
+- <LinkCard title="Cancelling Work" href="/guides/cancelling-work/" description="Child tokens, RAII guards, and racing work against cancellation." />
+- <LinkCard title="Resources Reference" href="/reference/resources/" description="The full Resource and ResourceState API." />
+- <LinkCard title="Executors & Tasks Reference" href="/reference/executors/" description="Spawn, join handles, local tasks, and timers." />
+
+
+---
+
+---
+title: Cancelling Work
+description: Cancel long-running async work cooperatively with child tokens, RAII guards, and run-until-cancelled races.
+type: how-to
+---
+
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
+
+You will stop work that is no longer wanted — abandoned searches, closed panels, superseded polls — using Quoin's cancellation toolkit, which behaves identically on all five adapters.
+
+**Prerequisites:** familiarity with spawning tasks ([Loading Async Data](/guides/async-data/)).
+
+## Poll the token
+
+`CancellationToken` is cloneable and cheap. The most direct pattern checks it inside a loop:
+
+<Code lang="rust" code={`let token = CancellationToken::new();
+executor.spawn({
+    let token = token.clone();
+    async move {
+        while !token.is_cancelled() {
+            do_work().await;
+        }
+        cleanup().await;
+    }
+});
+
+// Later, from another task or UI event:
+token.cancel();`} />
+
+Cancellation is **cooperative**: nothing preempts your future. It stops at its next suspension point, so long computations between `.await`s delay it.
+
+## Await cancellation itself
+
+`token.cancelled()` returns a future that resolves when the token fires; `into_cancelled()` gives an owned variant. Use them to select between completion and shutdown:
+
+<Code lang="rust" code={`tokio::select! {
+    result = work() => handle(result),
+    _ = token.cancelled() => shutdown().await,
+}`} />
+
+## Race work against cancellation
+
+`run_until_cancelled` resolves with `Some(output)` when the wrapped future finishes first, or `None` when the token wins:
+
+<Code lang="rust" code={`let value = token.run_until_cancelled(work()).await;
+match value {
+    Some(result) => apply(result),
+    None => /* cancelled */,
+}`} />
+
+## Build token trees
+
+Long-lived screens create child tokens that cancel together with their parent but also cancel independently:
+
+<Code lang="rust" code={`let parent = CancellationToken::new();
+let per_request = parent.child_token();  // cancels with the parent
+// Cancelling per_request leaves parent untouched.
+// Cancelling parent also cancels per_request.`} />
+
+This models UI lifetimes: one parent token per view, one child per in-flight request.
+
+## Cancel on drop with guards
+
+`guard()` returns an RAII guard that cancels the token when dropped — the "cancel when this scope exits" pattern:
+
+<Code lang="rust" code={`let token = CancellationToken::new();
+let _guard = token.guard();  // token.cancel() runs when _guard drops`} />
+
+## Detach or drop — know the difference
+
+Dropping a join handle cancels the task; that is structured concurrency by default. When you genuinely want fire-and-forget, call `detach()` explicitly so the task runs to completion:
+
+<Code lang="rust" code={`let handle = executor.spawn(log_flusher());
+handle.detach();  // survives; drop(handle) would have cancelled it`} />
+
+<Aside type="tip">
+  Prefer drop-cancellation. A task that mutates UI state after its view is gone is a bug class Quoin's defaults eliminate.
+</Aside>
+
+## Next steps
+
+- <LinkCard title="Cancellation Tokens Reference" href="/reference/cancellation/" description="Every method and future type on CancellationToken." />
+- <LinkCard title="Loading Async Data" href="/guides/async-data/" description="Resources with built-in race-free reloads and cancellation." />
+
+
+---
+
+---
+title: Tracing with quoin-devtools
+description: Record every signal mutation, task spawn, and update request with quoin-devtools, then inspect the log at runtime or on exit.
+type: how-to
+---
+
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
+
+You will instrument a running application to see what its reactive core is doing: signal creations, read-triggering mutations, update requests, and task spawns, completions, and aborts. `quoin-devtools` wraps **any** adapter's context — GPUI, Leptos, Dioxus, Xilem, Floem, or the testkit context.
+
+**Prerequisites:** the `devtools` feature (or a direct dependency on `quoin-devtools`).
+
+## Wrap the context
+
+`Instrumented::wrap` is a drop-in wrapper: keep using the wrapped context everywhere you used the raw one.
+
+<Code lang="rust" code={`use quoin_devtools::Instrumented;
+
+let raw_ctx = /* any adapter context */;
+let ctx = Instrumented::wrap(raw_ctx, "app");`} />
+
+## Enable recording
+
+Recording is gated so that shipping the wiring costs nothing when disabled — with tracing off, each call is one relaxed atomic load and nothing is allocated.
+
+<Code lang="sh" code={`QUOIN_TRACE=1 ./myapp    # or QUOIN_TRACE=on`} />
+
+Alternatively enable it programmatically: `quoin_devtools::enable()` (and `disable()` / `enabled()` to inspect the state).
+
+## Read the log
+
+The global `EventLog` is a ring buffer (default capacity 4096 events) with three aggregate views:
+
+<Code lang="rust" code={`quoin_devtools::global_log().dump();          // stderr table
+quoin_devtools::global_log().hot_signals();   // ranked mutation counts
+quoin_devtools::global_log().events();        // raw snapshot of Event values`} />
+
+Call them from a debug hotkey, a drop-down panel, or on exit. Each event carries an `EventKind` (updates, spawns, mutations, …) and the label you passed to `Instrumented::wrap`.
+
+## See it live in a real window
+
+The `counter-xilem` example renders trace counts next to the counter and dumps the session when the window closes:
+
+<Code lang="sh" code={`cargo run --manifest-path examples/counter-xilem/Cargo.toml`} />
+
+For a headless tour of the tracing session itself, run `just trace-demo` (it drives `devtools-demo` with `QUOIN_TRACE=1`).
+
+## Forward to the tracing ecosystem
+
+The optional `tracing` feature forwards events into the [`tracing`](https://crates.io/crates/tracing) ecosystem instead of (or in addition to) the built-in log.
+
+<Aside type="tip">
+  Pair devtools with the testkit in CI: an `EventLog` snapshot makes a useful assertion surface — for example, that a feature flag flip caused exactly one update request.
+</Aside>
+
+## Next steps
+
+- <LinkCard title="quoin-devtools Reference" href="/reference/devtools/" description="Every public item: Instrumented, EventLog, EventKind, and the record helpers." />
+- <LinkCard title="Testing with quoin-testkit" href="/guides/testing/" description="Deterministic headless testing of the same reactive code." />
+
+
+---
+
+---
+title: Sharing Global State
+description: Store app-wide state with provide_global and use_global, update it safely, and understand the shared-cell semantics.
+type: how-to
+---
+
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
+
+You will store application-wide values — theme, settings, a router state — outside any single component and access them from any hook or view.
+
+**Prerequisites:** a context implementing `ReactiveContext` (see [Writing Portable Hooks](/guides/portable-hooks/)).
+
+## Provide and read a global
+
+`provide_global` stores a value keyed by its type; `use_global` retrieves it as a reactive signal handle:
+
+<Code lang="rust" code={`cx.provide_global(Theme::Dark);
+
+if let Some(theme) = cx.use_global::<Theme>() {
+    // theme is a signal handle — read or observe it.
+    let current = theme.get();
+}`} />
+
+Store one value per type per context. Two adapters running on the same thread never collide: the underlying store keys entries by both the context type and the value type.
+
+## Update a global in place
+
+`update_global` (from `ReactiveContextExt`, in the prelude) mutates the stored value through a closure. The type parameter after the struct is your error type — return `Err` to reject the update:
+
+<Code lang="rust" code={`cx.update_global::<Settings, ()>(|s| s.theme = Theme::Dark);`} />
+
+## Initialize on first use
+
+`use_global_or_init` inserts a default when no value exists yet and returns the handle either way:
+
+<Code lang="rust" code={`let settings = cx.use_global_or_init(Settings::default);`} />
+
+This replaces the provide-then-read dance for globals that always exist.
+
+## Semantics on every adapter
+
+All five adapters share one semantic: every `use_global` call returns a handle to the **same shared cell**, so a mutation performed through one handle is visible through every other handle. The pull-based adapters (GPUI, Xilem, Floem) back this with a thread-local, `TypeId`-keyed map matching each framework's main-thread assumptions:
+
+- Globals are visible on the thread that registered them.
+- GPUI, Xilem, and Floem share the same thread-local machinery from `quoin_core::globals`; the fine-grained adapters map onto their own stores with identical observable behavior.
+
+<Aside type="caution">
+  Globals live per thread on native targets. Register them on the main/UI thread and read them there; crossing threads is the job of signals passed through tasks, not of the global store.
+</Aside>
+
+## Next steps
+
+- <LinkCard title="Reactive Context Reference" href="/reference/reactive-context/" description="The full ReactiveContext and ReactiveContextExt surface, including the global methods." />
+- <LinkCard title="The Reactivity Model" href="/explanation/reactivity-model/" description="How signals, batching, and globals interact under the hood." />
+
+
+---
+
+---
+title: Installation
+description: Add Quoin to a Rust project, choose the right feature flags, and satisfy the system prerequisites for each framework adapter.
+type: how-to
+---
+
+import { Aside, Code, LinkCard, TabItem, Tabs } from '@astrojs/starlight/components';
+
+This guide gets Quoin into an existing Cargo project and explains every feature flag you can enable. Quoin supports Rust 1.88 and newer (the workspace declares `rust-version = "1.88"`).
+
+## Prerequisites
+
+- Rust stable 1.88+ (`rustup update stable`).
+- For the GPUI adapter on Linux: `libxkbcommon-dev`, `libx11-dev`, `libxcb1-dev`, `libwayland-dev`, and `libfontconfig1-dev`.
+- The other adapters (Leptos, Dioxus, Xilem, Floem) have no system-library requirements beyond Rust itself.
+
+## Add the dependency
+
+Enable exactly **one** framework feature — this choice selects the adapter compiled into your binary:
+
+<Tabs>
+  <TabItem label="GPUI">
+    <Code lang="sh" code={`cargo add quoin --features gpui`} />
+  </TabItem>
+  <TabItem label="Leptos">
+    <Code lang="sh" code={`cargo add quoin --features leptos`} />
+  </TabItem>
+  <TabItem label="Dioxus">
+    <Code lang="sh" code={`cargo add quoin --features dioxus`} />
+  </TabItem>
+  <TabItem label="Xilem">
+    <Code lang="sh" code={`cargo add quoin --features xilem`} />
+  </TabItem>
+  <TabItem label="Floem">
+    <Code lang="sh" code={`cargo add quoin --features floem`} />
+  </TabItem>
+</Tabs>
+
+This is equivalent to editing `Cargo.toml`:
+
+<Code lang="toml" code={`[dependencies]
+quoin = { version = "0.1", features = ["gpui"] }`} />
+
+<Aside type="caution">
+  Enabling two framework features on the same crate is a compile error. Quoin emits a `compile_error!` naming the mutually exclusive features rather than silently picking one.
+</Aside>
+
+## Library-only dependencies
+
+If you are writing a shared hook or store crate that must stay framework-free, depend on `quoin-core` instead of `quoin`. It contains the traits and portable machinery with no adapter compiled in:
+
+<Code lang="toml" code={`[dependencies]
+quoin-core = "0.1"`} />
+
+Consumers of your crate then pick the framework by enabling one feature on their `quoin` dependency and passing your hook any context that implements `ReactiveContext`.
+
+## Feature flag matrix
+
+| Feature | What it enables |
+| --- | --- |
+| `gpui` | GPUI adapter + UCP GPUI implementation + macros; implies `rsx` and `gpui-rsx-classes` |
+| `leptos` | Leptos adapter + macros |
+| `dioxus` | Dioxus adapter + macros |
+| `xilem` | Xilem adapter + macros |
+| `floem` | Floem adapter + macros |
+| `macros` | `component!`, `quoin_render!`, `effect!`, `run_app!`, `quoin_element!` without a framework |
+| `ui` | Universal Component Protocol traits from `quoin-ui` |
+| `rsx` | gpui-rsx escape hatch (`rsx!`, `#[component]`, …) for GPUI-only subtrees |
+| `gpui-rsx-classes` | Extended Tailwind engine for GPUI (full palette, more variants, dynamic `class:`) |
+| `testkit` | Re-exports `quoin-testkit` for headless testing |
+| `devtools` | Re-exports `quoin-devtools` for signal tracing |
+| `leptos-shadcn` | shadcn component backing for the Leptos emitter (requires `leptos`) |
+| `dioxus-shadcn` | shadcn component backing for the Dioxus emitter (requires `dioxus`) |
+| `floem-shadcn` | shadcn component backing for the Floem emitter (requires `floem`) |
+
+The full reference with dependencies between flags lives in [Feature Flags](/reference/feature-flags/).
+
+## Verify the setup
+
+Create a signal and read it back in a unit test using `quoin-testkit` — no window, no browser:
+
+<Code lang="rust" code={`use quoin::prelude::*;
+use quoin::testkit::{TestContext, ImmediateExecutor};
+
+#[test]
+fn signal_round_trip() {
+    let cx = TestContext::with_executor(ImmediateExecutor);
+    let count = cx.create_signal(0u32);
+    count.set(42);
+    assert_eq!(count.get(), 42);
+}`} />
+
+<Code lang="sh" code={`cargo test`} />
+
+**Expected output:** the test passes, confirming the adapter compiled and the context works.
+
+## Next steps
+
+- <LinkCard title="Build a Cross-Framework Counter" href="/tutorials/build-a-counter/" description="The golden-path tutorial from zero to a running app." />
+- <LinkCard title="Feature Flags Reference" href="/reference/feature-flags/" description="Every flag, its dependencies, and when to enable it." />
+
+
+---
+
+---
+title: Writing Portable Hooks
+description: Write reusable reactive hooks — signals, derived state, and effects — that compile unchanged on every Quoin adapter.
+type: how-to
+---
+
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
+
+You will extract reactive business logic into hook functions that know nothing about the view framework. This is the core Quoin workflow: hooks depend only on the `ReactiveContext` and `Signal` traits, so the same function serves GPUI, Leptos, Dioxus, Xilem, and Floem.
+
+**Prerequisites:** Quoin installed with one framework feature (see [Installation](/guides/installation/)).
+
+## Keep the hook generic over the context
+
+Write hooks as free functions generic over `C: ReactiveContext` and return your own struct so callers get a typed handle:
+
+<Code lang="rust" code={`use quoin_core::prelude::*;
+use std::rc::Rc;
+
+pub struct SearchBox<S: Signal<String>> {
+    pub query: S,
+    pub clear: Rc<dyn Fn()>,
+}
+
+pub fn use_search<C: ReactiveContext>(cx: &C) -> SearchBox<C::Signal<String>> {
+    let query = cx.create_signal(String::new());
+    let clear = {
+        let query = query.clone();
+        Rc::new(move || query.set(String::new()))
+    };
+    SearchBox { query, clear }
+}`} />
+
+Import with `use quoin_core::prelude::*;` (framework-free crates) or `use quoin::prelude::*;` (application crates). The prelude includes the extension traits, so `.map()`, `set_eq()`, and `create_resource()` are available without extra imports.
+
+## Compute values with derived signals
+
+Never store what you can compute. Derived signals recompute on read and work on every adapter:
+
+<Code lang="rust" code={`let count = cx.create_signal(2u32);
+
+// Free function form:
+let label = quoin_core::derived(&count, |n| format!("count = {n}"));
+assert_eq!(label.get(), "count = 2");
+
+// Method form (from SignalExt):
+let doubled = count.map(|n| n * 2);
+
+// Combine two signals into a tuple:
+let both = quoin_core::zip(&a, &b);`} />
+
+Keep derive closures cheap — they run on every read. When the computation is expensive, wrap it in a [`Memo`](/reference/derived/), which caches its output until the source value changes.
+
+## React to changes with effects
+
+The `effect!` macro runs a side effect whenever its dependencies change, with optional cleanup:
+
+<Code lang="rust" code={`use quoin_macros::effect;
+
+effect! {
+    deps: [query],
+    run: || {
+        let data = fetch_data(&query.get());
+        results.set(data);
+    },
+    cleanup: || {
+        cancel_pending_request();
+    }
+}`} />
+
+Each adapter lowers this to its native mechanism: `create_effect` + `on_cleanup` on Leptos, `use_effect` + `use_drop` on Dioxus, and run-on-execute with cleanup-on-drop on GPUI. See the [macros reference](/reference/macros/) for the legacy `watch: [...]` syntax and full semantics.
+
+## Collapse bursts of writes with batching
+
+When a handler writes several signals, wrap the writes in a batch so pull-based adapters (GPUI, Xilem) receive one re-render request instead of one per write:
+
+<Code lang="rust" code={`cx.batch(|| {
+    a.set(1);
+    b.set(2);
+});`} />
+
+Fine-grained frameworks batch internally, so the call is safe on every adapter.
+
+## Avoid leaking the framework
+
+Two rules keep a hook portable:
+
+1. **Do not name adapter types.** Use `C::Signal<T>` and trait methods; never `GpuiSignal`, `LeptosSignal`, or framework crates in hook signatures.
+2. **Do not call framework APIs.** Rendering, windowing, and event listener registration belong in the view layer (or in the declarative macros, which expand per framework).
+
+If you need `!Send` futures such as DOM-touching work, use the executor's `spawn_local` — see [Loading Async Data](/guides/async-data/).
+
+## Next steps
+
+- <LinkCard title="Loading Async Data" href="/guides/async-data/" description="Resources, spawned tasks, and timers in portable hooks." />
+- <LinkCard title="Testing with quoin-testkit" href="/guides/testing/" description="Run your hooks headlessly with deterministic executors." />
+- <LinkCard title="Signals Reference" href="/reference/signals/" description="Every method on Signal and SignalExt." />
+
+
+---
+
+---
+title: Styling with Tailwind Classes
+description: Style quoin_render! trees with Tailwind utility classes that compile to native styling on every backend.
+type: how-to
+---
+
+import { Aside, Badge, Code, LinkCard } from '@astrojs/starlight/components';
+
+You will style declarative components with Tailwind utility classes. Class strings are parsed **at compile time** into Quoin's typed style IR and lowered to framework-native builder calls — there is no runtime class parsing and no string lookup in the emitted code.
+
+**Prerequisites:** the `macros` feature (implied by any framework feature).
+
+## Write classes in the tree
+
+<Code lang="rust" code={`quoin_render! {
+    div(class: "flex flex-col gap-4 p-4 bg-gray-900 text-white h-full") {
+        div(class: "text-2xl font-bold hover:text-blue-400") { "Hello" }
+        button(class: "px-4 py-2 bg-blue-600 rounded-md", on_click: move |_| increment()) {
+            "Increment"
+        }
+    }
+}`} />
+
+On GPUI this compiles to method chains:
+
+<Code lang="rust" code={`.flex().flex_col().gap(px(16.0)).p(px(16.0)).bg(rgb(0x111827))
+.hover(|s| s.text_color(rgb(0x60a5fa)))`} />
+
+The same class string lowers to each backend's native styling mechanism, so one source serves all frameworks.
+
+## Know the supported vocabulary
+
+The built-in parser (`quoin-style`) models this Tailwind subset:
+
+- Flexbox direction, wrap, and alignment
+- Gap, padding, margin
+- Width/height (length values)
+- Background and border colors (including theme tokens), border widths, corner radii
+- Opacity, cursor, position offsets, overflow, shadows
+- Text color, size, weight, alignment, and family
+- The `hover:` state variant
+
+**Unknown classes are a compile error.** The parser never silently drops a class it does not recognize; every backend must turn unrecognized classes into a `compile_error!` with a did-you-mean suggestion.
+
+## Use theme tokens
+
+Class names that map to [shadcn](https://ui.shadcn.com/) theme tokens (17 token names) resolve to baked colors — in the default engine, the shadcn dark-theme hex values. Tokens keep component styling consistent with the UCP `QuoinTheme` resolution.
+
+## Extended engine for GPUI
+
+<Badge text="Unreleased" variant="caution" />
+
+The `gpui-rsx-classes` feature (enabled automatically by the `gpui` feature) routes classes Quoin does not know through the gpui-rsx class engine, which unlocks:
+
+- The **full Tailwind 4 px-scale palette**, fractions, arbitrary values, and negative utilities
+- Additional state variants: `focus:`, `focus-visible:`, `active:`, `group-hover:`, `group-active:`
+- **Dynamic `class:` expressions** resolved at render time (unknown dynamic classes panic in strict mode)
+- Custom vocabulary via an `rsx.toml` file next to your crate's `Cargo.toml`, with rebuild tracking
+
+Classes Quoin already knows keep their byte-identical lowering under this flag, verified by parity tests.
+
+## Escape hatch for GPUI-only subtrees
+
+When you need raw gpui-rsx machinery inside a `quoin_render!` tree — for example to drop in a gpui-kit component — the `rsx` feature (implied by `gpui`) re-exports `rsx!`, `rsx_strict!`, `rsx_permissive!`, `rsx_tw!`, `rsx_fragment!`, `rsx_expand!`, `rsx_runtime!`, and `#[component]` from the `quoin` facade.
+
+<Aside type="caution">
+  The Floem adapter in this repository replaces the `muda` menu library with an API-compatible stub, so native menus are unsupported on Linux in this configuration.
+</Aside>
+
+## Next steps
+
+- <LinkCard title="Declarative UI Macros" href="/guides/ui-macros/" description="Where class strings fit in component! and quoin_render!." />
+- <LinkCard title="Feature Flags Reference" href="/reference/feature-flags/" description="The gpui-rsx-classes and rsx flags in detail." />
+
+
+---
+
+---
+title: Testing with quoin-testkit
+description: Run framework-agnostic hooks and stores headlessly with deterministic executors and update-count assertions.
+type: how-to
+---
+
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
+
+You will test reactive business logic without a window manager or browser. `quoin-testkit` provides concrete, dependency-light implementations of the core traits designed for tests, so a hook written once runs in a plain `cargo test`.
+
+**Prerequisites:** the `testkit` feature (or a direct dependency on `quoin-testkit`).
+
+## Drive a hook with TestContext
+
+<Code lang="rust" code={`use quoin_core::prelude::*;
+use quoin_testkit::{ImmediateExecutor, TestContext};
+
+fn use_counter<C: ReactiveContext>(cx: &C) -> C::Signal<u32> {
+    cx.create_signal(0u32)
+}
+
+let mut cx = TestContext::with_executor(ImmediateExecutor);
+let count = use_counter(&cx);
+count.set(41);
+count.update(|v| *v += 1);
+assert_eq!(count.get(), 42);
+
+// Update plumbing is observable:
+assert_eq!(cx.updates().count(), 2, "set + update each requested a re-render");`} />
+
+`TestContext` is a full `ReactiveContext` with update counting and a shared global store. `TestSignal` mutates bump the context's update counter, mirroring the pull-based adapters.
+
+## Choose the right executor
+
+| Executor | Behavior | Use it for |
+| --- | --- | --- |
+| `ImmediateExecutor` | Runs futures inline to completion; fully deterministic, blocking | Pure state machines, reducers, derived pipelines |
+| `ThreadedExecutor` | One dedicated thread per future; real concurrency and abort semantics | Timers, channels, abort/detach tests |
+| `TokioExecutor` *(feature `tokio`)* | Real tokio runtime | `#[tokio::test]` suites; supports paused time via `tokio::time::advance` |
+
+<Aside type="caution">
+  `ImmediateExecutor` cannot model mid-flight cancellation — futures finish before the handle exists. Use `ThreadedExecutor` (or the tokio one) when the logic under test awaits or exercises abort semantics.
+</Aside>
+
+## Assert re-render churn
+
+`cx.updates()` records how many times the UI was asked to re-render. Pair it with `cx.batch(|| …)` to prove that batches collapse N writes into one update request:
+
+<Code lang="rust" code={`cx.batch(|| {
+    a.set(1);
+    b.set(2);
+});
+assert_eq!(cx.updates().count(), 1);`} />
+
+## Test framework-agnostic stores end to end
+
+The repository ships two headless example suites you can read as templates:
+
+- **todo-core** — a framework-agnostic todo store: `cargo test -p todo-core`
+- **fetch-core** — resource-driven async search: `cargo test -p fetch-core`
+
+Run the whole headless example suite (including the devtools demo) with `just test-headless-examples`.
+
+## Next steps
+
+- <LinkCard title="quoin-testkit Reference" href="/reference/testkit/" description="Every testkit type and executor in one table." />
+- <LinkCard title="Tracing with quoin-devtools" href="/guides/devtools/" description="Record and inspect signal mutations, spawns, and update requests." />
+
+
+---
+
+---
+title: Composing UCP Components
+description: Build data tables, virtual lists, inputs, buttons, dropdowns, and tab bars through the framework-agnostic Universal Component Protocol.
+type: how-to
+---
+
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
+
+You will build rich components — tables, virtual lists, dropdown menus, clipboard access — through the Universal Component Protocol (UCP), so the composition code stays framework-agnostic while an adapter crate supplies the native rendering.
+
+**Prerequisites:** the `ui` feature (included by the `gpui` feature); for GPUI rendering the adapter ships `quoin-ui-gpui` automatically.
+
+## Understand the two layers
+
+UCP splits rich widgets into:
+
+1. **Traits** in `quoin-ui` — abstract contracts such as `TableAdapter`, `VirtualListAdapter`, `ButtonAdapter`, `TextInputAdapter`, `DropdownMenuAdapter`, `TabBarAdapter`, and `Clipboard`.
+2. **Adapter implementations** — concrete per-framework crates such as `quoin-ui-gpui` that know how to render the widget natively.
+
+Your code talks to the traits; the framework feature pulls in the implementation.
+
+## Render a button
+
+`ButtonVariant` selects emphasis (`primary`, `ghost`, `destructive`) and density (`ComponentSize::Small | Medium | Large`):
+
+<Code lang="rust" code={`use quoin_ui::{ButtonAdapter, ButtonVariant, ComponentSize};
+
+let adapter = GpuiButtonAdapter::default();
+let button = adapter.render(Some("Click Me".into()), ButtonVariant {
+    primary: true,
+    size: ComponentSize::Medium,
+    ..Default::default()
+});`} />
+
+## Declare a sortable data table
+
+Inside `quoin_render!`, the `data_table` element declares columns with keys, labels, and render closures; sorting and striping come from attributes:
+
+<Code lang="rust" code={`data_table(rows: people, striped: true) {
+    column(key: "name", label: "Name", render: |p: &Person| p.name.clone())
+    column(key: "age",  label: "Age",  render: |p: &Person| p.age.to_string())
+}`} />
+
+`SortDirection` (`None | Asc | Desc`) models the per-column sort state on the `TableAdapter` side.
+
+## Render large lists efficiently
+
+`virtual_list` backs scrollable lists with the `VirtualListAdapter` contract so only visible rows render; scroll restoration is part of the node vocabulary (`scroll_restoration`).
+
+## Read and write the clipboard
+
+The `Clipboard` trait abstracts the system clipboard; the `clipboard_button` element wires a button that copies text and reports success:
+
+<Code lang="rust" code={`clipboard_button(copy_text: "Copied!") { "Copy" }`} />
+
+## Theme tokens
+
+`QuoinTheme` resolves theme color tokens for adapters, so UCP components pick up consistent colors across light and dark appearances without hard-coded hex values in your code.
+
+<Aside type="tip">
+  Run the UCP demo to see every widget live: `just run-ucp-gpui` (or `just run-ucp-dioxus`) from the repository root.
+</Aside>
+
+## Next steps
+
+- <LinkCard title="Universal Component Protocol Reference" href="/reference/ucp/" description="All traits, node types, and variant enums." />
+- <LinkCard title="Declarative UI Macros" href="/guides/ui-macros/" description="Where UCP elements fit inside quoin_render! trees." />
+
+
+---
+
+---
+title: Declarative UI Macros
+description: Define components, render JSX-like trees, run effects, and bootstrap apps with component!, quoin_render!, effect!, and run_app!.
+type: how-to
+---
+
+import { Aside, Badge, Code, LinkCard } from '@astrojs/starlight/components';
+
+You will replace hand-written framework view code with Quoin's declarative macros. One syntax expands to native code for your chosen framework: a `Render` impl on GPUI, a `#[component]` function on Leptos and Dioxus.
+
+**Prerequisites:** the `macros` feature (implied by any framework feature) — see [Installation](/guides/installation/).
+
+## Define a component with `component!`
+
+`component!` declares props, reactive state, globals, lifecycle hooks, actions, and the render tree in one block:
+
+<Code lang="rust" code={`use quoin_macros::component;
+
+component! {
+    pub DemoApp {
+        props {
+            initial_count: u32 = 0,
+        }
+        state {
+            count: u32 = initial_count,
+            selected: String = "Option A".to_string(),
+        }
+        globals {
+            theme: Theme,                  // automatically retrieved from context
+            router: RouterState observe,   // observe = track changes
+        }
+        on_mount {
+            log::info!("Component mounted");
+        }
+        on_unmount {
+            log::info!("Component unmounted");
+        }
+        fn increment() {
+            count.update(|c| *c += 1);
+        }
+        fn select_option(opt: String) {
+            selected.set(opt);
+        }
+        render {
+            let count_text = format!("Count: {}", count.get());
+            quoin_render! {
+                div(class: "flex flex-col gap-4 p-4 bg-gray-900 text-white") {
+                    div(class: "text-2xl font-bold") { "Quoin Render Demo" }
+                    div { count_text }
+                    button(class: "px-4 py-2 bg-blue-600 rounded-md",
+                        on_click: move |_| increment()) {
+                        "Increment"
+                    }
+                }
+            }
+        }
+    }
+}`} />
+
+Framework output:
+
+- **GPUI** — a `struct DemoApp` with a `Render` impl.
+- **Leptos** — `#[component] fn DemoApp() -> impl IntoView`.
+- **Dioxus** — `#[component] fn DemoApp() -> Element`.
+
+State fields declared in `state` become signals; plain Rust code inside `render` runs each render pass.
+
+## Write trees with `quoin_render!`
+
+The render syntax is JSX-like with named attributes, conditional blocks, and loops:
+
+<Code lang="rust" code={`use quoin_macros::quoin_render;
+
+quoin_render! {
+    div(class: "flex flex-col gap-4 p-4 bg-gray-900 text-white h-full") {
+        div(class: "text-2xl font-bold hover:text-blue-400") { "Hello" }
+        if[show_details] {
+            div(class: "p-2 bg-gray-800 rounded-md") { details }
+        }
+        for[item in items] {
+            div(class: "text-sm") { item.name.clone() }
+        }
+        tabs(active: active_tab, on_click: move |i| set_active(i)) {
+            tab(index: 0, label: "Tab 1")
+            tab(index: 1, label: "Tab 2")
+        }
+        data_table(rows: people, striped: true) {
+            column(key: "name", label: "Name", render: |p: &Person| p.name.clone())
+            column(key: "age",  label: "Age",  render: |p: &Person| p.age.to_string())
+        }
+        clipboard_button(copy_text: "Copied!") { "Copy" }
+    }
+}`} />
+
+Beyond `div` and `button`, the element vocabulary includes the rich components the emitters support per framework: `tabs`, `data_table`, `virtual_list`, `dropdown_menu`, `input`, `checkbox`, `radio`, `switch`, `slider`, `icon`, `badge`, `tooltip`, `progress`, `skeleton`, `scroll_area`, `separator`, and `styled_text`. Handlers receive [typed events](/reference/events/), so the same handler source compiles on all backends.
+
+## Run side effects with `effect!`
+
+`effect!` has a structured form with dependencies, a run closure, and optional cleanup:
+
+<Code lang="rust" code={`use quoin_macros::effect;
+
+effect! { watch: [count], || println!("Count changed: {}", count.get()) }
+
+effect! {
+    deps: [query],
+    run: || {
+        let data = fetch_data(&query.get());
+        results.set(data);
+    },
+    cleanup: || {
+        cancel_pending_request();
+    }
+}`} />
+
+- **Leptos** expands to `create_effect` + `on_cleanup`.
+- **Dioxus** expands to `use_effect` + `use_drop`.
+- **GPUI** executes the run closure and calls cleanup when the effect is dropped.
+
+## Bootstrap with `run_app!`
+
+One line mounts your component:
+
+<Code lang="rust" code={`run_app!(MyComponent);                            // GPUI with default window options
+run_app!(MyComponent, window_opts: custom_opts);  // GPUI with a custom window
+run_app!(MyComponent);                            // Leptos/Dioxus mount to body`} />
+
+## Define reusable elements with `quoin_element!`
+
+<Badge text="Advanced" variant="caution" />
+
+`quoin_element!` declares a named custom element with typed props, rendered through a `quoin_render!` closure:
+
+<Code lang="rust" code={`quoin_element!("my-widget", { width: u32 }, |props| quoin_render! {
+    div { "w" }
+});`} />
+
+<Aside type="note">
+  The GPUI backend additionally re-exports the gpui-rsx escape hatch (`rsx!`, `rsx_strict!`, `#[component]`, …) under the `rsx` feature for GPUI-only subtrees inside `quoin_render!` render blocks — see the [styling guide](/guides/styling/#escape-hatch-for-gpui-only-subtrees).
+</Aside>
+
+## Next steps
+
+- <LinkCard title="Styling with Tailwind Classes" href="/guides/styling/" description="How class strings compile to native styling on each backend." />
+- <LinkCard title="Composing UCP Components" href="/guides/ucp-components/" description="Data tables, virtual lists, and dropdowns through the Universal Component Protocol." />
+- <LinkCard title="Macros Reference" href="/reference/macros/" description="Signature tables for all five macros." />
+
+
+---
+
+---
+title: Quoin Documentation
+template: splash
+description: One reactive core, many frameworks — write reactive Rust UI logic once and run it on GPUI, Leptos, Dioxus, Xilem, or Floem.
+type: explanation
+hero:
+  title: "Quoin Documentation"
+  tagline: "One reactive core, many frameworks — write reactive Rust UI logic once and run it on GPUI, Leptos, Dioxus, Xilem, or Floem."
+  image:
+    file: ../../assets/logo.png
+    alt: "Quoin Documentation"
+  actions:
+    - text: Start the tutorial
+      link: /tutorials/build-a-counter/
+      icon: right-arrow
+---
+
+import { Card, CardGrid, LinkButton, LinkCard } from '@astrojs/starlight/components';
+
+Quoin is a framework-agnostic reactive abstraction layer for Rust. You write your business logic once against a small set of traits — signals, effects, async tasks, cancellation, global state — and the same code runs under GPUI, Leptos, Dioxus, Xilem, or Floem. You enable exactly one framework feature at compile time, and the shared [conformance suite](/explanation/backend-parity/) guarantees every adapter behaves identically.
+
+## Choose your path
+
+<CardGrid stagger>
+  <Card title="Build a cross-framework counter">
+    Follow the golden-path tutorial: install Quoin, write a portable counter hook, render it in GPUI, then re-target another framework.
+  </Card>
+  <Card title="Ship a feature">
+    Browse task-focused guides: async data loading, cancellation, global state, declarative macros, styling, testing, and tracing.
+  </Card>
+  <Card title="Look up an API">
+    Reference pages cover every trait, macro, and feature flag with signatures, defaults, and examples.
+  </Card>
+  <Card title="Understand the design">
+    Explanations describe why Quoin exists, how the crate graph fits together, and how the reactivity model works under the hood.
+  </Card>
+</CardGrid>
+
+<LinkButton href="/tutorials/build-a-counter/" icon="right-arrow">Start the tutorial</LinkButton>
+
+## Supported frameworks
+
+| Framework | Adapter crate | Status |
+| --- | --- | --- |
+| [GPUI](https://github.com/zed-industries/zed) | `quoin-gpui` | Full support |
+| [Leptos](https://leptos.dev/) | `quoin-leptos` | Full support |
+| [Dioxus](https://dioxuslabs.com/) | `quoin-dioxus` | Full support |
+| [Xilem](https://github.com/linebender/xilem) | `quoin-xilem` | Full support |
+| [Floem](https://github.com/lapce/floem) | `quoin-floem` | Full support |
+
+Enable exactly one framework feature in your `Cargo.toml` — Quoin enforces this with a compile-time check.
+
+## Next steps
+
+- <LinkCard title="Build a Cross-Framework Counter" href="/tutorials/build-a-counter/" description="The golden-path tutorial from zero to a running app." />
+- <LinkCard title="Installation" href="/guides/installation/" description="Add Quoin to an existing project with the right feature flags." />
+- <LinkCard title="Why Quoin Exists" href="/explanation/why-quoin/" description="The problem Quoin solves and the design goals behind it." />
+
+
+---
+
+---
+title: Batched Updates
+description: API reference for batch::with, BatchGuard, and the notification suppression machinery shared by pull-based adapters.
+type: reference
+---
+
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
+
+On pull-based adapters (GPUI, Xilem) every signal mutation calls `request_update()`. When a handler mutates several signals in a row this produces redundant re-render requests. Batching suppresses those intermediate notifications and issues a single update when the batch ends.
+
+Import: `use quoin_core::prelude::*;` (the module) or `use quoin_core::batch;`
+
+## API
+
+| Item | Signature | Description |
+| --- | --- | --- |
+| `batch::with` | `pub fn with<C, R>(cx: &C, f: impl FnOnce() -> R) -> R` where `C: ReactiveContext` | Runs `f` inside a batch scope and then requests a single UI update on `cx`. |
+| `BatchGuard` | `pub struct BatchGuard` | RAII guard that increments the batch depth on creation and decrements it on drop. Create with `BatchGuard::enter()`. |
+| `in_batch` | `pub fn in_batch() -> bool` | Returns `true` while inside a `with` scope. |
+| `should_notify` | `pub fn should_notify() -> bool` | Used by adapter signal implementations: `true` when a mutation should notify (i.e. no batch is active). |
+
+`ReactiveContextExt::batch` offers the same behavior as a method on the context: `cx.batch(\|\| …)`.
+
+## How it works
+
+A thread-local depth counter tracks nested batches. The signal implementations of the pull-based adapters consult `should_notify()` before invoking the update notifier. Fine-grained frameworks (Leptos, Dioxus, Floem) batch internally and ignore this mechanism, so the helper is safe to call everywhere.
+
+## Example
+
+<Code lang="rust" code={`let a = cx.create_signal(0u32);
+let b = cx.create_signal(0u32);
+
+quoin_core::batch::with(&cx, || {
+    a.set(1);
+    b.set(2);
+});
+assert_eq!((a.get(), b.get()), (1, 2));
+// One re-render request instead of two.`} />
+
+<Aside type="note">
+  Batch bookkeeping is intentionally cheap (two thread-local accesses). Nesting works: only when the outermost batch ends is the update requested.
+</Aside>
+
+## Next steps
+
+- <LinkCard title="Testing with quoin-testkit" href="/guides/testing/" description="Assert that a batch collapses N writes into one update." />
+- <LinkCard title="The Reactivity Model" href="/explanation/reactivity-model/" description="Why pull-based adapters need batching and fine-grained ones do not." />
+
+
+---
+
+---
+title: Cancellation Tokens
+description: API reference for CancellationToken, CancelGuard, and the futures used for cooperative cancellation.
+type: reference
+---
+
+import { Code, LinkCard } from '@astrojs/starlight/components';
+
+`CancellationToken` is a lightweight, cloneable token that signals cancellation to spawned futures. It integrates seamlessly with the async executors provided by UI frameworks and behaves identically on all five adapters.
+
+Import: `use quoin_core::prelude::*;`
+
+## CancellationToken methods
+
+| Method | Signature | Description |
+| --- | --- | --- |
+| `new` | `pub fn new() -> Self` | Creates a fresh token. |
+| `cancel` | `pub fn cancel(&self)` | Marks the token cancelled and wakes all waiters. |
+| `is_cancelled` | `pub fn is_cancelled(&self) -> bool` | Returns whether the token has fired. |
+| `child_token` | `pub fn child_token(&self) -> Self` | Creates a token that cancels together with the parent but can also cancel independently. |
+| `guard` | `pub fn guard(&self) -> CancelGuard` | RAII guard: cancels the token when dropped. |
+| `cancelled` | `pub fn cancelled(&self) -> Cancelled<'_>` | Future that resolves when the token is cancelled. |
+| `into_cancelled` | `pub fn into_cancelled(self) -> CancelledFuture` | Owned variant of `cancelled`. |
+| `run_until_cancelled` | `pub fn run_until_cancelled<F: Future>(&self, future: F) -> RunUntilCancelled<'_, F>` | Races a future against the token. |
+
+## Supporting types
+
+| Type | Description |
+| --- | --- |
+| `CancelGuard` | RAII guard created by `guard()`; cancels the token when dropped. |
+| `Cancelled<'a>` | Future resolving when the associated token is cancelled; created by `cancelled()`. |
+| `CancelledFuture` | Owned variant created by `into_cancelled()`. |
+| `RunUntilCancelled<'a, F>` | Resolves with `Some(output)` when the wrapped future finishes first, or `None` when the token wins. |
+
+## Example
+
+<Code lang="rust" code={`let token = CancellationToken::new();
+executor.spawn({
+    let token = token.clone();
+    async move {
+        while !token.is_cancelled() {
+            do_work().await;
+        }
+        cleanup().await;
+    }
+});
+token.cancel();
+
+// Toolkit patterns:
+let parent = CancellationToken::new();
+let per_request = parent.child_token();        // cancels with the parent
+let _guard = parent.guard();                   // RAII: cancels on drop
+let value = parent.run_until_cancelled(work()).await;`} />
+
+## Next steps
+
+- <LinkCard title="Cancelling Work" href="/guides/cancelling-work/" description="Task-focused guide: token trees, guards, and races." />
+- <LinkCard title="Executors & Tasks" href="/reference/executors/" description="spawn_with_token pairs an executor task with a token." />
+
+
+---
+
+---
+title: Crates
+description: API reference for the workspace layout — what every crate in the Quoin repository contains and which ones you depend on.
+type: reference
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+
+Quoin is a Cargo workspace of small, focused crates. You normally depend on one of two crates only: `quoin` (applications) or `quoin-core` (framework-free libraries). The rest exist to keep that surface small.
+
+## The crates you depend on
+
+| Crate | Purpose |
+| --- | --- |
+| `quoin` | Facade — re-exports everything behind feature flags; the application entry point. |
+| `quoin-core` | Core traits plus derived/resource/batch/local/pool machinery and the shared adapter infrastructure: `join` (join-handle lifecycle), `globals` (thread-local store), `NotifierSignal` (cell + batch-aware notifier). |
+
+## Internal crates
+
+| Crate | Role |
+| --- | --- |
+| `quoin-macros` | Proc-macro entry points: `component!`, `quoin_render!`, `quoin_element!`, `effect!`, `run_app!`. |
+| `quoin-macros-core` | Macro parsing and code generation for every backend. |
+| `quoin-style` | Typed style IR shared by every backend; compile-time Tailwind subset parsing. |
+| `quoin-gpui` | GPUI adapter. |
+| `quoin-leptos` | Leptos adapter. |
+| `quoin-dioxus` | Dioxus adapter. |
+| `quoin-xilem` | Xilem adapter. |
+| `quoin-floem` | Floem adapter. |
+| `quoin-ui` | Universal Component Protocol traits and node vocabulary. |
+| `quoin-ui-gpui` | GPUI implementation of the UCP traits. |
+| `quoin-testkit` | Headless testing: `TestContext` + deterministic executors. |
+| `quoin-devtools` | Signal tracing and update logging. |
+| `quoin-conformance` | Shared conformance test suite (30+ checks per adapter). |
+
+## Supporting infrastructure
+
+| Path | Role |
+| --- | --- |
+| `examples/` | Runnable demos per framework, plus headless e2e suites (`todo-core`, `fetch-core`, `devtools-demo`). |
+| `interop-tests/` | Parity harness for the GPUI class engine (34/34 theme-token classes byte-identical, vocabulary-superset and Tailwind-scale gates). |
+| `quoin-macros-tests/` | trybuild UI tests for macro diagnostics. |
+| `quoin-grsx-compiletest/` | Compiles full engine expansions against the vendored GPUI stub. |
+| `third_party/` | `gpui-stub` (fast type-checking of emitted chains) and `muda-stub` (Linux menu stand-in). |
+
+## Workspace-wide policies
+
+- Edition 2024, `rust-version = "1.88"`, version `0.1.0`.
+- Lint policy defined once in the root manifest and inherited by every crate: `clippy::pedantic` + `clippy::all` + `missing_docs` with warnings denied by CI (`-D warnings`), `unsafe_code = "forbid"`, and `clippy::allow_attributes` denied — `#[allow(...)]` attributes are banned outright.
+- Changelog generated from Conventional Commits by git-cliff.
+
+<Aside type="note">
+  The GPUI adapter depends on `gpui-pre` 0.3.10 (pinned). The `muda` replacement means native menus are unsupported on Linux in this configuration.
+</Aside>
+
+## Next steps
+
+- <LinkCard title="Architecture" href="/explanation/architecture/" description="How the crates relate and where shared machinery lives." />
+- <LinkCard title="Feature Flags" href="/reference/feature-flags/" description="Which flags pull in which crates." />
+
+
+---
+
+---
+title: Derived Signals & Memos
+description: API reference for derived(), map(), zip(), and Memo — computed views over signals on every adapter.
+type: reference
+---
+
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
+
+A `Derived` signal wraps an existing `Signal` and computes its value lazily from the source signal on every read. It mirrors "computed" primitives from fine-grained reactive frameworks but works uniformly across all adapters: on Leptos, Dioxus, and Floem the source read inside the closure is tracked by the reactive graph; on GPUI and Xilem a source mutation triggers a re-render and the next read recomputes.
+
+Import: `use quoin_core::prelude::*;`
+
+## Functions
+
+| Item | Signature | Description |
+| --- | --- | --- |
+| `derived` | `pub fn derived<S, T, U, F>(source: &S, f: F) -> Derived<S, T, U, F>` where `F: Fn(&T) -> U + Clone + 'static` | Creates a read-only signal computing `U` from the source's `T`. The closure runs on every read — keep it cheap. |
+| `zip` | `pub fn zip<A, B, TA, TB>(a: &A, b: &B) -> Zipped<A, B, TA, TB>` | Combines two signals into a read-only signal of their tuple, recomputed on each read. |
+| `memo` | `pub fn memo<S, T, U, F>(source: &S, f: F) -> Memo<S, T, U, F>` | A derived signal that caches its last output until the source value changes. |
+
+## Types
+
+| Type | Description |
+| --- | --- |
+| `Derived<S, T, U, F>` | Read-only computed signal. Implements `Signal<U>`; reading clones the computed value. |
+| `Zipped<A, B, TA, TB>` | Read-only signal combining two sources into a tuple. Created by `zip`. |
+| `Memo<S, T, U, F>` | Caching derived signal: plain `derived` recomputes the closure on every read, `Memo` recomputes only when the source value differs from the last seen value. |
+
+## SignalExt sugar
+
+| Method | Description |
+| --- | --- |
+| `.map(f)` | Equivalent to `derived(self, f)` — chainable for multi-step computations. |
+
+## Example
+
+<Code lang="rust" code={`let count = cx.create_signal(2u32);
+
+let label = count.map(|n| format!("count = {n}"));   // recomputed on read
+assert_eq!(label.get(), "count = 2");
+
+let doubled = quoin_core::derived(&count, |v| v * 2);
+assert_eq!(doubled.get(), 4);
+
+let both = quoin_core::zip(&a, &b);                  // tuple of two signals
+assert_eq!(both.get(), (1, 2));
+
+let expensive = quoin_core::memo(&source, heavy_transform);`} />
+
+<Aside type="caution">
+  Derived closures must be pure and cheap — they run on every read. Move expensive or allocation-heavy computations into a `Memo`, which caches until the source changes.
+</Aside>
+
+## Next steps
+
+- <LinkCard title="Writing Portable Hooks" href="/guides/portable-hooks/" description="Where derived signals fit in portable hook design." />
+- <LinkCard title="The Reactivity Model" href="/explanation/reactivity-model/" description="How pull-based and fine-grained adapters both support derived state." />
+
+
+---
+
+---
+title: quoin-devtools
+description: API reference for Instrumented, EventLog, EventKind, and the record helpers in quoin-devtools.
+type: reference
+---
+
+import { Code, LinkCard } from '@astrojs/starlight/components';
+
+`quoin-devtools` is a framework-agnostic instrumentation layer. Wrap any adapter's `ReactiveContext` and every signal creation, read-triggering mutation, task spawn, and UI update request is recorded into an inspectable `EventLog`.
+
+Import: `use quoin_devtools::{Instrumented, EventLog, EventKind, …};` or through the facade with the `devtools` feature.
+
+## Module layout
+
+| Module | Contents |
+| --- | --- |
+| `event` | `Event`, `EventKind`, and the ring-buffer `EventLog` with its aggregate views. |
+| `record` | The global log, the `QUOIN_TRACE` bootstrap, and the recording helpers shared by every wrapper. |
+| `instrumented` | The `Instrumented` context, `TracedSignal`, and `TracedExecutor`. |
+
+## Public API
+
+| Item | Description |
+| --- | --- |
+| `Instrumented::wrap(raw_ctx, label)` | Drop-in wrapper around any adapter context; `label` names the session in events. |
+| `global_log()` | Access to the process-wide `EventLog`. |
+| `EventLog::dump()` | Prints a table to stderr. |
+| `EventLog::hot_signals()` | Ranked mutation counts per signal. |
+| `EventLog::events()` | Raw snapshot of `Event` values. |
+| `EventLog::capacity()` | Ring capacity (default `DEFAULT_LOG_CAPACITY = 4096`). |
+| `EventKind` | Event categories; `UpdateRequested` labels as `"update"`. |
+| `enable()` / `disable()` / `enabled()` | Programmatic recording gate. |
+| `init_from_env()` / `parse_trace_flag()` | The `QUOIN_TRACE=1` (or `on`) environment bootstrap. |
+| `record()` / `snapshot()` / `thread_label()` | Shared recording helpers. |
+
+## Zero-cost when disabled
+
+Unless `enabled()` is turned on (default: the `QUOIN_TRACE` environment variable, or an explicit `enable()` call), the `Instrumented` wrapper short-circuits every recording call behind one relaxed atomic load, and no events are allocated.
+
+The optional `tracing` feature forwards events into the `tracing` ecosystem.
+
+## Example
+
+<Code lang="rust" code={`use quoin_devtools::Instrumented;
+
+let ctx = Instrumented::wrap(raw_ctx, "app");   // use ctx everywhere
+
+// From a debug hotkey, a panel, or on exit:
+quoin_devtools::global_log().dump();            // stderr table
+quoin_devtools::global_log().hot_signals();     // ranked mutation counts
+quoin_devtools::global_log().events();          // raw snapshot`} />
+
+<Code lang="sh" code={`QUOIN_TRACE=1 ./myapp    # enable recording from the environment`} />
+
+## Next steps
+
+- <LinkCard title="Tracing with quoin-devtools" href="/guides/devtools/" description="Task-focused guide including the live xilem demo." />
+- <LinkCard title="Testing with quoin-testkit" href="/guides/testing/" description="Deterministic headless testing that pairs well with tracing." />
+
+
+---
+
+---
+title: Typed Events
+description: API reference for the ev module — small value-type events that keep handler source identical on all five backends.
+type: reference
+---
+
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
+
+The `ev` module (re-exported from the `quoin` facade as `quoin::ev`) defines typed events shared by every backend. Handlers receive small value types instead of framework-native event objects, so the same handler source compiles on all five adapters. Each adapter converts from its own event type through `From` impls that are `#[inline(always)]` in generated code.
+
+Import: `use quoin::ev;` (facade) — the types are value structs.
+
+## Payload contract
+
+| Handler arity | Contract |
+| --- | --- |
+| Zero parameters (`\|\| …`) | Valid on every backend; the adapter calls the handler with no payload. |
+| One parameter | Receives one of the payload structs below. During the transition period `()` still coerces for zero-arg handlers, which keeps existing GPUI source compiling unchanged. |
+
+## Event types
+
+| Type | Fired by | Notes |
+| --- | --- | --- |
+| `Click` | Primary click / activation | Floem's `action` decorator and Xilem's button callbacks fire this. It is a unit-like struct (`Click {}`) with a `Click::new()` constructor. Adapters with richer pointer data widen the struct in later milestones without changing handler arity. |
+
+## Example
+
+<Code lang="rust" code={`// Zero-parameter handler — valid on every backend:
+button(class: "px-4 py-2", on_click: || increment())
+
+// One-parameter handler receiving the typed payload:
+button(on_click: |ev: quoin::ev::Click| { /* ... */ })`} />
+
+<Aside type="note">
+  Because payloads are plain value types with `From` conversions in the generated code, a handler written against `ev` types never mentions a framework event type — that is what keeps the render tree portable.
+</Aside>
+
+## Next steps
+
+- <LinkCard title="Declarative UI Macros" href="/guides/ui-macros/" description="Where event handlers attach to elements in quoin_render!." />
+- <LinkCard title="Backend Parity" href="/explanation/backend-parity/" description="How identical handler semantics are verified across adapters." />
+
+
+---
+
+---
+title: Executors & Tasks
+description: API reference for the Executor trait, JoinHandle lifecycle, local (!Send) tasks, and portable timers.
+type: reference
+---
+
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
+
+`Executor` spawns futures onto the framework's native async runtime. Every adapter implements the same trait and the same join-handle lifecycle, so task code is portable.
+
+Import: `use quoin_core::prelude::*;`
+
+## Executor methods
+
+| Method | Signature | Description |
+| --- | --- | --- |
+| `spawn` | `fn spawn<F>(&self, fut: F) -> JoinHandle<F::Output>` where `F: Future + Send + 'static`, `F::Output: Send + 'static` | Spawns a `Send` future on the framework runtime. |
+| `sleep` | `fn sleep(&self, duration: Duration) -> SleepFuture` | Portable timer; futures-timer on native, browser timer on WASM. |
+
+## ExecutorExt methods
+
+| Method | Signature | Description |
+| --- | --- | --- |
+| `spawn_with_token` | `fn spawn_with_token<F, Fut>(&self, f: impl FnOnce(CancellationToken) -> Fut) -> (JoinHandle<…>, CancellationToken)` | Creates a token, passes it to the future, and returns both the handle and the token — the fetch-and-cancel pattern in one call. |
+
+## JoinHandle lifecycle
+
+All adapters implement the same three lifecycle operations on `JoinHandle<T>`, plus `Future`:
+
+| Operation | Effect |
+| --- | --- |
+| `handle.await` | Waits for the result. The task runs to completion. |
+| `handle.abort()` | Cancels the task at its next suspension point. Later awaits resolve with `Err(Canceled)`. |
+| `handle.detach()` | Fire-and-forget: the task runs to completion, its result is discarded. |
+| `drop(handle)` | Cancels the task (structured concurrency — no orphaned tasks mutating UI state). Use `detach()` when you explicitly want fire-and-forget. |
+
+Cancellation is cooperative on the thread-based adapters (Leptos, Dioxus, Floem): the future stops at its next `.await` point. GPUI and Xilem cancel natively (dropping a GPUI `Task` / aborting a tokio task).
+
+## Local (!Send) tasks
+
+The `LocalExecutor` machinery handles futures that are not `Send`:
+
+| Item | Description |
+| --- | --- |
+| `spawn_local` | Spawns a `!Send` future. On `wasm32` it runs on the browser main thread via `wasm_bindgen_futures`; on native it enters a deterministic thread-local FIFO queue. |
+| `run_local_tasks` | Native driver: runs queued tasks to their next completion, one at a time. |
+| `LocalTask` / `LocalJoinHandle` | Handles mirroring the join lifecycle: `abort` stops at the next suspension point, `detach` opts out of drop-cancellation, dropping cancels. |
+
+GPUI does **not** implement `LocalExecutor` — its executor is `!Send` by design; use `Executor::spawn` there.
+
+<Aside type="note">
+  On `wasm32` targets, the Leptos and Dioxus executors run futures on the main thread via `wasm_bindgen_futures` instead of spawning threads.
+</Aside>
+
+## Standalone timer functions
+
+| Item | Signature | Description |
+| --- | --- | --- |
+| `sleep` | `pub fn sleep(duration: Duration) -> SyncSleepFuture` | Free-function timer future, independent of any executor. |
+| `SleepFuture` | — | The future returned by `Executor::sleep`. |
+| `SyncSleepFuture` | — | The future returned by the free `sleep` function. |
+
+## Example
+
+<Code lang="rust" code={`let handle = executor.spawn(async {
+    let data = fetch_from_api().await;
+    signal.set(data);
+});
+let result = handle.await?;        // Err(Canceled) if aborted
+
+let (h, token) = executor.spawn_with_token(|t| async move {
+    while !t.is_cancelled() { do_work().await; }
+});
+executor.sleep(Duration::from_millis(250)).await;`} />
+
+## Next steps
+
+- <LinkCard title="Loading Async Data" href="/guides/async-data/" description="Task-focused guide covering resources, spawns, and timers." />
+- <LinkCard title="Cancellation Tokens" href="/reference/cancellation/" description="The token types used by spawn_with_token and resources." />
+
+
+---
+
+---
+title: Feature Flags
+description: API reference for every cargo feature on the quoin facade, including dependencies between flags.
+type: reference
+---
+
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
+
+The `quoin` facade crate composes the ecosystem behind feature flags. **Exactly one framework feature may be enabled per crate** — Quoin enforces this with `compile_error!` diagnostics naming the mutually exclusive features.
+
+## Framework features
+
+| Feature | Pulls in | Also enables |
+| --- | --- | --- |
+| `gpui` | `gpui-pre`, `quoin-gpui`, `quoin-ui-gpui`, `quoin-macros` | `rsx`, `gpui-rsx-classes` |
+| `leptos` | `quoin-leptos`, `quoin-macros` | — |
+| `dioxus` | `quoin-dioxus`, `quoin-macros` | — |
+| `xilem` | `quoin-xilem`, `quoin-macros` | — |
+| `floem` | `quoin-floem`, `quoin-macros` | — |
+
+## Tooling and protocol features
+
+| Feature | Pulls in | Notes |
+| --- | --- | --- |
+| `macros` | `quoin-macros` | Macro entry points without a framework. |
+| `ui` | `quoin-ui` | Universal Component Protocol traits. |
+| `rsx` | `gpui-rsx` | Re-exports `rsx!`, `rsx_strict!`, `rsx_permissive!`, `rsx_tw!`, `rsx_fragment!`, `rsx_expand!`, `rsx_runtime!`, `#[component]` — the escape hatch for GPUI-only subtrees. Enabled automatically by `gpui`; standalone for raw-macro users. |
+| `gpui-rsx-classes` | `quoin-macros` (forwarded as `quoin-macros/gpui-rsx-classes`) | Extended Tailwind engine for GPUI: full Tailwind 4 palette, extra state variants, dynamic `class:` expressions, `rsx.toml` custom tokens. Requires `macros` or any framework feature. |
+| `testkit` | `quoin-testkit` | Headless testing re-exports. |
+| `devtools` | `quoin-devtools` | Signal-tracing re-exports. |
+
+## shadcn backing features
+
+Use together with the matching framework feature; they activate the shadcn feature on the adapter crate **and** switch the macro emitter to target shadcn components:
+
+| Feature | Requires |
+| --- | --- |
+| `leptos-shadcn` | `leptos` |
+| `dioxus-shadcn` | `dioxus` |
+| `floem-shadcn` | `floem` (expects a sibling `floem-shadcn` checkout consumed as a path dependency by `quoin-floem`) |
+
+<Aside type="caution">
+  The Floem shadcn backing is a standalone sibling checkout (v0.2.0 of the modified floem-shadcn tree), not a crates.io dependency. Cloning only the quoin repository is not enough to compile `floem-shadcn` builds — see the layout contract in the `quoin-floem` manifest.
+</Aside>
+
+## Example
+
+<Code lang="toml" code={`[dependencies]
+# Application targeting GPUI with UCP widgets, testkit, and devtools:
+quoin = { version = "0.1", features = ["gpui", "testkit", "devtools"] }
+
+# Framework-free hook library:
+quoin-core = "0.1"`} />
+
+## Next steps
+
+- <LinkCard title="Installation" href="/guides/installation/" description="How to choose flags when adding Quoin to a project." />
+- <LinkCard title="Crates" href="/reference/crates/" description="What each workspace crate contains." />
+
+
+---
+
+---
+title: Macros
+description: API reference for component!, quoin_render!, quoin_element!, effect!, and run_app!.
+type: reference
+---
+
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
+
+All parsing and code generation lives in `quoin-macros-core`; the `quoin-macros` crate is the `proc_macro` boundary. The backend dispatch selects exactly one framework — enabling two framework features is a compile error, by design.
+
+Import: `use quoin_macros::{component, effect, quoin_element, quoin_render, run_app};` (re-exported through the `quoin` facade when a framework feature is enabled).
+
+## component!
+
+Defines a framework-agnostic reactive component. Recognized blocks:
+
+| Block | Contents |
+| --- | --- |
+| `props` | Typed input fields with defaults, e.g. `initial_count: u32 = 0`. |
+| `state` | Reactive fields with initial values; each becomes a signal. |
+| `globals` | Global values retrieved from context; suffix `observe` to track changes. |
+| `on_mount` / `on_unmount` | Lifecycle hooks run at mount / unmount. |
+| `fn …` | Actions — plain functions over the state signals. |
+| `render` | The view tree; runs each render pass. |
+
+Framework output: a `struct` with a `Render` impl (GPUI), `#[component] fn … -> impl IntoView` (Leptos), `#[component] fn … -> Element` (Dioxus).
+
+## quoin_render!
+
+JSX-like declarative UI with Tailwind class transpilation.
+
+| Syntax | Meaning |
+| --- | --- |
+| `div(class: "…") { … }` | Element with classes and children. |
+| `if[cond] { … }` | Conditional subtree. |
+| `for[item in items] { … }` | Repetition over an iterable. |
+| `attr: value` | Named attribute (classes, handlers, configuration). |
+| `on_click: \|ev\| …` | Handler receiving a [typed event](/reference/events/). |
+
+Element vocabulary includes `div`, `button`, `tabs`/`tab`, `data_table`/`column`, `virtual_list`, `dropdown_menu`, `input`, `checkbox`, `radio`, `switch`, `slider`, `icon`, `badge`, `tooltip`, `progress`, `skeleton`, `scroll_area`, `separator`, `styled_text`, and `clipboard_button`.
+
+## quoin_element!
+
+Declares a named custom element with typed props and a render closure:
+
+<Code lang="rust" code={`quoin_element!("my-widget", { width: u32 }, |props| quoin_render! { div { "w" } });`} />
+
+## effect!
+
+Runs side effects reactively. Two syntaxes:
+
+| Form | Shape |
+| --- | --- |
+| Legacy | `effect! { watch: [signal], \|\| … }` |
+| Structured | `effect! { deps: […], run: \|\| …, cleanup: \|\| … }` — `cleanup` optional |
+
+Expansion per framework: `create_effect` + `on_cleanup` (Leptos), `use_effect` + `use_drop` (Dioxus), run-on-execute + cleanup-on-drop (GPUI).
+
+## run_app!
+
+Bootstraps the application with a single line.
+
+| Form | Behavior |
+| --- | --- |
+| `run_app!(MyComponent)` | GPUI with default window options; Leptos/Dioxus mount to body. |
+| `run_app!(MyComponent, window_opts: custom_opts)` | GPUI with custom window options. |
+
+<Aside type="note">
+  To inspect the generated code for a component, run `just expand component="ucp-lib" feature="gpui"` from the repository root.
+</Aside>
+
+## Next steps
+
+- <LinkCard title="Declarative UI Macros" href="/guides/ui-macros/" description="Worked examples for every macro." />
+- <LinkCard title="Styling with Tailwind Classes" href="/guides/styling/" description="How class strings compile to native styling." />
+
+
+---
+
+---
+title: Reactive Context
+description: API reference for the ReactiveContext trait and the ReactiveContextExt extension methods.
+type: reference
+---
+
+import { Code, LinkCard } from '@astrojs/starlight/components';
+
+`ReactiveContext` is the entry point for creating signals and accessing framework services. Adapter crates provide the concrete implementations (`GpuiContext`, `LeptosContext`, …); your code depends only on the trait.
+
+Import: `use quoin_core::prelude::*;`
+
+## ReactiveContext methods
+
+| Method | Signature | Description |
+| --- | --- | --- |
+| `Signal` (assoc.) | `type Signal<T: Clone + Send + 'static>: Signal<T>` | The adapter's signal type. |
+| `Executor` (assoc.) | `type Executor: Executor` | The adapter's executor type. |
+| `create_signal` | `fn create_signal<T: Clone + Send + 'static>(&self, initial: T) -> Self::Signal<T>` | Creates reactive state. |
+| `executor` | `fn executor(&self) -> Self::Executor` | Returns the async task spawner. |
+| `request_update` | `fn request_update(&self)` | Marks the UI as dirty. |
+| `provide_global` | `fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T)` | Stores an app-wide value keyed by type. |
+| `use_global` | `fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>>` | Returns a handle to the stored global, if present. Every adapter returns a handle to the same shared cell. |
+
+## ReactiveContextExt methods
+
+Blanket-implemented over every `ReactiveContext`; included in the prelude.
+
+| Method | Signature | Description |
+| --- | --- | --- |
+| `create_resource` | `fn create_resource<T, E, F, Fut>(&self, fetch: F) -> Resource<…>` | Creates an async data resource with race-free reloads and cooperative cancellation. |
+| `batch` | `fn batch<R>(&self, f: impl FnOnce() -> R) -> R` | Runs `f` inside a batch scope and issues a single update request afterwards. |
+| `update_global` | `fn update_global<T, R>(&self, f: impl FnOnce(&mut T) -> R) -> R` | Mutates a stored global; type-keyed access. |
+| `use_global_or_init` | `fn use_global_or_init<T>(&self, init: impl FnOnce() -> T) -> Self::Signal<T>` | Returns the global handle, initializing it on first use. |
+
+## Example
+
+<Code lang="rust" code={`let signal = cx.create_signal(0);            // create reactive state
+let executor = cx.executor();                // async task spawner
+cx.request_update();                         // mark UI as dirty
+
+cx.provide_global(Theme::Dark);
+if let Some(theme) = cx.use_global::<Theme>() {
+    let current = theme.get();
+}
+
+let res = cx.create_resource(|token| async move { /* fetch */ });
+cx.batch(|| { a.set(1); b.set(2); });        // one update request
+let settings = cx.use_global_or_init(Settings::default);`} />
+
+## Next steps
+
+- <LinkCard title="Sharing Global State" href="/guides/global-state/" description="Task-focused guide to provide_global, update_global, and use_global_or_init." />
+- <LinkCard title="Executors & Tasks" href="/reference/executors/" description="What the executor returned by cx.executor() can do." />
+
+
+---
+
+---
+title: Resources
+description: API reference for Resource and ResourceState — the async data loading primitive shared by all adapters.
+type: reference
+---
+
+import { Code, LinkCard } from '@astrojs/starlight/components';
+
+`Resource` models the full lifecycle of an async computation whose result feeds the UI. It is the framework-agnostic equivalent of Leptos' `Resource` and Dioxus' `use_resource`, and works on every adapter because it is built from two primitives every adapter provides: a `Signal` and an `Executor`.
+
+Import: `use quoin_core::prelude::*;`
+
+## Lifecycle
+
+<Code lang="text" code={`Idle → Loading → Ready(T) | Failed(E)`} />
+
+Every reload cancels the in-flight request and returns the resource to `Loading`. A generation counter makes reloads race-free: a stale request can never overwrite a newer one's result.
+
+## ResourceState
+
+| Variant | Meaning |
+| --- | --- |
+| `Idle` | Created but not started, or cancelled after starting. |
+| `Loading` | A request is in flight. |
+| `Ready(T)` | The latest request completed successfully. |
+| `Failed(Arc<E>)` | The latest request failed. |
+
+## Resource methods
+
+| Method | Signature | Description |
+| --- | --- | --- |
+| `state` | `fn state(&self) -> &S` | Returns the signal holding the current `ResourceState` — read it reactively from the UI. |
+| `read` | `fn read(&self) -> Option<T>` | Convenience read of the current `Ready` value, if any. |
+| `reload_with` | `fn reload_with<C, F, Fut>(&self, cx: &C, fetch: F)` | Re-runs the fetch closure on the given context, cancelling any in-flight request. |
+
+## Creating a resource
+
+Created via `ReactiveContextExt::create_resource`; cloning a `Resource` shares the same underlying state.
+
+<Code lang="rust" code={`let user = cx.create_resource(|token| async move {
+    // Real fetch here; check \`token.is_cancelled()\` between awaits.
+    Ok::<User, FetchError>(fetch_user(&token).await?)
+});
+
+// UI reads:
+match user.state().get() {
+    ResourceState::Loading => spinner(),
+    ResourceState::Ready(user) => profile(&user),
+    ResourceState::Failed(err) => error(&err),
+    ResourceState::Idle => placeholder(),
+}
+
+// Reload — cancels the in-flight request first:
+user.reload_with(&cx, fetch_user_closure);`} />
+
+## Design guarantees
+
+- **Race-free** — generation counting; stale responses are discarded.
+- **Cooperative cancellation** — reloads cancel the in-flight request via its `CancellationToken` and abort the task through the executor's join handle.
+- **Reactive** — the state lives in a framework signal, so UI reads re-render automatically on transitions.
+
+## Next steps
+
+- <LinkCard title="Loading Async Data" href="/guides/async-data/" description="Task-focused guide with fetch, reload, and cancellation patterns." />
+- <LinkCard title="Cancellation Tokens" href="/reference/cancellation/" description="The token handed to the fetch closure." />
+
+
+---
+
+---
+title: Signals
+description: API reference for the Signal trait and the SignalExt extension methods available on every adapter.
+type: reference
+---
+
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
+
+`Signal<T>` is a readable and writable reactive value. Signals are `Clone`, which makes them convenient to pass into closures and store in structs. Every adapter implements the same trait, and the blanket `SignalExt` extension adds convenience methods with zero per-adapter overhead.
+
+Import: `use quoin_core::prelude::*;`
+
+## Signal methods
+
+| Method | Signature | Description |
+| --- | --- | --- |
+| `get` | `fn get(&self) -> T` | Returns a clone of the current value. |
+| `with` | `fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R` | Borrows the value without cloning. |
+| `set` | `fn set(&self, value: T)` | Writes the value and requests an update. |
+| `set_if_eq` | `fn set_if_eq(&self, value: T) -> bool` where `T: PartialEq` | Writes only when the value differs; returns `true` when written. Single-lock implementations override this for a cheaper compare-and-write. |
+| `update` | `fn update(&self, f: impl FnOnce(&mut T))` | Mutates the value in place. |
+
+## SignalExt methods
+
+| Method | Signature | Default behavior |
+| --- | --- | --- |
+| `set_eq` | `fn set_eq(&self, value: T) -> bool` where `T: PartialEq` | Delegates to `set_if_eq`; skipping equal writes removes wasted re-render requests on pull-based adapters. |
+| `replace` | `fn replace(&self, value: T) -> T` | Sets the value and returns the previous one. |
+| `take` | `fn take(&self) -> T` where `T: Default` | Replaces the value with `T::default()` and returns the old value. |
+| `map` | `fn map<U, F>(&self, f: F) -> Derived<Self, T, U, F>` | Sugar for `derived(self, f)` — a read-only computed view. |
+
+## Example
+
+<Code lang="rust" code={`let signal = cx.create_signal(42u32);
+assert_eq!(signal.get(), 42);
+signal.with(|v| println!("{v}"));   // borrow without cloning
+signal.set(100);
+signal.update(|v| *v += 1);
+assert_eq!(signal.get(), 101);
+
+signal.set_eq(101);                 // false — unchanged, no update requested
+let old = signal.replace(7);        // old == 101
+let taken = signal.take();          // taken == 7, signal now 0`} />
+
+<Aside type="note">
+  On pull-based adapters (GPUI, Xilem) every mutation calls `request_update()`. Prefer `set_eq` for values that frequently receive equal writes.
+</Aside>
+
+## Next steps
+
+- <LinkCard title="Derived Signals & Memos" href="/reference/derived/" description="Computed views, memoization, and zipped signals." />
+- <LinkCard title="Reactive Context" href="/reference/reactive-context/" description="Where signals are created and how update requests flow." />
+
+
+---
+
+---
+title: quoin-testkit
+description: API reference for TestContext, the deterministic executors, and UpdateRecorder in quoin-testkit.
+type: reference
+---
+
+import { Code, LinkCard } from '@astrojs/starlight/components';
+
+`quoin-testkit` provides concrete, dependency-light implementations of the core traits designed for tests. Reactive business logic written against `ReactiveContext` runs headlessly — no window manager, no browser, fully deterministic.
+
+Import: `use quoin_testkit::{TestContext, ImmediateExecutor, …};` or through the facade with the `testkit` feature.
+
+## Components
+
+| Component | Purpose |
+| --- | --- |
+| `TestContext` | Full `ReactiveContext` with update counting and a shared global store. Construct with `TestContext::with_executor(executor)`. |
+| `ImmediateExecutor` | Runs futures inline to completion — fully deterministic, but blocking. |
+| `ThreadedExecutor` | Runs each future on a dedicated thread — real concurrency, real abort semantics. |
+| `TokioExecutor` *(feature `tokio`)* | Runs futures on a real tokio runtime; `sleep` delegates to `tokio::time::sleep`, so paused-time tests (`start_paused` + `advance`) drive executor timers deterministically. |
+| `UpdateRecorder` | Assert how many times the UI was asked to re-render. |
+| `TestSignal<T>` | Standalone thread-safe signal backed by `Arc<RwLock<T>>`; mutations bump the owning context's update counter, mirroring pull-based adapters. |
+
+## TestContext API
+
+| Method | Description |
+| --- | --- |
+| `with_executor(e)` | Builds a context around the chosen executor. |
+| `updates()` | Returns the update recorder; `.count()` gives the number of re-render requests so far. |
+
+## Executor selection
+
+| You are testing | Choose |
+| --- | --- |
+| Pure state machines, reducers, derived pipelines | `ImmediateExecutor` — synchronous and deterministic |
+| Logic that awaits timers/channels; abort/detach semantics | `ThreadedExecutor` or `TokioExecutor` |
+
+`ImmediateExecutor` cannot model mid-flight cancellation because futures finish before the handle exists.
+
+## Example
+
+<Code lang="rust" code={`use quoin_core::prelude::*;
+use quoin_testkit::{ImmediateExecutor, TestContext};
+
+let mut cx = TestContext::with_executor(ImmediateExecutor);
+let count = cx.create_signal(0u32);
+count.set(41);
+count.update(|v| *v += 1);
+assert_eq!(count.get(), 42);
+assert_eq!(cx.updates().count(), 2, "set + update each requested a re-render");`} />
+
+## Next steps
+
+- <LinkCard title="Testing with quoin-testkit" href="/guides/testing/" description="Task-focused guide with batching and store test patterns." />
+- <LinkCard title="Executors & Tasks" href="/reference/executors/" description="The production-side executor contract the testkit mirrors." />
+
+
+---
+
+---
+title: Universal Component Protocol
+description: API reference for the quoin-ui traits, node types, and variant enums that abstract rich widgets across frameworks.
+type: reference
+---
+
+import { Code, LinkCard } from '@astrojs/starlight/components';
+
+The `quoin-ui` crate defines framework-agnostic adapter traits for complex UI components. Adapter crates such as `quoin-ui-gpui` provide concrete implementations. Your code depends on the traits; the framework feature pulls in the implementation.
+
+Import: `use quoin_ui::{ButtonAdapter, ButtonVariant, ComponentSize, …};`
+
+## Adapter traits
+
+| Trait | Purpose |
+| --- | --- |
+| `VirtualListAdapter` | Efficiently render large, scrollable lists (marker trait, `Default + Clone + Send + Sync`). |
+| `TableAdapter` | Sortable, striped data tables. |
+| `TextInputAdapter` | Two-way bound text inputs. |
+| `ButtonAdapter` | Styled buttons (primary, ghost, destructive). |
+| `DropdownMenuAdapter` | Dropdown menus with items. |
+| `TabBarAdapter` | Tab navigation. |
+| `Clipboard` | Read/write the system clipboard. |
+| `QuoinTheme` | Theme token resolution. |
+
+## Node vocabulary
+
+The `node` module models widget trees as typed nodes, produced by factory functions:
+
+| Factory / node | Models |
+| --- | --- |
+| `div` → `DivNode`, `DivBuilder` | Containers with styling. |
+| `text` → `TextNode`, `StyledTextNode` | Text runs with `NodeFontWeight`. |
+| `button` → `ButtonNode` | Buttons with `NodeButtonVariant` and `NodeKeySpec`. |
+| `input` → `InputNode` | Text inputs with `InputValues`. |
+| `data_table` → `TableNode`, `ColumnSpec` | Tables with per-column specs and `ScrollRestorationNode` support. |
+| `virtual_list` → `VirtualListNode` | Windowed lists. |
+| `tab_bar` → `TabBarNode`, `TabSpec` | Tab bars. |
+| `dropdown_menu` → `MenuItem`, `MenuProvider` | Menus. |
+| `icon` → `IconNode` | Icons. |
+| `clipboard` → `ClipboardNode` | Copy-to-clipboard affordances. |
+| `custom` → `CustomNode` | Escape hatch for arbitrary widgets, with `NodeEventCtx` and `NodeHandler`. |
+
+Supporting types: `Node`, `NodeChild`, `NodeEnv`, `NodeFactory`, `NodeStyle`, `StyleCmd`.
+
+## Variant enums
+
+| Enum | Variants | Default |
+| --- | --- | --- |
+| `ComponentSize` | `Small`, `Medium`, `Large` | `Medium` |
+| `SortDirection` | `None`, `Asc`, `Desc` | `None` |
+| `ButtonVariant` | Struct with `primary: bool`, `ghost: bool`, `destructive: bool`, `size: ComponentSize` | — |
+| `NodeKeySpec` | Key handling specs for focusable nodes | — |
+
+## Example
+
+<Code lang="rust" code={`use quoin_ui::{ButtonAdapter, ButtonVariant, ComponentSize};
+
+let adapter = GpuiButtonAdapter::default();
+let button = adapter.render(Some("Click Me".into()), ButtonVariant {
+    primary: true,
+    size: ComponentSize::Medium,
+    ..Default::default()
+});`} />
+
+## Next steps
+
+- <LinkCard title="Composing UCP Components" href="/guides/ucp-components/" description="Task-focused guide to tables, lists, and buttons." />
+- <LinkCard title="Feature Flags" href="/reference/feature-flags/" description="The ui feature and its per-adapter availability." />
+
+
+---
+
+---
+title: Build a Cross-Framework Counter
+description: The golden-path tutorial — install Quoin, write a portable counter hook, render it in GPUI, then re-target the same hook to another framework.
+type: tutorial
+---
+
+import { Aside, Code, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+
+You will build a counter application whose reactive logic lives in a framework-agnostic library crate and whose view layer runs on GPUI. At the end you re-target the same hook to Leptos by changing a single feature flag. The counter is the smallest program that exercises every layer of Quoin: a [signal](/reference/signals/) for state, a portable hook written against [`ReactiveContext`](/reference/reactive-context/), and a framework view that reads the signal.
+
+**Prerequisites:** Rust stable 1.88 or newer (`rustup update stable`), and a terminal. No GPUI system libraries are needed for the logic crate; GPUI itself needs the usual Linux windowing headers listed in the [installation guide](/guides/installation/#prerequisites).
+
+## Create the project
+
+<Steps>
+1. Create a Cargo workspace with two crates: a library for the portable logic and a binary for the GPUI view.
+
+    <Code lang="sh" code={`cargo new counter --lib
+cargo new counter-gpui --bin`} />
+
+2. Add Quoin to both manifests. The library depends on `quoin-core` (traits only, no framework). The binary depends on `quoin` with the `gpui` feature.
+
+    <Code lang="toml" code={`# counter/Cargo.toml
+[dependencies]
+quoin-core = "0.1"`} />
+
+    <Code lang="toml" code={`# counter-gpui/Cargo.toml
+[dependencies]
+counter = { path = "../counter" }
+quoin = { version = "0.1", features = ["gpui"] }`} />
+
+    <Aside type="caution">
+      The version on crates.io may lag the repository. If you are building against a checkout of the [Quoin repository](https://github.com/elcoosp/quoin), use path dependencies instead, as the examples in the repository do:
+
+      <Code lang="toml" code={`quoin = { path = "../quoin", features = ["gpui"] }`} />
+    </Aside>
+</Steps>
+
+## Write the portable hook
+
+The hook is an ordinary Rust function generic over `ReactiveContext`. It knows nothing about GPUI, windows, or rendering.
+
+<Code lang="rust" code={`// counter/src/lib.rs
+use quoin_core::prelude::*;
+use std::rc::Rc;
+
+pub struct Counter<S: Signal<u32>> {
+    pub count: S,
+    pub increment: Rc<dyn Fn()>,
+}
+
+pub fn use_counter<C: ReactiveContext>(cx: &C) -> Counter<C::Signal<u32>> {
+    let count = cx.create_signal(0u32);
+    let increment = {
+        let count = count.clone();
+        Rc::new(move || count.update(|c| *c += 1))
+    };
+    Counter { count, increment }
+}`} />
+
+Key points:
+
+- `cx.create_signal(0u32)` allocates reactive state through the context. The returned type is `C::Signal<u32>` — whatever the active framework provides.
+- `count.update(|c| *c += 1)` mutates in place and requests a re-render on pull-based adapters.
+- The `Signal<T>` trait bound keeps the struct usable with any adapter's signal type.
+
+## Render it in GPUI
+
+Now wire the hook into a GPUI component and bootstrap the app with `run_app!`.
+
+<Code lang="rust" code={`// counter-gpui/src/main.rs
+use counter::use_counter;
+use quoin::prelude::*;
+
+struct CounterView {
+    counter: counter::Counter<quoin::GpuiSignal<u32>>,
+    _ctx: GpuiContext,
+}
+
+impl Render for CounterView {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let count = self.counter.count.get();
+        div()
+            .flex()
+            .child(format!("Count: {count}"))
+            .child(
+                div()
+                    .child("Increment")
+                    .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, _| {
+                        (this.counter.increment)();
+                    }))
+            )
+    }
+}
+
+fn main() {
+    let ctx = GpuiContext::new();
+    let counter = use_counter(&ctx);
+    run_app!(CounterView { counter, _ctx: ctx });
+}`} />
+
+Run it:
+
+<Code lang="sh" code={`cargo run -p counter-gpui`} />
+
+**Expected output:** a native window showing `Count: 0` with an `Increment` button; each click updates the label.
+
+## Re-target the same hook to Leptos
+
+Change the feature flag and swap the view. The hook crate is untouched.
+
+<Code lang="toml" code={`# counter-leptos/Cargo.toml
+[dependencies]
+counter = { path = "../counter" }
+quoin = { version = "0.1", features = ["leptos"] }`} />
+
+<Code lang="rust" code={`// counter-leptos/src/lib.rs
+use counter::use_counter;
+use quoin::prelude::*;
+
+#[component]
+pub fn App() -> impl IntoView {
+    let ctx = LeptosContext::new();
+    let counter = use_counter(&ctx);
+    view! {
+        <div>
+            <p>"Count: " {move || counter.count.get()}</p>
+            <button on:click=move |_| (counter.increment)()>"Increment"</button>
+        </div>
+    }
+}`} />
+
+<Aside type="note">
+  Enable exactly one framework feature per crate. Enabling two triggers a `compile_error!` that names the offending configuration — the backends are mutually exclusive by design.
+</Aside>
+
+You can also skip the view layer entirely: the [testing guide](/guides/testing/) runs the same hook headlessly with `quoin-testkit`, and the [devtools guide](/guides/devtools/) traces every signal mutation it performs.
+
+## Next steps
+
+- <LinkCard title="Writing Portable Hooks" href="/guides/portable-hooks/" description="Patterns for hooks that stay framework-agnostic: derived state, effects, and batching." />
+- <LinkCard title="Declarative UI Macros" href="/guides/ui-macros/" description="Replace hand-written view code with component!, quoin_render!, and effect!." />
+- <LinkCard title="Signals Reference" href="/reference/signals/" description="Every method on Signal and SignalExt." />

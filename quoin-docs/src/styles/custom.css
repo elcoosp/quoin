@@ -16,13 +16,13 @@
  */
 
 :root {
-  --sl-color-accent-low: hsl(16, 65%, 96%);
-  --sl-color-accent: hsl(14, 71%, 36%);
-  --sl-color-accent-high: hsl(10, 71%, 28%);
+  --sl-color-accent-low: hsl(30 30% 93%);
+  --sl-color-accent: hsl(30 30% 35%);
+  --sl-color-accent-high: hsl(30 30% 28%);
 }
 
 [data-theme='dark'] {
-  --sl-color-accent-low: hsl(14, 40%, 15%);
-  --sl-color-accent: hsl(20, 88%, 60%);
-  --sl-color-accent-high: hsl(28, 92%, 74%);
+  --sl-color-accent-low: hsl(30 30% 16%);
+  --sl-color-accent: hsl(30 30% 60%);
+  --sl-color-accent-high: hsl(30 30% 75%);
 }

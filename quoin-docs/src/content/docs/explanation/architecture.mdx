@@ -4,14 +4,13 @@ description: How the Quoin workspace is organized — the facade, the core trait
 type: explanation
 ---
 
-import { LinkCard } from '@astrojs/starlight/components';
+import { Code, LinkCard } from '@astrojs/starlight/components';
 
 Quoin's architecture separates three concerns: a small trait contract, five adapters that implement it natively, and shared machinery that keeps the adapters consistent. Everything composes through the `quoin` facade crate.
 
 ## The layers
 
-```text
-        your app / your hook library
+<Code lang="text" code={`        your app / your hook library
                     │
               quoin (facade)          ← feature flags pick one backend
         ┌─────────┼─────────┐
@@ -23,8 +22,7 @@ Quoin's architecture separates three concerns: a small trait contract, five adap
  quoin-gpui quoin-leptos quoin-dioxus quoin-xilem quoin-floem
         └──────────┴──────────┴─────┬─────┴──────────┘
                     shared machinery in quoin-core
-              join · globals · NotifierSignal · batch · pool
-```
+              join · globals · NotifierSignal · batch · pool`} />
 
 ## The contract layer
 

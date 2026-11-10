@@ -4,7 +4,7 @@ description: Store app-wide state with provide_global and use_global, update it 
 type: how-to
 ---
 
-import { Aside, LinkCard } from '@astrojs/starlight/components';
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
 
 You will store application-wide values — theme, settings, a router state — outside any single component and access them from any hook or view.
 
@@ -14,14 +14,12 @@ You will store application-wide values — theme, settings, a router state — o
 
 `provide_global` stores a value keyed by its type; `use_global` retrieves it as a reactive signal handle:
 
-```rust
-cx.provide_global(Theme::Dark);
+<Code lang="rust" code={`cx.provide_global(Theme::Dark);
 
 if let Some(theme) = cx.use_global::<Theme>() {
     // theme is a signal handle — read or observe it.
     let current = theme.get();
-}
-```
+}`} />
 
 Store one value per type per context. Two adapters running on the same thread never collide: the underlying store keys entries by both the context type and the value type.
 
@@ -29,17 +27,13 @@ Store one value per type per context. Two adapters running on the same thread ne
 
 `update_global` (from `ReactiveContextExt`, in the prelude) mutates the stored value through a closure. The type parameter after the struct is your error type — return `Err` to reject the update:
 
-```rust
-cx.update_global::<Settings, ()>(|s| s.theme = Theme::Dark);
-```
+<Code lang="rust" code={`cx.update_global::<Settings, ()>(|s| s.theme = Theme::Dark);`} />
 
 ## Initialize on first use
 
 `use_global_or_init` inserts a default when no value exists yet and returns the handle either way:
 
-```rust
-let settings = cx.use_global_or_init(Settings::default);
-```
+<Code lang="rust" code={`let settings = cx.use_global_or_init(Settings::default);`} />
 
 This replaces the provide-then-read dance for globals that always exist.
 

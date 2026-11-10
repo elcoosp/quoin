@@ -1,0 +1,34 @@
+# quoin
+
+> AI-agent index.
+
+- [Architecture](/explanation/architecture/) — How the Quoin workspace is organized — the facade, the core traits, the adapter crates, and the shared machinery beneath them.
+- [Backend Parity](/explanation/backend-parity/) — How Quoin guarantees identical adapter behavior — the shared conformance suite, macro expansion tests, and the class-engine parity harness.
+- [The Reactivity Model](/explanation/reactivity-model/) — How Quoin's signal model works — tracking on fine-grained frameworks, notifications on pull-based ones, and what batching, memos, and resources do under the hood.
+- [Why Quoin Exists](/explanation/why-quoin/) — The problems Quoin solves — framework lock-in, untestable UI logic, and duplicated reactivity code across the Rust GUI ecosystem.
+- [Loading Async Data](/guides/async-data/) — Fetch remote data with race-free resources, spawn async tasks on the framework runtime, and use portable timers.
+- [Cancelling Work](/guides/cancelling-work/) — Cancel long-running async work cooperatively with child tokens, RAII guards, and run-until-cancelled races.
+- [Tracing with quoin-devtools](/guides/devtools/) — Record every signal mutation, task spawn, and update request with quoin-devtools, then inspect the log at runtime or on exit.
+- [Sharing Global State](/guides/global-state/) — Store app-wide state with provide_global and use_global, update it safely, and understand the shared-cell semantics.
+- [Installation](/guides/installation/) — Add Quoin to a Rust project, choose the right feature flags, and satisfy the system prerequisites for each framework adapter.
+- [Writing Portable Hooks](/guides/portable-hooks/) — Write reusable reactive hooks — signals, derived state, and effects — that compile unchanged on every Quoin adapter.
+- [Styling with Tailwind Classes](/guides/styling/) — Style quoin_render! trees with Tailwind utility classes that compile to native styling on every backend.
+- [Testing with quoin-testkit](/guides/testing/) — Run framework-agnostic hooks and stores headlessly with deterministic executors and update-count assertions.
+- [Composing UCP Components](/guides/ucp-components/) — Build data tables, virtual lists, inputs, buttons, dropdowns, and tab bars through the framework-agnostic Universal Component Protocol.
+- [Declarative UI Macros](/guides/ui-macros/) — Define components, render JSX-like trees, run effects, and bootstrap apps with component!, quoin_render!, effect!, and run_app!.
+- [Quoin Documentation](/) — One reactive core, many frameworks — write reactive Rust UI logic once and run it on GPUI, Leptos, Dioxus, Xilem, or Floem.
+- [Batched Updates](/reference/batching/) — API reference for batch::with, BatchGuard, and the notification suppression machinery shared by pull-based adapters.
+- [Cancellation Tokens](/reference/cancellation/) — API reference for CancellationToken, CancelGuard, and the futures used for cooperative cancellation.
+- [Crates](/reference/crates/) — API reference for the workspace layout — what every crate in the Quoin repository contains and which ones you depend on.
+- [Derived Signals & Memos](/reference/derived/) — API reference for derived(), map(), zip(), and Memo — computed views over signals on every adapter.
+- [quoin-devtools](/reference/devtools/) — API reference for Instrumented, EventLog, EventKind, and the record helpers in quoin-devtools.
+- [Typed Events](/reference/events/) — API reference for the ev module — small value-type events that keep handler source identical on all five backends.
+- [Executors & Tasks](/reference/executors/) — API reference for the Executor trait, JoinHandle lifecycle, local (!Send) tasks, and portable timers.
+- [Feature Flags](/reference/feature-flags/) — API reference for every cargo feature on the quoin facade, including dependencies between flags.
+- [Macros](/reference/macros/) — API reference for component!, quoin_render!, quoin_element!, effect!, and run_app!.
+- [Reactive Context](/reference/reactive-context/) — API reference for the ReactiveContext trait and the ReactiveContextExt extension methods.
+- [Resources](/reference/resources/) — API reference for Resource and ResourceState — the async data loading primitive shared by all adapters.
+- [Signals](/reference/signals/) — API reference for the Signal trait and the SignalExt extension methods available on every adapter.
+- [quoin-testkit](/reference/testkit/) — API reference for TestContext, the deterministic executors, and UpdateRecorder in quoin-testkit.
+- [Universal Component Protocol](/reference/ucp/) — API reference for the quoin-ui traits, node types, and variant enums that abstract rich widgets across frameworks.
+- [Build a Cross-Framework Counter](/tutorials/build-a-counter/) — The golden-path tutorial — install Quoin, write a portable counter hook, render it in GPUI, then re-target the same hook to another framework.

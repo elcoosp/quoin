@@ -4,7 +4,7 @@ description: API reference for batch::with, BatchGuard, and the notification sup
 type: reference
 ---
 
-import { Aside, LinkCard } from '@astrojs/starlight/components';
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
 
 On pull-based adapters (GPUI, Xilem) every signal mutation calls `request_update()`. When a handler mutates several signals in a row this produces redundant re-render requests. Batching suppresses those intermediate notifications and issues a single update when the batch ends.
 
@@ -27,8 +27,7 @@ A thread-local depth counter tracks nested batches. The signal implementations o
 
 ## Example
 
-```rust
-let a = cx.create_signal(0u32);
+<Code lang="rust" code={`let a = cx.create_signal(0u32);
 let b = cx.create_signal(0u32);
 
 quoin_core::batch::with(&cx, || {
@@ -36,8 +35,7 @@ quoin_core::batch::with(&cx, || {
     b.set(2);
 });
 assert_eq!((a.get(), b.get()), (1, 2));
-// One re-render request instead of two.
-```
+// One re-render request instead of two.`} />
 
 <Aside type="note">
   Batch bookkeeping is intentionally cheap (two thread-local accesses). Nesting works: only when the outermost batch ends is the update requested.
