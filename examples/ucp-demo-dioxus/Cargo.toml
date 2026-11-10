@@ -7,5 +7,5 @@ publish = false
 
 [dependencies]
 dioxus = { version = "0.7", features = ["desktop"] }
-quoin = { path = "../../quoin", features = ["dioxus"] }
+quoin = { git = "https://github.com/elcoosp/quoin", features = ["dioxus"] }
 ucp-lib = { path = "../ucp-lib", features = ["dioxus"] }

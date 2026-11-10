@@ -6,7 +6,7 @@ publish = false
 build = "build.rs"
 
 [dependencies]
-quoin = { path = "../quoin" }
+quoin = { git = "https://github.com/elcoosp/quoin" }
 quoin-macros = { path = "../quoin-macros" }
 
 # GPUI is a feature, just like you want!

@@ -56,7 +56,7 @@ quoin-macros = { path = "../quoin-macros", features = ["floem"] }
 #   cargo nextest run -p quoin-floem                    → generic lowerings
 #   cargo nextest run -p quoin-floem --features shadcn  → shadcn lowerings
 # compile the same expansion test against the other cfg branch.
-quoin = { path = "../quoin", default-features = false, features = ["floem"] }
+quoin = { git = "https://github.com/elcoosp/quoin", features = ["floem"] }
 # Direct component dep for the expansion tests: the generated code names
 # `::floem_shadcn::…` paths, which resolve from this crate's own
 # dependencies. Test-only; consumers get the dep through the `shadcn`

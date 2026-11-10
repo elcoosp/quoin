@@ -12,7 +12,7 @@ console_error_panic_hook = "0.1"
 console_log = "1.0"
 log = "0.4"
 wasm-bindgen = "0.2"
-quoin = { path = "../../quoin", features = ["leptos", "leptos-shadcn"] }
+quoin = { git = "https://github.com/elcoosp/quoin", features = ["leptos", "leptos-shadcn"] }
 ucp-lib = { path = "../ucp-lib", features = ["leptos-shadcn"] }
 leptos-shadcn-ui = { git = "https://github.com/harana-oss/leptos-shadcn-ui", rev = "b16956f25868b369100178e06f6c5b0afd7eb2be", default-features = false, features = ["button", "input", "tabs", "badge", "table", "tooltip", "scroll-area", "dropdown-menu"] }
 

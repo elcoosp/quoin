@@ -8,5 +8,5 @@ publish = false
 [dependencies]
 gpui = { git = "https://github.com/zed-industries/zed" }
 gpui_platform = { git = "https://github.com/zed-industries/zed", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
-quoin = { path = "../../quoin", features = ["gpui"] }
+quoin = { git = "https://github.com/elcoosp/quoin", features = ["gpui"] }
 ucp-lib = { path = "../ucp-lib", features = ["gpui"] }

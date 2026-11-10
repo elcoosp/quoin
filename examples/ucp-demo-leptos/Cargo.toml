@@ -12,7 +12,7 @@ console_error_panic_hook = "0.1"
 console_log = "1.0"
 log = "0.4"
 wasm-bindgen = "0.2"
-quoin = { path = "../../quoin", features = ["leptos"] }
+quoin = { git = "https://github.com/elcoosp/quoin", features = ["leptos"] }
 ucp-lib = { path = "../ucp-lib", features = ["leptos-shadcn"] }
 
 # Required: `leptos-shadcn-ui` (via ucp-lib -> quoin/leptos-shadcn) depends on

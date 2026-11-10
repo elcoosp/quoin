@@ -8,4 +8,4 @@ publish = false
 [dependencies]
 dioxus = {version="0.7", features=["desktop"]}
 counter-lib = { path = "../counter" }
-quoin = { path = "../../quoin", features = ["dioxus"] }
+quoin = { git = "https://github.com/elcoosp/quoin", features = ["dioxus"] }

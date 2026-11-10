@@ -7,7 +7,7 @@ publish = false
 [dependencies]
 floem = { git = "https://github.com/lapce/floem", branch = "main" }
 todo-core = { path = "../todo-core" }
-quoin = { path = "../../quoin", features = ["floem"] }
+quoin = { git = "https://github.com/elcoosp/quoin", features = ["floem"] }
 
 # Floem's main branch depends on `muda` with the `gtk` feature on Linux; the
 # workspace replaces it with the API-compatible stub (see the root manifest).
