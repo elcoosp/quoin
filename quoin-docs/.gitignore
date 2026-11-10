@@ -9,3 +9,4 @@ dist/
 # Editor / OS noise
 .DS_Store
 *.log
+.qa/
