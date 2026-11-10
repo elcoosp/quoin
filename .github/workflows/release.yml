@@ -1,28 +1,81 @@
-# Release + changelog — calls the canonical reusable workflow.
-# Copy to .github/workflows/release.yml in every fleet repo.
-#
-# The reusable workflow lives at:
-#   elcoosp/docs-toolkit/.github/workflows/changelog.yml@main
-#
-# It uses the canonical cliff.toml at:
-#   docs-toolkit/git-cliff/cliff.toml
-#
-# No cliff.toml is stored in this repo — config is fetched at runtime.
-
 name: Release
 
+# On a version tag, regenerate the changelog with git-cliff and publish a
+# GitHub Release whose body is the changelog section for that version.
 on:
   push:
     tags:
-      - 'v*'
+      - "v[0-9]+.[0-9]+.[0-9]+*"
 
 permissions:
   contents: write
-  pull-requests: write
+
+env:
+  CARGO_TERM_COLOR: always
 
 jobs:
-  changelog:
-    uses: elcoosp/docs-toolkit/.github/workflows/changelog.yml@main
-    with:
-      mode: release
-    secrets: inherit
+  release:
+    name: Release & Changelog
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history, required by git-cliff)
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-nextest and git-cliff
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest,git-cliff
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: release
+
+      - name: Verify the tagged version matches the crate versions
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          # Workspace version (crates declaring `version.workspace = true`
+          # resolve to this; `grep '^version'` on their manifests finds the
+          # inheritance line, not a number).
+          workspace_version=$(grep -m1 '^version' Cargo.toml | sed 's/version *= *"\(.*\)"/\1/')
+          for crate in quoin quoin-core quoin-macros quoin-macros-core; do
+            line=$(grep -m1 '^version' "$crate/Cargo.toml")
+            if printf '%s' "$line" | grep -q 'version\.workspace'; then
+              crate_version=$workspace_version
+            else
+              crate_version=$(printf '%s' "$line" | sed 's/version *= *"\(.*\)"/\1/')
+            fi
+            if [ "$crate_version" != "$TAG" ]; then
+              echo "::error::tag v$TAG does not match $crate version $crate_version"
+              exit 1
+            fi
+          done
+          echo "All crate versions match tag v$TAG"
+
+      - name: Run the full test suite
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libxkbcommon-dev libx11-dev libxcb1-dev libwayland-dev \
+            libfontconfig1-dev libssl-dev
+          cargo nextest run --workspace --all-targets
+          cargo test --doc --workspace
+
+      - name: Generate the full changelog with git-cliff
+        run: git cliff --config-url https://raw.githubusercontent.com/elcoosp/docs-toolkit/main/git-cliff/cliff.toml --verbose --output CHANGELOG.md
+
+      - name: Extract the notes for the released version
+        run: git cliff --config-url https://raw.githubusercontent.com/elcoosp/docs-toolkit/main/git-cliff/cliff.toml --latest --strip all > release_notes.md
+
+      - name: Publish the GitHub Release
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file release_notes.md
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
