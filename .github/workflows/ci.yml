@@ -77,12 +77,10 @@ jobs:
           cargo nextest run -p quoin-core -p quoin-macros-core -p quoin-conformance \
             -p quoin-testkit -p quoin-devtools
 
-      - uses: taiki-e/install-action
-        - name: Run facade tests
+      - name: Run facade tests
         run: cargo nextest run -p quoin
 
-      - uses: taiki-e/install-action
-        - name: Run headless e2e examples
+      - name: Run headless e2e examples
         run: cargo nextest run -p todo-core -p fetch-core -p devtools-demo
 
       - name: Run doctests
