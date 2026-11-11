@@ -45,12 +45,11 @@
 //! // Update plumbing is observable:
 //! assert_eq!(cx.updates().count(), 2, "set + update each requested a re-render");
 //! ```
-pub use quoin_core::local::LocalExecutor;
 
 use quoin_core::batch;
 use quoin_core::effect::DepHandle;
 use quoin_core::executor::{Executor, JoinHandle};
-use quoin_core::local::{LocalExecutor, LocalJoinHandle};
+pub use quoin_core::local::{LocalExecutor, LocalJoinHandle};
 use quoin_core::reactive::ReactiveContext;
 use quoin_core::signal::Signal;
 use std::any::TypeId;
