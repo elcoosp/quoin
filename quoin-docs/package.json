@@ -29,6 +29,6 @@
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "typescript": "6.0.3",
-    "@elcoosp/docs-toolkit": "github:elcoosp/docs-toolkit#aed4c39da3e461b4ce803e7f2845a5e36bb7ed21"
+    "@elcoosp/docs-toolkit": "github:elcoosp/docs-toolkit#b59e2f6cb12e0076817cf8e9e372fe8552ff2e1d"
   }
 }
