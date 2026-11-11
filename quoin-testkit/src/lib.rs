@@ -1,4 +1,3 @@
-pub use quoin_core::local::LocalExecutor;
 //! # quoin-testkit — test framework-agnostic quoin code without a UI
 //!
 //! The whole point of quoin is that reactive business logic (hooks, stores,
@@ -46,6 +45,7 @@ pub use quoin_core::local::LocalExecutor;
 //! // Update plumbing is observable:
 //! assert_eq!(cx.updates().count(), 2, "set + update each requested a re-render");
 //! ```
+pub use quoin_core::local::LocalExecutor;
 
 use quoin_core::batch;
 use quoin_core::effect::DepHandle;
