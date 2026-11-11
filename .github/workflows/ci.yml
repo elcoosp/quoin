@@ -107,7 +107,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Install Linux deps
-        run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev libfreetype6-dev libxkbcommon-dev libxkbcommon-x11-dev
+        run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev libfreetype6-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libx11-dev libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -298,7 +298,7 @@ jobs:
         run: cargo clippy --all-targets -p quoin-gpui -p quoin-ui-gpui -- -D warnings
 
       - name: Install Linux deps for GPUI
-        run: sudo apt-get update && sudo apt-get install -y libxkbcommon-x11-dev
+        run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev libfreetype6-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libx11-dev libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
       - name: Run GPUI adapter tests
         run: cargo nextest run -p quoin-gpui
 
