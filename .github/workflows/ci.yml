@@ -26,32 +26,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
-
       - name: Format check
         run: cargo fmt --all --check
-
       - name: Clippy (framework-free crates)
         run: |
           cargo clippy --all-targets -p quoin-core -p quoin-macros-core \
             -p quoin-macros -p quoin-ui -p quoin-conformance \
             -p quoin-testkit -p quoin-devtools -- -D warnings
-
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
       - name: Web emitter expansion gates
         run: |
           cargo nextest run -p quoin-macros-core --features leptos --test leptos_expansion
           cargo nextest run -p quoin-macros-core --features dioxus --test dioxus_expansion
 
-  # -----------------------------------------------------------------------
-  # Core + facade tests (fast, no framework dependencies)
-  # -----------------------------------------------------------------------
   test-core:
     name: Test Core
     runs-on: ubuntu-latest
