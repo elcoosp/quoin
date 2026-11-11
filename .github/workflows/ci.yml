@@ -75,10 +75,12 @@ jobs:
           cargo nextest run -p quoin-core -p quoin-macros-core -p quoin-conformance \
             -p quoin-testkit -p quoin-devtools
 
-      - name: Run facade tests
+      - uses: taiki-e/install-action
+        - name: Run facade tests
         run: cargo nextest run -p quoin
 
-      - name: Run headless e2e examples
+      - uses: taiki-e/install-action
+        - name: Run headless e2e examples
         run: cargo nextest run -p todo-core -p fetch-core -p devtools-demo
 
       - name: Run doctests
@@ -119,7 +121,8 @@ jobs:
         with:
           key: ${{ matrix.package }}
 
-      - name: Run tests
+      - uses: taiki-e/install-action
+        - name: Run tests
         run: cargo nextest run -p ${{ matrix.package }}
 
   # -----------------------------------------------------------------------
@@ -161,7 +164,8 @@ jobs:
         with:
           key: macros-${{ matrix.features }}
 
-      - name: Run macro UI tests
+      - uses: taiki-e/install-action
+        - name: Run macro UI tests
         run: cargo nextest run -p quoin-macros-tests --features ${{ matrix.features }}
 
   # -----------------------------------------------------------------------
@@ -194,17 +198,20 @@ jobs:
         with:
           key: gates-${{ matrix.backend }}
 
-      - name: Expansion gate (single backend)
+      - uses: taiki-e/install-action
+        - name: Expansion gate (single backend)
         run: cargo nextest run -p quoin-macros-core --features ${{ matrix.backend }} --test ${{ matrix.backend }}_expansion
 
-      - name: Parity matrix + semantic golden (shared IR)
+      - uses: taiki-e/install-action
+        - name: Parity matrix + semantic golden (shared IR)
         run: cargo nextest run -p quoin-style
 
       - name: Parity matrix (both dynamic backends)
         if: matrix.backend == 'xilem'
         run: cargo nextest run -p quoin-macros-core --features floem,xilem --test parity_matrix
 
-      - name: Allocation gate
+      - uses: taiki-e/install-action
+        - name: Allocation gate
         run: cargo nextest run -p quoin-${{ matrix.backend }} --test allocation_gate
 
       # The excluded examples are not workspace members, so a plain
@@ -284,13 +291,16 @@ jobs:
       - name: Clippy (GPUI crates)
         run: cargo clippy --all-targets -p quoin-gpui -p quoin-ui-gpui -- -D warnings
 
-      - name: Run GPUI adapter tests
+      - uses: taiki-e/install-action
+        - name: Run GPUI adapter tests
         run: cargo nextest run -p quoin-gpui
 
-      - name: Run GPUI conformance tests
+      - uses: taiki-e/install-action
+        - name: Run GPUI conformance tests
         run: cargo nextest run -p quoin-conformance --features gpui
 
-      - name: Run GPUI macro UI tests
+      - uses: taiki-e/install-action
+        - name: Run GPUI macro UI tests
         run: cargo nextest run -p quoin-macros-tests --features gpui
 
   # -----------------------------------------------------------------------
