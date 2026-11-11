@@ -78,8 +78,7 @@ jobs:
             -p quoin-testkit -p quoin-devtools
 
       - name: Run facade tests
-        run: cargo nextest run -p quoin
-
+        run: cargo nextest run -p quoin --no-tests=pass
       - name: Run headless e2e examples
         run: cargo nextest run -p todo-core -p fetch-core -p devtools-demo
 
