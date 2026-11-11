@@ -29,12 +29,6 @@
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "typescript": "6.0.3",
-    "@elcoosp/docs-toolkit": "github:elcoosp/docs-toolkit#8084231ffe3841ce1f199644aeb0c0af71b137bb"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "sharp"
-    ]
+    "@elcoosp/docs-toolkit": "github:elcoosp/docs-toolkit#ac684a44763db62ceb30ca70e89e430d9cc04049"
   }
 }

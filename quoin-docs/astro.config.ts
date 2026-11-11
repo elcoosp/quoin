@@ -6,6 +6,7 @@ import starlightLlmsTxt from 'starlight-llms-txt';
 
 
 export default await defineDocsConfig({
+  changelog: { repo: 'elcoosp/quoin' },
   site: 'https://quoin-docs.vercel.app',
   domain: 'quoin-docs.vercel.app',
   title: "Quoin",
