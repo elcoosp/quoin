@@ -184,6 +184,8 @@ jobs:
           - backend: xilem
     steps:
       - uses: actions/checkout@v7
+      - name: Install Linux deps
+        run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev libfreetype6-dev libxkbcommon-dev
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
