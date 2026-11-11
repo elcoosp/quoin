@@ -121,8 +121,7 @@ jobs:
         with:
           key: ${{ matrix.package }}
 
-      - uses: taiki-e/install-action
-        - name: Run tests
+      - name: Run tests
         run: cargo nextest run -p ${{ matrix.package }}
 
   # -----------------------------------------------------------------------
@@ -164,8 +163,7 @@ jobs:
         with:
           key: macros-${{ matrix.features }}
 
-      - uses: taiki-e/install-action
-        - name: Run macro UI tests
+      - name: Run macro UI tests
         run: cargo nextest run -p quoin-macros-tests --features ${{ matrix.features }}
 
   # -----------------------------------------------------------------------
@@ -198,20 +196,17 @@ jobs:
         with:
           key: gates-${{ matrix.backend }}
 
-      - uses: taiki-e/install-action
-        - name: Expansion gate (single backend)
+      - name: Expansion gate (single backend)
         run: cargo nextest run -p quoin-macros-core --features ${{ matrix.backend }} --test ${{ matrix.backend }}_expansion
 
-      - uses: taiki-e/install-action
-        - name: Parity matrix + semantic golden (shared IR)
+      - name: Parity matrix + semantic golden (shared IR)
         run: cargo nextest run -p quoin-style
 
       - name: Parity matrix (both dynamic backends)
         if: matrix.backend == 'xilem'
         run: cargo nextest run -p quoin-macros-core --features floem,xilem --test parity_matrix
 
-      - uses: taiki-e/install-action
-        - name: Allocation gate
+      - name: Allocation gate
         run: cargo nextest run -p quoin-${{ matrix.backend }} --test allocation_gate
 
       # The excluded examples are not workspace members, so a plain
@@ -291,16 +286,13 @@ jobs:
       - name: Clippy (GPUI crates)
         run: cargo clippy --all-targets -p quoin-gpui -p quoin-ui-gpui -- -D warnings
 
-      - uses: taiki-e/install-action
-        - name: Run GPUI adapter tests
+      - name: Run GPUI adapter tests
         run: cargo nextest run -p quoin-gpui
 
-      - uses: taiki-e/install-action
-        - name: Run GPUI conformance tests
+      - name: Run GPUI conformance tests
         run: cargo nextest run -p quoin-conformance --features gpui
 
-      - uses: taiki-e/install-action
-        - name: Run GPUI macro UI tests
+      - name: Run GPUI macro UI tests
         run: cargo nextest run -p quoin-macros-tests --features gpui
 
   # -----------------------------------------------------------------------
