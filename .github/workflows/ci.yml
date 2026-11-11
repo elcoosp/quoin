@@ -184,7 +184,15 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Install Linux deps
-        run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev libfreetype6-dev libxkbcommon-dev
+        run: |
+          for i in 1 2 3 4 5; do
+            sudo apt-get update -o Acquire::Retries=3 \
+              && sudo apt-get install -y -o Acquire::Retries=3 \
+                 libfontconfig1-dev libfreetype6-dev libxkbcommon-dev \
+              && break
+            echo "apt-get attempt $i failed, retrying in 15s..."
+            sleep 15
+          done
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
