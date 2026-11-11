@@ -1,3 +1,4 @@
+pub use quoin_core::local::LocalExecutor;
 //! # quoin-testkit — test framework-agnostic quoin code without a UI
 //!
 //! The whole point of quoin is that reactive business logic (hooks, stores,
