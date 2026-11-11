@@ -288,6 +288,8 @@ jobs:
       - name: Clippy (GPUI crates)
         run: cargo clippy --all-targets -p quoin-gpui -p quoin-ui-gpui -- -D warnings
 
+      - name: Install Linux deps for GPUI
+        run: sudo apt-get update && sudo apt-get install -y libxkbcommon-x11-dev
       - name: Run GPUI adapter tests
         run: cargo nextest run -p quoin-gpui
 
