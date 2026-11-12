@@ -21,7 +21,7 @@ export default await defineDocsConfig({
         'One reactive core, many frameworks. Write reactive business logic once in Rust and run it on GPUI, Leptos, Dioxus, Xilem, or Floem.',
       favicon: '/favicon.png',
       social: [
-        { icon: 'github', label: 'GitHub', href: 'https://github.com/elcoosp/quoin' },
+        { icon: 'github', label: 'GitHub', translations: { fr: "GitHub" }, href: 'https://github.com/elcoosp/quoin' },
       ],
       editLink: {
         baseUrl: 'https://github.com/elcoosp/quoin/edit/main/'
@@ -43,50 +43,50 @@ export default await defineDocsConfig({
         {
           label: 'Tutorials', translations: { fr: 'Tutoriels' },
           items: [
-            { label: 'Build a Cross-Framework Counter', slug: 'tutorials/build-a-counter' },
+            { label: 'Build a Cross-Framework Counter', translations: { fr: "Construire un compteur multi-framework" }, slug: 'tutorials/build-a-counter' },
           ]
         },
         {
           label: 'Guides', translations: { fr: 'Guides' },
           items: [
             { label: 'Installation', translations: { fr: "Installation" }, slug: 'guides/installation' },
-            { label: 'Writing Portable Hooks', slug: 'guides/portable-hooks' },
-            { label: 'Loading Async Data', slug: 'guides/async-data' },
-            { label: 'Cancelling Work', slug: 'guides/cancelling-work' },
-            { label: 'Sharing Global State', slug: 'guides/global-state' },
-            { label: 'Declarative UI Macros', slug: 'guides/ui-macros' },
-            { label: 'Composing UCP Components', slug: 'guides/ucp-components' },
-            { label: 'Styling with Tailwind Classes', slug: 'guides/styling' },
-            { label: 'Testing with quoin-testkit', slug: 'guides/testing' },
-            { label: 'Tracing with quoin-devtools', slug: 'guides/devtools' },
+            { label: 'Writing Portable Hooks', translations: { fr: "Écrire des hooks portables" }, slug: 'guides/portable-hooks' },
+            { label: 'Loading Async Data', translations: { fr: "Chargement de données asynchrones" }, slug: 'guides/async-data' },
+            { label: 'Cancelling Work', translations: { fr: "Annulation du travail" }, slug: 'guides/cancelling-work' },
+            { label: 'Sharing Global State', translations: { fr: "Partager l'état global" }, slug: 'guides/global-state' },
+            { label: 'Declarative UI Macros', translations: { fr: "Macros d'interface utilisateur déclaratives" }, slug: 'guides/ui-macros' },
+            { label: 'Composing UCP Components', translations: { fr: "Composer des composants UCP" }, slug: 'guides/ucp-components' },
+            { label: 'Styling with Tailwind Classes', translations: { fr: "Style avec les classes Tailwind" }, slug: 'guides/styling' },
+            { label: 'Testing with quoin-testkit', translations: { fr: "Tester avec quoin-testkit" }, slug: 'guides/testing' },
+            { label: 'Tracing with quoin-devtools', translations: { fr: "Tracer avec quoin-devtools" }, slug: 'guides/devtools' },
           ]
         },
         {
           label: 'Reference', translations: { fr: 'Référence' },
           items: [
-            { label: 'Signals', slug: 'reference/signals' },
-            { label: 'Reactive Context', slug: 'reference/reactive-context' },
-            { label: 'Executors & Tasks', slug: 'reference/executors' },
-            { label: 'Derived Signals & Memos', slug: 'reference/derived' },
-            { label: 'Resources', slug: 'reference/resources' },
-            { label: 'Batched Updates', slug: 'reference/batching' },
-            { label: 'Cancellation Tokens', slug: 'reference/cancellation' },
-            { label: 'Typed Events', slug: 'reference/events' },
+            { label: 'Signals', translations: { fr: "Signaux" }, slug: 'reference/signals' },
+            { label: 'Reactive Context', translations: { fr: "Contexte réactif" }, slug: 'reference/reactive-context' },
+            { label: 'Executors & Tasks', translations: { fr: "Exécuteurs et tâches" }, slug: 'reference/executors' },
+            { label: 'Derived Signals & Memos', translations: { fr: "Signaux dérivés et mémos" }, slug: 'reference/derived' },
+            { label: 'Resources', translations: { fr: "Ressources" }, slug: 'reference/resources' },
+            { label: 'Batched Updates', translations: { fr: "Mises à jour par lots" }, slug: 'reference/batching' },
+            { label: 'Cancellation Tokens', translations: { fr: "Jetons d'annulation" }, slug: 'reference/cancellation' },
+            { label: 'Typed Events', translations: { fr: "Événements typés" }, slug: 'reference/events' },
             { label: 'Macros', translations: { fr: "Macros" }, slug: 'reference/macros' },
-            { label: 'Universal Component Protocol', slug: 'reference/ucp' },
+            { label: 'Universal Component Protocol', translations: { fr: "Protocole de composant universel" }, slug: 'reference/ucp' },
             { label: 'Feature Flags', slug: 'reference/feature-flags' },
             { label: 'Crates', translations: { fr: "Crates" }, slug: 'reference/crates' },
-            { label: 'quoin-testkit', slug: 'reference/testkit' },
-            { label: 'quoin-devtools', slug: 'reference/devtools' },
+            { label: 'quoin-testkit', translations: { fr: "quoin-testkit" }, slug: 'reference/testkit' },
+            { label: 'quoin-devtools', translations: { fr: "quoin-devtools" }, slug: 'reference/devtools' },
           ]
         },
         {
           label: 'Explanation', translations: { fr: 'Explication' },
           items: [
-            { label: 'Why Quoin Exists', slug: 'explanation/why-quoin' },
+            { label: 'Why Quoin Exists', translations: { fr: "Pourquoi Quoin existe" }, slug: 'explanation/why-quoin' },
             { label: 'Architecture', translations: { fr: "Architecture" }, slug: 'explanation/architecture' },
-            { label: 'The Reactivity Model', slug: 'explanation/reactivity-model' },
-            { label: 'Backend Parity', slug: 'explanation/backend-parity' },
+            { label: 'The Reactivity Model', translations: { fr: "Le modèle de réactivité" }, slug: 'explanation/reactivity-model' },
+            { label: 'Backend Parity', translations: { fr: "Parité des backends" }, slug: 'explanation/backend-parity' },
           ]
         },
       ],
