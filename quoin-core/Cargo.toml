@@ -1,4 +1,6 @@
 [package]
+documentation = "https://quoin-docs.vercel.app"
+
 name = "quoin-core"
 version.workspace = true
 edition.workspace = true

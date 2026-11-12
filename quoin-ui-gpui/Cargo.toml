@@ -1,4 +1,6 @@
 [package]
+documentation = "https://quoin-docs.vercel.app"
+
 repository = "https://github.com/elcoosp/quoin"
 readme = "../README.md"
 name = "quoin-ui-gpui"

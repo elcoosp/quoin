@@ -1,4 +1,6 @@
 [package]
+documentation = "https://quoin-docs.vercel.app"
+
 readme = "../README.md"
 name = "quoin-dioxus"
 keywords = ["reactive", "dioxus", "ui", "state", "framework"]

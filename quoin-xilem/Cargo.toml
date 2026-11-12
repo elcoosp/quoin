@@ -1,4 +1,6 @@
 [package]
+documentation = "https://quoin-docs.vercel.app"
+
 readme = "../README.md"
 name = "quoin-xilem"
 keywords = ["reactive", "xilem", "ui", "state", "framework"]

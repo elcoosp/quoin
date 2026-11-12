@@ -1,4 +1,6 @@
 [package]
+documentation = "https://quoin-docs.vercel.app"
+
 description = "The quoin-expand-test crate for the quoin ecosystem"
 license = "MIT"
 repository = "https://github.com/elcoosp/quoin"
