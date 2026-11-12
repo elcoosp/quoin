@@ -34,7 +34,7 @@ The opportunity is real and unusually cheap on two of five backends because the 
 
 ## 2. Scope and method
 
-- Re-cloned `elcoosp/quoin` (main @ `cb622a3`, includes the pushed muda-stub work) and `elcoosp/rs-query` (@ `de39a6a`, wasm32 fixes); `gpui-navi` remote unchanged, local state preserved.
+- Re-cloned `elcoosp/quoin` (main @ `cb622a3`, includes the pushed muda-stub work) and `elcoosp/rs-query` (@ `de39a6a`, wasm32 fixes); `navi` remote unchanged, local state preserved.
 - Cloned and read: `elcoosp/floem-shadcn`, `harana-oss/leptos-shadcn-ui`, `MBeliou/shadcn-dioxus` (component inventory + API shapes).
 - Read quoin internals: `quoin-macros-core/src/render_ast.rs` (the DSL parser + `KNOWN_ELEMENTS`), `emit/parity.rs` (machine-checked Floem/Xilem parity), `emit/render_{leptos,dioxus,gpui,floem,xilem}/` (per-framework lowerings), `quoin-ui/src/node.rs` (the router-driven `Node` tree), `quoin-ui-gpui/src/node_renderer.rs` (gpui-component lowering), `docs/leptos-dioxus-emission-parity.md` (the existing gap table).
 - Web research on the rest of the Rust shadcn ecosystem (sources listed in §9).
