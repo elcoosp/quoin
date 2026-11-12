@@ -137,7 +137,7 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
             /// The component's effect scope: `effect!` invocations in
             /// `on_mount` register into it, and dropping the component
             /// disposes every effect (their final cleanup included).
-            __quoin_effects: ::core::sync::Arc<::quoin_core::EffectScope>,
+            __quoin_effects: ::std::sync::Arc<::quoin::EffectScope>,
         }
 
         impl #name {
@@ -150,7 +150,7 @@ pub fn emit_component(ast: &ComponentAst) -> TokenStream {
                 // current scope); the struct owns the scope so its `Drop`
                 // disposes the effects with the component.
                 let __quoin_effects =
-                    ::core::sync::Arc::new(::quoin_core::EffectScope::new());
+                    ::std::sync::Arc::new(::quoin::EffectScope::new());
                 let __quoin_scope_guard = ::quoin::xilem_effect::enter_effect_scope(
                     ::core::clone::Clone::clone(&__quoin_effects),
                 );
