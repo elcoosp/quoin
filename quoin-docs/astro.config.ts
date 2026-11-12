@@ -74,7 +74,7 @@ export default await defineDocsConfig({
             { label: 'Typed Events', translations: { fr: "Événements typés" }, slug: 'reference/events' },
             { label: 'Macros', translations: { fr: "Macros" }, slug: 'reference/macros' },
             { label: 'Universal Component Protocol', translations: { fr: "Protocole de composant universel" }, slug: 'reference/ucp' },
-            { label: 'Feature Flags', slug: 'reference/feature-flags' },
+            { label: 'Feature Flags', translations: { fr: 'Drapeaux de fonctionnalités' }, slug: 'reference/feature-flags' },
             { label: 'Crates', translations: { fr: "Crates" }, slug: 'reference/crates' },
             { label: 'quoin-testkit', translations: { fr: "quoin-testkit" }, slug: 'reference/testkit' },
             { label: 'quoin-devtools', translations: { fr: "quoin-devtools" }, slug: 'reference/devtools' },
