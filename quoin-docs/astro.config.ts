@@ -35,19 +35,19 @@ export default await defineDocsConfig({
       ],
       sidebar: [
         {
-          label: 'Start Here',
+          label: 'Start Here', translations: { fr: 'Commencer ici' },
           items: [
-            { label: 'Overview', link: '/' },
+            { label: 'Overview', translations: { fr: 'Aperçu' }, link: '/' },
           ]
         },
         {
-          label: 'Tutorials',
+          label: 'Tutorials', translations: { fr: 'Tutoriels' },
           items: [
             { label: 'Build a Cross-Framework Counter', slug: 'tutorials/build-a-counter' },
           ]
         },
         {
-          label: 'Guides',
+          label: 'Guides', translations: { fr: 'Guides' },
           items: [
             { label: 'Installation', slug: 'guides/installation' },
             { label: 'Writing Portable Hooks', slug: 'guides/portable-hooks' },
@@ -62,7 +62,7 @@ export default await defineDocsConfig({
           ]
         },
         {
-          label: 'Reference',
+          label: 'Reference', translations: { fr: 'Référence' },
           items: [
             { label: 'Signals', slug: 'reference/signals' },
             { label: 'Reactive Context', slug: 'reference/reactive-context' },
@@ -81,7 +81,7 @@ export default await defineDocsConfig({
           ]
         },
         {
-          label: 'Explanation',
+          label: 'Explanation', translations: { fr: 'Explication' },
           items: [
             { label: 'Why Quoin Exists', slug: 'explanation/why-quoin' },
             { label: 'Architecture', slug: 'explanation/architecture' },
