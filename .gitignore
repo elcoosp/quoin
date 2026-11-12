@@ -15,3 +15,5 @@ ship.sh
 
 # Local PR body draft (regenerated per milestone; never committed)
 .github/pr-body.md
+.vercel
+.env*
