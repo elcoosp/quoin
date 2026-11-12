@@ -7,7 +7,7 @@ description = "Facade crate for the quoin reactive ecosystem: one reactive core,
 license.workspace = true
 repository.workspace = true
 readme = "README.md"
-keywords = ["reactive", "ui", "framework", "abstraction", "signals"]
+keywords = ["reactive", "signals", "ui", "state", "framework"]
 categories = ["gui", "asynchronous", "rust-patterns"]
 
 [dependencies]

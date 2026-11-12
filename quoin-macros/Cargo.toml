@@ -1,5 +1,6 @@
 [package]
 name = "quoin-macros"
+keywords = ["reactive", "macro", "ui", "codegen", "derive"]
 version.workspace = true
 description = "Proc-macro entry points for the quoin declarative UI macros"
 edition.workspace = true

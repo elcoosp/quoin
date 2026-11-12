@@ -7,7 +7,7 @@ description = "Devtools for quoin: signal tracing, update logging, and dev-loop 
 license.workspace = true
 repository.workspace = true
 readme = "README.md"
-keywords = ["reactive", "devtools", "debugging", "tracing"]
+keywords = ["reactive", "devtools", "ui", "debugging", "signals"]
 categories = ["development-tools", "gui"]
 
 [dependencies]

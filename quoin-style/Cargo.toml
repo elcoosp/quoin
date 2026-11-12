@@ -6,7 +6,7 @@ rust-version.workspace = true
 description = "Typed style IR shared by every quoin backend: Tailwind classes lower into `Decl` values at compile time"
 license.workspace = true
 repository.workspace = true
-keywords = ["ui", "styling", "tailwind", "macros"]
+keywords = ["reactive", "style", "ui", "css", "framework"]
 categories = ["gui", "rust-patterns"]
 
 [dependencies]

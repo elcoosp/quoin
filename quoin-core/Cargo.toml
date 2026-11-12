@@ -7,7 +7,7 @@ description = "A foundational reactive abstraction layer for Rust UI frameworks"
 license.workspace = true
 repository.workspace = true
 readme = "README.md"
-keywords = ["reactive", "ui", "framework", "abstraction", "signals"]
+keywords = ["reactive", "signals", "ui", "state", "framework"]
 categories = ["gui", "asynchronous", "rust-patterns"]
 
 [dependencies]

@@ -1,5 +1,6 @@
 [package]
 name = "quoin-ui-gpui"
+keywords = ["reactive", "ui", "gpui", "state", "components"]
 version = "0.1.0"
 edition = "2024"
 description = "GPUI backend for quoin-ui Universal Component Protocol"
