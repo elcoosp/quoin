@@ -13,4 +13,4 @@ quoin = { git = "https://github.com/elcoosp/quoin", features = ["floem"] }
 # workspace replaces it with the API-compatible stub (see the root manifest).
 # Standalone example builds must re-declare that patch themselves.
 [patch.crates-io]
-muda = { path = "../../third_party/muda-stub" }
+muda = { default-features = false, path = "../../third_party/muda-stub" }

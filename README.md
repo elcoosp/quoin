@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/logo.png" alt="Quoin Logo" width="300"/>
+  <img src="https://cdn.jsdelivr.net/gh/elcoosp/quoin@main/docs/logo.png" alt="Quoin Logo" width="300"/>
   <p>
     <strong>One Reactive Core, Many Frameworks.</strong> <br/>
     A framework-agnostic reactive abstraction layer for Rust. Write your reactive business logic once using signals, effects, and async tasks—then run it with GPUI, Dioxus, Leptos, Xilem, or Floem.
@@ -621,7 +621,7 @@ just bench-devtools                                    # event log recording + a
 
 Numbers are machine-relative regression baselines — compare across commits on
 the same machine, not across hardware. Reference numbers and methodology live
-in [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md).
+in [`docs/BENCHMARKS.md`](https://github.com/elcoosp/quoin/blob/main/docs/BENCHMARKS.md).
 
 #### Changelog (`git-cliff`)
 `CHANGELOG.md` is generated with [git-cliff](https://git-cliff.org) from [Conventional Commits](https://www.conventionalcommits.org/).
@@ -644,19 +644,3 @@ just release-notes    # print the notes for the latest version only
 ```
 To cut a release, bump the crate versions, tag `vX.Y.Z`, and push the tag — the `release.yml` workflow verifies tag/version consistency, runs the full suite, and publishes the release with git-cliff notes.
 
-## Contributing
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on:
-- Setting up the development environment
-- Adding a new framework adapter
-- Extending the macro syntax
-- Running and writing tests
-
-Before submitting a pull request, ensure:
-- All tests pass: `just test`
-- Code is formatted: `just fmt`
-- No clippy warnings: `just check`
-- Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `doc:`, …) — they drive the git-cliff changelog.
-
-## License
-Quoin is licensed under the terms of the MIT License.  
-See [LICENSE.md](LICENSE.md) for details.
