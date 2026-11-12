@@ -1,4 +1,5 @@
 import { defineDocsConfig } from '@elcoosp/docs-toolkit/config';
+import starlightChangelogs from 'starlight-changelogs';
 import starlightLinksValidator from 'starlight-links-validator';
 import starlightImageZoom from 'starlight-image-zoom';
 import starlightHeadingBadges from 'starlight-heading-badges';
@@ -90,7 +91,7 @@ export default await defineDocsConfig({
           ]
         },
       ],
-      plugins: [
+      plugins: [ starlightChangelogs(), 
         // Fails `astro build` on broken internal links — release blocker.
         starlightLinksValidator(),
         // Click-to-zoom for images.
