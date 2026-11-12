@@ -49,7 +49,7 @@ export default await defineDocsConfig({
         {
           label: 'Guides', translations: { fr: 'Guides' },
           items: [
-            { label: 'Installation', slug: 'guides/installation' },
+            { label: 'Installation', translations: { fr: "Installation" }, slug: 'guides/installation' },
             { label: 'Writing Portable Hooks', slug: 'guides/portable-hooks' },
             { label: 'Loading Async Data', slug: 'guides/async-data' },
             { label: 'Cancelling Work', slug: 'guides/cancelling-work' },
@@ -72,10 +72,10 @@ export default await defineDocsConfig({
             { label: 'Batched Updates', slug: 'reference/batching' },
             { label: 'Cancellation Tokens', slug: 'reference/cancellation' },
             { label: 'Typed Events', slug: 'reference/events' },
-            { label: 'Macros', slug: 'reference/macros' },
+            { label: 'Macros', translations: { fr: "Macros" }, slug: 'reference/macros' },
             { label: 'Universal Component Protocol', slug: 'reference/ucp' },
             { label: 'Feature Flags', slug: 'reference/feature-flags' },
-            { label: 'Crates', slug: 'reference/crates' },
+            { label: 'Crates', translations: { fr: "Crates" }, slug: 'reference/crates' },
             { label: 'quoin-testkit', slug: 'reference/testkit' },
             { label: 'quoin-devtools', slug: 'reference/devtools' },
           ]
@@ -84,7 +84,7 @@ export default await defineDocsConfig({
           label: 'Explanation', translations: { fr: 'Explication' },
           items: [
             { label: 'Why Quoin Exists', slug: 'explanation/why-quoin' },
-            { label: 'Architecture', slug: 'explanation/architecture' },
+            { label: 'Architecture', translations: { fr: "Architecture" }, slug: 'explanation/architecture' },
             { label: 'The Reactivity Model', slug: 'explanation/reactivity-model' },
             { label: 'Backend Parity', slug: 'explanation/backend-parity' },
           ]
