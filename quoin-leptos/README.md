@@ -34,11 +34,7 @@ fn App() -> impl IntoView {
 }
 ```
 
-
 ## Conformance
 
 This adapter passes the `quoin-conformance` test suite.
 
-## License
-
-MIT

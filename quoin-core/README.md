@@ -96,9 +96,9 @@ This crate is exercised by:
 ## 🤝 Contributing
 
 Contributions are welcome! See the repository-level
-[CONTRIBUTING.md](../CONTRIBUTING.md) and the conformance suite when adding
+CONTRIBUTING.md and the conformance suite when adding
 API.
 
 ## 📄 License
 
-Licensed under the [MIT license](../LICENSE.md).
+Licensed under the MIT license.

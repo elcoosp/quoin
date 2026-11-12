@@ -37,6 +37,3 @@ fn App() -> Element {
 
 This adapter passes the `quoin-conformance` test suite.
 
-## License
-
-MIT

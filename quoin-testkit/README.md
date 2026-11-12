@@ -53,6 +53,3 @@ produces.
 - `ThreadedExecutor` — awaits timers/channels; real abort/detach semantics.
 - `TokioExecutor` (feature `tokio`) — integration with tokio-based tests.
 
-## License
-
-MIT — see [LICENSE.md](../LICENSE.md) in the repository root.

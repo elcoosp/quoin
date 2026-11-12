@@ -56,6 +56,3 @@ println!("{:?}", quoin_devtools::global_log().hot_signals());
 - The optional `tracing` feature forwards events to the `tracing` ecosystem
   (`tracing::trace!` on target `quoin_devtools`).
 
-## License
-
-MIT — see [LICENSE.md](../LICENSE.md) in the repository root.

@@ -91,6 +91,3 @@ fn main() {
 
 This adapter passes the `quoin-conformance` test suite, guaranteeing identical reactive behavior across all supported frameworks.
 
-## License
-
-MIT
