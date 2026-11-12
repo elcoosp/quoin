@@ -12,6 +12,7 @@
 # `Error::NotSupported`: native menus remain unsupported on Linux in this
 # configuration, matching the note in the root Cargo.toml.
 [package]
+publish = false
 name = "muda"
 version = "0.17.1"
 edition = "2021"

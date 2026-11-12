@@ -1,4 +1,8 @@
 [package]
+description = "The ucp-demo-leptos crate for the quoin ecosystem"
+license = "MIT"
+repository = "https://github.com/elcoosp/quoin"
+readme = "../../README.md"
 name = "ucp-demo-leptos"
 version = "0.1.0"
 edition = "2024"

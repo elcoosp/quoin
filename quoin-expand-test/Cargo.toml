@@ -1,4 +1,8 @@
 [package]
+description = "The quoin-expand-test crate for the quoin ecosystem"
+license = "MIT"
+repository = "https://github.com/elcoosp/quoin"
+readme = "../README.md"
 name = "quoin-expand-test"
 version = "0.1.0"
 edition = "2024"

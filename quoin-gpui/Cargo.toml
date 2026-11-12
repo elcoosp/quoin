@@ -1,4 +1,5 @@
 [package]
+readme = "../README.md"
 name = "quoin-gpui"
 keywords = ["reactive", "gpui", "ui", "state", "framework"]
 version.workspace = true

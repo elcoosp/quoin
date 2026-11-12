@@ -1,4 +1,8 @@
 [package]
+description = "The quoin-macros-core crate for the quoin ecosystem"
+license = "MIT"
+repository = "https://github.com/elcoosp/quoin"
+readme = "../README.md"
 name = "quoin-macros-core"
 keywords = ["reactive", "macro", "core", "codegen", "derive"]
 version = "0.1.0"

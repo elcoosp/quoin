@@ -1,4 +1,6 @@
 [package]
+repository = "https://github.com/elcoosp/quoin"
+readme = "../README.md"
 name = "quoin-ui-gpui"
 keywords = ["reactive", "ui", "gpui", "state", "components"]
 version = "0.1.0"

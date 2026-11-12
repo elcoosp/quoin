@@ -1,4 +1,5 @@
 [package]
+readme = "../README.md"
 name = "quoin-style"
 version.workspace = true
 edition.workspace = true

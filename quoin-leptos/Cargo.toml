@@ -1,4 +1,5 @@
 [package]
+readme = "../README.md"
 name = "quoin-leptos"
 keywords = ["reactive", "leptos", "ui", "state", "framework"]
 version.workspace = true

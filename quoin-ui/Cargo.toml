@@ -1,4 +1,6 @@
 [package]
+repository = "https://github.com/elcoosp/quoin"
+readme = "../README.md"
 name = "quoin-ui"
 keywords = ["reactive", "ui", "components", "state", "framework"]
 version = "0.1.0"
