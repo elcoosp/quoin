@@ -4,7 +4,6 @@ import starlightImageZoom from 'starlight-image-zoom';
 import starlightHeadingBadges from 'starlight-heading-badges';
 import starlightLlmsTxt from 'starlight-llms-txt';
 
-
 export default await defineDocsConfig({
   llmsTxt: {},
   changelog: { repo: 'elcoosp/quoin' },
@@ -27,11 +26,8 @@ export default await defineDocsConfig({
       editLink: {
         baseUrl: 'https://github.com/elcoosp/quoin/edit/main/'
       },
-      defaultLocale: 'en',
-      locales: {
-        root: { label: 'English', lang: 'en' }
-      },
-      head: [
+
+            head: [
         {
           tag: 'link',
           attrs: { rel: 'icon', type: 'image/png', href: '/favicon.png' }

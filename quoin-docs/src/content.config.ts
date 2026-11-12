@@ -1,17 +1,11 @@
 import { defineCollection } from 'astro:content';
-import { docsLoader } from '@astrojs/starlight/loaders';
-import { docsSchema } from '@astrojs/starlight/schema';
-import { z } from 'astro/zod';
+import { docsLoader, i18nLoader } from '@astrojs/starlight/loaders';
+import { docsSchema, i18nSchema } from '@astrojs/starlight/schema';
+import { fileURLToPath } from 'node:url';
+
+const toolkitI18nPath = fileURLToPath(new URL('../node_modules/@elcoosp/docs-toolkit/i18n/', import.meta.url));
 
 export const collections = {
-  docs: defineCollection({
-    loader: docsLoader(),
-    schema: docsSchema({
-      extend: z.object({
-        // Diátaxis information type — one type per page, never mixed.
-        // Required on every documentation page so the build enforces it.
-        type: z.enum(['tutorial', 'how-to', 'reference', 'explanation']),
-      }),
-    }),
-  }),
+  docs: defineCollection({ loader: docsLoader(), schema: docsSchema() }),
+  i18n: defineCollection({ loader: i18nLoader({ base: toolkitI18nPath }), schema: i18nSchema() }),
 };
