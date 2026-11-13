@@ -35,19 +35,19 @@ export default await defineDocsConfig({
         {
           label: 'Start Here', translations: { fr: 'Commencer ici' },
           items: [
-            { label: 'Overview', translations: { fr: 'Aperçu' }, link: '/' },
+            { label: 'Overview', link: '/' },
           ]
         },
         {
-          label: 'Tutorials', translations: { fr: 'Tutoriels' },
+          label: 'Tutorials',
           items: [
             { label: 'Build a Cross-Framework Counter', translations: { fr: "Construire un compteur multi-framework" }, slug: 'tutorials/build-a-counter' },
           ]
         },
         {
-          label: 'Guides', translations: { fr: 'Guides' },
+          label: 'Guides',
           items: [
-            { label: 'Installation', translations: { fr: "Installation" }, slug: 'guides/installation' },
+            { label: 'Installation', slug: 'guides/installation' },
             { label: 'Writing Portable Hooks', translations: { fr: "Écrire des hooks portables" }, slug: 'guides/portable-hooks' },
             { label: 'Loading Async Data', translations: { fr: "Chargement de données asynchrones" }, slug: 'guides/async-data' },
             { label: 'Cancelling Work', translations: { fr: "Annulation du travail" }, slug: 'guides/cancelling-work' },
@@ -60,7 +60,7 @@ export default await defineDocsConfig({
           ]
         },
         {
-          label: 'Reference', translations: { fr: 'Référence' },
+          label: 'Reference',
           items: [
             { label: 'Signals', translations: { fr: "Signaux" }, slug: 'reference/signals' },
             { label: 'Reactive Context', translations: { fr: "Contexte réactif" }, slug: 'reference/reactive-context' },
@@ -70,19 +70,19 @@ export default await defineDocsConfig({
             { label: 'Batched Updates', translations: { fr: "Mises à jour par lots" }, slug: 'reference/batching' },
             { label: 'Cancellation Tokens', translations: { fr: "Jetons d'annulation" }, slug: 'reference/cancellation' },
             { label: 'Typed Events', translations: { fr: "Événements typés" }, slug: 'reference/events' },
-            { label: 'Macros', translations: { fr: "Macros" }, slug: 'reference/macros' },
+            { label: 'Macros', slug: 'reference/macros' },
             { label: 'Universal Component Protocol', translations: { fr: "Protocole de composant universel" }, slug: 'reference/ucp' },
             { label: 'Feature Flags', translations: { fr: 'Drapeaux de fonctionnalités' }, slug: 'reference/feature-flags' },
-            { label: 'Crates', translations: { fr: "Crates" }, slug: 'reference/crates' },
+            { label: 'Crates', slug: 'reference/crates' },
             { label: 'quoin-testkit', translations: { fr: "quoin-testkit" }, slug: 'reference/testkit' },
             { label: 'quoin-devtools', translations: { fr: "quoin-devtools" }, slug: 'reference/devtools' },
           ]
         },
         {
-          label: 'Explanation', translations: { fr: 'Explication' },
+          label: 'Explanation',
           items: [
             { label: 'Why Quoin Exists', translations: { fr: "Pourquoi Quoin existe" }, slug: 'explanation/why-quoin' },
-            { label: 'Architecture', translations: { fr: "Architecture" }, slug: 'explanation/architecture' },
+            { label: 'Architecture', slug: 'explanation/architecture' },
             { label: 'The Reactivity Model', translations: { fr: "Le modèle de réactivité" }, slug: 'explanation/reactivity-model' },
             { label: 'Backend Parity', translations: { fr: "Parité des backends" }, slug: 'explanation/backend-parity' },
           ]
