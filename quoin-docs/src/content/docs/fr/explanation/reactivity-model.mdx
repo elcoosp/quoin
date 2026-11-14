@@ -1,0 +1,40 @@
+---
+title: Le modèle de réactivité
+description: "Comment fonctionne le modèle de signal de Quoin — le suivi sur les frameworks à grain fin, les notifications sur ceux à tirage, et ce que batching, memos et ressources font sous le capot."
+type: explanation
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+
+Les cinq adaptateurs de Quoin se répartissent en deux familles, et le modèle de réactivité est conçu pour qu'un seul ensemble de code utilisateur se comporte correctement sur les deux.
+
+## Deux familles de frameworks
+
+**À grain fin (Leptos, Dioxus, Floem).** Le framework suit les signaux qu'une portée de rendu lit et re-exécute cette portée quand un signal suivi change. Les lectures de signal de Quoin participent au suivi natif, donc la lecture de la source d'un signal `derived` à l'intérieur de la fermeture de dérivation est suivie par le graphe réactif — tout consommateur qui lit la valeur dérivée dans une portée réactive est re-exécuté quand la source change.
+
+**À tirage (GPUI, Xilem).** Le framework re-rend un composant quand il est notifié. Les signaux de Quoin appellent `request_update()` sur mutation via le notificateur de contexte ; le rendu suivant tire des valeurs fraîches, et les signaux dérivés recalculent à leur prochaine lecture.
+
+Le même hook est correct sur les deux parce qu'il ne suppose jamais la poussée ou le tirage : il écrit via les méthodes `Signal` et lit là où il a besoin de valeurs.
+
+## Ce que fait chaque primitive sous le capot
+
+**Signaux.** L'implémentation partagée est `NotifierSignal` dans `quoin-core` — une cellule plus un notificateur sensible au batching. Les adaptateurs peuvent l'utiliser directement ou envelopper leurs types de signal natifs ; dans les deux cas la surface du trait (`get`/`set`/`update`/`with`/`set_if_eq`) est identique.
+
+**Dérivés et memos.** `derived` recalcule la fermeture à chaque lecture ; `Memo` retient la dernière valeur source et met en cache sa sortie jusqu'à ce que la source diffère. Sur les frameworks à grain fin, le suivi rend les lectures dérivées réactives ; sur ceux à tirage, le re-rendu déclenché par mutation fait le travail équivalent.
+
+**Batching.** Un compteur de profondeur thread-local. À l'intérieur de `batch::with`, les signaux à tirage consultent `should_notify()` et sautent leurs appels de notificateur ; quand le batch le plus externe se termine, un `request_update()` est déclenché. Les frameworks à grain fin font du batching en interne et ignorent ce mécanisme, donc appeler `cx.batch` est toujours sûr.
+
+**Ressources.** Construites à partir d'un `Signal` portant `ResourceState` plus une tâche `Executor`. Chaque rechargement incrémente un compteur de génération ; quand une requête se termine, elle ne peut écrire son résultat que si sa génération est toujours la courante — c'est ce qui rend les rechargements exempts de courses. La requête porte aussi un `CancellationToken`, et la tâche est abandonnée via le handle de join de l'exécuteur, donc un rechargement annule le travail en vol à la fois coopérativement (jeton) et structurellement (abandon).
+
+**Globals.** Une carte thread-local à clé `TypeId`, indexée par type de contexte et type de valeur. Cela correspond aux hypothèses de thread principal de GPUI, Xilem et Floem ; les adaptateurs à grain fin mappent leurs propres magasins sur les mêmes sémantiques observables — une cellule partagée par paire (contexte, type).
+
+**Tâches locales.** Sur WASM, `spawn_local` délègue à `wasm_bindgen_futures::spawn_local` (thread principal du navigateur). En natif, un future `!Send` ne peut pas traverser les threads sainement, donc les tâches entrent dans une file FIFO thread-locale et `run_local_tasks()` les pilote une complétion à la fois — assez déterministe pour les tests.
+
+<Aside type="note">
+  La conséquence pratique : que votre application tourne sur un moteur de rendu à poussée ou à tirage, le batching est une optimisation (jamais un correctif de justesse), les valeurs dérivées sont toujours cohérentes avec leurs sources, et abandonner un handle de tâche annule toujours la tâche.
+</Aside>
+
+## Étapes suivantes
+
+- <LinkCard title="Parité entre backends" href="/explanation/backend-parity/" description="Comment un comportement identique est vérifié avec une suite de conformité partagée." />
+- <LinkCard title="Mises à jour groupées" href="/reference/batching/" description="La référence de l'API de batching." />

@@ -1,0 +1,35 @@
+---
+title: Pourquoi Quoin existe
+description: "Les problèmes que Quoin résout — l'enfermement par framework, la logique UI intestable, et le code de réactivité dupliqué à travers l'écosystème GUI Rust."
+type: explanation
+---
+
+import { LinkCard } from '@astrojs/starlight/components';
+
+Construire des applications UI Rust multiplateformes signifie généralement choisir un framework et être enfermé dans son modèle de réactivité. GPUI, Leptos, Dioxus, Xilem et Floem définissent chacun leurs propres systèmes de signaux, répartiteurs de tâches et idiomes d'état. Une barre de recherche, un store de tâches ou un pipeline de récupération de données écrit pour l'un d'eux ne peut pas tourner sur un autre.
+
+## Les quatre problèmes
+
+**Écrire une fois, exécuter partout.** Les mêmes hooks réactifs — signaux, valeurs dérivées, tâches asynchrones — devraient fonctionner dans GPUI, Leptos, Dioxus, Xilem et Floem. Quoin définit ces primitives une fois, comme traits, et chaque adaptateur de framework les implémente.
+
+**Tester en isolation.** La logique UI soudée à un framework est difficile à tester : vous montez des fenêtres ou des navigateurs pour exercer un compteur. Quoin découple la logique métier de la couche de vue, donc vous simulez un `ReactiveContext` — ou utilisez `quoin-testkit` sans tête — et testez avec un simple `cargo test`.
+
+**Changer de framework sans réécrire la logique.** Changez un drapeau de fonctionnalité et recompilez ; vos hooks restent inchangés. La couche de vue est la seule chose que vous réécrivez, et les macros déclaratives réduisent cela aussi.
+
+**Partager des bibliothèques.** Des crates agnostiques vis-à-vis du framework qui fonctionnent avec toute UI supportée par Quoin peuvent être publiées et réutilisées — le hook de compteur du [tutoriel](/tutorials/build-a-counter/) en est un exemple, et `todo-core` et `fetch-core` dans le dépôt sont des exemples testés de bout en bout du motif.
+
+## La posture de conception
+
+- **Des traits plutôt que des enveloppes.** Quoin ne cache pas les frameworks ; il définit le plus petit contrat commun (`Signal`, `ReactiveContext`, `Executor`) et laisse les adaptateurs optimiser nativement.
+- **Sélection à la compilation.** Exactement une fonctionnalité de framework est activée par crate, imposée par `compile_error!`. Il n'y a aucune distribution à l'exécution et aucune priorité cachée entre backends.
+- **La parité est testée, pas supposée.** Une suite de conformité partagée exécute 30+ vérifications par adaptateur, donc « fonctionne identiquement partout » est un verrou de CI plutôt qu'une aspiration.
+- **Aucun code unsafe.** L'espace de travail interdit `unsafe` d'emblée et exécute Clippy en mode pedantic avec les avertissements en erreurs.
+
+## Ce que Quoin n'est pas
+
+Ce n'est pas un framework de rendu, un remplacement de boîte à outils de widgets, ni un DOM virtuel. Le rendu reste natif à chaque framework ; Quoin possède la couche réactive en dessous, plus des macros déclaratives optionnelles qui émettent du code de vue natif par framework.
+
+## Étapes suivantes
+
+- <LinkCard title="Construire un compteur inter-frameworks" href="/tutorials/build-a-counter/" description="Voyez le découplage à l'œuvre de bout en bout." />
+- <LinkCard title="Architecture" href="/explanation/architecture/" description="Comment les crates et les adaptateurs sont organisés." />

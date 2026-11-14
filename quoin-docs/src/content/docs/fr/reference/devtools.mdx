@@ -1,0 +1,58 @@
+---
+title: quoin-devtools
+description: "Référence de l'API pour Instrumented, EventLog, EventKind et les aides d'enregistrement dans quoin-devtools."
+type: reference
+---
+
+import { Code, LinkCard } from '@astrojs/starlight/components';
+
+`quoin-devtools` est une couche d'instrumentation agnostique vis-à-vis du framework. Enveloppez le `ReactiveContext` de n'importe quel adaptateur et chaque création de signal, mutation déclenchant une lecture, lancement de tâche et demande de mise à jour UI est enregistrée dans un `EventLog` inspectable.
+
+Import : `use quoin_devtools::{Instrumented, EventLog, EventKind, …};` ou à travers la façade avec la fonctionnalité `devtools`.
+
+## Disposition du module
+
+| Module | Contenu |
+| --- | --- |
+| `event` | `Event`, `EventKind` et l'`EventLog` à tampon circulaire avec ses vues agrégées. |
+| `record` | Le journal global, l'amorçage `QUOIN_TRACE` et les aides d'enregistrement partagées par chaque enveloppe. |
+| `instrumented` | Le contexte `Instrumented`, `TracedSignal` et `TracedExecutor`. |
+
+## API publique
+
+| Élément | Description |
+| --- | --- |
+| `Instrumented::wrap(raw_ctx, label)` | Enveloppe transparente autour de n'importe quel contexte d'adaptateur ; `label` nomme la session dans les événements. |
+| `global_log()` | Accès à l'`EventLog` à l'échelle du processus. |
+| `EventLog::dump()` | Imprime un tableau sur stderr. |
+| `EventLog::hot_signals()` | Comptes de mutations classés par signal. |
+| `EventLog::events()` | Instantané brut des valeurs `Event`. |
+| `EventLog::capacity()` | Capacité de l'anneau (par défaut `DEFAULT_LOG_CAPACITY = 4096`). |
+| `EventKind` | Catégories d'événements ; `UpdateRequested` s'étiquette `"update"`. |
+| `enable()` / `disable()` / `enabled()` | Portail d'enregistrement par programme. |
+| `init_from_env()` / `parse_trace_flag()` | L'amorçage d'environnement `QUOIN_TRACE=1` (ou `on`). |
+| `record()` / `snapshot()` / `thread_label()` | Aides d'enregistrement partagées. |
+
+## Zéro-coût quand désactivé
+
+À moins que `enabled()` soit activé (par défaut : la variable d'environnement `QUOIN_TRACE`, ou un appel explicite à `enable()`), l'enveloppe `Instrumented` court-circuite chaque appel d'enregistrement derrière un chargement atomique relâché, et aucun événement n'est alloué.
+
+La fonctionnalité optionnelle `tracing` transfère les événements dans l'écosystème `tracing`.
+
+## Exemple
+
+<Code lang="rust" code={`use quoin_devtools::Instrumented;
+
+let ctx = Instrumented::wrap(raw_ctx, "app");   // utilisez ctx partout
+
+// Depuis un raccourci de débogage, un panneau, ou à la sortie :
+quoin_devtools::global_log().dump();            // tableau stderr
+quoin_devtools::global_log().hot_signals();     // comptes de mutations classés
+quoin_devtools::global_log().events();          // instantané brut`} />
+
+<Code lang="sh" code={`QUOIN_TRACE=1 ./myapp    # active l'enregistrement depuis l'environnement`} />
+
+## Étapes suivantes
+
+- <LinkCard title="Tracer avec quoin-devtools" href="/guides/devtools/" description="Guide orienté tâche incluant la démo xilem en direct." />
+- <LinkCard title="Tester avec quoin-testkit" href="/guides/testing/" description="Tests sans tête déterministes qui s'associent bien au traçage." />

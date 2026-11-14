@@ -1,0 +1,47 @@
+---
+title: Mises à jour groupées
+description: "Référence de l'API pour batch::with, BatchGuard et la machinerie de suppression des notifications partagée par les adaptateurs à tirage."
+type: reference
+---
+
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
+
+Sur les adaptateurs à tirage (GPUI, Xilem), chaque mutation de signal appelle `request_update()`. Quand un handler mute plusieurs signaux d'affilée, cela produit des demandes de re-rendu redondantes. Le batching supprime ces notifications intermédiaires et émet une seule mise à jour quand le batch se termine.
+
+Import : `use quoin_core::prelude::*;` (le module) ou `use quoin_core::batch;`
+
+## API
+
+| Élément | Signature | Description |
+| --- | --- | --- |
+| `batch::with` | `pub fn with<C, R>(cx: &C, f: impl FnOnce() -> R) -> R` où `C: ReactiveContext` | Exécute `f` dans une portée de batch, puis demande une seule mise à jour UI sur `cx`. |
+| `BatchGuard` | `pub struct BatchGuard` | Garde RAII qui incrémente la profondeur de batch à la création et la décrémente à l'abandon. Créer avec `BatchGuard::enter()`. |
+| `in_batch` | `pub fn in_batch() -> bool` | Renvoie `true` à l'intérieur d'une portée `with`. |
+| `should_notify` | `pub fn should_notify() -> bool` | Utilisée par les implémentations de signal des adaptateurs : `true` quand une mutation devrait notifier (c.-à-d. aucun batch actif). |
+
+`ReactiveContextExt::batch` offre le même comportement comme méthode sur le contexte : `cx.batch(\|\| …)`.
+
+## Comment ça marche
+
+Un compteur de profondeur thread-local suit les batches imbriqués. Les implémentations de signal des adaptateurs à tirage consultent `should_notify()` avant d'invoquer le notificateur de mise à jour. Les frameworks à grain fin (Leptos, Dioxus, Floem) font du batching en interne et ignorent ce mécanisme, donc l'aide est sûre à appeler partout.
+
+## Exemple
+
+<Code lang="rust" code={`let a = cx.create_signal(0u32);
+let b = cx.create_signal(0u32);
+
+quoin_core::batch::with(&cx, || {
+    a.set(1);
+    b.set(2);
+});
+assert_eq!((a.get(), b.get()), (1, 2));
+// Une seule demande de re-rendu au lieu de deux.`} />
+
+<Aside type="note">
+  La comptabilité de batch est intentionnellement bon marché (deux accès thread-locaux). L'imbrication fonctionne : ce n'est que quand le batch le plus externe se termine que la mise à jour est demandée.
+</Aside>
+
+## Étapes suivantes
+
+- <LinkCard title="Tester avec quoin-testkit" href="/guides/testing/" description="Assertion qu'un batch réduit N écritures en une mise à jour." />
+- <LinkCard title="Le modèle de réactivité" href="/explanation/reactivity-model/" description="Pourquoi les adaptateurs à tirage ont besoin du batching et pas ceux à grain fin." />

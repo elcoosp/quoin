@@ -1,0 +1,57 @@
+---
+title: Signaux dérivés et memos
+description: "Référence de l'API pour derived(), map(), zip() et Memo — vues calculées sur les signaux de chaque adaptateur."
+type: reference
+---
+
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
+
+Un signal `Derived` enveloppe un `Signal` existant et calcule sa valeur paresseusement à partir du signal source à chaque lecture. Il reflète les primitives « computed » des frameworks réactifs à grain fin mais fonctionne uniformément sur tous les adaptateurs : sur Leptos, Dioxus et Floem, la lecture de la source à l'intérieur de la fermeture est suivie par le graphe réactif ; sur GPUI et Xilem, une mutation de source déclenche un re-rendu et la prochaine lecture recalcule.
+
+Import : `use quoin_core::prelude::*;`
+
+## Fonctions
+
+| Élément | Signature | Description |
+| --- | --- | --- |
+| `derived` | `pub fn derived<S, T, U, F>(source: &S, f: F) -> Derived<S, T, U, F>` où `F: Fn(&T) -> U + Clone + 'static` | Crée un signal en lecture seule calculant `U` à partir de `T` de la source. La fermeture s'exécute à chaque lecture — gardez-la bon marché. |
+| `zip` | `pub fn zip<A, B, TA, TB>(a: &A, b: &B) -> Zipped<A, B, TA, TB>` | Combine deux signaux en un signal en lecture seule de leur tuple, recalculé à chaque lecture. |
+| `memo` | `pub fn memo<S, T, U, F>(source: &S, f: F) -> Memo<S, T, U, F>` | Un signal dérivé qui met en cache sa dernière sortie jusqu'à ce que la valeur source change. |
+
+## Types
+
+| Type | Description |
+| --- | --- |
+| `Derived<S, T, U, F>` | Signal calculé en lecture seule. Implémente `Signal<U>` ; la lecture clone la valeur calculée. |
+| `Zipped<A, B, TA, TB>` | Signal en lecture seule combinant deux sources en un tuple. Créé par `zip`. |
+| `Memo<S, T, U, F>` | Signal dérivé avec cache : `derived` recalcule la fermeture à chaque lecture, `Memo` recalcule seulement quand la valeur source diffère de la dernière valeur vue. |
+
+## Sucre de SignalExt
+
+| Méthode | Description |
+| --- | --- |
+| `.map(f)` | Équivalent à `derived(self, f)` — chaînable pour des calculs multi-étapes. |
+
+## Exemple
+
+<Code lang="rust" code={`let count = cx.create_signal(2u32);
+
+let label = count.map(|n| format!("count = {n}"));   // recalculé à la lecture
+assert_eq!(label.get(), "count = 2");
+
+let doubled = quoin_core::derived(&count, |v| v * 2);
+assert_eq!(doubled.get(), 4);
+
+let both = quoin_core::zip(&a, &b);                  // tuple de deux signaux
+assert_eq!(both.get(), (1, 2));
+
+let expensive = quoin_core::memo(&source, heavy_transform);`} />
+
+<Aside type="caution">
+  Les fermetures dérivées doivent être pures et bon marché — elles s'exécutent à chaque lecture. Déplacez les calculs coûteux ou lourds en allocation dans un `Memo`, qui met en cache jusqu'à ce que la source change.
+</Aside>
+
+## Étapes suivantes
+
+- <LinkCard title="Écrire des hooks portables" href="/guides/portable-hooks/" description="Où les signaux dérivés s'insèrent dans la conception de hooks portables." />
+- <LinkCard title="Le modèle de réactivité" href="/explanation/reactivity-model/" description="Comment les adaptateurs à tirage et à grain fin supportent tous deux l'état dérivé." />

@@ -1,0 +1,100 @@
+---
+title: Installation
+description: "Ajoutez Quoin à un projet Rust, choisissez les bons drapeaux de fonctionnalité, et satisfaites les prérequis système de chaque adaptateur de framework."
+type: how-to
+---
+
+import { Aside, Code, LinkCard, TabItem, Tabs } from '@astrojs/starlight/components';
+
+Ce guide intègre Quoin dans un projet Cargo existant et explique chaque drapeau de fonctionnalité que vous pouvez activer. Quoin supporte Rust 1.88 et plus récent (l'espace de travail déclare `rust-version = "1.88"`).
+
+## Prérequis
+
+- Rust stable 1.88+ (`rustup update stable`).
+- Pour l'adaptateur GPUI sous Linux : `libxkbcommon-dev`, `libx11-dev`, `libxcb1-dev`, `libwayland-dev` et `libfontconfig1-dev`.
+- Les autres adaptateurs (Leptos, Dioxus, Xilem, Floem) n'ont aucune exigence de bibliothèque système au-delà de Rust lui-même.
+
+## Ajouter la dépendance
+
+Activez exactement **une** fonctionnalité de framework — ce choix sélectionne l'adaptateur compilé dans votre binaire :
+
+<Tabs>
+  <TabItem label="GPUI">
+    <Code lang="sh" code={`cargo add quoin --features gpui`} />
+  </TabItem>
+  <TabItem label="Leptos">
+    <Code lang="sh" code={`cargo add quoin --features leptos`} />
+  </TabItem>
+  <TabItem label="Dioxus">
+    <Code lang="sh" code={`cargo add quoin --features dioxus`} />
+  </TabItem>
+  <TabItem label="Xilem">
+    <Code lang="sh" code={`cargo add quoin --features xilem`} />
+  </TabItem>
+  <TabItem label="Floem">
+    <Code lang="sh" code={`cargo add quoin --features floem`} />
+  </TabItem>
+</Tabs>
+
+C'est équivalent à éditer `Cargo.toml` :
+
+<Code lang="toml" code={`[dependencies]
+quoin = { version = "0.1", features = ["gpui"] }`} />
+
+<Aside type="caution">
+  Activer deux fonctionnalités de framework sur la même crate est une erreur de compilation. Quoin émet une `compile_error!` nommant les fonctionnalités mutuellement exclusives plutôt que d'en choisir une silencieusement.
+</Aside>
+
+## Dépendances pour bibliothèque seule
+
+Si vous écrivez une crate de hook ou de store partagée qui doit rester sans framework, dépendez de `quoin-core` au lieu de `quoin`. Elle contient les traits et la machinerie portable sans aucun adaptateur compilé :
+
+<Code lang="toml" code={`[dependencies]
+quoin-core = "0.1"`} />
+
+Les consommateurs de votre crate choisissent alors le framework en activant une fonctionnalité sur leur dépendance `quoin` et en passant à votre hook n'importe quel contexte qui implémente `ReactiveContext`.
+
+## Matrice des drapeaux de fonctionnalité
+
+| Fonctionnalité | Ce qu'elle active |
+| --- | --- |
+| `gpui` | Adaptateur GPUI + implémentation UCP GPUI + macros ; implique `rsx` et `gpui-rsx-classes` |
+| `leptos` | Adaptateur Leptos + macros |
+| `dioxus` | Adaptateur Dioxus + macros |
+| `xilem` | Adaptateur Xilem + macros |
+| `floem` | Adaptateur Floem + macros |
+| `macros` | `component!`, `quoin_render!`, `effect!`, `run_app!`, `quoin_element!` sans framework |
+| `ui` | Traits du Universal Component Protocol depuis `quoin-ui` |
+| `rsx` | Échappatoire gpui-rsx (`rsx!`, `#[component]`, …) pour les sous-arbres GPUI-seulement |
+| `gpui-rsx-classes` | Moteur Tailwind étendu pour GPUI (palette complète, plus de variantes, `class:` dynamique) |
+| `testkit` | Ré-exporte `quoin-testkit` pour les tests sans tête |
+| `devtools` | Ré-exporte `quoin-devtools` pour le traçage de signaux |
+| `leptos-shadcn` | Support de composant shadcn pour l'émetteur Leptos (nécessite `leptos`) |
+| `dioxus-shadcn` | Support de composant shadcn pour l'émetteur Dioxus (nécessite `dioxus`) |
+| `floem-shadcn` | Support de composant shadcn pour l'émetteur Floem (nécessite `floem`) |
+
+La référence complète avec les dépendances entre drapeaux vit dans [Drapeaux de fonctionnalité](/reference/feature-flags/).
+
+## Vérifier l'installation
+
+Créez un signal et relisez-le dans un test unitaire avec `quoin-testkit` — pas de fenêtre, pas de navigateur :
+
+<Code lang="rust" code={`use quoin::prelude::*;
+use quoin::testkit::{TestContext, ImmediateExecutor};
+
+#[test]
+fn signal_round_trip() {
+    let cx = TestContext::with_executor(ImmediateExecutor);
+    let count = cx.create_signal(0u32);
+    count.set(42);
+    assert_eq!(count.get(), 42);
+}`} />
+
+<Code lang="sh" code={`cargo test`} />
+
+**Sortie attendue :** le test passe, confirmant que l'adaptateur a compilé et que le contexte fonctionne.
+
+## Étapes suivantes
+
+- <LinkCard title="Construire un compteur inter-frameworks" href="/tutorials/build-a-counter/" description="Le tutoriel du chemin doré de zéro à une application en cours d'exécution." />
+- <LinkCard title="Référence des drapeaux de fonctionnalité" href="/reference/feature-flags/" description="Chaque drapeau, ses dépendances et quand l'activer." />

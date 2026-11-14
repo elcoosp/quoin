@@ -1,0 +1,58 @@
+---
+title: Drapeaux de fonctionnalité
+description: "Référence de l'API pour chaque fonctionnalité cargo sur la façade quoin, y compris les dépendances entre drapeaux."
+type: reference
+---
+
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
+
+La crate façade `quoin` compose l'écosystème derrière des drapeaux de fonctionnalité. **Exactement une fonctionnalité de framework peut être activée par crate** — Quoin l'impose par des diagnostics `compile_error!` nommant les fonctionnalités mutuellement exclusives.
+
+## Fonctionnalités de framework
+
+| Fonctionnalité | Tire | Active aussi |
+| --- | --- | --- |
+| `gpui` | `gpui-pre`, `quoin-gpui`, `quoin-ui-gpui`, `quoin-macros` | `rsx`, `gpui-rsx-classes` |
+| `leptos` | `quoin-leptos`, `quoin-macros` | — |
+| `dioxus` | `quoin-dioxus`, `quoin-macros` | — |
+| `xilem` | `quoin-xilem`, `quoin-macros` | — |
+| `floem` | `quoin-floem`, `quoin-macros` | — |
+
+## Fonctionnalités d'outillage et de protocole
+
+| Fonctionnalité | Tire | Notes |
+| --- | --- | --- |
+| `macros` | `quoin-macros` | Points d'entrée de macro sans framework. |
+| `ui` | `quoin-ui` | Traits du Universal Component Protocol. |
+| `rsx` | `gpui-rsx` | Ré-exporte `rsx!`, `rsx_strict!`, `rsx_permissive!`, `rsx_tw!`, `rsx_fragment!`, `rsx_expand!`, `rsx_runtime!`, `#[component]` — l'échappatoire pour les sous-arbres GPUI-seulement. Activé automatiquement par `gpui` ; autonome pour les utilisateurs de macros brutes. |
+| `gpui-rsx-classes` | `quoin-macros` (transmis comme `quoin-macros/gpui-rsx-classes`) | Moteur Tailwind étendu pour GPUI : palette complète Tailwind 4, variantes d'état supplémentaires, expressions `class:` dynamiques, jetons personnalisés `rsx.toml`. Requiert `macros` ou n'importe quelle fonctionnalité de framework. |
+| `testkit` | `quoin-testkit` | Ré-exports de tests sans tête. |
+| `devtools` | `quoin-devtools` | Ré-exports de traçage de signaux. |
+
+## Fonctionnalités de support shadcn
+
+À utiliser avec la fonctionnalité de framework correspondante ; elles activent la fonctionnalité shadcn sur la crate d'adaptateur **et** basculent l'émetteur de macro vers les composants shadcn :
+
+| Fonctionnalité | Nécessite |
+| --- | --- |
+| `leptos-shadcn` | `leptos` |
+| `dioxus-shadcn` | `dioxus` |
+| `floem-shadcn` | `floem` (attend un checkout voisin `floem-shadcn` consommé comme dépendance de chemin par `quoin-floem`) |
+
+<Aside type="caution">
+  Le support shadcn de Floem est un checkout voisin autonome (v0.2.0 de l'arbre floem-shadcn modifié), pas une dépendance crates.io. Cloner uniquement le dépôt quoin ne suffit pas pour compiler les builds `floem-shadcn` — voir le contrat de disposition dans le manifeste de `quoin-floem`.
+</Aside>
+
+## Exemple
+
+<Code lang="toml" code={`[dependencies]
+# Application ciblant GPUI avec les widgets UCP, testkit et devtools :
+quoin = { version = "0.1", features = ["gpui", "testkit", "devtools"] }
+
+# Bibliothèque de hooks sans framework :
+quoin-core = "0.1"`} />
+
+## Étapes suivantes
+
+- <LinkCard title="Installation" href="/guides/installation/" description="Comment choisir les drapeaux lors de l'ajout de Quoin à un projet." />
+- <LinkCard title="Crates" href="/reference/crates/" description="Ce que contient chaque crate de l'espace de travail." />

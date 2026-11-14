@@ -1,0 +1,59 @@
+---
+title: Architecture
+description: "Comment l'espace de travail Quoin est organisé — la façade, les traits du cœur, les crates d'adaptateur, et la machinerie partagée en dessous."
+type: explanation
+---
+
+import { Code, LinkCard } from '@astrojs/starlight/components';
+
+L'architecture de Quoin sépare trois préoccupations : un petit contrat de traits, cinq adaptateurs qui l'implémentent nativement, et une machinerie partagée qui garde les adaptateurs cohérents. Tout se compose à travers la crate façade `quoin`.
+
+## Les couches
+
+<Code lang="text" code={`        votre application / votre bibliothèque de hooks
+                    │
+              quoin (façade)          ← les drapeaux de fonctionnalité choisissent un backend
+        ┌─────────┼─────────┐
+   quoin-macros  quoin-ui   quoin-core   ← contrat + outillage
+        │           │          │
+   quoin-macros-core quoin-style      ← analyse & génération de code
+        │
+   ┌────┴─────┬──────────┬───────────┬──────────┐
+ quoin-gpui quoin-leptos quoin-dioxus quoin-xilem quoin-floem
+        └──────────┴──────────┴─────┬─────┴──────────┘
+                    machinerie partagée dans quoin-core
+              join · globals · NotifierSignal · batch · pool`} />
+
+## La couche contrat
+
+`quoin-core` définit les traits que chaque adaptateur implémente : `Signal<T>`, `ReactiveContext`, `Executor`, plus les traits d'extension génériques (`SignalExt`, `ExecutorExt`, `ReactiveContextExt`) qui sont implémentés une fois, génériquement, pour que chaque adaptateur les obtienne gratuitement avec zéro code par adaptateur. Des commodités portables vivent aussi ici : derived/memo/zip, ressources, batching, annulation, `spawn_local`, minuteurs et pooling.
+
+## La couche adaptateur
+
+Chaque crate d'adaptateur (`quoin-gpui`, `quoin-leptos`, `quoin-dioxus`, `quoin-xilem`, `quoin-floem`) fournit un `ReactiveContext` concret pour son framework. Les adaptateurs partagent une machinerie qui était auparavant copiée à la main cinq fois :
+
+- **join** — le cycle de vie de `JoinHandle` (await / abort / detach / abort-on-drop) est écrit une fois ; seule la partie « comment annuler la tâche sous-jacente » diffère par framework.
+- **globals** — le magasin thread-local à clé `TypeId` derrière `provide_global`/`use_global` sur les adaptateurs à tirage.
+- **NotifierSignal** — l'implémentation de signal cellule-plus-notificateur sensible au batching.
+
+Sur `wasm32`, les exécuteurs Leptos et Dioxus exécutent les futures sur le thread principal via `wasm_bindgen_futures` ; en natif, ils utilisent des threads comme les autres adaptateurs.
+
+## La couche macro
+
+`quoin-macros` est une mince frontière `proc_macro` au-dessus de `quoin-macros-core`, qui analyse `component!`/`quoin_render!`/`effect!` une fois et émet du code par backend à travers des implémentations de `FrameworkEmitter`. Les chaînes de classe sont analysées par `quoin-style` en un IR typé (listes `Decl` par état) — une analyse, plusieurs abaissements, aucune analyse de classe à l'exécution. Les classes non reconnues deviennent des erreurs de compilation avec des suggestions did-you-mean.
+
+## La couche protocole et outillage
+
+- `quoin-ui` déclare les traits du Universal Component Protocol et le vocabulaire de nœuds ; `quoin-ui-gpui` est la première implémentation complète.
+- `quoin-testkit` fournit `TestContext` et des exécuteurs déterministes pour les tests sans tête.
+- `quoin-devtools` enveloppe n'importe quel contexte avec `Instrumented` et enregistre les événements dans un tampon circulaire.
+- `quoin-conformance` contient la suite partagée que chaque adaptateur doit réussir — le mécanisme derrière la [parité entre backends](/explanation/backend-parity/).
+
+## Composition de la façade
+
+La façade `quoin` ré-exporte tout ce qui précède derrière des drapeaux de fonctionnalité. Les fonctionnalités de framework sont mutuellement exclusives (une `compile_error!` est levée sinon) ; `testkit` et `devtools` sont additives. Cela garde une application typique à une ligne de dépendance tout en laissant les bibliothèques sans framework dépendre de `quoin-core` seul.
+
+## Étapes suivantes
+
+- <LinkCard title="Le modèle de réactivité" href="/explanation/reactivity-model/" description="Comment le contrat se mappe sur les frameworks à tirage et à grain fin." />
+- <LinkCard title="Crates" href="/reference/crates/" description="Le tableau de référence par crate." />

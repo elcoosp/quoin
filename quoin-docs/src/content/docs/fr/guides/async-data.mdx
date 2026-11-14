@@ -1,0 +1,96 @@
+---
+title: Charger des données asynchrones
+description: "Récupérez des données distantes avec des ressources exemptes de courses, lancez des tâches asynchrones sur le runtime du framework, et utilisez des minuteurs portables."
+type: how-to
+---
+
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
+
+Vous chargerez des données distantes dans l'UI sans courses entre réponses obsolètes et fraîches, et vous exécuterez du travail d'arrière-plan sur le runtime asynchrone natif du framework.
+
+**Prérequis :** une installation Quoin fonctionnelle et un contexte qui implémente `ReactiveContext` (voir [Écrire des hooks portables](/guides/portable-hooks/)).
+
+## Charger des données avec une ressource
+
+`cx.create_resource` donne à chaque adaptateur le cycle de vie de données asynchrones familier de Leptos et Dioxus : `Idle → Loading → Ready(T) | Failed(E)`. Passez une fermeture qui reçoit un [`CancellationToken`](/reference/cancellation/) et renvoie un future :
+
+<Code lang="rust" code={`let user = cx.create_resource(|token| async move {
+    // Vérifiez le jeton entre les awaits pour que les rechargements arrêtent le travail obsolète :
+    Ok::<User, FetchError>(fetch_user(&token).await?)
+});
+
+// N'importe où dans l'UI :
+match user.state().get() {
+    ResourceState::Ready(user) => render_user(&user),
+    ResourceState::Loading => render_spinner(),
+    ResourceState::Failed(err) => render_error(&err),
+    ResourceState::Idle => render_placeholder(),
+}`} />
+
+La ressource gère les deux problèmes qui hantent les boucles de fetch écrites à la main :
+
+- **Rechargements exempts de courses** — chaque rechargement incrémente un compteur de génération, donc une requête obsolète ne peut jamais écraser un résultat plus récent.
+- **Annulation coopérative** — recharger annule la requête en vol via son jeton et abandonne la tâche via le handle de join de l'exécuteur.
+
+Appelez `user.reload_with(&cx, fetch)` pour réexécuter la fermeture de fetch ; l'état revient à `Loading` jusqu'à ce que la nouvelle requête se règle.
+
+## Lancer des tâches ponctuelles
+
+Pour un travail qui n'est pas lié à une ressource, lancez sur le runtime du framework avec l'exécuteur :
+
+<Code lang="rust" code={`let handle = cx.executor().spawn(async {
+    let data = fetch_from_api().await;
+    signal.set(data);
+});
+
+// Plus tard : attendre le résultat (Err(Canceled) si abandonné), abort(), ou detach().`} />
+
+Chaque adaptateur implémente le même cycle de vie de handle de join :
+
+| Opération | Effet |
+| --- | --- |
+| `handle.await` | Attend le résultat ; la tâche s'exécute jusqu'à complétion. |
+| `handle.abort()` | Annule au prochain point de suspension ; les awaits ultérieurs se résolvent avec `Err(Canceled)`. |
+| `handle.detach()` | Fire-and-forget ; la tâche s'exécute jusqu'à complétion, son résultat est jeté. |
+| `drop(handle)` | Annule la tâche — concurrence structurée, aucune tâche orpheline mutant l'état UI. |
+
+L'annulation est coopérative sur les adaptateurs à base de threads (Leptos, Dioxus, Floem) : le future s'arrête à son prochain point `.await`. GPUI et Xilem annulent nativement.
+
+## Fetch-and-cancel en un appel
+
+`spawn_with_token` (de `ExecutorExt`, dans le prelude) crée un jeton d'annulation et le remet à votre future :
+
+<Code lang="rust" code={`let (handle, token) = cx.executor().spawn_with_token(|t| async move {
+    while !t.is_cancelled() {
+        do_work().await;
+    }
+});
+// L'utilisateur a navigué ailleurs :
+token.cancel();`} />
+
+## Exécuter des futures !Send avec spawn_local
+
+Les navigateurs exécutent WASM sur un seul thread et la plupart des futures qui touchent le DOM sont `!Send`. La machinerie `LocalExecutor` couvre les deux mondes :
+
+<Code lang="rust" code={`use quoin_core::LocalExecutor;
+
+cx.executor().spawn_local(async { update_dom().await });`} />
+
+- **Sur `wasm32`**, les tâches tournent sur le thread principal du navigateur via `wasm_bindgen_futures`.
+- **En natif**, les tâches entrent dans une file FIFO thread-locale déterministe pilotée par `quoin_core::local::run_local_tasks()` — utile dans les tests.
+
+<Aside type="caution">
+  GPUI n'implémente pas `LocalExecutor` — son exécuteur est `!Send` par conception. Utilisez `Executor::spawn` à la place.
+</Aside>
+
+## Dormir sans runtime asynchrone
+
+Les minuteurs font partie du contrat d'exécuteur. `executor.sleep(duration)` renvoie un future sur chaque adaptateur (futures-timer en natif, minuteurs de navigateur sur WASM), et la fonction libre `quoin_core::sleep` vous donne un `SyncSleepFuture` autonome :
+
+<Code lang="rust" code={`cx.executor().sleep(Duration::from_millis(250)).await;`} />
+
+## Étapes suivantes
+
+- <LinkCard title="Annuler du travail" href="/guides/cancelling-work/" description="Jetons enfants, gardes RAII et course du travail contre l'annulation." />
+- <LinkCard title="Référence des ressources" href="/reference/resources/" description="L'API complète de Resource et ResourceState." />
+- <LinkCard title="Référence des exécuteurs et tâches" href="/reference/executors/" description="Spawn, handles de join, tâches locales et minuteurs." />

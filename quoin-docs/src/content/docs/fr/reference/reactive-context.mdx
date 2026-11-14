@@ -1,0 +1,54 @@
+---
+title: Contexte réactif
+description: "Référence de l'API pour le trait ReactiveContext et les méthodes d'extension ReactiveContextExt."
+type: reference
+---
+
+import { Code, LinkCard } from '@astrojs/starlight/components';
+
+`ReactiveContext` est le point d'entrée pour créer des signaux et accéder aux services du framework. Les crates d'adaptateur fournissent les implémentations concrètes (`GpuiContext`, `LeptosContext`, …) ; votre code ne dépend que du trait.
+
+Import : `use quoin_core::prelude::*;`
+
+## Méthodes de ReactiveContext
+
+| Méthode | Signature | Description |
+| --- | --- | --- |
+| `Signal` (assoc.) | `type Signal<T: Clone + Send + 'static>: Signal<T>` | Le type de signal de l'adaptateur. |
+| `Executor` (assoc.) | `type Executor: Executor` | Le type d'exécuteur de l'adaptateur. |
+| `create_signal` | `fn create_signal<T: Clone + Send + 'static>(&self, initial: T) -> Self::Signal<T>` | Crée de l'état réactif. |
+| `executor` | `fn executor(&self) -> Self::Executor` | Renvoie le répartiteur de tâches asynchrones. |
+| `request_update` | `fn request_update(&self)` | Marque l'UI comme à rafraîchir. |
+| `provide_global` | `fn provide_global<T: Clone + Send + Sync + 'static>(&self, value: T)` | Stocke une valeur à l'échelle de l'application indexée par type. |
+| `use_global` | `fn use_global<T: Clone + 'static + Send + Sync>(&self) -> Option<Self::Signal<T>>` | Renvoie un handle vers le global stocké, s'il existe. Chaque adaptateur renvoie un handle vers la même cellule partagée. |
+
+## Méthodes de ReactiveContextExt
+
+Implémentées génériquement sur tout `ReactiveContext` ; incluses dans le prelude.
+
+| Méthode | Signature | Description |
+| --- | --- | --- |
+| `create_resource` | `fn create_resource<T, E, F, Fut>(&self, fetch: F) -> Resource<…>` | Crée une ressource de données asynchrones avec rechargements exempts de courses et annulation coopérative. |
+| `batch` | `fn batch<R>(&self, f: impl FnOnce() -> R) -> R` | Exécute `f` dans une portée de batch et émet une seule demande de mise à jour ensuite. |
+| `update_global` | `fn update_global<T, R>(&self, f: impl FnOnce(&mut T) -> R) -> R` | Mute un global stocké ; accès indexé par type. |
+| `use_global_or_init` | `fn use_global_or_init<T>(&self, init: impl FnOnce() -> T) -> Self::Signal<T>` | Renvoie le handle global, en l'initialisant à la première utilisation. |
+
+## Exemple
+
+<Code lang="rust" code={`let signal = cx.create_signal(0);            // crée de l'état réactif
+let executor = cx.executor();                // répartiteur de tâches asynchrones
+cx.request_update();                         // marque l'UI à rafraîchir
+
+cx.provide_global(Theme::Dark);
+if let Some(theme) = cx.use_global::<Theme>() {
+    let current = theme.get();
+}
+
+let res = cx.create_resource(|token| async move { /* fetch */ });
+cx.batch(|| { a.set(1); b.set(2); });        // une seule demande de mise à jour
+let settings = cx.use_global_or_init(Settings::default);`} />
+
+## Étapes suivantes
+
+- <LinkCard title="Partager l'état global" href="/guides/global-state/" description="Guide orienté tâche pour provide_global, update_global et use_global_or_init." />
+- <LinkCard title="Exécuteurs et tâches" href="/reference/executors/" description="Ce que peut faire l'exécuteur renvoyé par cx.executor()." />

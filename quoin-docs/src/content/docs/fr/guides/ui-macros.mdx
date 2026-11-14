@@ -1,0 +1,146 @@
+---
+title: Macros UI déclaratives
+description: "Définissez des composants, rendez des arbres de type JSX, exécutez des effets et amorcez des applications avec component!, quoin_render!, effect! et run_app!."
+type: how-to
+---
+
+import { Aside, Badge, Code, LinkCard } from '@astrojs/starlight/components';
+
+Vous remplacerez le code de vue écrit à la main par les macros déclaratives de Quoin. Une seule syntaxe s'étend en code natif pour le framework choisi : une implémentation `Render` sur GPUI, une fonction `#[component]` sur Leptos et Dioxus.
+
+**Prérequis :** la fonctionnalité `macros` (impliquée par toute fonctionnalité de framework) — voir [Installation](/guides/installation/).
+
+## Définir un composant avec `component!`
+
+`component!` déclare les props, l'état réactif, les globals, les hooks de cycle de vie, les actions et l'arbre de rendu en un seul bloc :
+
+<Code lang="rust" code={`use quoin_macros::component;
+
+component! {
+    pub DemoApp {
+        props {
+            initial_count: u32 = 0,
+        }
+        state {
+            count: u32 = initial_count,
+            selected: String = "Option A".to_string(),
+        }
+        globals {
+            theme: Theme,                  // récupéré automatiquement du contexte
+            router: RouterState observe,   // observe = suit les changements
+        }
+        on_mount {
+            log::info!("Component mounted");
+        }
+        on_unmount {
+            log::info!("Component unmounted");
+        }
+        fn increment() {
+            count.update(|c| *c += 1);
+        }
+        fn select_option(opt: String) {
+            selected.set(opt);
+        }
+        render {
+            let count_text = format!("Count: {}", count.get());
+            quoin_render! {
+                div(class: "flex flex-col gap-4 p-4 bg-gray-900 text-white") {
+                    div(class: "text-2xl font-bold") { "Quoin Render Demo" }
+                    div { count_text }
+                    button(class: "px-4 py-2 bg-blue-600 rounded-md",
+                        on_click: move |_| increment()) {
+                        "Increment"
+                    }
+                }
+            }
+        }
+    }
+}`} />
+
+Sortie par framework :
+
+- **GPUI** — un `struct DemoApp` avec une implémentation `Render`.
+- **Leptos** — `#[component] fn DemoApp() -> impl IntoView`.
+- **Dioxus** — `#[component] fn DemoApp() -> Element`.
+
+Les champs d'état déclarés dans `state` deviennent des signaux ; le code Rust ordinaire à l'intérieur de `render` s'exécute à chaque passe de rendu.
+
+## Écrire des arbres avec `quoin_render!`
+
+La syntaxe de rendu est de type JSX avec des attributs nommés, des blocs conditionnels et des boucles :
+
+<Code lang="rust" code={`use quoin_macros::quoin_render;
+
+quoin_render! {
+    div(class: "flex flex-col gap-4 p-4 bg-gray-900 text-white h-full") {
+        div(class: "text-2xl font-bold hover:text-blue-400") { "Hello" }
+        if[show_details] {
+            div(class: "p-2 bg-gray-800 rounded-md") { details }
+        }
+        for[item in items] {
+            div(class: "text-sm") { item.name.clone() }
+        }
+        tabs(active: active_tab, on_click: move |i| set_active(i)) {
+            tab(index: 0, label: "Tab 1")
+            tab(index: 1, label: "Tab 2")
+        }
+        data_table(rows: people, striped: true) {
+            column(key: "name", label: "Name", render: |p: &Person| p.name.clone())
+            column(key: "age",  label: "Age",  render: |p: &Person| p.age.to_string())
+        }
+        clipboard_button(copy_text: "Copied!") { "Copy" }
+    }
+}`} />
+
+Au-delà de `div` et `button`, le vocabulaire d'éléments inclut les composants riches que les émetteurs supportent par framework : `tabs`, `data_table`, `virtual_list`, `dropdown_menu`, `input`, `checkbox`, `radio`, `switch`, `slider`, `icon`, `badge`, `tooltip`, `progress`, `skeleton`, `scroll_area`, `separator` et `styled_text`. Les handlers reçoivent des [événements typés](/reference/events/), donc la même source de handler compile sur tous les backends.
+
+## Exécuter des effets de bord avec `effect!`
+
+`effect!` a une forme structurée avec dépendances, une fermeture de run et un nettoyage optionnel :
+
+<Code lang="rust" code={`use quoin_macros::effect;
+
+effect! { watch: [count], || println!("Count changed: {}", count.get()) }
+
+effect! {
+    deps: [query],
+    run: || {
+        let data = fetch_data(&query.get());
+        results.set(data);
+    },
+    cleanup: || {
+        cancel_pending_request();
+    }
+}`} />
+
+- **Leptos** s'étend en `create_effect` + `on_cleanup`.
+- **Dioxus** s'étend en `use_effect` + `use_drop`.
+- **GPUI** exécute la fermeture de run et appelle le nettoyage quand l'effet est abandonné.
+
+## Amorcer avec `run_app!`
+
+Une ligne monte votre composant :
+
+<Code lang="rust" code={`run_app!(MyComponent);                            // GPUI avec options de fenêtre par défaut
+run_app!(MyComponent, window_opts: custom_opts);  // GPUI avec une fenêtre personnalisée
+run_app!(MyComponent);                            // Leptos/Dioxus montent sur body`} />
+
+## Définir des éléments réutilisables avec `quoin_element!`
+
+<Badge text="Avancé" variant="caution" />
+
+`quoin_element!` déclare un élément personnalisé nommé avec des props typées, rendu via une fermeture `quoin_render!` :
+
+<Code lang="rust" code={`quoin_element!("my-widget", { width: u32 }, |props| quoin_render! {
+    div { "w" }
+});`} />
+
+<Aside type="note">
+  Le backend GPUI ré-exporte en plus l'échappatoire gpui-rsx (`rsx!`, `rsx_strict!`, `#[component]`, …) sous la fonctionnalité `rsx` pour les sous-arbres GPUI-seulement à l'intérieur des blocs de rendu `quoin_render!` — voir le [guide de style](/guides/styling/#escape-hatch-for-gpui-only-subtrees).
+</Aside>
+
+## Étapes suivantes
+
+- <LinkCard title="Styliser avec des classes Tailwind" href="/guides/styling/" description="Comment les chaînes de classe compilent en style natif sur chaque backend." />
+- <LinkCard title="Composer des composants UCP" href="/guides/ucp-components/" description="Tables de données, listes virtuelles et menus déroulants via le Universal Component Protocol." />
+- <LinkCard title="Référence des macros" href="/reference/macros/" description="Tableaux de signatures pour les cinq macros." />

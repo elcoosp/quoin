@@ -1,0 +1,57 @@
+---
+title: Documentation Quoin
+template: splash
+description: "Un seul cœur réactif, plusieurs frameworks — écrivez une fois la logique réactive d'UI Rust et exécutez-la sur GPUI, Leptos, Dioxus, Xilem ou Floem."
+type: explanation
+hero:
+  title: "Documentation Quoin"
+  tagline: "Un seul cœur réactif, plusieurs frameworks — écrivez une fois la logique réactive d'UI Rust et exécutez-la sur GPUI, Leptos, Dioxus, Xilem ou Floem."
+  image:
+    file: ../../../assets/logo.png
+    alt: "Documentation Quoin"
+  actions:
+    - text: Commencer le tutoriel
+      link: /tutorials/build-a-counter/
+      icon: right-arrow
+---
+
+import { Card, CardGrid, LinkButton, LinkCard } from '@astrojs/starlight/components';
+
+Quoin est une couche d'abstraction réactive agnostique vis-à-vis du framework pour Rust. Vous écrivez votre logique métier une fois contre un petit ensemble de traits — signaux, effets, tâches asynchrones, annulation, état global — et le même code tourne sous GPUI, Leptos, Dioxus, Xilem ou Floem. Vous activez exactement une fonctionnalité de framework à la compilation, et la [suite de conformité](/explanation/backend-parity/) partagée garantit que chaque adaptateur se comporte identiquement.
+
+## Choisissez votre chemin
+
+<CardGrid stagger>
+  <Card title="Construire un compteur inter-frameworks">
+    Suivez le tutoriel du chemin doré : installez Quoin, écrivez un hook de compteur portable, rendez-le dans GPUI, puis re-ciblez un autre framework.
+  </Card>
+  <Card title="Livrer une fonctionnalité">
+    Parcourez les guides orientés tâche : chargement de données asynchrones, annulation, état global, macros déclaratives, style, tests et traçage.
+  </Card>
+  <Card title="Consulter une API">
+    Les pages de référence couvrent chaque trait, macro et drapeau de fonctionnalité avec signatures, valeurs par défaut et exemples.
+  </Card>
+  <Card title="Comprendre la conception">
+    Les explications décrivent pourquoi Quoin existe, comment le graphe de crates s'articule, et comment le modèle de réactivité fonctionne sous le capot.
+  </Card>
+</CardGrid>
+
+<LinkButton href="/tutorials/build-a-counter/" icon="right-arrow">Commencer le tutoriel</LinkButton>
+
+## Frameworks supportés
+
+| Framework | Crate d'adaptateur | Statut |
+| --- | --- | --- |
+| [GPUI](https://github.com/zed-industries/zed) | `quoin-gpui` | Support complet |
+| [Leptos](https://leptos.dev/) | `quoin-leptos` | Support complet |
+| [Dioxus](https://dioxuslabs.com/) | `quoin-dioxus` | Support complet |
+| [Xilem](https://github.com/linebender/xilem) | `quoin-xilem` | Support complet |
+| [Floem](https://github.com/lapce/floem) | `quoin-floem` | Support complet |
+
+Activez exactement une fonctionnalité de framework dans votre `Cargo.toml` — Quoin l'impose par une vérification à la compilation.
+
+## Étapes suivantes
+
+- <LinkCard title="Construire un compteur inter-frameworks" href="/tutorials/build-a-counter/" description="Le tutoriel du chemin doré de zéro à une application en cours d'exécution." />
+- <LinkCard title="Installation" href="/guides/installation/" description="Ajoutez Quoin à un projet existant avec les bons drapeaux de fonctionnalité." />
+- <LinkCard title="Pourquoi Quoin existe" href="/explanation/why-quoin/" description="Le problème que Quoin résout et les objectifs de conception derrière." />

@@ -1,0 +1,84 @@
+---
+title: Annuler du travail
+description: "Annulez coopérativement du travail asynchrone de longue durée avec des jetons enfants, des gardes RAII et des courses run-until-cancelled."
+type: how-to
+---
+
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
+
+Vous arrêterez du travail qui n'est plus désiré — recherches abandonnées, panneaux fermés, polls dépassés — en utilisant la boîte à outils d'annulation de Quoin, qui se comporte identiquement sur les cinq adaptateurs.
+
+**Prérequis :** familiarité avec le lancement de tâches ([Charger des données asynchrones](/guides/async-data/)).
+
+## Sonder le jeton
+
+`CancellationToken` est clonable et bon marché. Le motif le plus direct le vérifie dans une boucle :
+
+<Code lang="rust" code={`let token = CancellationToken::new();
+executor.spawn({
+    let token = token.clone();
+    async move {
+        while !token.is_cancelled() {
+            do_work().await;
+        }
+        cleanup().await;
+    }
+});
+
+// Plus tard, depuis une autre tâche ou un événement UI :
+token.cancel();`} />
+
+L'annulation est **coopérative** : rien ne préempte votre future. Il s'arrête à son prochain point de suspension, donc les longs calculs entre `.await` la retardent.
+
+## Attendre l'annulation elle-même
+
+`token.cancelled()` renvoie un future qui se résout quand le jeton se déclenche ; `into_cancelled()` en donne une variante possédée. Utilisez-les pour sélectionner entre complétion et arrêt :
+
+<Code lang="rust" code={`tokio::select! {
+    result = work() => handle(result),
+    _ = token.cancelled() => shutdown().await,
+}`} />
+
+## Faire courir le travail contre l'annulation
+
+`run_until_cancelled` se résout avec `Some(output)` quand le future enveloppé se termine d'abord, ou `None` quand le jeton gagne :
+
+<Code lang="rust" code={`let value = token.run_until_cancelled(work()).await;
+match value {
+    Some(result) => apply(result),
+    None => /* annulé */,
+}`} />
+
+## Construire des arbres de jetons
+
+Les écrans de longue durée créent des jetons enfants qui s'annulent avec leur parent mais s'annulent aussi indépendamment :
+
+<Code lang="rust" code={`let parent = CancellationToken::new();
+let per_request = parent.child_token();  // s'annule avec le parent
+// Annuler per_request laisse le parent intact.
+// Annuler parent annule aussi per_request.`} />
+
+Cela modélise les durées de vie UI : un jeton parent par vue, un enfant par requête en vol.
+
+## Annuler à l'abandon avec des gardes
+
+`guard()` renvoie une garde RAII qui annule le jeton à l'abandon — le motif « annuler quand cette portée se termine » :
+
+<Code lang="rust" code={`let token = CancellationToken::new();
+let _guard = token.guard();  // token.cancel() s'exécute quand _guard est abandonné`} />
+
+## Détacher ou abandonner — connaissez la différence
+
+Abandonner un handle de join annule la tâche ; c'est la concurrence structurée par défaut. Quand vous voulez vraiment du fire-and-forget, appelez explicitement `detach()` pour que la tâche s'exécute jusqu'à complétion :
+
+<Code lang="rust" code={`let handle = executor.spawn(log_flusher());
+handle.detach();  // survit ; drop(handle) l'aurait annulée`} />
+
+<Aside type="tip">
+  Préférez l'annulation par abandon. Une tâche qui mute l'état UI après la disparition de sa vue est une classe de bugs que les défauts de Quoin éliminent.
+</Aside>
+
+## Étapes suivantes
+
+- <LinkCard title="Référence des jetons d'annulation" href="/reference/cancellation/" description="Chaque méthode et type de future sur CancellationToken." />
+- <LinkCard title="Charger des données asynchrones" href="/guides/async-data/" description="Ressources avec rechargements exempts de courses et annulation intégrés." />

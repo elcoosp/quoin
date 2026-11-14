@@ -1,0 +1,43 @@
+---
+title: Parité entre backends
+description: "Comment Quoin garantit un comportement d'adaptateur identique — la suite de conformité partagée, les tests d'expansion de macro, et le harnais de parité du moteur de classes."
+type: explanation
+---
+
+import { LinkCard } from '@astrojs/starlight/components';
+
+« Fonctionne identiquement sur chaque adaptateur » est une affirmation testable, et Quoin la teste sous trois angles : le comportement, la génération de code et le style.
+
+## La suite de conformité
+
+`quoin-conformance` contient une suite partagée de 30+ vérifications que chaque adaptateur doit réussir. La suite exerce le contrat partagé complet : signaux et `set_eq`, comportement de derived et memo, batching, globals partagés, cycle de vie du handle de join (await / abort / detach / drop-cancels), `spawn_with_token`, cascades d'annulation et minuteurs d'exécuteur (`executor_sleep_resolves`, `executor_spawned_task_sleeps`). Les crates d'adaptateur exécutent la même suite dans leurs propres cibles de test — par exemple `just test-conformance-gpui` — et la CI l'exécute pour chaque adaptateur à chaque push.
+
+Parce que les vérifications vivent dans une seule suite plutôt que dans cinq dossiers de tests écrits à la main, un nouveau comportement arrive comme une nouvelle vérification qui s'applique immédiatement à tous les backends. La suite GPUI couvre le contrat partagé complet (31 vérifications, auparavant 19).
+
+## Tests d'expansion de macro
+
+Trois couches vérifient qu'une seule source de macro produit un code correct sur chaque backend :
+
+- `quoin-macros-tests` — tests UI trybuild qui vérifient à la fois les expansions réussies (cas passants GPUI, Leptos, Dioxus) et les diagnostics de compilateur exacts pour une entrée invalide (`render` manquant, éléments inconnus, défauts manquants, identifiants inattendus).
+- `quoin-expand-test` — test d'instantané d'expansion via `just expand`.
+- `quoin-grsx-compiletest` — compile les expansions complètes du moteur (nouveau vocabulaire, variantes, classes dynamiques, flux de contrôle, handlers) contre le stub GPUI embarqué, pour que les chaînes de builder émises vérifient leurs types sans construire un vrai GPUI.
+
+## Parité du moteur de classes
+
+`interop-tests` est le harnais de parité pour le moteur de classes GPUI. Il contrôle :
+
+- **34/34 classes de jetons de thème octet pour octet identiques** via le `Theme` de gpui-rsx
+- **La barrière de sur-ensemble de vocabulaire GPUI ⊇ web** — tout ce que l'analyseur partagé accepte doit s'abaisser sur GPUI
+- **La barrière d'échelle Tailwind** — les utilitaires d'espacement correspondent à l'échelle de 4 px de Tailwind
+- La table des variantes, plus des sondes de diagnostic
+
+Sous le drapeau `gpui-rsx-classes`, les classes que Quoin connaît déjà conservent leur abaissement octet pour octet — les mêmes tests de parité le vérifient.
+
+## Ce que la parité signifie pour vous
+
+Vous pouvez traiter l'adaptateur comme un détail d'implémentation. Un hook qui réussit son contrat adossé à la conformité — signaux, effets, tâches, annulation, globals — se comporte de la même façon que le binaire lie GPUI ou Leptos, ce qui rend sûr le re-ciblage par drapeau de fonctionnalité (la dernière étape du [tutoriel](/tutorials/build-a-counter/)).
+
+## Étapes suivantes
+
+- <LinkCard title="Le modèle de réactivité" href="/explanation/reactivity-model/" description="Ce que la suite de conformité vérifie sur les adaptateurs à tirage et à poussée." />
+- <LinkCard title="Tester avec quoin-testkit" href="/guides/testing/" description="Appliquez la même rigueur à vos propres hooks." />

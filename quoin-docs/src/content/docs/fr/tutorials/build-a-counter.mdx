@@ -1,0 +1,143 @@
+---
+title: Construire un compteur inter-frameworks
+description: "Le tutoriel du chemin doré — installez Quoin, écrivez un hook de compteur portable, rendez-le dans GPUI, puis re-ciblez le même hook vers un autre framework."
+type: tutorial
+---
+
+import { Aside, Code, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+
+Vous construirez une application compteur dont la logique réactive vit dans une crate bibliothèque agnostique vis-à-vis du framework et dont la couche de vue tourne sur GPUI. À la fin, vous re-ciblez le même hook vers Leptos en changeant un seul drapeau de fonctionnalité. Le compteur est le plus petit programme qui exerce chaque couche de Quoin : un [signal](/reference/signals/) pour l'état, un hook portable écrit contre [`ReactiveContext`](/reference/reactive-context/), et une vue framework qui lit le signal.
+
+**Prérequis :** Rust stable 1.88 ou plus récent (`rustup update stable`), et un terminal. Aucune bibliothèque système GPUI n'est nécessaire pour la crate de logique ; GPUI lui-même a besoin des en-têtes de fenêtrage Linux habituels listés dans le [guide d'installation](/guides/installation/#prerequisites).
+
+## Créer le projet
+
+<Steps>
+1. Créez un espace de travail Cargo avec deux crates : une bibliothèque pour la logique portable et un binaire pour la vue GPUI.
+
+    <Code lang="sh" code={`cargo new counter --lib
+cargo new counter-gpui --bin`} />
+
+2. Ajoutez Quoin aux deux manifestes. La bibliothèque dépend de `quoin-core` (traits seuls, pas de framework). Le binaire dépend de `quoin` avec la fonctionnalité `gpui`.
+
+    <Code lang="toml" code={`# counter/Cargo.toml
+[dependencies]
+quoin-core = "0.1"`} />
+
+    <Code lang="toml" code={`# counter-gpui/Cargo.toml
+[dependencies]
+counter = { path = "../counter" }
+quoin = { version = "0.1", features = ["gpui"] }`} />
+
+    <Aside type="caution">
+      La version sur crates.io peut être en retard sur le dépôt. Si vous construisez contre un checkout du [dépôt Quoin](https://github.com/elcoosp/quoin), utilisez plutôt des dépendances de chemin, comme le font les exemples du dépôt :
+
+      <Code lang="toml" code={`quoin = { path = "../quoin", features = ["gpui"] }`} />
+    </Aside>
+</Steps>
+
+## Écrire le hook portable
+
+Le hook est une fonction Rust ordinaire générique sur `ReactiveContext`. Il ne connaît rien de GPUI, des fenêtres ou du rendu.
+
+<Code lang="rust" code={`// counter/src/lib.rs
+use quoin_core::prelude::*;
+use std::rc::Rc;
+
+pub struct Counter<S: Signal<u32>> {
+    pub count: S,
+    pub increment: Rc<dyn Fn()>,
+}
+
+pub fn use_counter<C: ReactiveContext>(cx: &C) -> Counter<C::Signal<u32>> {
+    let count = cx.create_signal(0u32);
+    let increment = {
+        let count = count.clone();
+        Rc::new(move || count.update(|c| *c += 1))
+    };
+    Counter { count, increment }
+}`} />
+
+Points clés :
+
+- `cx.create_signal(0u32)` alloue de l'état réactif via le contexte. Le type renvoyé est `C::Signal<u32>` — quel que soit le framework actif.
+- `count.update(|c| *c += 1)` mute en place et demande un re-rendu sur les adaptateurs à tirage.
+- La borne `Signal<T>` garde la struct utilisable avec le type de signal de n'importe quel adaptateur.
+
+## Le rendre dans GPUI
+
+Câblez maintenant le hook dans un composant GPUI et amorcez l'application avec `run_app!`.
+
+<Code lang="rust" code={`// counter-gpui/src/main.rs
+use counter::use_counter;
+use quoin::prelude::*;
+
+struct CounterView {
+    counter: counter::Counter<quoin::GpuiSignal<u32>>,
+    _ctx: GpuiContext,
+}
+
+impl Render for CounterView {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let count = self.counter.count.get();
+        div()
+            .flex()
+            .child(format!("Count: {count}"))
+            .child(
+                div()
+                    .child("Increment")
+                    .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, _| {
+                        (this.counter.increment)();
+                    }))
+            )
+    }
+}
+
+fn main() {
+    let ctx = GpuiContext::new();
+    let counter = use_counter(&ctx);
+    run_app!(CounterView { counter, _ctx: ctx });
+}`} />
+
+Exécutez :
+
+<Code lang="sh" code={`cargo run -p counter-gpui`} />
+
+**Sortie attendue :** une fenêtre native affichant `Count: 0` avec un bouton `Increment` ; chaque clic met à jour le libellé.
+
+## Re-cibler le même hook vers Leptos
+
+Changez le drapeau de fonctionnalité et échangez la vue. La crate hook reste intacte.
+
+<Code lang="toml" code={`# counter-leptos/Cargo.toml
+[dependencies]
+counter = { path = "../counter" }
+quoin = { version = "0.1", features = ["leptos"] }`} />
+
+<Code lang="rust" code={`// counter-leptos/src/lib.rs
+use counter::use_counter;
+use quoin::prelude::*;
+
+#[component]
+pub fn App() -> impl IntoView {
+    let ctx = LeptosContext::new();
+    let counter = use_counter(&ctx);
+    view! {
+        <div>
+            <p>"Count: " {move || counter.count.get()}</p>
+            <button on:click=move |_| (counter.increment)()>"Increment"</button>
+        </div>
+    }
+}`} />
+
+<Aside type="note">
+  Activez exactement une fonctionnalité de framework par crate. En activer deux déclenche une `compile_error!` qui nomme la configuration fautive — les backends sont mutuellement exclusifs par conception.
+</Aside>
+
+Vous pouvez aussi sauter entièrement la couche de vue : le [guide de test](/guides/testing/) exécute le même hook sans tête avec `quoin-testkit`, et le [guide devtools](/guides/devtools/) trace chaque mutation de signal qu'il effectue.
+
+## Étapes suivantes
+
+- <LinkCard title="Écrire des hooks portables" href="/guides/portable-hooks/" description="Motifs pour des hooks qui restent agnostiques vis-à-vis du framework : état dérivé, effets et batching." />
+- <LinkCard title="Macros UI déclaratives" href="/guides/ui-macros/" description="Remplacez le code de vue écrit à la main par component!, quoin_render! et effect!." />
+- <LinkCard title="Référence des signaux" href="/reference/signals/" description="Chaque méthode sur Signal et SignalExt." />

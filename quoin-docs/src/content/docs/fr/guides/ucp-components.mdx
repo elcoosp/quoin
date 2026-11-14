@@ -1,0 +1,67 @@
+---
+title: Composer des composants UCP
+description: "Construisez des tables de données, des listes virtuelles, des inputs, des boutons, des menus déroulants et des barres d'onglets via le Universal Component Protocol agnostique vis-à-vis du framework."
+type: how-to
+---
+
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
+
+Vous construirez des composants riches — tables, listes virtuelles, menus déroulants, accès au presse-papiers — via le Universal Component Protocol (UCP), afin que le code de composition reste agnostique vis-à-vis du framework pendant qu'une crate d'adaptateur fournit le rendu natif.
+
+**Prérequis :** la fonctionnalité `ui` (incluse par la fonctionnalité `gpui`) ; pour le rendu GPUI, l'adaptateur embarque `quoin-ui-gpui` automatiquement.
+
+## Comprendre les deux couches
+
+L'UCP divise les widgets riches en :
+
+1. **Traits** dans `quoin-ui` — contrats abstraits tels que `TableAdapter`, `VirtualListAdapter`, `ButtonAdapter`, `TextInputAdapter`, `DropdownMenuAdapter`, `TabBarAdapter` et `Clipboard`.
+2. **Implémentations d'adaptateur** — crates concrètes par framework telles que `quoin-ui-gpui` qui savent rendre le widget nativement.
+
+Votre code parle aux traits ; la fonctionnalité de framework tire l'implémentation.
+
+## Rendre un bouton
+
+`ButtonVariant` sélectionne l'emphase (`primary`, `ghost`, `destructive`) et la densité (`ComponentSize::Small | Medium | Large`) :
+
+<Code lang="rust" code={`use quoin_ui::{ButtonAdapter, ButtonVariant, ComponentSize};
+
+let adapter = GpuiButtonAdapter::default();
+let button = adapter.render(Some("Click Me".into()), ButtonVariant {
+    primary: true,
+    size: ComponentSize::Medium,
+    ..Default::default()
+});`} />
+
+## Déclarer une table de données triable
+
+À l'intérieur de `quoin_render!`, l'élément `data_table` déclare des colonnes avec clés, libellés et fermetures de rendu ; le tri et le zébrage viennent des attributs :
+
+<Code lang="rust" code={`data_table(rows: people, striped: true) {
+    column(key: "name", label: "Name", render: |p: &Person| p.name.clone())
+    column(key: "age",  label: "Age",  render: |p: &Person| p.age.to_string())
+}`} />
+
+`SortDirection` (`None | Asc | Desc`) modélise l'état de tri par colonne côté `TableAdapter`.
+
+## Rendre efficacement de grandes listes
+
+`virtual_list` adosse les listes défilables au contrat `VirtualListAdapter` pour que seules les lignes visibles soient rendues ; la restauration du défilement fait partie du vocabulaire de nœuds (`scroll_restoration`).
+
+## Lire et écrire le presse-papiers
+
+Le trait `Clipboard` abstrait le presse-papiers système ; l'élément `clipboard_button` câble un bouton qui copie du texte et rapporte le succès :
+
+<Code lang="rust" code={`clipboard_button(copy_text: "Copied!") { "Copy" }`} />
+
+## Jetons de thème
+
+`QuoinTheme` résout les jetons de couleur de thème pour les adaptateurs, donc les composants UCP récupèrent des couleurs cohérentes entre apparences claire et sombre sans valeurs hexadécimales codées en dur dans votre code.
+
+<Aside type="tip">
+  Lancez la démo UCP pour voir chaque widget en direct : `just run-ucp-gpui` (ou `just run-ucp-dioxus`) depuis la racine du dépôt.
+</Aside>
+
+## Étapes suivantes
+
+- <LinkCard title="Référence du Universal Component Protocol" href="/reference/ucp/" description="Tous les traits, types de nœuds et énumérations de variantes." />
+- <LinkCard title="Macros UI déclaratives" href="/guides/ui-macros/" description="Où les éléments UCP s'insèrent dans les arbres quoin_render!." />

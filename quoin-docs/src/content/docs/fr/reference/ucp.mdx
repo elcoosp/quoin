@@ -1,0 +1,69 @@
+---
+title: Universal Component Protocol
+description: "Référence de l'API pour les traits, types de nœuds et énumérations de variantes de quoin-ui qui abstraient les widgets riches à travers les frameworks."
+type: reference
+---
+
+import { Code, LinkCard } from '@astrojs/starlight/components';
+
+La crate `quoin-ui` définit des traits d'adaptateur agnostiques vis-à-vis du framework pour les composants UI complexes. Les crates d'adaptateur telles que `quoin-ui-gpui` fournissent des implémentations concrètes. Votre code dépend des traits ; la fonctionnalité de framework tire l'implémentation.
+
+Import : `use quoin_ui::{ButtonAdapter, ButtonVariant, ComponentSize, …};`
+
+## Traits d'adaptateur
+
+| Trait | Objet |
+| --- | --- |
+| `VirtualListAdapter` | Rendre efficacement de grandes listes défilables (trait marqueur, `Default + Clone + Send + Sync`). |
+| `TableAdapter` | Tables de données triables et zébrées. |
+| `TextInputAdapter` | Inputs de texte liés dans les deux sens. |
+| `ButtonAdapter` | Boutons stylés (primary, ghost, destructive). |
+| `DropdownMenuAdapter` | Menus déroulants avec éléments. |
+| `TabBarAdapter` | Navigation par onglets. |
+| `Clipboard` | Lecture/écriture du presse-papiers système. |
+| `QuoinTheme` | Résolution de jetons de thème. |
+
+## Vocabulaire de nœuds
+
+Le module `node` modélise les arbres de widgets comme des nœuds typés, produits par des fonctions de fabrique :
+
+| Fabrique / nœud | Modélise |
+| --- | --- |
+| `div` → `DivNode`, `DivBuilder` | Conteneurs avec style. |
+| `text` → `TextNode`, `StyledTextNode` | Segments de texte avec `NodeFontWeight`. |
+| `button` → `ButtonNode` | Boutons avec `NodeButtonVariant` et `NodeKeySpec`. |
+| `input` → `InputNode` | Inputs de texte avec `InputValues`. |
+| `data_table` → `TableNode`, `ColumnSpec` | Tables avec specs par colonne et support `ScrollRestorationNode`. |
+| `virtual_list` → `VirtualListNode` | Listes fenêtrées. |
+| `tab_bar` → `TabBarNode`, `TabSpec` | Barres d'onglets. |
+| `dropdown_menu` → `MenuItem`, `MenuProvider` | Menus. |
+| `icon` → `IconNode` | Icônes. |
+| `clipboard` → `ClipboardNode` | Affordances de copie vers le presse-papiers. |
+| `custom` → `CustomNode` | Échappatoire pour widgets arbitraires, avec `NodeEventCtx` et `NodeHandler`. |
+
+Types de support : `Node`, `NodeChild`, `NodeEnv`, `NodeFactory`, `NodeStyle`, `StyleCmd`.
+
+## Énumérations de variantes
+
+| Énumération | Variantes | Défaut |
+| --- | --- | --- |
+| `ComponentSize` | `Small`, `Medium`, `Large` | `Medium` |
+| `SortDirection` | `None`, `Asc`, `Desc` | `None` |
+| `ButtonVariant` | Struct avec `primary: bool`, `ghost: bool`, `destructive: bool`, `size: ComponentSize` | — |
+| `NodeKeySpec` | Specs de gestion de touches pour nœuds focusables | — |
+
+## Exemple
+
+<Code lang="rust" code={`use quoin_ui::{ButtonAdapter, ButtonVariant, ComponentSize};
+
+let adapter = GpuiButtonAdapter::default();
+let button = adapter.render(Some("Click Me".into()), ButtonVariant {
+    primary: true,
+    size: ComponentSize::Medium,
+    ..Default::default()
+});`} />
+
+## Étapes suivantes
+
+- <LinkCard title="Composer des composants UCP" href="/guides/ucp-components/" description="Guide orienté tâche pour tables, listes et boutons." />
+- <LinkCard title="Drapeaux de fonctionnalité" href="/reference/feature-flags/" description="La fonctionnalité ui et sa disponibilité par adaptateur." />

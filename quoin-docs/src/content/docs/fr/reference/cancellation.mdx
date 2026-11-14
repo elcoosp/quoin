@@ -1,0 +1,58 @@
+---
+title: Jetons d'annulation
+description: "Référence de l'API pour CancellationToken, CancelGuard et les futures utilisés pour l'annulation coopérative."
+type: reference
+---
+
+import { Code, LinkCard } from '@astrojs/starlight/components';
+
+`CancellationToken` est un jeton léger et clonable qui signale l'annulation aux futures lancés. Il s'intègre transparentement aux exécuteurs asynchrones fournis par les frameworks UI et se comporte identiquement sur les cinq adaptateurs.
+
+Import : `use quoin_core::prelude::*;`
+
+## Méthodes de CancellationToken
+
+| Méthode | Signature | Description |
+| --- | --- | --- |
+| `new` | `pub fn new() -> Self` | Crée un jeton frais. |
+| `cancel` | `pub fn cancel(&self)` | Marque le jeton comme annulé et réveille tous les attendeurs. |
+| `is_cancelled` | `pub fn is_cancelled(&self) -> bool` | Renvoie si le jeton s'est déclenché. |
+| `child_token` | `pub fn child_token(&self) -> Self` | Crée un jeton qui s'annule avec le parent mais peut aussi s'annuler indépendamment. |
+| `guard` | `pub fn guard(&self) -> CancelGuard` | Garde RAII : annule le jeton à l'abandon. |
+| `cancelled` | `pub fn cancelled(&self) -> Cancelled<'_>` | Future qui se résout quand le jeton est annulé. |
+| `into_cancelled` | `pub fn into_cancelled(self) -> CancelledFuture` | Variante possédée de `cancelled`. |
+| `run_until_cancelled` | `pub fn run_until_cancelled<F: Future>(&self, future: F) -> RunUntilCancelled<'_, F>` | Fait courir un future contre le jeton. |
+
+## Types de support
+
+| Type | Description |
+| --- | --- |
+| `CancelGuard` | Garde RAII créée par `guard()` ; annule le jeton à l'abandon. |
+| `Cancelled<'a>` | Future se résolvant quand le jeton associé est annulé ; créé par `cancelled()`. |
+| `CancelledFuture` | Variante possédée créée par `into_cancelled()`. |
+| `RunUntilCancelled<'a, F>` | Se résout avec `Some(output)` quand le future enveloppé se termine d'abord, ou `None` quand le jeton gagne. |
+
+## Exemple
+
+<Code lang="rust" code={`let token = CancellationToken::new();
+executor.spawn({
+    let token = token.clone();
+    async move {
+        while !token.is_cancelled() {
+            do_work().await;
+        }
+        cleanup().await;
+    }
+});
+token.cancel();
+
+// Motifs de la boîte à outils :
+let parent = CancellationToken::new();
+let per_request = parent.child_token();        // s'annule avec le parent
+let _guard = parent.guard();                   // RAII : s'annule à l'abandon
+let value = parent.run_until_cancelled(work()).await;`} />
+
+## Étapes suivantes
+
+- <LinkCard title="Annuler du travail" href="/guides/cancelling-work/" description="Guide orienté tâche : arbres de jetons, gardes et courses." />
+- <LinkCard title="Exécuteurs et tâches" href="/reference/executors/" description="spawn_with_token associe une tâche d'exécuteur à un jeton." />

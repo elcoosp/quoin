@@ -1,0 +1,52 @@
+---
+title: Signaux
+description: "Référence de l'API pour le trait Signal et les méthodes d'extension SignalExt disponibles sur chaque adaptateur."
+type: reference
+---
+
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
+
+`Signal<T>` est une valeur réactive lisible et inscriptible. Les signaux sont `Clone`, ce qui les rend pratiques à passer dans des fermetures et à stocker dans des structs. Chaque adaptateur implémente le même trait, et l'extension générique `SignalExt` ajoute des méthodes de commodité avec zéro surcoût par adaptateur.
+
+Import : `use quoin_core::prelude::*;`
+
+## Méthodes de Signal
+
+| Méthode | Signature | Description |
+| --- | --- | --- |
+| `get` | `fn get(&self) -> T` | Renvoie un clone de la valeur courante. |
+| `with` | `fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R` | Emprunte la valeur sans cloner. |
+| `set` | `fn set(&self, value: T)` | Écrit la valeur et demande une mise à jour. |
+| `set_if_eq` | `fn set_if_eq(&self, value: T) -> bool` où `T: PartialEq` | Écrit seulement quand la valeur diffère ; renvoie `true` quand écrit. Les implémentations à verrou unique redéfinissent cela pour un compare-and-write moins coûteux. |
+| `update` | `fn update(&self, f: impl FnOnce(&mut T))` | Mute la valeur en place. |
+
+## Méthodes de SignalExt
+
+| Méthode | Signature | Comportement par défaut |
+| --- | --- | --- |
+| `set_eq` | `fn set_eq(&self, value: T) -> bool` où `T: PartialEq` | Délègue à `set_if_eq` ; sauter les écritures égales élimine les demandes de re-rendu gaspillées sur les adaptateurs à tirage. |
+| `replace` | `fn replace(&self, value: T) -> T` | Définit la valeur et renvoie la précédente. |
+| `take` | `fn take(&self) -> T` où `T: Default` | Remplace la valeur par `T::default()` et renvoie l'ancienne. |
+| `map` | `fn map<U, F>(&self, f: F) -> Derived<Self, T, U, F>` | Sucre pour `derived(self, f)` — une vue calculée en lecture seule. |
+
+## Exemple
+
+<Code lang="rust" code={`let signal = cx.create_signal(42u32);
+assert_eq!(signal.get(), 42);
+signal.with(|v| println!("{v}"));   // emprunt sans clonage
+signal.set(100);
+signal.update(|v| *v += 1);
+assert_eq!(signal.get(), 101);
+
+signal.set_eq(101);                 // false — inchangé, aucune mise à jour demandée
+let old = signal.replace(7);        // old == 101
+let taken = signal.take();          // taken == 7, signal désormais 0`} />
+
+<Aside type="note">
+  Sur les adaptateurs à tirage (GPUI, Xilem), chaque mutation appelle `request_update()`. Préférez `set_eq` pour les valeurs qui reçoivent fréquemment des écritures égales.
+</Aside>
+
+## Étapes suivantes
+
+- <LinkCard title="Signaux dérivés et memos" href="/reference/derived/" description="Vues calculées, mémoïsation et signaux zippés." />
+- <LinkCard title="Contexte réactif" href="/reference/reactive-context/" description="Où les signaux sont créés et comment circulent les demandes de mise à jour." />

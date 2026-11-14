@@ -1,0 +1,59 @@
+---
+title: Tracer avec quoin-devtools
+description: "Enregistrez chaque mutation de signal, lancement de tâche et demande de mise à jour avec quoin-devtools, puis inspectez le journal à l'exécution ou à la sortie."
+type: how-to
+---
+
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
+
+Vous instrumenterez une application en cours d'exécution pour voir ce que fait son cœur réactif : créations de signaux, mutations déclenchant une lecture, demandes de mise à jour, et lancements, complétions et abandons de tâches. `quoin-devtools` enveloppe le contexte de **n'importe quel** adaptateur — GPUI, Leptos, Dioxus, Xilem, Floem, ou le contexte testkit.
+
+**Prérequis :** la fonctionnalité `devtools` (ou une dépendance directe sur `quoin-devtools`).
+
+## Envelopper le contexte
+
+`Instrumented::wrap` est une enveloppe transparente : continuez d'utiliser le contexte enveloppé partout où vous utilisiez le brut.
+
+<Code lang="rust" code={`use quoin_devtools::Instrumented;
+
+let raw_ctx = /* n'importe quel contexte d'adaptateur */;
+let ctx = Instrumented::wrap(raw_ctx, "app");`} />
+
+## Activer l'enregistrement
+
+L'enregistrement est conditionné pour que le câblage n'ait aucun coût en livraison quand il est désactivé — avec le traçage éteint, chaque appel est un simple chargement atomique relâché et rien n'est alloué.
+
+<Code lang="sh" code={`QUOIN_TRACE=1 ./myapp    # ou QUOIN_TRACE=on`} />
+
+Alternativement, activez-le par programme : `quoin_devtools::enable()` (et `disable()` / `enabled()` pour inspecter l'état).
+
+## Lire le journal
+
+L'`EventLog` global est un tampon circulaire (capacité par défaut 4096 événements) avec trois vues agrégées :
+
+<Code lang="rust" code={`quoin_devtools::global_log().dump();          // tableau sur stderr
+quoin_devtools::global_log().hot_signals();   // comptes de mutations classés
+quoin_devtools::global_log().events();        // instantané brut des valeurs Event`} />
+
+Appelez-les depuis un raccourci de débogage, un panneau déroulant, ou à la sortie. Chaque événement porte un `EventKind` (mises à jour, lancements, mutations, …) et l'étiquette que vous avez passée à `Instrumented::wrap`.
+
+## Le voir en direct dans une vraie fenêtre
+
+L'exemple `counter-xilem` rend les comptes de trace à côté du compteur et vide la session à la fermeture de la fenêtre :
+
+<Code lang="sh" code={`cargo run --manifest-path examples/counter-xilem/Cargo.toml`} />
+
+Pour une visite sans tête de la session de traçage elle-même, exécutez `just trace-demo` (cela pilote `devtools-demo` avec `QUOIN_TRACE=1`).
+
+## Transférer vers l'écosystème tracing
+
+La fonctionnalité optionnelle `tracing` transfère les événements dans l'écosystème [`tracing`](https://crates.io/crates/tracing) au lieu de (ou en plus de) le journal intégré.
+
+<Aside type="tip">
+  Associez devtools au testkit en CI : un instantané `EventLog` fait une surface d'assertion utile — par exemple, qu'un basculement de drapeau de fonctionnalité a causé exactement une demande de mise à jour.
+</Aside>
+
+## Étapes suivantes
+
+- <LinkCard title="Référence quoin-devtools" href="/reference/devtools/" description="Chaque élément public : Instrumented, EventLog, EventKind et les aides d'enregistrement." />
+- <LinkCard title="Tester avec quoin-testkit" href="/guides/testing/" description="Tests sans tête déterministes du même code réactif." />

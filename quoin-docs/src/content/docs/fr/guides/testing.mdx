@@ -1,0 +1,67 @@
+---
+title: Tester avec quoin-testkit
+description: "Exécutez des hooks et des stores agnostiques vis-à-vis du framework sans tête avec des exécuteurs déterministes et des assertions sur le nombre de mises à jour."
+type: how-to
+---
+
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
+
+Vous testerez de la logique métier réactive sans gestionnaire de fenêtres ni navigateur. `quoin-testkit` fournit des implémentations concrètes et légères des traits du cœur conçues pour les tests, donc un hook écrit une fois s'exécute dans un simple `cargo test`.
+
+**Prérequis :** la fonctionnalité `testkit` (ou une dépendance directe sur `quoin-testkit`).
+
+## Piloter un hook avec TestContext
+
+<Code lang="rust" code={`use quoin_core::prelude::*;
+use quoin_testkit::{ImmediateExecutor, TestContext};
+
+fn use_counter<C: ReactiveContext>(cx: &C) -> C::Signal<u32> {
+    cx.create_signal(0u32)
+}
+
+let mut cx = TestContext::with_executor(ImmediateExecutor);
+let count = use_counter(&cx);
+count.set(41);
+count.update(|v| *v += 1);
+assert_eq!(count.get(), 42);
+
+// La plomberie de mise à jour est observable :
+assert_eq!(cx.updates().count(), 2, "set + update ont chacun demandé un re-rendu");`} />
+
+`TestContext` est un `ReactiveContext` complet avec comptage de mises à jour et un magasin global partagé. Les mutations de `TestSignal` incrémentent le compteur de mises à jour du contexte, reflétant les adaptateurs à tirage.
+
+## Choisir le bon exécuteur
+
+| Exécuteur | Comportement | Utilisez-le pour |
+| --- | --- | --- |
+| `ImmediateExecutor` | Exécute les futures en ligne jusqu'à complétion ; entièrement déterministe, bloquant | Machines à états pures, réducteurs, pipelines dérivés |
+| `ThreadedExecutor` | Un thread dédié par future ; vraie concurrence et sémantique d'abandon | Minuteurs, canaux, tests d'abandon/détachement |
+| `TokioExecutor` *(fonctionnalité `tokio`)* | Vrai runtime tokio | Suites `#[tokio::test]` ; supporte le temps suspendu via `tokio::time::advance` |
+
+<Aside type="caution">
+  `ImmediateExecutor` ne peut pas modéliser l'annulation en vol — les futures se terminent avant que le handle existe. Utilisez `ThreadedExecutor` (ou celui de tokio) quand la logique testée attend ou exerce la sémantique d'abandon.
+</Aside>
+
+## Asserter le brassage de re-rendus
+
+`cx.updates()` enregistre combien de fois l'UI a été invitée à se re-rendre. Associez-le à `cx.batch(|| …)` pour prouver qu'un batch réduit N écritures en une seule demande de mise à jour :
+
+<Code lang="rust" code={`cx.batch(|| {
+    a.set(1);
+    b.set(2);
+});
+assert_eq!(cx.updates().count(), 1);`} />
+
+## Tester des stores agnostiques vis-à-vis du framework de bout en bout
+
+Le dépôt livre deux suites d'exemples sans tête que vous pouvez lire comme modèles :
+
+- **todo-core** — un store de tâches agnostique vis-à-vis du framework : `cargo test -p todo-core`
+- **fetch-core** — recherche asynchrone pilotée par ressource : `cargo test -p fetch-core`
+
+Exécutez toute la suite d'exemples sans tête (y compris la démo devtools) avec `just test-headless-examples`.
+
+## Étapes suivantes
+
+- <LinkCard title="Référence quoin-testkit" href="/reference/testkit/" description="Chaque type et exécuteur testkit dans un seul tableau." />
+- <LinkCard title="Tracer avec quoin-devtools" href="/guides/devtools/" description="Enregistrez et inspectez les mutations de signaux, les lancements et les demandes de mise à jour." />

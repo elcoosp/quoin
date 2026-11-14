@@ -1,0 +1,73 @@
+---
+title: Styliser avec des classes Tailwind
+description: "Stylez les arbres quoin_render! avec des classes utilitaires Tailwind qui compilent en style natif sur chaque backend."
+type: how-to
+---
+
+import { Aside, Badge, Code, LinkCard } from '@astrojs/starlight/components';
+
+Vous stylerez des composants déclaratifs avec des classes utilitaires Tailwind. Les chaînes de classe sont analysées **à la compilation** en l'IR de style typé de Quoin et abaissées en appels de builder natifs au framework — il n'y a aucune analyse de classe à l'exécution et aucune recherche de chaîne dans le code émis.
+
+**Prérequis :** la fonctionnalité `macros` (impliquée par toute fonctionnalité de framework).
+
+## Écrire des classes dans l'arbre
+
+<Code lang="rust" code={`quoin_render! {
+    div(class: "flex flex-col gap-4 p-4 bg-gray-900 text-white h-full") {
+        div(class: "text-2xl font-bold hover:text-blue-400") { "Hello" }
+        button(class: "px-4 py-2 bg-blue-600 rounded-md", on_click: move |_| increment()) {
+            "Increment"
+        }
+    }
+}`} />
+
+Sur GPUI cela compile en chaînes de méthodes :
+
+<Code lang="rust" code={`.flex().flex_col().gap(px(16.0)).p(px(16.0)).bg(rgb(0x111827))
+.hover(|s| s.text_color(rgb(0x60a5fa)))`} />
+
+La même chaîne de classe s'abaisse au mécanisme de style natif de chaque backend, donc une seule source sert tous les frameworks.
+
+## Connaître le vocabulaire supporté
+
+L'analyseur intégré (`quoin-style`) modélise ce sous-ensemble de Tailwind :
+
+- Direction, enroulement et alignement Flexbox
+- Gap, padding, margin
+- Largeur/hauteur (valeurs de longueur)
+- Couleurs d'arrière-plan et de bordure (y compris les jetons de thème), largeurs de bordure, rayons d'angle
+- Opacité, curseur, décalages de position, débordement, ombres
+- Couleur, taille, graisse, alignement et famille du texte
+- La variante d'état `hover:`
+
+**Les classes inconnues sont une erreur de compilation.** L'analyseur ne retire jamais silencieusement une classe qu'il ne reconnaît pas ; chaque backend doit transformer une classe non reconnue en `compile_error!` avec une suggestion did-you-mean.
+
+## Utiliser les jetons de thème
+
+Les noms de classe qui se mappent aux jetons de thème [shadcn](https://ui.shadcn.com/) (17 noms de jetons) se résolvent en couleurs fixes — dans le moteur par défaut, les valeurs hexadécimales du thème sombre shadcn. Les jetons gardent le style des composants cohérent avec la résolution `QuoinTheme` de l'UCP.
+
+## Moteur étendu pour GPUI
+
+<Badge text="Non publié" variant="caution" />
+
+La fonctionnalité `gpui-rsx-classes` (activée automatiquement par la fonctionnalité `gpui`) fait passer les classes que Quoin ne connaît pas par le moteur de classes gpui-rsx, qui débloque :
+
+- La **palette complète Tailwind à l'échelle 4 px**, les fractions, les valeurs arbitraires et les utilitaires négatifs
+- Des variantes d'état supplémentaires : `focus:`, `focus-visible:`, `active:`, `group-hover:`, `group-active:`
+- Des **expressions `class:` dynamiques** résolues au moment du rendu (les classes dynamiques inconnues paniquent en mode strict)
+- Un vocabulaire personnalisé via un fichier `rsx.toml` à côté du `Cargo.toml` de votre crate, avec un suivi de reconstruction
+
+Les classes que Quoin connaît déjà conservent leur abaissement octet pour octet sous ce drapeau, vérifié par les tests de parité.
+
+## Échappatoire pour les sous-arbres GPUI-seulement
+
+Quand vous avez besoin de la machinerie gpui-rsx brute à l'intérieur d'un arbre `quoin_render!` — par exemple pour insérer un composant gpui-kit — la fonctionnalité `rsx` (impliquée par `gpui`) ré-exporte `rsx!`, `rsx_strict!`, `rsx_permissive!`, `rsx_tw!`, `rsx_fragment!`, `rsx_expand!`, `rsx_runtime!` et `#[component]` depuis la façade `quoin`.
+
+<Aside type="caution">
+  L'adaptateur Floem dans ce dépôt remplace la bibliothèque de menus `muda` par un stub compatible au niveau API, donc les menus natifs ne sont pas supportés sous Linux dans cette configuration.
+</Aside>
+
+## Étapes suivantes
+
+- <LinkCard title="Macros UI déclaratives" href="/guides/ui-macros/" description="Où les chaînes de classe s'insèrent dans component! et quoin_render!." />
+- <LinkCard title="Référence des drapeaux de fonctionnalité" href="/reference/feature-flags/" description="Les drapeaux gpui-rsx-classes et rsx en détail." />

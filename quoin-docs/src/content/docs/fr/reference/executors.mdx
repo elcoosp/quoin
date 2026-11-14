@@ -1,0 +1,79 @@
+---
+title: Exécuteurs et tâches
+description: "Référence de l'API pour le trait Executor, le cycle de vie de JoinHandle, les tâches locales (!Send) et les minuteurs portables."
+type: reference
+---
+
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
+
+`Executor` lance des futures sur le runtime asynchrone natif du framework. Chaque adaptateur implémente le même trait et le même cycle de vie de handle de join, donc le code de tâche est portable.
+
+Import : `use quoin_core::prelude::*;`
+
+## Méthodes d'Executor
+
+| Méthode | Signature | Description |
+| --- | --- | --- |
+| `spawn` | `fn spawn<F>(&self, fut: F) -> JoinHandle<F::Output>` où `F: Future + Send + 'static`, `F::Output: Send + 'static` | Lance un future `Send` sur le runtime du framework. |
+| `sleep` | `fn sleep(&self, duration: Duration) -> SleepFuture` | Minuteur portable ; futures-timer en natif, minuteur de navigateur sur WASM. |
+
+## Méthodes d'ExecutorExt
+
+| Méthode | Signature | Description |
+| --- | --- | --- |
+| `spawn_with_token` | `fn spawn_with_token<F, Fut>(&self, f: impl FnOnce(CancellationToken) -> Fut) -> (JoinHandle<…>, CancellationToken)` | Crée un jeton, le passe au future et renvoie à la fois le handle et le jeton — le motif fetch-and-cancel en un appel. |
+
+## Cycle de vie de JoinHandle
+
+Tous les adaptateurs implémentent les mêmes trois opérations de cycle de vie sur `JoinHandle<T>`, plus `Future` :
+
+| Opération | Effet |
+| --- | --- |
+| `handle.await` | Attend le résultat. La tâche s'exécute jusqu'à complétion. |
+| `handle.abort()` | Annule la tâche à son prochain point de suspension. Les awaits ultérieurs se résolvent avec `Err(Canceled)`. |
+| `handle.detach()` | Fire-and-forget : la tâche s'exécute jusqu'à complétion, son résultat est jeté. |
+| `drop(handle)` | Annule la tâche (concurrence structurée — aucune tâche orpheline mutant l'état UI). Utilisez `detach()` quand vous voulez explicitement du fire-and-forget. |
+
+L'annulation est coopérative sur les adaptateurs à base de threads (Leptos, Dioxus, Floem) : le future s'arrête à son prochain point `.await`. GPUI et Xilem annulent nativement (abandon d'une `Task` GPUI / abandon d'une tâche tokio).
+
+## Tâches locales (!Send)
+
+La machinerie `LocalExecutor` gère les futures qui ne sont pas `Send` :
+
+| Élément | Description |
+| --- | --- |
+| `spawn_local` | Lance un future `!Send`. Sur `wasm32`, il s'exécute sur le thread principal du navigateur via `wasm_bindgen_futures` ; en natif, il entre dans une file FIFO thread-locale déterministe. |
+| `run_local_tasks` | Pilote natif : exécute les tâches en file jusqu'à leur prochaine complétion, une à la fois. |
+| `LocalTask` / `LocalJoinHandle` | Handles reflétant le cycle de vie de join : `abort` s'arrête au prochain point de suspension, `detach` sort de l'annulation-par-abandon, l'abandon annule. |
+
+GPUI **n'implémente pas** `LocalExecutor` — son exécuteur est `!Send` par conception ; utilisez `Executor::spawn` là.
+
+<Aside type="note">
+  Sur les cibles `wasm32`, les exécuteurs Leptos et Dioxus exécutent les futures sur le thread principal via `wasm_bindgen_futures` au lieu de lancer des threads.
+</Aside>
+
+## Fonctions de minuteur autonomes
+
+| Élément | Signature | Description |
+| --- | --- | --- |
+| `sleep` | `pub fn sleep(duration: Duration) -> SyncSleepFuture` | Future de minuteur en fonction libre, indépendant de tout exécuteur. |
+| `SleepFuture` | — | Le future renvoyé par `Executor::sleep`. |
+| `SyncSleepFuture` | — | Le future renvoyé par la fonction libre `sleep`. |
+
+## Exemple
+
+<Code lang="rust" code={`let handle = executor.spawn(async {
+    let data = fetch_from_api().await;
+    signal.set(data);
+});
+let result = handle.await?;        // Err(Canceled) si abandonné
+
+let (h, token) = executor.spawn_with_token(|t| async move {
+    while !t.is_cancelled() { do_work().await; }
+});
+executor.sleep(Duration::from_millis(250)).await;`} />
+
+## Étapes suivantes
+
+- <LinkCard title="Charger des données asynchrones" href="/guides/async-data/" description="Guide orienté tâche couvrant ressources, lancements et minuteurs." />
+- <LinkCard title="Jetons d'annulation" href="/reference/cancellation/" description="Les types de jetons utilisés par spawn_with_token et les ressources." />

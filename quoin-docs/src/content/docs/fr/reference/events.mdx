@@ -1,0 +1,41 @@
+---
+title: Événements typés
+description: "Référence de l'API pour le module ev — de petits événements de type valeur qui gardent la source du handler identique sur les cinq backends."
+type: reference
+---
+
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
+
+Le module `ev` (ré-exporté depuis la façade `quoin` comme `quoin::ev`) définit des événements typés partagés par chaque backend. Les handlers reçoivent de petits types valeur au lieu d'objets d'événement natifs du framework, donc la même source de handler compile sur les cinq adaptateurs. Chaque adaptateur convertit depuis son propre type d'événement via des implémentations `From` qui sont `#[inline(always)]` dans le code généré.
+
+Import : `use quoin::ev;` (façade) — les types sont des structs de valeur.
+
+## Contrat de charge utile
+
+| Arité du handler | Contrat |
+| --- | --- |
+| Zéro paramètre (`\|\| …`) | Valide sur chaque backend ; l'adaptateur appelle le handler sans charge utile. |
+| Un paramètre | Reçoit l'une des structs de charge utile ci-dessous. Pendant la période de transition, `()` se convertit encore pour les handlers à zéro argument, ce qui garde le code GPUI existant compilant à l'identique. |
+
+## Types d'événement
+
+| Type | Déclenché par | Notes |
+| --- | --- | --- |
+| `Click` | Clic primaire / activation | Le décorateur `action` de Floem et les callbacks de bouton de Xilem déclenchent ceci. C'est une struct de type unité (`Click {}`) avec un constructeur `Click::new()`. Les adaptateurs avec des données de pointeur plus riches élargiront la struct dans des jalons ultérieurs sans changer l'arité du handler. |
+
+## Exemple
+
+<Code lang="rust" code={`// Handler à zéro paramètre — valide sur chaque backend :
+button(class: "px-4 py-2", on_click: || increment())
+
+// Handler à un paramètre recevant la charge utile typée :
+button(on_click: |ev: quoin::ev::Click| { /* ... */ })`} />
+
+<Aside type="note">
+  Parce que les charges utiles sont de simples types valeur avec des conversions `From` dans le code généré, un handler écrit contre les types `ev` ne mentionne jamais un type d'événement de framework — c'est ce qui garde l'arbre de rendu portable.
+</Aside>
+
+## Étapes suivantes
+
+- <LinkCard title="Macros UI déclaratives" href="/guides/ui-macros/" description="Où les handlers d'événements s'attachent aux éléments dans quoin_render!." />
+- <LinkCard title="Parité entre backends" href="/explanation/backend-parity/" description="Comment une sémantique de handler identique est vérifiée à travers les adaptateurs." />

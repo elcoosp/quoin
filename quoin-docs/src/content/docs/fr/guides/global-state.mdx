@@ -1,0 +1,54 @@
+---
+title: Partager l'état global
+description: "Stockez l'état à l'échelle de l'application avec provide_global et use_global, mettez-le à jour sûrement, et comprenez la sémantique de cellule partagée."
+type: how-to
+---
+
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
+
+Vous stockerez des valeurs à l'échelle de l'application — thème, paramètres, état de routeur — hors de tout composant unique et les accéderez depuis n'importe quel hook ou vue.
+
+**Prérequis :** un contexte implémentant `ReactiveContext` (voir [Écrire des hooks portables](/guides/portable-hooks/)).
+
+## Fournir et lire un global
+
+`provide_global` stocke une valeur indexée par son type ; `use_global` la récupère comme handle de signal réactif :
+
+<Code lang="rust" code={`cx.provide_global(Theme::Dark);
+
+if let Some(theme) = cx.use_global::<Theme>() {
+    // theme est un handle de signal — lisez-le ou observez-le.
+    let current = theme.get();
+}`} />
+
+Stockez une valeur par type et par contexte. Deux adaptateurs tournant sur le même thread n'entrent jamais en collision : le magasin sous-jacent indexe les entrées par le type de contexte **et** le type de valeur.
+
+## Mettre à jour un global en place
+
+`update_global` (de `ReactiveContextExt`, dans le prelude) mute la valeur stockée via une fermeture. Le paramètre de type après la struct est votre type d'erreur — renvoyez `Err` pour rejeter la mise à jour :
+
+<Code lang="rust" code={`cx.update_global::<Settings, ()>(|s| s.theme = Theme::Dark);`} />
+
+## Initialiser à la première utilisation
+
+`use_global_or_init` insère un défaut quand aucune valeur n'existe encore et renvoie le handle dans tous les cas :
+
+<Code lang="rust" code={`let settings = cx.use_global_or_init(Settings::default);`} />
+
+Cela remplace la danse fournir-puis-lire pour les globals qui existent toujours.
+
+## Sémantique sur chaque adaptateur
+
+Les cinq adaptateurs partagent une sémantique : chaque appel à `use_global` renvoie un handle vers la **même cellule partagée**, donc une mutation effectuée via un handle est visible via tous les autres. Les adaptateurs à tirage (GPUI, Xilem, Floem) adossent cela à une carte thread-locale à clé `TypeId`, correspondant aux hypothèses de thread principal de chaque framework :
+
+- Les globals sont visibles sur le thread qui les a enregistrés.
+- GPUI, Xilem et Floem partagent la même machinerie thread-locale de `quoin_core::globals` ; les adaptateurs à grain fin se mappent sur leurs propres magasins avec un comportement observable identique.
+
+<Aside type="caution">
+  Les globals vivent par thread sur les cibles natives. Enregistrez-les sur le thread principal/UI et lisez-les là ; traverser les threads est le travail des signaux passés à travers les tâches, pas du magasin global.
+</Aside>
+
+## Étapes suivantes
+
+- <LinkCard title="Référence du contexte réactif" href="/reference/reactive-context/" description="La surface complète de ReactiveContext et ReactiveContextExt, y compris les méthodes de global." />
+- <LinkCard title="Le modèle de réactivité" href="/explanation/reactivity-model/" description="Comment signaux, batching et globals interagissent sous le capot." />

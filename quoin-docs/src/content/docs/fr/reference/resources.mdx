@@ -1,0 +1,65 @@
+---
+title: Ressources
+description: "Référence de l'API pour Resource et ResourceState — la primitive de chargement de données asynchrones partagée par tous les adaptateurs."
+type: reference
+---
+
+import { Code, LinkCard } from '@astrojs/starlight/components';
+
+`Resource` modélise le cycle de vie complet d'un calcul asynchrone dont le résultat alimente l'UI. C'est l'équivalent agnostique vis-à-vis du framework de `Resource` de Leptos et `use_resource` de Dioxus, et il fonctionne sur chaque adaptateur parce qu'il est construit à partir de deux primitives que chaque adaptateur fournit : un `Signal` et un `Executor`.
+
+Import : `use quoin_core::prelude::*;`
+
+## Cycle de vie
+
+<Code lang="text" code={`Idle → Loading → Ready(T) | Failed(E)`} />
+
+Chaque rechargement annule la requête en vol et renvoie la ressource à `Loading`. Un compteur de génération rend les rechargements exempts de courses : une requête obsolète ne peut jamais écraser le résultat d'une plus récente.
+
+## ResourceState
+
+| Variante | Signification |
+| --- | --- |
+| `Idle` | Créée mais non démarrée, ou annulée après démarrage. |
+| `Loading` | Une requête est en vol. |
+| `Ready(T)` | La dernière requête s'est terminée avec succès. |
+| `Failed(Arc<E>)` | La dernière requête a échoué. |
+
+## Méthodes de Resource
+
+| Méthode | Signature | Description |
+| --- | --- | --- |
+| `state` | `fn state(&self) -> &S` | Renvoie le signal portant le `ResourceState` courant — lisez-le réactivement depuis l'UI. |
+| `read` | `fn read(&self) -> Option<T>` | Lecture de commodité de la valeur `Ready` courante, s'il y en a une. |
+| `reload_with` | `fn reload_with<C, F, Fut>(&self, cx: &C, fetch: F)` | Réexécute la fermeture de fetch sur le contexte donné, en annulant toute requête en vol. |
+
+## Créer une ressource
+
+Créée via `ReactiveContextExt::create_resource` ; cloner une `Resource` partage le même état sous-jacent.
+
+<Code lang="rust" code={`let user = cx.create_resource(|token| async move {
+    // Vrai fetch ici ; vérifiez \`token.is_cancelled()\` entre les awaits.
+    Ok::<User, FetchError>(fetch_user(&token).await?)
+});
+
+// Lectures UI :
+match user.state().get() {
+    ResourceState::Loading => spinner(),
+    ResourceState::Ready(user) => profile(&user),
+    ResourceState::Failed(err) => error(&err),
+    ResourceState::Idle => placeholder(),
+}
+
+// Rechargement — annule d'abord la requête en vol :
+user.reload_with(&cx, fetch_user_closure);`} />
+
+## Garanties de conception
+
+- **Exempte de courses** — comptage de génération ; les réponses obsolètes sont jetées.
+- **Annulation coopérative** — les rechargements annulent la requête en vol via son `CancellationToken` et abandonnent la tâche via le handle de join de l'exécuteur.
+- **Réactive** — l'état vit dans un signal de framework, donc les lectures UI se re-rendent automatiquement sur les transitions.
+
+## Étapes suivantes
+
+- <LinkCard title="Charger des données asynchrones" href="/guides/async-data/" description="Guide orienté tâche avec motifs de fetch, rechargement et annulation." />
+- <LinkCard title="Jetons d'annulation" href="/reference/cancellation/" description="Le jeton remis à la fermeture de fetch." />

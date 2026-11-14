@@ -1,0 +1,59 @@
+---
+title: Crates
+description: "Référence de l'API pour la disposition de l'espace de travail — ce que contient chaque crate du dépôt Quoin et celles dont vous dépendez."
+type: reference
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+
+Quoin est un espace de travail Cargo de crates petites et ciblées. Vous ne dépendez normalement que de l'une de deux crates : `quoin` (applications) ou `quoin-core` (bibliothèques sans framework). Les autres existent pour garder cette surface petite.
+
+## Les crates dont vous dépendez
+
+| Crate | Objet |
+| --- | --- |
+| `quoin` | Façade — ré-exporte tout derrière des drapeaux de fonctionnalité ; le point d'entrée de l'application. |
+| `quoin-core` | Traits du cœur plus machinerie derived/resource/batch/local/pool et l'infrastructure d'adaptateur partagée : `join` (cycle de vie du handle de join), `globals` (magasin thread-local), `NotifierSignal` (cellule + notificateur sensible au batching). |
+
+## Crates internes
+
+| Crate | Rôle |
+| --- | --- |
+| `quoin-macros` | Points d'entrée proc-macro : `component!`, `quoin_render!`, `quoin_element!`, `effect!`, `run_app!`. |
+| `quoin-macros-core` | Analyse de macro et génération de code pour chaque backend. |
+| `quoin-style` | IR de style typé partagé par chaque backend ; analyse du sous-ensemble Tailwind à la compilation. |
+| `quoin-gpui` | Adaptateur GPUI. |
+| `quoin-leptos` | Adaptateur Leptos. |
+| `quoin-dioxus` | Adaptateur Dioxus. |
+| `quoin-xilem` | Adaptateur Xilem. |
+| `quoin-floem` | Adaptateur Floem. |
+| `quoin-ui` | Traits du Universal Component Protocol et vocabulaire de nœuds. |
+| `quoin-ui-gpui` | Implémentation GPUI des traits UCP. |
+| `quoin-testkit` | Tests sans tête : `TestContext` + exécuteurs déterministes. |
+| `quoin-devtools` | Traçage de signaux et journalisation des mises à jour. |
+| `quoin-conformance` | Suite de tests de conformité partagée (30+ vérifications par adaptateur). |
+
+## Infrastructure de support
+
+| Chemin | Rôle |
+| --- | --- |
+| `examples/` | Démos exécutables par framework, plus des suites e2e sans tête (`todo-core`, `fetch-core`, `devtools-demo`). |
+| `interop-tests/` | Harnais de parité pour le moteur de classes GPUI (34/34 classes de jetons de thème octet pour octet identiques, barrières de sur-ensemble de vocabulaire et d'échelle Tailwind). |
+| `quoin-macros-tests/` | Tests UI trybuild pour les diagnostics de macro. |
+| `quoin-grsx-compiletest/` | Compile les expansions complètes du moteur contre le stub GPUI embarqué. |
+| `third_party/` | `gpui-stub` (vérification de type rapide des chaînes émises) et `muda-stub` (substitut de menu Linux). |
+
+## Politiques de l'espace de travail
+
+- Édition 2024, `rust-version = "1.88"`, version `0.1.0`.
+- Politique de lints définie une fois dans le manifeste racine et héritée par chaque crate : `clippy::pedantic` + `clippy::all` + `missing_docs` avec les avertissements déniés par la CI (`-D warnings`), `unsafe_code = "forbid"`, et `clippy::allow_attributes` dénié — les attributs `#[allow(...)]` sont bannis d'emblée.
+- Journal de modifications généré à partir des Conventional Commits par git-cliff.
+
+<Aside type="note">
+  L'adaptateur GPUI dépend de `gpui-pre` 0.3.10 (épinglé). Le remplacement de `muda` signifie que les menus natifs ne sont pas supportés sous Linux dans cette configuration.
+</Aside>
+
+## Étapes suivantes
+
+- <LinkCard title="Architecture" href="/explanation/architecture/" description="Comment les crates s'articulent et où vit la machinerie partagée." />
+- <LinkCard title="Drapeaux de fonctionnalité" href="/reference/feature-flags/" description="Quels drapeaux tirent quelles crates." />

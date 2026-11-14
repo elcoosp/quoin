@@ -1,0 +1,97 @@
+---
+title: Écrire des hooks portables
+description: "Écrivez des hooks réactifs réutilisables — signaux, état dérivé et effets — qui compilent à l'identique sur chaque adaptateur Quoin."
+type: how-to
+---
+
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
+
+Vous extrairez la logique métier réactive dans des fonctions hook qui ne connaissent rien du framework de vue. C'est le flux de travail central de Quoin : les hooks ne dépendent que des traits `ReactiveContext` et `Signal`, donc la même fonction sert GPUI, Leptos, Dioxus, Xilem et Floem.
+
+**Prérequis :** Quoin installé avec une fonctionnalité de framework (voir [Installation](/guides/installation/)).
+
+## Garder le hook générique sur le contexte
+
+Écrivez les hooks comme fonctions libres génériques sur `C: ReactiveContext` et renvoyez votre propre struct pour que les appelants obtiennent un handle typé :
+
+<Code lang="rust" code={`use quoin_core::prelude::*;
+use std::rc::Rc;
+
+pub struct SearchBox<S: Signal<String>> {
+    pub query: S,
+    pub clear: Rc<dyn Fn()>,
+}
+
+pub fn use_search<C: ReactiveContext>(cx: &C) -> SearchBox<C::Signal<String>> {
+    let query = cx.create_signal(String::new());
+    let clear = {
+        let query = query.clone();
+        Rc::new(move || query.set(String::new()))
+    };
+    SearchBox { query, clear }
+}`} />
+
+Importez avec `use quoin_core::prelude::*;` (crates sans framework) ou `use quoin::prelude::*;` (crates d'application). Le prelude inclut les traits d'extension, donc `.map()`, `set_eq()` et `create_resource()` sont disponibles sans imports supplémentaires.
+
+## Calculer des valeurs avec des signaux dérivés
+
+Ne stockez jamais ce que vous pouvez calculer. Les signaux dérivés recalculent à la lecture et fonctionnent sur chaque adaptateur :
+
+<Code lang="rust" code={`let count = cx.create_signal(2u32);
+
+// Forme fonction libre :
+let label = quoin_core::derived(&count, |n| format!("count = {n}"));
+assert_eq!(label.get(), "count = 2");
+
+// Forme méthode (de SignalExt) :
+let doubled = count.map(|n| n * 2);
+
+// Combiner deux signaux en un tuple :
+let both = quoin_core::zip(&a, &b);`} />
+
+Gardez les fermetures de dérivation bon marché — elles s'exécutent à chaque lecture. Quand le calcul est coûteux, enveloppez-le dans un [`Memo`](/reference/derived/), qui met en cache sa sortie jusqu'à ce que la valeur source change.
+
+## Réagir aux changements avec des effets
+
+La macro `effect!` exécute un effet de bord chaque fois que ses dépendances changent, avec un nettoyage optionnel :
+
+<Code lang="rust" code={`use quoin_macros::effect;
+
+effect! {
+    deps: [query],
+    run: || {
+        let data = fetch_data(&query.get());
+        results.set(data);
+    },
+    cleanup: || {
+        cancel_pending_request();
+    }
+}`} />
+
+Chaque adaptateur abaisse cela à son mécanisme natif : `create_effect` + `on_cleanup` sur Leptos, `use_effect` + `use_drop` sur Dioxus, et exécution-au-lancement avec nettoyage-à-l'abandon sur GPUI. Voir la [référence des macros](/reference/macros/) pour la syntaxe historique `watch: [...]` et la sémantique complète.
+
+## Réduire les rafales d'écritures avec le batching
+
+Quand un handler écrit plusieurs signaux, enveloppez les écritures dans un batch pour que les adaptateurs à tirage (GPUI, Xilem) reçoivent une demande de re-rendu au lieu d'une par écriture :
+
+<Code lang="rust" code={`cx.batch(|| {
+    a.set(1);
+    b.set(2);
+});`} />
+
+Les frameworks à grain fin font du batching en interne, donc l'appel est sûr sur chaque adaptateur.
+
+## Éviter de fuir le framework
+
+Deux règles gardent un hook portable :
+
+1. **Ne nommez pas de types d'adaptateur.** Utilisez `C::Signal<T>` et les méthodes de trait ; jamais `GpuiSignal`, `LeptosSignal` ou les crates de framework dans les signatures de hook.
+2. **N'appelez pas d'API de framework.** Le rendu, la gestion de fenêtres et l'enregistrement d'écouteurs d'événements appartiennent à la couche de vue (ou aux macros déclaratives, qui s'étendent par framework).
+
+Si vous avez besoin de futures `!Send` comme du travail touchant le DOM, utilisez le `spawn_local` de l'exécuteur — voir [Charger des données asynchrones](/guides/async-data/).
+
+## Étapes suivantes
+
+- <LinkCard title="Charger des données asynchrones" href="/guides/async-data/" description="Ressources, tâches lancées et minuteurs dans des hooks portables." />
+- <LinkCard title="Tester avec quoin-testkit" href="/guides/testing/" description="Exécutez vos hooks sans tête avec des exécuteurs déterministes." />
+- <LinkCard title="Référence des signaux" href="/reference/signals/" description="Chaque méthode sur Signal et SignalExt." />

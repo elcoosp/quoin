@@ -1,0 +1,75 @@
+---
+title: Macros
+description: "Référence de l'API pour component!, quoin_render!, quoin_element!, effect! et run_app!."
+type: reference
+---
+
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
+
+Toute l'analyse et la génération de code vivent dans `quoin-macros-core` ; la crate `quoin-macros` est la frontière `proc_macro`. La distribution par backend sélectionne exactement un framework — activer deux fonctionnalités de framework est une erreur de compilation, par conception.
+
+Import : `use quoin_macros::{component, effect, quoin_element, quoin_render, run_app};` (ré-exporté à travers la façade `quoin` quand une fonctionnalité de framework est activée).
+
+## component!
+
+Définit un composant réactif agnostique vis-à-vis du framework. Blocs reconnus :
+
+| Bloc | Contenu |
+| --- | --- |
+| `props` | Champs d'entrée typés avec défauts, par ex. `initial_count: u32 = 0`. |
+| `state` | Champs réactifs avec valeurs initiales ; chacun devient un signal. |
+| `globals` | Valeurs globales récupérées du contexte ; suffixe `observe` pour suivre les changements. |
+| `on_mount` / `on_unmount` | Hooks de cycle de vie exécutés au montage / démontage. |
+| `fn …` | Actions — fonctions ordinaires sur les signaux d'état. |
+| `render` | L'arbre de vue ; s'exécute à chaque passe de rendu. |
+
+Sortie par framework : une `struct` avec une implémentation `Render` (GPUI), `#[component] fn … -> impl IntoView` (Leptos), `#[component] fn … -> Element` (Dioxus).
+
+## quoin_render!
+
+UI déclarative de type JSX avec transpilation de classes Tailwind.
+
+| Syntaxe | Signification |
+| --- | --- |
+| `div(class: "…") { … }` | Élément avec classes et enfants. |
+| `if[cond] { … }` | Sous-arbre conditionnel. |
+| `for[item in items] { … }` | Répétition sur un itérable. |
+| `attr: value` | Attribut nommé (classes, handlers, configuration). |
+| `on_click: \|ev\| …` | Handler recevant un [événement typé](/reference/events/). |
+
+Le vocabulaire d'éléments inclut `div`, `button`, `tabs`/`tab`, `data_table`/`column`, `virtual_list`, `dropdown_menu`, `input`, `checkbox`, `radio`, `switch`, `slider`, `icon`, `badge`, `tooltip`, `progress`, `skeleton`, `scroll_area`, `separator`, `styled_text` et `clipboard_button`.
+
+## quoin_element!
+
+Déclare un élément personnalisé nommé avec props typées et une fermeture de rendu :
+
+<Code lang="rust" code={`quoin_element!("my-widget", { width: u32 }, |props| quoin_render! { div { "w" } });`} />
+
+## effect!
+
+Exécute des effets de bord réactivement. Deux syntaxes :
+
+| Forme | Structure |
+| --- | --- |
+| Historique | `effect! { watch: [signal], \|\| … }` |
+| Structurée | `effect! { deps: […], run: \|\| …, cleanup: \|\| … }` — `cleanup` optionnel |
+
+Expansion par framework : `create_effect` + `on_cleanup` (Leptos), `use_effect` + `use_drop` (Dioxus), run-on-execute + cleanup-on-drop (GPUI).
+
+## run_app!
+
+Amorce l'application en une seule ligne.
+
+| Forme | Comportement |
+| --- | --- |
+| `run_app!(MyComponent)` | GPUI avec options de fenêtre par défaut ; Leptos/Dioxus montent sur body. |
+| `run_app!(MyComponent, window_opts: custom_opts)` | GPUI avec options de fenêtre personnalisées. |
+
+<Aside type="note">
+  Pour inspecter le code généré d'un composant, exécutez `just expand component="ucp-lib" feature="gpui"` depuis la racine du dépôt.
+</Aside>
+
+## Étapes suivantes
+
+- <LinkCard title="Macros UI déclaratives" href="/guides/ui-macros/" description="Exemples travaillés pour chaque macro." />
+- <LinkCard title="Styliser avec des classes Tailwind" href="/guides/styling/" description="Comment les chaînes de classe compilent en style natif." />

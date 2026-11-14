@@ -1,0 +1,55 @@
+---
+title: quoin-testkit
+description: "Référence de l'API pour TestContext, les exécuteurs déterministes et UpdateRecorder dans quoin-testkit."
+type: reference
+---
+
+import { Code, LinkCard } from '@astrojs/starlight/components';
+
+`quoin-testkit` fournit des implémentations concrètes et légères des traits du cœur conçues pour les tests. La logique métier réactive écrite contre `ReactiveContext` tourne sans tête — pas de gestionnaire de fenêtres, pas de navigateur, entièrement déterministe.
+
+Import : `use quoin_testkit::{TestContext, ImmediateExecutor, …};` ou à travers la façade avec la fonctionnalité `testkit`.
+
+## Composants
+
+| Composant | Objet |
+| --- | --- |
+| `TestContext` | `ReactiveContext` complet avec comptage de mises à jour et un magasin global partagé. Construire avec `TestContext::with_executor(executor)`. |
+| `ImmediateExecutor` | Exécute les futures en ligne jusqu'à complétion — entièrement déterministe, mais bloquant. |
+| `ThreadedExecutor` | Exécute chaque future sur un thread dédié — vraie concurrence, vraie sémantique d'abandon. |
+| `TokioExecutor` *(fonctionnalité `tokio`)* | Exécute les futures sur un vrai runtime tokio ; `sleep` délègue à `tokio::time::sleep`, donc les tests à temps suspendu (`start_paused` + `advance`) pilotent les minuteurs d'exécuteur de façon déterministe. |
+| `UpdateRecorder` | Asserter combien de fois l'UI a été invitée à se re-rendre. |
+| `TestSignal<T>` | Signal thread-safe autonome adossé à `Arc<RwLock<T>>` ; les mutations incrémentent le compteur de mises à jour du contexte propriétaire, reflétant les adaptateurs à tirage. |
+
+## API de TestContext
+
+| Méthode | Description |
+| --- | --- |
+| `with_executor(e)` | Construit un contexte autour de l'exécuteur choisi. |
+| `updates()` | Renvoie l'enregistreur de mises à jour ; `.count()` donne le nombre de demandes de re-rendu jusqu'ici. |
+
+## Sélection de l'exécuteur
+
+| Vous testez | Choisissez |
+| --- | --- |
+| Machines à états pures, réducteurs, pipelines dérivés | `ImmediateExecutor` — synchrone et déterministe |
+| Logique qui attend des minuteurs/canaux ; sémantique d'abandon/détachement | `ThreadedExecutor` ou `TokioExecutor` |
+
+`ImmediateExecutor` ne peut pas modéliser l'annulation en vol parce que les futures se terminent avant que le handle existe.
+
+## Exemple
+
+<Code lang="rust" code={`use quoin_core::prelude::*;
+use quoin_testkit::{ImmediateExecutor, TestContext};
+
+let mut cx = TestContext::with_executor(ImmediateExecutor);
+let count = cx.create_signal(0u32);
+count.set(41);
+count.update(|v| *v += 1);
+assert_eq!(count.get(), 42);
+assert_eq!(cx.updates().count(), 2, "set + update ont chacun demandé un re-rendu");`} />
+
+## Étapes suivantes
+
+- <LinkCard title="Tester avec quoin-testkit" href="/guides/testing/" description="Guide orienté tâche avec motifs de batching et de test de store." />
+- <LinkCard title="Exécuteurs et tâches" href="/reference/executors/" description="Le contrat d'exécuteur côté production que le testkit reflète." />
