@@ -1,0 +1,54 @@
+---
+title: One reactive core across five Rust UI frameworks
+date: 2026-11-15
+cover:
+  alt: Quoin Architecture
+  image: ./welcome-cover.jpg
+image: ./welcome-cover.jpg
+---
+
+import { Card, CardGrid, Aside } from '@astrojs/starlight/components';
+
+In the Rust UI ecosystem, choosing a rendering toolkit usually means rewriting your entire state layer. Signals, effects, async task cancellation, and context propagation all use incompatible traits across GPUI, Leptos, Dioxus, Xilem, and Floem.
+
+We built `quoin` (`0.1`) so you can write reactive business logic once against a single trait surface and compile it onto any of those five backends.
+
+## The Goal
+
+We wanted a framework-agnostic reactive abstraction layer where application state, async loaders, and reusable hooks compile cleanly under a single selected backend feature flag—and where every adapter passes the same behavioral conformance suite.
+
+## The Architecture
+
+`quoin` splits its reactive contract (`quoin-core`) from backend adapters. You enable exactly one framework feature at compile time, mapping Quoin's signals, memos, effects, and cancellation tokens onto the host framework's native reactive runtime.
+
+<CardGrid stagger>
+  <Card title="Unified Reactive Traits" icon="puzzle">
+    Signals, derived memos, side effects, async tasks, cancellation, and global state live behind one portable `ReactiveContext` API.
+  </Card>
+  <Card title="Five Native Backends" icon="rocket">
+    Compile-time feature flags target GPUI, Leptos, Dioxus, Xilem, or Floem without runtime dynamic-dispatch overhead across widgets.
+  </Card>
+  <Card title="Backend Parity Suite" icon="approve-check">
+    A shared conformance test suite runs against every adapter to catch subtle differences in effect scheduling, batching, and cleanup order.
+  </Card>
+  <Card title="Foundation for Higher Crates" icon="setting">
+    Powers cross-framework libraries like `rs-query`, `navi`, `nexum`, and `takumi-motion` without duplicating adapter boilerplate.
+  </Card>
+</CardGrid>
+
+## What it cost
+
+The hardest part of unifying five reactive runtimes isn't basic signal reads—it is disposal order, batching boundaries, and async task cancellation when a component unmounts mid-flight. Bridging push-based and pull-based reactivity models required strict scheduling rules in the conformance suite so effects don't fire twice on one backend and zero times on another.
+
+<Aside type="caution" title="The Trade-off">
+Quoin sits at the intersection of five different UI models, so its portable primitives intentionally expose common reactive semantics rather than framework-specific internals. When you need raw GPUI window handles or custom DOM attributes, you drop down to the host framework's escape hatches.
+</Aside>
+
+## Getting started
+
+```toml
+[dependencies]
+quoin = { version = "0.1", features = ["gpui"] }
+```
+
+Follow the [cross-framework counter tutorial](/tutorials/build-a-counter/) to write a portable counter hook and run it across different UI backends.
