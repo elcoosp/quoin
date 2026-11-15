@@ -17,3 +17,7 @@ ship.sh
 .github/pr-body.md
 .vercel
 .env*
+
+# Build-time backups
+*.bak
+*.orig
