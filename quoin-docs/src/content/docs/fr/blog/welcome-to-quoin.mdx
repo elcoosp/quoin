@@ -1,0 +1,54 @@
+---
+title: Un cœur réactif unique pour cinq frameworks UI Rust
+date: 2026-11-15
+cover:
+  alt: Architecture de Quoin
+  image: ../../blog/welcome-cover.jpg
+image: ../../blog/welcome-cover.jpg
+---
+
+import { Card, CardGrid, Aside } from '@astrojs/starlight/components';
+
+Dans l'écosystème UI Rust, choisir une boîte à outils de rendu oblige généralement à réécrire toute sa couche d'état. Les signaux, effets, annulations de tâches asynchrones et propagations de contexte reposent sur des traits incompatibles entre GPUI, Leptos, Dioxus, Xilem et Floem.
+
+Nous avons conçu `quoin` (`0.1`) pour que vous puissiez écrire votre logique métier réactive une seule fois face à une surface de traits unique et la compiler sur n'importe lequel de ces cinq backends.
+
+## L'objectif
+
+Nous voulions une couche d'abstraction réactive indépendante du framework où l'état applicatif, les chargeurs asynchrones et les hooks réutilisables compilent proprement sous un unique drapeau de fonctionnalité backend — et où chaque adaptateur valide la même suite de tests de conformité comportementale.
+
+## L'architecture
+
+`quoin` sépare son contrat réactif (`quoin-core`) de ses adaptateurs de backends. Vous activez exactement une fonctionnalité de framework à la compilation, projetant les signaux, mémos, effets et jetons d'annulation de Quoin sur le runtime réactif natif du framework hôte.
+
+<CardGrid stagger>
+  <Card title="Traits réactifs unifiés" icon="puzzle">
+    Signaux, mémos dérivés, effets de bord, tâches asynchrones, annulation et état global reposent sur une API portable unique `ReactiveContext`.
+  </Card>
+  <Card title="Cinq backends natifs" icon="rocket">
+    Les drapeaux de fonctionnalités à la compilation ciblent GPUI, Leptos, Dioxus, Xilem ou Floem sans surcoût de dispatch dynamique à l'exécution entre les widgets.
+  </Card>
+  <Card title="Suite de parité entre backends" icon="approve-check">
+    Une suite partagée de tests de conformité s'exécute sur chaque adaptateur afin de déceler les différences subtiles d'ordonnancement d'effets, de regroupement et d'ordre de nettoyage.
+  </Card>
+  <Card title="Socle pour des crates de plus haut niveau" icon="setting">
+    Propulse des bibliothèques multi-frameworks comme `rs-query`, `navi`, `nexum` et `takumi-motion` sans dupliquer le code d'adaptation.
+  </Card>
+</CardGrid>
+
+## Ce que cela a coûté
+
+La partie la plus ardue de l'unification de cinq runtimes réactifs ne réside pas dans la simple lecture de signaux, mais dans l'ordre de libération, les frontières de regroupement (batching) et l'annulation des tâches asynchrones lorsqu'un composant est démonté en plein vol. Relier des modèles réactifs push et pull a exigé des règles d'ordonnancement strictes dans la suite de conformité afin que les effets ne se déclenchent pas deux fois sur un backend et zéro fois sur un autre.
+
+<Aside type="caution" title="Le compromis">
+Quoin se situe à l'intersection de cinq modèles UI différents ; ses primitives portables exposent donc volontairement une sémantique réactive commune plutôt que les rouages internes propres à chaque framework. Lorsque vous avez besoin de handles de fenêtres GPUI bruts ou d'attributs DOM personnalisés, vous passez par les trappes d'échappement du framework hôte.
+</Aside>
+
+## Démarrer
+
+```toml
+[dependencies]
+quoin = { version = "0.1", features = ["gpui"] }
+```
+
+Suivez le [tutoriel du compteur multi-frameworks](/fr/tutorials/build-a-counter/) pour écrire un hook de compteur portable et l'exécuter sur différents backends UI.
