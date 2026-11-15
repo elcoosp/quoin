@@ -1,5 +1,4 @@
 import { defineDocsConfig } from '@elcoosp/docs-toolkit/config';
-import starlightImageZoom from 'starlight-image-zoom';
 import starlightHeadingBadges from 'starlight-heading-badges';
 import starlightLlmsTxt from 'starlight-llms-txt';
 
@@ -90,9 +89,7 @@ export default await defineDocsConfig({
       ],
       plugins: [
         // Fails `astro build` on broken internal links — release blocker.
-        // Click-to-zoom for images.
-        starlightImageZoom(),
-        // Badges (e.g. "Experimental") rendered inline in headings and the TOC.
+        // Click-to-zoom for images. // Badges (e.g. "Experimental") rendered inline in headings and the TOC.
         starlightHeadingBadges(),
         // Emits /llms.txt, /llms-small.txt and /llms-full.txt for AI agents.
         starlightLlmsTxt({
