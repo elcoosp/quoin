@@ -24,6 +24,19 @@ L'architecture de Quoin sépare trois préoccupations : un petit contrat de trai
                     machinerie partagée dans quoin-core
               join · globals · NotifierSignal · batch · pool`} />
 
+```mermaid
+flowchart TD
+    APP["Application / Hooks portables"]
+    FAC["quoin (Façade)"]
+    MAC["quoin-macros"]
+    UI["quoin-ui / quoin-style"]
+    CORE["quoin-core<br/><i>Signal · ReactiveContext · Executor</i>"]
+    ADAPT["Adaptateurs<br/><i>GPUI · Leptos · Dioxus · Xilem · Floem</i>"]
+    APP --> FAC
+    FAC --> MAC & UI & CORE
+    CORE --> ADAPT
+```
+
 ## La couche contrat
 
 `quoin-core` définit les traits que chaque adaptateur implémente : `Signal<T>`, `ReactiveContext`, `Executor`, plus les traits d'extension génériques (`SignalExt`, `ExecutorExt`, `ReactiveContextExt`) qui sont implémentés une fois, génériquement, pour que chaque adaptateur les obtienne gratuitement avec zéro code par adaptateur. Des commodités portables vivent aussi ici : derived/memo/zip, ressources, batching, annulation, `spawn_local`, minuteurs et pooling.

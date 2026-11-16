@@ -24,6 +24,19 @@ Quoin's architecture separates three concerns: a small trait contract, five adap
                     shared machinery in quoin-core
               join · globals · NotifierSignal · batch · pool`} />
 
+```mermaid
+flowchart TD
+    APP["Application / Portable Hooks"]
+    FAC["quoin (Facade)"]
+    MAC["quoin-macros"]
+    UI["quoin-ui / quoin-style"]
+    CORE["quoin-core<br/><i>Signal · ReactiveContext · Executor</i>"]
+    ADAPT["Adapters<br/><i>GPUI · Leptos · Dioxus · Xilem · Floem</i>"]
+    APP --> FAC
+    FAC --> MAC & UI & CORE
+    CORE --> ADAPT
+```
+
 ## The contract layer
 
 `quoin-core` defines the traits every adapter implements: `Signal<T>`, `ReactiveContext`, `Executor`, plus the blanket extension traits (`SignalExt`, `ExecutorExt`, `ReactiveContextExt`) that are implemented once, generically, so every adapter gets them for free with zero per-adapter code. Portable conveniences also live here: derived/memo/zip, resources, batching, cancellation, `spawn_local`, timers, and pooling.

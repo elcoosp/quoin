@@ -1,21 +1,14 @@
 import { defineDocsConfig } from '@elcoosp/docs-toolkit/config';
-import starlightLlmsTxt from 'starlight-llms-txt';
-
 export default await defineDocsConfig({
   llmsTxt: {},
   site: 'https://quoin-docs.vercel.app',
   domain: 'quoin-docs.vercel.app',
   title: "Quoin",
   description: "One reactive core, many frameworks. Write reactive business logic once in Rust and run it on GPUI, Leptos, Dioxus, Xilem, or Floem.",
-  sidebar: [],
   extraStarlight: {
-      expressiveCode: {
-      	themes: ['github-light', 'github-dark']
-      },
       title: 'Quoin',
       description:
         'One reactive core, many frameworks. Write reactive business logic once in Rust and run it on GPUI, Leptos, Dioxus, Xilem, or Floem.',
-      favicon: '/favicon.png',
       social: [
         { icon: 'github', label: 'GitHub', translations: { fr: "GitHub" }, href: 'https://github.com/elcoosp/quoin' },
       ],
@@ -90,10 +83,6 @@ export default await defineDocsConfig({
         // Fails `astro build` on broken internal links — release blocker.
         // Click-to-zoom for images. // Badges (e.g. "Experimental") rendered inline in headings and the TOC.
         // Emits /llms.txt, /llms-small.txt and /llms-full.txt for AI agents.
-        starlightLlmsTxt({
-          projectName: 'Quoin',
-          details: 'Quoin is a framework-agnostic reactive abstraction layer for Rust. It ships signals, derived state, resources, executors, cancellation, global state, declarative UI macros with Tailwind class transpilation, a Universal Component Protocol, a headless testkit, and signal-tracing devtools — all shared across the GPUI, Leptos, Dioxus, Xilem, and Floem adapters.'
-        }),
       ]
     },
 });
