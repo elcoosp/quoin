@@ -14,7 +14,7 @@ Vous extrairez la logique métier réactive dans des fonctions hook qui ne conna
 
 Écrivez les hooks comme fonctions libres génériques sur `C: ReactiveContext` et renvoyez votre propre struct pour que les appelants obtiennent un handle typé :
 
-<Code lang="rust" code={`use quoin_core::prelude::*;
+<Code lang="rust" title="src/lib.rs" code={`use quoin_core::prelude::*;
 use std::rc::Rc;
 
 pub struct SearchBox<S: Signal<String>> {

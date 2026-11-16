@@ -49,7 +49,7 @@ quoin = { version = "0.1", features = ["gpui"] }`} />
 
 If you are writing a shared hook or store crate that must stay framework-free, depend on `quoin-core` instead of `quoin`. It contains the traits and portable machinery with no adapter compiled in:
 
-<Code lang="toml" code={`[dependencies]
+<Code lang="toml" title="Cargo.toml" code={`[dependencies]
 quoin-core = "0.1"`} />
 
 Consumers of your crate then pick the framework by enabling one feature on their `quoin` dependency and passing your hook any context that implements `ReactiveContext`.
@@ -79,7 +79,7 @@ The full reference with dependencies between flags lives in [Feature Flags](/ref
 
 Create a signal and read it back in a unit test using `quoin-testkit` — no window, no browser:
 
-<Code lang="rust" code={`use quoin::prelude::*;
+<Code lang="rust" title="tests/integration.rs" code={`use quoin::prelude::*;
 use quoin::testkit::{TestContext, ImmediateExecutor};
 
 #[test]

@@ -14,7 +14,7 @@ You will extract reactive business logic into hook functions that know nothing a
 
 Write hooks as free functions generic over `C: ReactiveContext` and return your own struct so callers get a typed handle:
 
-<Code lang="rust" code={`use quoin_core::prelude::*;
+<Code lang="rust" title="src/lib.rs" code={`use quoin_core::prelude::*;
 use std::rc::Rc;
 
 pub struct SearchBox<S: Signal<String>> {

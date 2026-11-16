@@ -49,7 +49,7 @@ quoin = { version = "0.1", features = ["gpui"] }`} />
 
 Si vous écrivez une crate de hook ou de store partagée qui doit rester sans framework, dépendez de `quoin-core` au lieu de `quoin`. Elle contient les traits et la machinerie portable sans aucun adaptateur compilé :
 
-<Code lang="toml" code={`[dependencies]
+<Code lang="toml" title="Cargo.toml" code={`[dependencies]
 quoin-core = "0.1"`} />
 
 Les consommateurs de votre crate choisissent alors le framework en activant une fonctionnalité sur leur dépendance `quoin` et en passant à votre hook n'importe quel contexte qui implémente `ReactiveContext`.
@@ -79,7 +79,7 @@ La référence complète avec les dépendances entre drapeaux vit dans [Drapeaux
 
 Créez un signal et relisez-le dans un test unitaire avec `quoin-testkit` — pas de fenêtre, pas de navigateur :
 
-<Code lang="rust" code={`use quoin::prelude::*;
+<Code lang="rust" title="tests/integration.rs" code={`use quoin::prelude::*;
 use quoin::testkit::{TestContext, ImmediateExecutor};
 
 #[test]
