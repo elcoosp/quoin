@@ -23,7 +23,7 @@ let ctx = Instrumented::wrap(raw_ctx, "app");`} />
 
 L'enregistrement est conditionné pour que le câblage n'ait aucun coût en livraison quand il est désactivé — avec le traçage éteint, chaque appel est un simple chargement atomique relâché et rien n'est alloué.
 
-<Code lang="sh" code={`QUOIN_TRACE=1 ./myapp    # ou QUOIN_TRACE=on`} />
+<Code lang="sh" title="Terminal" code={`QUOIN_TRACE=1 ./myapp    # ou QUOIN_TRACE=on`} />
 
 Alternativement, activez-le par programme : `quoin_devtools::enable()` (et `disable()` / `enabled()` pour inspecter l'état).
 
@@ -41,7 +41,7 @@ Appelez-les depuis un raccourci de débogage, un panneau déroulant, ou à la so
 
 L'exemple `counter-xilem` rend les comptes de trace à côté du compteur et vide la session à la fermeture de la fenêtre :
 
-<Code lang="sh" code={`cargo run --manifest-path examples/counter-xilem/Cargo.toml`} />
+<Code lang="sh" title="Terminal" code={`cargo run --manifest-path examples/counter-xilem/Cargo.toml`} />
 
 Pour une visite sans tête de la session de traçage elle-même, exécutez `just trace-demo` (cela pilote `devtools-demo` avec `QUOIN_TRACE=1`).
 

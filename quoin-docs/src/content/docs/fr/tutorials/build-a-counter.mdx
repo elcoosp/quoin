@@ -15,17 +15,15 @@ Vous construirez une application compteur dont la logique réactive vit dans une
 <Steps>
 1. Créez un espace de travail Cargo avec deux crates : une bibliothèque pour la logique portable et un binaire pour la vue GPUI.
 
-    <Code lang="sh" code={`cargo new counter --lib
+    <Code lang="sh" title="Terminal" code={`cargo new counter --lib
 cargo new counter-gpui --bin`} />
 
 2. Ajoutez Quoin aux deux manifestes. La bibliothèque dépend de `quoin-core` (traits seuls, pas de framework). Le binaire dépend de `quoin` avec la fonctionnalité `gpui`.
 
-    <Code lang="toml" code={`# counter/Cargo.toml
-[dependencies]
+    <Code lang="toml" title="counter/Cargo.toml" code={`[dependencies]
 quoin-core = "0.1"`} />
 
-    <Code lang="toml" code={`# counter-gpui/Cargo.toml
-[dependencies]
+    <Code lang="toml" title="counter-gpui/Cargo.toml" code={`[dependencies]
 counter = { path = "../counter" }
 quoin = { version = "0.1", features = ["gpui"] }`} />
 
@@ -40,8 +38,7 @@ quoin = { version = "0.1", features = ["gpui"] }`} />
 
 Le hook est une fonction Rust ordinaire générique sur `ReactiveContext`. Il ne connaît rien de GPUI, des fenêtres ou du rendu.
 
-<Code lang="rust" code={`// counter/src/lib.rs
-use quoin_core::prelude::*;
+<Code lang="rust" title="counter/src/lib.rs" code={`use quoin_core::prelude::*;
 use std::rc::Rc;
 
 pub struct Counter<S: Signal<u32>> {
@@ -68,8 +65,7 @@ Points clés :
 
 Câblez maintenant le hook dans un composant GPUI et amorcez l'application avec `run_app!`.
 
-<Code lang="rust" code={`// counter-gpui/src/main.rs
-use counter::use_counter;
+<Code lang="rust" title="counter-gpui/src/main.rs" code={`use counter::use_counter;
 use quoin::prelude::*;
 
 struct CounterView {
@@ -101,7 +97,7 @@ fn main() {
 
 Exécutez :
 
-<Code lang="sh" code={`cargo run -p counter-gpui`} />
+<Code lang="sh" title="Terminal" code={`cargo run -p counter-gpui`} />
 
 **Sortie attendue :** une fenêtre native affichant `Count: 0` avec un bouton `Increment` ; chaque clic met à jour le libellé.
 
@@ -109,13 +105,11 @@ Exécutez :
 
 Changez le drapeau de fonctionnalité et échangez la vue. La crate hook reste intacte.
 
-<Code lang="toml" code={`# counter-leptos/Cargo.toml
-[dependencies]
+<Code lang="toml" title="counter-leptos/Cargo.toml" code={`[dependencies]
 counter = { path = "../counter" }
 quoin = { version = "0.1", features = ["leptos"] }`} />
 
-<Code lang="rust" code={`// counter-leptos/src/lib.rs
-use counter::use_counter;
+<Code lang="rust" title="counter-leptos/src/lib.rs" code={`use counter::use_counter;
 use quoin::prelude::*;
 
 #[component]

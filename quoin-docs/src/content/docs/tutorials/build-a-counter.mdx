@@ -15,17 +15,15 @@ You will build a counter application whose reactive logic lives in a framework-a
 <Steps>
 1. Create a Cargo workspace with two crates: a library for the portable logic and a binary for the GPUI view.
 
-    <Code lang="sh" code={`cargo new counter --lib
+    <Code lang="sh" title="Terminal" code={`cargo new counter --lib
 cargo new counter-gpui --bin`} />
 
 2. Add Quoin to both manifests. The library depends on `quoin-core` (traits only, no framework). The binary depends on `quoin` with the `gpui` feature.
 
-    <Code lang="toml" code={`# counter/Cargo.toml
-[dependencies]
+    <Code lang="toml" title="counter/Cargo.toml" code={`[dependencies]
 quoin-core = "0.1"`} />
 
-    <Code lang="toml" code={`# counter-gpui/Cargo.toml
-[dependencies]
+    <Code lang="toml" title="counter-gpui/Cargo.toml" code={`[dependencies]
 counter = { path = "../counter" }
 quoin = { version = "0.1", features = ["gpui"] }`} />
 
@@ -40,8 +38,7 @@ quoin = { version = "0.1", features = ["gpui"] }`} />
 
 The hook is an ordinary Rust function generic over `ReactiveContext`. It knows nothing about GPUI, windows, or rendering.
 
-<Code lang="rust" code={`// counter/src/lib.rs
-use quoin_core::prelude::*;
+<Code lang="rust" title="counter/src/lib.rs" code={`use quoin_core::prelude::*;
 use std::rc::Rc;
 
 pub struct Counter<S: Signal<u32>> {
@@ -68,8 +65,7 @@ Key points:
 
 Now wire the hook into a GPUI component and bootstrap the app with `run_app!`.
 
-<Code lang="rust" code={`// counter-gpui/src/main.rs
-use counter::use_counter;
+<Code lang="rust" title="counter-gpui/src/main.rs" code={`use counter::use_counter;
 use quoin::prelude::*;
 
 struct CounterView {
@@ -101,7 +97,7 @@ fn main() {
 
 Run it:
 
-<Code lang="sh" code={`cargo run -p counter-gpui`} />
+<Code lang="sh" title="Terminal" code={`cargo run -p counter-gpui`} />
 
 **Expected output:** a native window showing `Count: 0` with an `Increment` button; each click updates the label.
 
@@ -109,13 +105,11 @@ Run it:
 
 Change the feature flag and swap the view. The hook crate is untouched.
 
-<Code lang="toml" code={`# counter-leptos/Cargo.toml
-[dependencies]
+<Code lang="toml" title="counter-leptos/Cargo.toml" code={`[dependencies]
 counter = { path = "../counter" }
 quoin = { version = "0.1", features = ["leptos"] }`} />
 
-<Code lang="rust" code={`// counter-leptos/src/lib.rs
-use counter::use_counter;
+<Code lang="rust" title="counter-leptos/src/lib.rs" code={`use counter::use_counter;
 use quoin::prelude::*;
 
 #[component]

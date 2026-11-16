@@ -20,25 +20,25 @@ Activez exactement **une** fonctionnalité de framework — ce choix sélectionn
 
 <Tabs>
   <TabItem label="GPUI">
-    <Code lang="sh" code={`cargo add quoin --features gpui`} />
+    <Code lang="sh" title="Terminal" code={`cargo add quoin --features gpui`} />
   </TabItem>
   <TabItem label="Leptos">
-    <Code lang="sh" code={`cargo add quoin --features leptos`} />
+    <Code lang="sh" title="Terminal" code={`cargo add quoin --features leptos`} />
   </TabItem>
   <TabItem label="Dioxus">
-    <Code lang="sh" code={`cargo add quoin --features dioxus`} />
+    <Code lang="sh" title="Terminal" code={`cargo add quoin --features dioxus`} />
   </TabItem>
   <TabItem label="Xilem">
-    <Code lang="sh" code={`cargo add quoin --features xilem`} />
+    <Code lang="sh" title="Terminal" code={`cargo add quoin --features xilem`} />
   </TabItem>
   <TabItem label="Floem">
-    <Code lang="sh" code={`cargo add quoin --features floem`} />
+    <Code lang="sh" title="Terminal" code={`cargo add quoin --features floem`} />
   </TabItem>
 </Tabs>
 
 C'est équivalent à éditer `Cargo.toml` :
 
-<Code lang="toml" code={`[dependencies]
+<Code lang="toml" title="Cargo.toml" code={`[dependencies]
 quoin = { version = "0.1", features = ["gpui"] }`} />
 
 <Aside type="caution">
@@ -90,7 +90,7 @@ fn signal_round_trip() {
     assert_eq!(count.get(), 42);
 }`} />
 
-<Code lang="sh" code={`cargo test`} />
+<Code lang="sh" title="Terminal" code={`cargo test`} />
 
 **Sortie attendue :** le test passe, confirmant que l'adaptateur a compilé et que le contexte fonctionne.
 
