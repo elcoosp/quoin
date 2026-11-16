@@ -1,5 +1,6 @@
 import { defineDocsConfig } from '@elcoosp/docs-toolkit/config';
 export default await defineDocsConfig({
+  topics: true,
   llmsTxt: {},
   site: 'https://quoin-docs.vercel.app',
   domain: 'quoin-docs.vercel.app',
