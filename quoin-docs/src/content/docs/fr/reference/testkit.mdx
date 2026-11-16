@@ -39,15 +39,7 @@ Import : `use quoin_testkit::{TestContext, ImmediateExecutor, …};` ou à trave
 
 ## Exemple
 
-<Code lang="rust" code={`use quoin_core::prelude::*;
-use quoin_testkit::{ImmediateExecutor, TestContext};
-
-let mut cx = TestContext::with_executor(ImmediateExecutor);
-let count = cx.create_signal(0u32);
-count.set(41);
-count.update(|v| *v += 1);
-assert_eq!(count.get(), 42);
-assert_eq!(cx.updates().count(), 2, "set + update ont chacun demandé un re-rendu");`} />
+<Code lang="rust" code={"use quoin_core::prelude::*;\nuse quoin_testkit::{ImmediateExecutor, TestContext};\n\nlet mut cx = TestContext::with_executor(ImmediateExecutor);\nlet count = cx.create_signal(0u32);\ncount.set(41);\ncount.update(|v| *v += 1);\nassert_eq!(count.get(), 42);\nassert_eq!(cx.updates().count(), 2, \"set + update ont chacun demand\u00e9 un re-rendu\");"} />
 
 ## Étapes suivantes
 

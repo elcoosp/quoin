@@ -14,22 +14,7 @@ You will extract reactive business logic into hook functions that know nothing a
 
 Write hooks as free functions generic over `C: ReactiveContext` and return your own struct so callers get a typed handle:
 
-<Code lang="rust" title="src/lib.rs" code={`use quoin_core::prelude::*;
-use std::rc::Rc;
-
-pub struct SearchBox<S: Signal<String>> {
-    pub query: S,
-    pub clear: Rc<dyn Fn()>,
-}
-
-pub fn use_search<C: ReactiveContext>(cx: &C) -> SearchBox<C::Signal<String>> {
-    let query = cx.create_signal(String::new());
-    let clear = {
-        let query = query.clone();
-        Rc::new(move || query.set(String::new()))
-    };
-    SearchBox { query, clear }
-}`} />
+<Code lang="rust" title="src/lib.rs" code={"use quoin_core::prelude::*;\nuse std::rc::Rc;\n\npub struct SearchBox<S: Signal<String>> {\n    pub query: S,\n    pub clear: Rc<dyn Fn()>,\n}\n\npub fn use_search<C: ReactiveContext>(cx: &C) -> SearchBox<C::Signal<String>> {\n    let query = cx.create_signal(String::new());\n    let clear = {\n        let query = query.clone();\n        Rc::new(move || query.set(String::new()))\n    };\n    SearchBox { query, clear }\n}"} />
 
 Import with `use quoin_core::prelude::*;` (framework-free crates) or `use quoin::prelude::*;` (application crates). The prelude includes the extension traits, so `.map()`, `set_eq()`, and `create_resource()` are available without extra imports.
 
@@ -37,17 +22,7 @@ Import with `use quoin_core::prelude::*;` (framework-free crates) or `use quoin:
 
 Never store what you can compute. Derived signals recompute on read and work on every adapter:
 
-<Code lang="rust" code={`let count = cx.create_signal(2u32);
-
-// Free function form:
-let label = quoin_core::derived(&count, |n| format!("count = {n}"));
-assert_eq!(label.get(), "count = 2");
-
-// Method form (from SignalExt):
-let doubled = count.map(|n| n * 2);
-
-// Combine two signals into a tuple:
-let both = quoin_core::zip(&a, &b);`} />
+<Code lang="rust" code={"let count = cx.create_signal(2u32);\n\n// Free function form:\nlet label = quoin_core::derived(&count, |n| format!(\"count = {n}\"));\nassert_eq!(label.get(), \"count = 2\");\n\n// Method form (from SignalExt):\nlet doubled = count.map(|n| n * 2);\n\n// Combine two signals into a tuple:\nlet both = quoin_core::zip(&a, &b);"} />
 
 Keep derive closures cheap — they run on every read. When the computation is expensive, wrap it in a [`Memo`](/reference/derived/), which caches its output until the source value changes.
 
@@ -55,18 +30,7 @@ Keep derive closures cheap — they run on every read. When the computation is e
 
 The `effect!` macro runs a side effect whenever its dependencies change, with optional cleanup:
 
-<Code lang="rust" code={`use quoin_macros::effect;
-
-effect! {
-    deps: [query],
-    run: || {
-        let data = fetch_data(&query.get());
-        results.set(data);
-    },
-    cleanup: || {
-        cancel_pending_request();
-    }
-}`} />
+<Code lang="rust" code={"use quoin_macros::effect;\n\neffect! {\n    deps: [query],\n    run: || {\n        let data = fetch_data(&query.get());\n        results.set(data);\n    },\n    cleanup: || {\n        cancel_pending_request();\n    }\n}"} />
 
 Each adapter lowers this to its native mechanism: `create_effect` + `on_cleanup` on Leptos, `use_effect` + `use_drop` on Dioxus, and run-on-execute with cleanup-on-drop on GPUI. See the [macros reference](/reference/macros/) for the legacy `watch: [...]` syntax and full semantics.
 
@@ -74,10 +38,7 @@ Each adapter lowers this to its native mechanism: `create_effect` + `on_cleanup`
 
 When a handler writes several signals, wrap the writes in a batch so pull-based adapters (GPUI, Xilem) receive one re-render request instead of one per write:
 
-<Code lang="rust" code={`cx.batch(|| {
-    a.set(1);
-    b.set(2);
-});`} />
+<Code lang="rust" code={"cx.batch(|| {\n    a.set(1);\n    b.set(2);\n});"} />
 
 Fine-grained frameworks batch internally, so the call is safe on every adapter.
 

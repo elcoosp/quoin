@@ -12,21 +12,7 @@ Vous testerez de la logique métier réactive sans gestionnaire de fenêtres ni 
 
 ## Piloter un hook avec TestContext
 
-<Code lang="rust" code={`use quoin_core::prelude::*;
-use quoin_testkit::{ImmediateExecutor, TestContext};
-
-fn use_counter<C: ReactiveContext>(cx: &C) -> C::Signal<u32> {
-    cx.create_signal(0u32)
-}
-
-let mut cx = TestContext::with_executor(ImmediateExecutor);
-let count = use_counter(&cx);
-count.set(41);
-count.update(|v| *v += 1);
-assert_eq!(count.get(), 42);
-
-// La plomberie de mise à jour est observable :
-assert_eq!(cx.updates().count(), 2, "set + update ont chacun demandé un re-rendu");`} />
+<Code lang="rust" code={"use quoin_core::prelude::*;\nuse quoin_testkit::{ImmediateExecutor, TestContext};\n\nfn use_counter<C: ReactiveContext>(cx: &C) -> C::Signal<u32> {\n    cx.create_signal(0u32)\n}\n\nlet mut cx = TestContext::with_executor(ImmediateExecutor);\nlet count = use_counter(&cx);\ncount.set(41);\ncount.update(|v| *v += 1);\nassert_eq!(count.get(), 42);\n\n// La plomberie de mise \u00e0 jour est observable :\nassert_eq!(cx.updates().count(), 2, \"set + update ont chacun demand\u00e9 un re-rendu\");"} />
 
 `TestContext` est un `ReactiveContext` complet avec comptage de mises à jour et un magasin global partagé. Les mutations de `TestSignal` incrémentent le compteur de mises à jour du contexte, reflétant les adaptateurs à tirage.
 
@@ -46,11 +32,7 @@ assert_eq!(cx.updates().count(), 2, "set + update ont chacun demandé un re-rend
 
 `cx.updates()` enregistre combien de fois l'UI a été invitée à se re-rendre. Associez-le à `cx.batch(|| …)` pour prouver qu'un batch réduit N écritures en une seule demande de mise à jour :
 
-<Code lang="rust" code={`cx.batch(|| {
-    a.set(1);
-    b.set(2);
-});
-assert_eq!(cx.updates().count(), 1);`} />
+<Code lang="rust" code={"cx.batch(|| {\n    a.set(1);\n    b.set(2);\n});\nassert_eq!(cx.updates().count(), 1);"} />
 
 ## Tester des stores agnostiques vis-à-vis du framework de bout en bout
 

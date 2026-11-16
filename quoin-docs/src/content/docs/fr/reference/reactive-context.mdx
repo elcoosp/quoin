@@ -35,18 +35,7 @@ Implémentées génériquement sur tout `ReactiveContext` ; incluses dans le pre
 
 ## Exemple
 
-<Code lang="rust" code={`let signal = cx.create_signal(0);            // crée de l'état réactif
-let executor = cx.executor();                // répartiteur de tâches asynchrones
-cx.request_update();                         // marque l'UI à rafraîchir
-
-cx.provide_global(Theme::Dark);
-if let Some(theme) = cx.use_global::<Theme>() {
-    let current = theme.get();
-}
-
-let res = cx.create_resource(|token| async move { /* fetch */ });
-cx.batch(|| { a.set(1); b.set(2); });        // une seule demande de mise à jour
-let settings = cx.use_global_or_init(Settings::default);`} />
+<Code lang="rust" code={"let signal = cx.create_signal(0);            // cr\u00e9e de l'\u00e9tat r\u00e9actif\nlet executor = cx.executor();                // r\u00e9partiteur de t\u00e2ches asynchrones\ncx.request_update();                         // marque l'UI \u00e0 rafra\u00eechir\n\ncx.provide_global(Theme::Dark);\nif let Some(theme) = cx.use_global::<Theme>() {\n    let current = theme.get();\n}\n\nlet res = cx.create_resource(|token| async move { /* fetch */ });\ncx.batch(|| { a.set(1); b.set(2); });        // une seule demande de mise \u00e0 jour\nlet settings = cx.use_global_or_init(Settings::default);"} />
 
 ## Étapes suivantes
 

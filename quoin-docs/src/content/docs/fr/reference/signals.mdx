@@ -31,16 +31,7 @@ Import : `use quoin_core::prelude::*;`
 
 ## Exemple
 
-<Code lang="rust" code={`let signal = cx.create_signal(42u32);
-assert_eq!(signal.get(), 42);
-signal.with(|v| println!("{v}"));   // emprunt sans clonage
-signal.set(100);
-signal.update(|v| *v += 1);
-assert_eq!(signal.get(), 101);
-
-signal.set_eq(101);                 // false — inchangé, aucune mise à jour demandée
-let old = signal.replace(7);        // old == 101
-let taken = signal.take();          // taken == 7, signal désormais 0`} />
+<Code lang="rust" code={"let signal = cx.create_signal(42u32);\nassert_eq!(signal.get(), 42);\nsignal.with(|v| println!(\"{v}\"));   // emprunt sans clonage\nsignal.set(100);\nsignal.update(|v| *v += 1);\nassert_eq!(signal.get(), 101);\n\nsignal.set_eq(101);                 // false \u2014 inchang\u00e9, aucune mise \u00e0 jour demand\u00e9e\nlet old = signal.replace(7);        // old == 101\nlet taken = signal.take();          // taken == 7, signal d\u00e9sormais 0"} />
 
 <Aside type="note">
   Sur les adaptateurs à tirage (GPUI, Xilem), chaque mutation appelle `request_update()`. Préférez `set_eq` pour les valeurs qui reçoivent fréquemment des écritures égales.

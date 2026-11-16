@@ -23,23 +23,13 @@ Your code talks to the traits; the framework feature pulls in the implementation
 
 `ButtonVariant` selects emphasis (`primary`, `ghost`, `destructive`) and density (`ComponentSize::Small | Medium | Large`):
 
-<Code lang="rust" code={`use quoin_ui::{ButtonAdapter, ButtonVariant, ComponentSize};
-
-let adapter = GpuiButtonAdapter::default();
-let button = adapter.render(Some("Click Me".into()), ButtonVariant {
-    primary: true,
-    size: ComponentSize::Medium,
-    ..Default::default()
-});`} />
+<Code lang="rust" code={"use quoin_ui::{ButtonAdapter, ButtonVariant, ComponentSize};\n\nlet adapter = GpuiButtonAdapter::default();\nlet button = adapter.render(Some(\"Click Me\".into()), ButtonVariant {\n    primary: true,\n    size: ComponentSize::Medium,\n    ..Default::default()\n});"} />
 
 ## Declare a sortable data table
 
 Inside `quoin_render!`, the `data_table` element declares columns with keys, labels, and render closures; sorting and striping come from attributes:
 
-<Code lang="rust" code={`data_table(rows: people, striped: true) {
-    column(key: "name", label: "Name", render: |p: &Person| p.name.clone())
-    column(key: "age",  label: "Age",  render: |p: &Person| p.age.to_string())
-}`} />
+<Code lang="rust" code={"data_table(rows: people, striped: true) {\n    column(key: \"name\", label: \"Name\", render: |p: &Person| p.name.clone())\n    column(key: \"age\",  label: \"Age\",  render: |p: &Person| p.age.to_string())\n}"} />
 
 `SortDirection` (`None | Asc | Desc`) models the per-column sort state on the `TableAdapter` side.
 
@@ -51,7 +41,7 @@ Inside `quoin_render!`, the `data_table` element declares columns with keys, lab
 
 The `Clipboard` trait abstracts the system clipboard; the `clipboard_button` element wires a button that copies text and reports success:
 
-<Code lang="rust" code={`clipboard_button(copy_text: "Copied!") { "Copy" }`} />
+<Code lang="rust" code={"clipboard_button(copy_text: \"Copied!\") { \"Copy\" }"} />
 
 ## Theme tokens
 

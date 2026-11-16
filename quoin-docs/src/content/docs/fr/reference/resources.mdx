@@ -12,7 +12,7 @@ Import : `use quoin_core::prelude::*;`
 
 ## Cycle de vie
 
-<Code lang="text" code={`Idle → Loading → Ready(T) | Failed(E)`} />
+<Code lang="text" code={"Idle \u2192 Loading \u2192 Ready(T) | Failed(E)"} />
 
 Chaque rechargement annule la requête en vol et renvoie la ressource à `Loading`. Un compteur de génération rend les rechargements exempts de courses : une requête obsolète ne peut jamais écraser le résultat d'une plus récente.
 
@@ -37,21 +37,7 @@ Chaque rechargement annule la requête en vol et renvoie la ressource à `Loadin
 
 Créée via `ReactiveContextExt::create_resource` ; cloner une `Resource` partage le même état sous-jacent.
 
-<Code lang="rust" code={`let user = cx.create_resource(|token| async move {
-    // Vrai fetch ici ; vérifiez \`token.is_cancelled()\` entre les awaits.
-    Ok::<User, FetchError>(fetch_user(&token).await?)
-});
-
-// Lectures UI :
-match user.state().get() {
-    ResourceState::Loading => spinner(),
-    ResourceState::Ready(user) => profile(&user),
-    ResourceState::Failed(err) => error(&err),
-    ResourceState::Idle => placeholder(),
-}
-
-// Rechargement — annule d'abord la requête en vol :
-user.reload_with(&cx, fetch_user_closure);`} />
+<Code lang="rust" code={"let user = cx.create_resource(|token| async move {\n    // Vrai fetch ici ; v\u00e9rifiez `token.is_cancelled()` entre les awaits.\n    Ok::<User, FetchError>(fetch_user(&token).await?)\n});\n\n// Lectures UI :\nmatch user.state().get() {\n    ResourceState::Loading => spinner(),\n    ResourceState::Ready(user) => profile(&user),\n    ResourceState::Failed(err) => error(&err),\n    ResourceState::Idle => placeholder(),\n}\n\n// Rechargement \u2014 annule d'abord la requ\u00eate en vol :\nuser.reload_with(&cx, fetch_user_closure);"} />
 
 ## Garanties de conception
 

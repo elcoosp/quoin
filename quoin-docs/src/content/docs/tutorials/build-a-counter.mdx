@@ -15,22 +15,18 @@ You will build a counter application whose reactive logic lives in a framework-a
 <Steps>
 1. Create a Cargo workspace with two crates: a library for the portable logic and a binary for the GPUI view.
 
-    <Code lang="sh" title="Terminal" code={`cargo new counter --lib
-cargo new counter-gpui --bin`} />
+    <Code lang="sh" title="Terminal" code={"cargo new counter --lib\ncargo new counter-gpui --bin"} />
 
 2. Add Quoin to both manifests. The library depends on `quoin-core` (traits only, no framework). The binary depends on `quoin` with the `gpui` feature.
 
-    <Code lang="toml" title="counter/Cargo.toml" code={`[dependencies]
-quoin-core = "0.1"`} />
+    <Code lang="toml" title="counter/Cargo.toml" code={"[dependencies]\nquoin-core = \"0.1\""} />
 
-    <Code lang="toml" title="counter-gpui/Cargo.toml" code={`[dependencies]
-counter = { path = "../counter" }
-quoin = { version = "0.1", features = ["gpui"] }`} />
+    <Code lang="toml" title="counter-gpui/Cargo.toml" code={"[dependencies]\ncounter = { path = \"../counter\" }\nquoin = { version = \"0.1\", features = [\"gpui\"] }"} />
 
     <Aside type="caution">
       The version on crates.io may lag the repository. If you are building against a checkout of the [Quoin repository](https://github.com/elcoosp/quoin), use path dependencies instead, as the examples in the repository do:
 
-      <Code lang="toml" code={`quoin = { path = "../quoin", features = ["gpui"] }`} />
+      <Code lang="toml" code={"quoin = { path = \"../quoin\", features = [\"gpui\"] }"} />
     </Aside>
 </Steps>
 
@@ -38,22 +34,7 @@ quoin = { version = "0.1", features = ["gpui"] }`} />
 
 The hook is an ordinary Rust function generic over `ReactiveContext`. It knows nothing about GPUI, windows, or rendering.
 
-<Code lang="rust" title="counter/src/lib.rs" code={`use quoin_core::prelude::*;
-use std::rc::Rc;
-
-pub struct Counter<S: Signal<u32>> {
-    pub count: S,
-    pub increment: Rc<dyn Fn()>,
-}
-
-pub fn use_counter<C: ReactiveContext>(cx: &C) -> Counter<C::Signal<u32>> {
-    let count = cx.create_signal(0u32);
-    let increment = {
-        let count = count.clone();
-        Rc::new(move || count.update(|c| *c += 1))
-    };
-    Counter { count, increment }
-}`} />
+<Code lang="rust" title="counter/src/lib.rs" code={"use quoin_core::prelude::*;\nuse std::rc::Rc;\n\npub struct Counter<S: Signal<u32>> {\n    pub count: S,\n    pub increment: Rc<dyn Fn()>,\n}\n\npub fn use_counter<C: ReactiveContext>(cx: &C) -> Counter<C::Signal<u32>> {\n    let count = cx.create_signal(0u32);\n    let increment = {\n        let count = count.clone();\n        Rc::new(move || count.update(|c| *c += 1))\n    };\n    Counter { count, increment }\n}"} />
 
 Key points:
 
@@ -65,39 +46,11 @@ Key points:
 
 Now wire the hook into a GPUI component and bootstrap the app with `run_app!`.
 
-<Code lang="rust" title="counter-gpui/src/main.rs" code={`use counter::use_counter;
-use quoin::prelude::*;
-
-struct CounterView {
-    counter: counter::Counter<quoin::GpuiSignal<u32>>,
-    _ctx: GpuiContext,
-}
-
-impl Render for CounterView {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let count = self.counter.count.get();
-        div()
-            .flex()
-            .child(format!("Count: {count}"))
-            .child(
-                div()
-                    .child("Increment")
-                    .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, _| {
-                        (this.counter.increment)();
-                    }))
-            )
-    }
-}
-
-fn main() {
-    let ctx = GpuiContext::new();
-    let counter = use_counter(&ctx);
-    run_app!(CounterView { counter, _ctx: ctx });
-}`} />
+<Code lang="rust" title="counter-gpui/src/main.rs" code={"use counter::use_counter;\nuse quoin::prelude::*;\n\nstruct CounterView {\n    counter: counter::Counter<quoin::GpuiSignal<u32>>,\n    _ctx: GpuiContext,\n}\n\nimpl Render for CounterView {\n    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {\n        let count = self.counter.count.get();\n        div()\n            .flex()\n            .child(format!(\"Count: {count}\"))\n            .child(\n                div()\n                    .child(\"Increment\")\n                    .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, _| {\n                        (this.counter.increment)();\n                    }))\n            )\n    }\n}\n\nfn main() {\n    let ctx = GpuiContext::new();\n    let counter = use_counter(&ctx);\n    run_app!(CounterView { counter, _ctx: ctx });\n}"} />
 
 Run it:
 
-<Code lang="sh" title="Terminal" code={`cargo run -p counter-gpui`} />
+<Code lang="sh" title="Terminal" code={"cargo run -p counter-gpui"} />
 
 **Expected output:** a native window showing `Count: 0` with an `Increment` button; each click updates the label.
 
@@ -105,24 +58,9 @@ Run it:
 
 Change the feature flag and swap the view. The hook crate is untouched.
 
-<Code lang="toml" title="counter-leptos/Cargo.toml" code={`[dependencies]
-counter = { path = "../counter" }
-quoin = { version = "0.1", features = ["leptos"] }`} />
+<Code lang="toml" title="counter-leptos/Cargo.toml" code={"[dependencies]\ncounter = { path = \"../counter\" }\nquoin = { version = \"0.1\", features = [\"leptos\"] }"} />
 
-<Code lang="rust" title="counter-leptos/src/lib.rs" code={`use counter::use_counter;
-use quoin::prelude::*;
-
-#[component]
-pub fn App() -> impl IntoView {
-    let ctx = LeptosContext::new();
-    let counter = use_counter(&ctx);
-    view! {
-        <div>
-            <p>"Count: " {move || counter.count.get()}</p>
-            <button on:click=move |_| (counter.increment)()>"Increment"</button>
-        </div>
-    }
-}`} />
+<Code lang="rust" title="counter-leptos/src/lib.rs" code={"use counter::use_counter;\nuse quoin::prelude::*;\n\n#[component]\npub fn App() -> impl IntoView {\n    let ctx = LeptosContext::new();\n    let counter = use_counter(&ctx);\n    view! {\n        <div>\n            <p>\"Count: \" {move || counter.count.get()}</p>\n            <button on:click=move |_| (counter.increment)()>\"Increment\"</button>\n        </div>\n    }\n}"} />
 
 <Aside type="note">
   Enable exactly one framework feature per crate. Enabling two triggers a `compile_error!` that names the offending configuration — the backends are mutually exclusive by design.

@@ -23,23 +23,13 @@ Votre code parle aux traits ; la fonctionnalité de framework tire l'implémenta
 
 `ButtonVariant` sélectionne l'emphase (`primary`, `ghost`, `destructive`) et la densité (`ComponentSize::Small | Medium | Large`) :
 
-<Code lang="rust" code={`use quoin_ui::{ButtonAdapter, ButtonVariant, ComponentSize};
-
-let adapter = GpuiButtonAdapter::default();
-let button = adapter.render(Some("Click Me".into()), ButtonVariant {
-    primary: true,
-    size: ComponentSize::Medium,
-    ..Default::default()
-});`} />
+<Code lang="rust" code={"use quoin_ui::{ButtonAdapter, ButtonVariant, ComponentSize};\n\nlet adapter = GpuiButtonAdapter::default();\nlet button = adapter.render(Some(\"Click Me\".into()), ButtonVariant {\n    primary: true,\n    size: ComponentSize::Medium,\n    ..Default::default()\n});"} />
 
 ## Déclarer une table de données triable
 
 À l'intérieur de `quoin_render!`, l'élément `data_table` déclare des colonnes avec clés, libellés et fermetures de rendu ; le tri et le zébrage viennent des attributs :
 
-<Code lang="rust" code={`data_table(rows: people, striped: true) {
-    column(key: "name", label: "Name", render: |p: &Person| p.name.clone())
-    column(key: "age",  label: "Age",  render: |p: &Person| p.age.to_string())
-}`} />
+<Code lang="rust" code={"data_table(rows: people, striped: true) {\n    column(key: \"name\", label: \"Name\", render: |p: &Person| p.name.clone())\n    column(key: \"age\",  label: \"Age\",  render: |p: &Person| p.age.to_string())\n}"} />
 
 `SortDirection` (`None | Asc | Desc`) modélise l'état de tri par colonne côté `TableAdapter`.
 
@@ -51,7 +41,7 @@ let button = adapter.render(Some("Click Me".into()), ButtonVariant {
 
 Le trait `Clipboard` abstrait le presse-papiers système ; l'élément `clipboard_button` câble un bouton qui copie du texte et rapporte le succès :
 
-<Code lang="rust" code={`clipboard_button(copy_text: "Copied!") { "Copy" }`} />
+<Code lang="rust" code={"clipboard_button(copy_text: \"Copied!\") { \"Copy\" }"} />
 
 ## Jetons de thème
 

@@ -14,18 +14,7 @@ Vous chargerez des données distantes dans l'UI sans courses entre réponses obs
 
 `cx.create_resource` donne à chaque adaptateur le cycle de vie de données asynchrones familier de Leptos et Dioxus : `Idle → Loading → Ready(T) | Failed(E)`. Passez une fermeture qui reçoit un [`CancellationToken`](/reference/cancellation/) et renvoie un future :
 
-<Code lang="rust" code={`let user = cx.create_resource(|token| async move {
-    // Vérifiez le jeton entre les awaits pour que les rechargements arrêtent le travail obsolète :
-    Ok::<User, FetchError>(fetch_user(&token).await?)
-});
-
-// N'importe où dans l'UI :
-match user.state().get() {
-    ResourceState::Ready(user) => render_user(&user),
-    ResourceState::Loading => render_spinner(),
-    ResourceState::Failed(err) => render_error(&err),
-    ResourceState::Idle => render_placeholder(),
-}`} />
+<Code lang="rust" code={"let user = cx.create_resource(|token| async move {\n    // V\u00e9rifiez le jeton entre les awaits pour que les rechargements arr\u00eatent le travail obsol\u00e8te :\n    Ok::<User, FetchError>(fetch_user(&token).await?)\n});\n\n// N'importe o\u00f9 dans l'UI :\nmatch user.state().get() {\n    ResourceState::Ready(user) => render_user(&user),\n    ResourceState::Loading => render_spinner(),\n    ResourceState::Failed(err) => render_error(&err),\n    ResourceState::Idle => render_placeholder(),\n}"} />
 
 La ressource gère les deux problèmes qui hantent les boucles de fetch écrites à la main :
 
@@ -38,12 +27,7 @@ Appelez `user.reload_with(&cx, fetch)` pour réexécuter la fermeture de fetch ;
 
 Pour un travail qui n'est pas lié à une ressource, lancez sur le runtime du framework avec l'exécuteur :
 
-<Code lang="rust" code={`let handle = cx.executor().spawn(async {
-    let data = fetch_from_api().await;
-    signal.set(data);
-});
-
-// Plus tard : attendre le résultat (Err(Canceled) si abandonné), abort(), ou detach().`} />
+<Code lang="rust" code={"let handle = cx.executor().spawn(async {\n    let data = fetch_from_api().await;\n    signal.set(data);\n});\n\n// Plus tard : attendre le r\u00e9sultat (Err(Canceled) si abandonn\u00e9), abort(), ou detach()."} />
 
 Chaque adaptateur implémente le même cycle de vie de handle de join :
 
@@ -60,21 +44,13 @@ L'annulation est coopérative sur les adaptateurs à base de threads (Leptos, Di
 
 `spawn_with_token` (de `ExecutorExt`, dans le prelude) crée un jeton d'annulation et le remet à votre future :
 
-<Code lang="rust" code={`let (handle, token) = cx.executor().spawn_with_token(|t| async move {
-    while !t.is_cancelled() {
-        do_work().await;
-    }
-});
-// L'utilisateur a navigué ailleurs :
-token.cancel();`} />
+<Code lang="rust" code={"let (handle, token) = cx.executor().spawn_with_token(|t| async move {\n    while !t.is_cancelled() {\n        do_work().await;\n    }\n});\n// L'utilisateur a navigu\u00e9 ailleurs :\ntoken.cancel();"} />
 
 ## Exécuter des futures !Send avec spawn_local
 
 Les navigateurs exécutent WASM sur un seul thread et la plupart des futures qui touchent le DOM sont `!Send`. La machinerie `LocalExecutor` couvre les deux mondes :
 
-<Code lang="rust" code={`use quoin_core::LocalExecutor;
-
-cx.executor().spawn_local(async { update_dom().await });`} />
+<Code lang="rust" code={"use quoin_core::LocalExecutor;\n\ncx.executor().spawn_local(async { update_dom().await });"} />
 
 - **Sur `wasm32`**, les tâches tournent sur le thread principal du navigateur via `wasm_bindgen_futures`.
 - **En natif**, les tâches entrent dans une file FIFO thread-locale déterministe pilotée par `quoin_core::local::run_local_tasks()` — utile dans les tests.
@@ -87,7 +63,7 @@ cx.executor().spawn_local(async { update_dom().await });`} />
 
 Les minuteurs font partie du contrat d'exécuteur. `executor.sleep(duration)` renvoie un future sur chaque adaptateur (futures-timer en natif, minuteurs de navigateur sur WASM), et la fonction libre `quoin_core::sleep` vous donne un `SyncSleepFuture` autonome :
 
-<Code lang="rust" code={`cx.executor().sleep(Duration::from_millis(250)).await;`} />
+<Code lang="rust" code={"cx.executor().sleep(Duration::from_millis(250)).await;"} />
 
 ## Étapes suivantes
 

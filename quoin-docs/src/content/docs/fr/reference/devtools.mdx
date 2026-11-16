@@ -41,16 +41,9 @@ La fonctionnalité optionnelle `tracing` transfère les événements dans l'éco
 
 ## Exemple
 
-<Code lang="rust" code={`use quoin_devtools::Instrumented;
+<Code lang="rust" code={"use quoin_devtools::Instrumented;\n\nlet ctx = Instrumented::wrap(raw_ctx, \"app\");   // utilisez ctx partout\n\n// Depuis un raccourci de d\u00e9bogage, un panneau, ou \u00e0 la sortie :\nquoin_devtools::global_log().dump();            // tableau stderr\nquoin_devtools::global_log().hot_signals();     // comptes de mutations class\u00e9s\nquoin_devtools::global_log().events();          // instantan\u00e9 brut"} />
 
-let ctx = Instrumented::wrap(raw_ctx, "app");   // utilisez ctx partout
-
-// Depuis un raccourci de débogage, un panneau, ou à la sortie :
-quoin_devtools::global_log().dump();            // tableau stderr
-quoin_devtools::global_log().hot_signals();     // comptes de mutations classés
-quoin_devtools::global_log().events();          // instantané brut`} />
-
-<Code lang="sh" title="Terminal" code={`QUOIN_TRACE=1 ./myapp    # active l'enregistrement depuis l'environnement`} />
+<Code lang="sh" title="Terminal" code={"QUOIN_TRACE=1 ./myapp    # active l'enregistrement depuis l'environnement"} />
 
 ## Étapes suivantes
 

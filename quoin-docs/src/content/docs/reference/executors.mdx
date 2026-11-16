@@ -62,16 +62,7 @@ GPUI does **not** implement `LocalExecutor` — its executor is `!Send` by desig
 
 ## Example
 
-<Code lang="rust" code={`let handle = executor.spawn(async {
-    let data = fetch_from_api().await;
-    signal.set(data);
-});
-let result = handle.await?;        // Err(Canceled) if aborted
-
-let (h, token) = executor.spawn_with_token(|t| async move {
-    while !t.is_cancelled() { do_work().await; }
-});
-executor.sleep(Duration::from_millis(250)).await;`} />
+<Code lang="rust" code={"let handle = executor.spawn(async {\n    let data = fetch_from_api().await;\n    signal.set(data);\n});\nlet result = handle.await?;        // Err(Canceled) if aborted\n\nlet (h, token) = executor.spawn_with_token(|t| async move {\n    while !t.is_cancelled() { do_work().await; }\n});\nexecutor.sleep(Duration::from_millis(250)).await;"} />
 
 ## Next steps
 

@@ -25,11 +25,7 @@ Import : `use quoin::ev;` (façade) — les types sont des structs de valeur.
 
 ## Exemple
 
-<Code lang="rust" code={`// Handler à zéro paramètre — valide sur chaque backend :
-button(class: "px-4 py-2", on_click: || increment())
-
-// Handler à un paramètre recevant la charge utile typée :
-button(on_click: |ev: quoin::ev::Click| { /* ... */ })`} />
+<Code lang="rust" code={"// Handler \u00e0 z\u00e9ro param\u00e8tre \u2014 valide sur chaque backend :\nbutton(class: \"px-4 py-2\", on_click: || increment())\n\n// Handler \u00e0 un param\u00e8tre recevant la charge utile typ\u00e9e :\nbutton(on_click: |ev: quoin::ev::Click| { /* ... */ })"} />
 
 <Aside type="note">
   Parce que les charges utiles sont de simples types valeur avec des conversions `From` dans le code généré, un handler écrit contre les types `ev` ne mentionne jamais un type d'événement de framework — c'est ce qui garde l'arbre de rendu portable.

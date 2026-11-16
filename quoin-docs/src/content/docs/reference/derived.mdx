@@ -34,18 +34,7 @@ Import: `use quoin_core::prelude::*;`
 
 ## Example
 
-<Code lang="rust" code={`let count = cx.create_signal(2u32);
-
-let label = count.map(|n| format!("count = {n}"));   // recomputed on read
-assert_eq!(label.get(), "count = 2");
-
-let doubled = quoin_core::derived(&count, |v| v * 2);
-assert_eq!(doubled.get(), 4);
-
-let both = quoin_core::zip(&a, &b);                  // tuple of two signals
-assert_eq!(both.get(), (1, 2));
-
-let expensive = quoin_core::memo(&source, heavy_transform);`} />
+<Code lang="rust" code={"let count = cx.create_signal(2u32);\n\nlet label = count.map(|n| format!(\"count = {n}\"));   // recomputed on read\nassert_eq!(label.get(), \"count = 2\");\n\nlet doubled = quoin_core::derived(&count, |v| v * 2);\nassert_eq!(doubled.get(), 4);\n\nlet both = quoin_core::zip(&a, &b);                  // tuple of two signals\nassert_eq!(both.get(), (1, 2));\n\nlet expensive = quoin_core::memo(&source, heavy_transform);"} />
 
 <Aside type="caution">
   Derived closures must be pure and cheap — they run on every read. Move expensive or allocation-heavy computations into a `Memo`, which caches until the source changes.

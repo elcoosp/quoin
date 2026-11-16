@@ -34,23 +34,7 @@ Import: `use quoin_core::prelude::*;`
 
 ## Example
 
-<Code lang="rust" code={`let token = CancellationToken::new();
-executor.spawn({
-    let token = token.clone();
-    async move {
-        while !token.is_cancelled() {
-            do_work().await;
-        }
-        cleanup().await;
-    }
-});
-token.cancel();
-
-// Toolkit patterns:
-let parent = CancellationToken::new();
-let per_request = parent.child_token();        // cancels with the parent
-let _guard = parent.guard();                   // RAII: cancels on drop
-let value = parent.run_until_cancelled(work()).await;`} />
+<Code lang="rust" code={"let token = CancellationToken::new();\nexecutor.spawn({\n    let token = token.clone();\n    async move {\n        while !token.is_cancelled() {\n            do_work().await;\n        }\n        cleanup().await;\n    }\n});\ntoken.cancel();\n\n// Toolkit patterns:\nlet parent = CancellationToken::new();\nlet per_request = parent.child_token();        // cancels with the parent\nlet _guard = parent.guard();                   // RAII: cancels on drop\nlet value = parent.run_until_cancelled(work()).await;"} />
 
 ## Next steps
 

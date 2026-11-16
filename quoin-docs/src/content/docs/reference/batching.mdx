@@ -27,15 +27,7 @@ A thread-local depth counter tracks nested batches. The signal implementations o
 
 ## Example
 
-<Code lang="rust" code={`let a = cx.create_signal(0u32);
-let b = cx.create_signal(0u32);
-
-quoin_core::batch::with(&cx, || {
-    a.set(1);
-    b.set(2);
-});
-assert_eq!((a.get(), b.get()), (1, 2));
-// One re-render request instead of two.`} />
+<Code lang="rust" code={"let a = cx.create_signal(0u32);\nlet b = cx.create_signal(0u32);\n\nquoin_core::batch::with(&cx, || {\n    a.set(1);\n    b.set(2);\n});\nassert_eq!((a.get(), b.get()), (1, 2));\n// One re-render request instead of two."} />
 
 <Aside type="note">
   Batch bookkeeping is intentionally cheap (two thread-local accesses). Nesting works: only when the outermost batch ends is the update requested.

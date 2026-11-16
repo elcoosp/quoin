@@ -34,18 +34,7 @@ Import : `use quoin_core::prelude::*;`
 
 ## Exemple
 
-<Code lang="rust" code={`let count = cx.create_signal(2u32);
-
-let label = count.map(|n| format!("count = {n}"));   // recalculé à la lecture
-assert_eq!(label.get(), "count = 2");
-
-let doubled = quoin_core::derived(&count, |v| v * 2);
-assert_eq!(doubled.get(), 4);
-
-let both = quoin_core::zip(&a, &b);                  // tuple de deux signaux
-assert_eq!(both.get(), (1, 2));
-
-let expensive = quoin_core::memo(&source, heavy_transform);`} />
+<Code lang="rust" code={"let count = cx.create_signal(2u32);\n\nlet label = count.map(|n| format!(\"count = {n}\"));   // recalcul\u00e9 \u00e0 la lecture\nassert_eq!(label.get(), \"count = 2\");\n\nlet doubled = quoin_core::derived(&count, |v| v * 2);\nassert_eq!(doubled.get(), 4);\n\nlet both = quoin_core::zip(&a, &b);                  // tuple de deux signaux\nassert_eq!(both.get(), (1, 2));\n\nlet expensive = quoin_core::memo(&source, heavy_transform);"} />
 
 <Aside type="caution">
   Les fermetures dérivées doivent être pures et bon marché — elles s'exécutent à chaque lecture. Déplacez les calculs coûteux ou lourds en allocation dans un `Memo`, qui met en cache jusqu'à ce que la source change.

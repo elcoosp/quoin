@@ -14,16 +14,13 @@ Vous instrumenterez une application en cours d'exécution pour voir ce que fait 
 
 `Instrumented::wrap` est une enveloppe transparente : continuez d'utiliser le contexte enveloppé partout où vous utilisiez le brut.
 
-<Code lang="rust" code={`use quoin_devtools::Instrumented;
-
-let raw_ctx = /* n'importe quel contexte d'adaptateur */;
-let ctx = Instrumented::wrap(raw_ctx, "app");`} />
+<Code lang="rust" code={"use quoin_devtools::Instrumented;\n\nlet raw_ctx = /* n'importe quel contexte d'adaptateur */;\nlet ctx = Instrumented::wrap(raw_ctx, \"app\");"} />
 
 ## Activer l'enregistrement
 
 L'enregistrement est conditionné pour que le câblage n'ait aucun coût en livraison quand il est désactivé — avec le traçage éteint, chaque appel est un simple chargement atomique relâché et rien n'est alloué.
 
-<Code lang="sh" title="Terminal" code={`QUOIN_TRACE=1 ./myapp    # ou QUOIN_TRACE=on`} />
+<Code lang="sh" title="Terminal" code={"QUOIN_TRACE=1 ./myapp    # ou QUOIN_TRACE=on"} />
 
 Alternativement, activez-le par programme : `quoin_devtools::enable()` (et `disable()` / `enabled()` pour inspecter l'état).
 
@@ -31,9 +28,7 @@ Alternativement, activez-le par programme : `quoin_devtools::enable()` (et `disa
 
 L'`EventLog` global est un tampon circulaire (capacité par défaut 4096 événements) avec trois vues agrégées :
 
-<Code lang="rust" code={`quoin_devtools::global_log().dump();          // tableau sur stderr
-quoin_devtools::global_log().hot_signals();   // comptes de mutations classés
-quoin_devtools::global_log().events();        // instantané brut des valeurs Event`} />
+<Code lang="rust" code={"quoin_devtools::global_log().dump();          // tableau sur stderr\nquoin_devtools::global_log().hot_signals();   // comptes de mutations class\u00e9s\nquoin_devtools::global_log().events();        // instantan\u00e9 brut des valeurs Event"} />
 
 Appelez-les depuis un raccourci de débogage, un panneau déroulant, ou à la sortie. Chaque événement porte un `EventKind` (mises à jour, lancements, mutations, …) et l'étiquette que vous avez passée à `Instrumented::wrap`.
 
@@ -41,7 +36,7 @@ Appelez-les depuis un raccourci de débogage, un panneau déroulant, ou à la so
 
 L'exemple `counter-xilem` rend les comptes de trace à côté du compteur et vide la session à la fermeture de la fenêtre :
 
-<Code lang="sh" title="Terminal" code={`cargo run --manifest-path examples/counter-xilem/Cargo.toml`} />
+<Code lang="sh" title="Terminal" code={"cargo run --manifest-path examples/counter-xilem/Cargo.toml"} />
 
 Pour une visite sans tête de la session de traçage elle-même, exécutez `just trace-demo` (cela pilote `devtools-demo` avec `QUOIN_TRACE=1`).
 

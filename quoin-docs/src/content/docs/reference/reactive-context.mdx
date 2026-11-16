@@ -35,18 +35,7 @@ Blanket-implemented over every `ReactiveContext`; included in the prelude.
 
 ## Example
 
-<Code lang="rust" code={`let signal = cx.create_signal(0);            // create reactive state
-let executor = cx.executor();                // async task spawner
-cx.request_update();                         // mark UI as dirty
-
-cx.provide_global(Theme::Dark);
-if let Some(theme) = cx.use_global::<Theme>() {
-    let current = theme.get();
-}
-
-let res = cx.create_resource(|token| async move { /* fetch */ });
-cx.batch(|| { a.set(1); b.set(2); });        // one update request
-let settings = cx.use_global_or_init(Settings::default);`} />
+<Code lang="rust" code={"let signal = cx.create_signal(0);            // create reactive state\nlet executor = cx.executor();                // async task spawner\ncx.request_update();                         // mark UI as dirty\n\ncx.provide_global(Theme::Dark);\nif let Some(theme) = cx.use_global::<Theme>() {\n    let current = theme.get();\n}\n\nlet res = cx.create_resource(|token| async move { /* fetch */ });\ncx.batch(|| { a.set(1); b.set(2); });        // one update request\nlet settings = cx.use_global_or_init(Settings::default);"} />
 
 ## Next steps
 

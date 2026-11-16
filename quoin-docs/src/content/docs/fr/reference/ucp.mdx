@@ -54,14 +54,7 @@ Types de support : `Node`, `NodeChild`, `NodeEnv`, `NodeFactory`, `NodeStyle`, `
 
 ## Exemple
 
-<Code lang="rust" code={`use quoin_ui::{ButtonAdapter, ButtonVariant, ComponentSize};
-
-let adapter = GpuiButtonAdapter::default();
-let button = adapter.render(Some("Click Me".into()), ButtonVariant {
-    primary: true,
-    size: ComponentSize::Medium,
-    ..Default::default()
-});`} />
+<Code lang="rust" code={"use quoin_ui::{ButtonAdapter, ButtonVariant, ComponentSize};\n\nlet adapter = GpuiButtonAdapter::default();\nlet button = adapter.render(Some(\"Click Me\".into()), ButtonVariant {\n    primary: true,\n    size: ComponentSize::Medium,\n    ..Default::default()\n});"} />
 
 ## Étapes suivantes
 

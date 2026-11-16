@@ -10,19 +10,7 @@ Quoin's architecture separates three concerns: a small trait contract, five adap
 
 ## The layers
 
-<Code lang="text" code={`        your app / your hook library
-                    │
-              quoin (facade)          ← feature flags pick one backend
-        ┌─────────┼─────────┐
-   quoin-macros  quoin-ui   quoin-core   ← contract + tooling
-        │           │          │
-   quoin-macros-core quoin-style      ← parsing & codegen
-        │
-   ┌────┴─────┬──────────┬───────────┬──────────┐
- quoin-gpui quoin-leptos quoin-dioxus quoin-xilem quoin-floem
-        └──────────┴──────────┴─────┬─────┴──────────┘
-                    shared machinery in quoin-core
-              join · globals · NotifierSignal · batch · pool`} />
+<Code lang="text" code={"        your app / your hook library\n                    \u2502\n              quoin (facade)          \u2190 feature flags pick one backend\n        \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n   quoin-macros  quoin-ui   quoin-core   \u2190 contract + tooling\n        \u2502           \u2502          \u2502\n   quoin-macros-core quoin-style      \u2190 parsing & codegen\n        \u2502\n   \u250c\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n quoin-gpui quoin-leptos quoin-dioxus quoin-xilem quoin-floem\n        \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n                    shared machinery in quoin-core\n              join \u00b7 globals \u00b7 NotifierSignal \u00b7 batch \u00b7 pool"} />
 
 ```mermaid
 flowchart TD

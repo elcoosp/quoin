@@ -14,22 +14,7 @@ Vous extrairez la logique métier réactive dans des fonctions hook qui ne conna
 
 Écrivez les hooks comme fonctions libres génériques sur `C: ReactiveContext` et renvoyez votre propre struct pour que les appelants obtiennent un handle typé :
 
-<Code lang="rust" title="src/lib.rs" code={`use quoin_core::prelude::*;
-use std::rc::Rc;
-
-pub struct SearchBox<S: Signal<String>> {
-    pub query: S,
-    pub clear: Rc<dyn Fn()>,
-}
-
-pub fn use_search<C: ReactiveContext>(cx: &C) -> SearchBox<C::Signal<String>> {
-    let query = cx.create_signal(String::new());
-    let clear = {
-        let query = query.clone();
-        Rc::new(move || query.set(String::new()))
-    };
-    SearchBox { query, clear }
-}`} />
+<Code lang="rust" title="src/lib.rs" code={"use quoin_core::prelude::*;\nuse std::rc::Rc;\n\npub struct SearchBox<S: Signal<String>> {\n    pub query: S,\n    pub clear: Rc<dyn Fn()>,\n}\n\npub fn use_search<C: ReactiveContext>(cx: &C) -> SearchBox<C::Signal<String>> {\n    let query = cx.create_signal(String::new());\n    let clear = {\n        let query = query.clone();\n        Rc::new(move || query.set(String::new()))\n    };\n    SearchBox { query, clear }\n}"} />
 
 Importez avec `use quoin_core::prelude::*;` (crates sans framework) ou `use quoin::prelude::*;` (crates d'application). Le prelude inclut les traits d'extension, donc `.map()`, `set_eq()` et `create_resource()` sont disponibles sans imports supplémentaires.
 
@@ -37,17 +22,7 @@ Importez avec `use quoin_core::prelude::*;` (crates sans framework) ou `use quoi
 
 Ne stockez jamais ce que vous pouvez calculer. Les signaux dérivés recalculent à la lecture et fonctionnent sur chaque adaptateur :
 
-<Code lang="rust" code={`let count = cx.create_signal(2u32);
-
-// Forme fonction libre :
-let label = quoin_core::derived(&count, |n| format!("count = {n}"));
-assert_eq!(label.get(), "count = 2");
-
-// Forme méthode (de SignalExt) :
-let doubled = count.map(|n| n * 2);
-
-// Combiner deux signaux en un tuple :
-let both = quoin_core::zip(&a, &b);`} />
+<Code lang="rust" code={"let count = cx.create_signal(2u32);\n\n// Forme fonction libre :\nlet label = quoin_core::derived(&count, |n| format!(\"count = {n}\"));\nassert_eq!(label.get(), \"count = 2\");\n\n// Forme m\u00e9thode (de SignalExt) :\nlet doubled = count.map(|n| n * 2);\n\n// Combiner deux signaux en un tuple :\nlet both = quoin_core::zip(&a, &b);"} />
 
 Gardez les fermetures de dérivation bon marché — elles s'exécutent à chaque lecture. Quand le calcul est coûteux, enveloppez-le dans un [`Memo`](/reference/derived/), qui met en cache sa sortie jusqu'à ce que la valeur source change.
 
@@ -55,18 +30,7 @@ Gardez les fermetures de dérivation bon marché — elles s'exécutent à chaqu
 
 La macro `effect!` exécute un effet de bord chaque fois que ses dépendances changent, avec un nettoyage optionnel :
 
-<Code lang="rust" code={`use quoin_macros::effect;
-
-effect! {
-    deps: [query],
-    run: || {
-        let data = fetch_data(&query.get());
-        results.set(data);
-    },
-    cleanup: || {
-        cancel_pending_request();
-    }
-}`} />
+<Code lang="rust" code={"use quoin_macros::effect;\n\neffect! {\n    deps: [query],\n    run: || {\n        let data = fetch_data(&query.get());\n        results.set(data);\n    },\n    cleanup: || {\n        cancel_pending_request();\n    }\n}"} />
 
 Chaque adaptateur abaisse cela à son mécanisme natif : `create_effect` + `on_cleanup` sur Leptos, `use_effect` + `use_drop` sur Dioxus, et exécution-au-lancement avec nettoyage-à-l'abandon sur GPUI. Voir la [référence des macros](/reference/macros/) pour la syntaxe historique `watch: [...]` et la sémantique complète.
 
@@ -74,10 +38,7 @@ Chaque adaptateur abaisse cela à son mécanisme natif : `create_effect` + `on_c
 
 Quand un handler écrit plusieurs signaux, enveloppez les écritures dans un batch pour que les adaptateurs à tirage (GPUI, Xilem) reçoivent une demande de re-rendu au lieu d'une par écriture :
 
-<Code lang="rust" code={`cx.batch(|| {
-    a.set(1);
-    b.set(2);
-});`} />
+<Code lang="rust" code={"cx.batch(|| {\n    a.set(1);\n    b.set(2);\n});"} />
 
 Les frameworks à grain fin font du batching en interne, donc l'appel est sûr sur chaque adaptateur.
 

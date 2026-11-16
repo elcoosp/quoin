@@ -12,21 +12,7 @@ You will test reactive business logic without a window manager or browser. `quoi
 
 ## Drive a hook with TestContext
 
-<Code lang="rust" code={`use quoin_core::prelude::*;
-use quoin_testkit::{ImmediateExecutor, TestContext};
-
-fn use_counter<C: ReactiveContext>(cx: &C) -> C::Signal<u32> {
-    cx.create_signal(0u32)
-}
-
-let mut cx = TestContext::with_executor(ImmediateExecutor);
-let count = use_counter(&cx);
-count.set(41);
-count.update(|v| *v += 1);
-assert_eq!(count.get(), 42);
-
-// Update plumbing is observable:
-assert_eq!(cx.updates().count(), 2, "set + update each requested a re-render");`} />
+<Code lang="rust" code={"use quoin_core::prelude::*;\nuse quoin_testkit::{ImmediateExecutor, TestContext};\n\nfn use_counter<C: ReactiveContext>(cx: &C) -> C::Signal<u32> {\n    cx.create_signal(0u32)\n}\n\nlet mut cx = TestContext::with_executor(ImmediateExecutor);\nlet count = use_counter(&cx);\ncount.set(41);\ncount.update(|v| *v += 1);\nassert_eq!(count.get(), 42);\n\n// Update plumbing is observable:\nassert_eq!(cx.updates().count(), 2, \"set + update each requested a re-render\");"} />
 
 `TestContext` is a full `ReactiveContext` with update counting and a shared global store. `TestSignal` mutates bump the context's update counter, mirroring the pull-based adapters.
 
@@ -46,11 +32,7 @@ assert_eq!(cx.updates().count(), 2, "set + update each requested a re-render");`
 
 `cx.updates()` records how many times the UI was asked to re-render. Pair it with `cx.batch(|| …)` to prove that batches collapse N writes into one update request:
 
-<Code lang="rust" code={`cx.batch(|| {
-    a.set(1);
-    b.set(2);
-});
-assert_eq!(cx.updates().count(), 1);`} />
+<Code lang="rust" code={"cx.batch(|| {\n    a.set(1);\n    b.set(2);\n});\nassert_eq!(cx.updates().count(), 1);"} />
 
 ## Test framework-agnostic stores end to end
 

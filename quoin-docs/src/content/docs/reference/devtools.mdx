@@ -41,16 +41,9 @@ The optional `tracing` feature forwards events into the `tracing` ecosystem.
 
 ## Example
 
-<Code lang="rust" code={`use quoin_devtools::Instrumented;
+<Code lang="rust" code={"use quoin_devtools::Instrumented;\n\nlet ctx = Instrumented::wrap(raw_ctx, \"app\");   // use ctx everywhere\n\n// From a debug hotkey, a panel, or on exit:\nquoin_devtools::global_log().dump();            // stderr table\nquoin_devtools::global_log().hot_signals();     // ranked mutation counts\nquoin_devtools::global_log().events();          // raw snapshot"} />
 
-let ctx = Instrumented::wrap(raw_ctx, "app");   // use ctx everywhere
-
-// From a debug hotkey, a panel, or on exit:
-quoin_devtools::global_log().dump();            // stderr table
-quoin_devtools::global_log().hot_signals();     // ranked mutation counts
-quoin_devtools::global_log().events();          // raw snapshot`} />
-
-<Code lang="sh" title="Terminal" code={`QUOIN_TRACE=1 ./myapp    # enable recording from the environment`} />
+<Code lang="sh" title="Terminal" code={"QUOIN_TRACE=1 ./myapp    # enable recording from the environment"} />
 
 ## Next steps
 

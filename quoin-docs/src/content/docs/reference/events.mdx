@@ -25,11 +25,7 @@ Import: `use quoin::ev;` (facade) — the types are value structs.
 
 ## Example
 
-<Code lang="rust" code={`// Zero-parameter handler — valid on every backend:
-button(class: "px-4 py-2", on_click: || increment())
-
-// One-parameter handler receiving the typed payload:
-button(on_click: |ev: quoin::ev::Click| { /* ... */ })`} />
+<Code lang="rust" code={"// Zero-parameter handler \u2014 valid on every backend:\nbutton(class: \"px-4 py-2\", on_click: || increment())\n\n// One-parameter handler receiving the typed payload:\nbutton(on_click: |ev: quoin::ev::Click| { /* ... */ })"} />
 
 <Aside type="note">
   Because payloads are plain value types with `From` conversions in the generated code, a handler written against `ev` types never mentions a framework event type — that is what keeps the render tree portable.

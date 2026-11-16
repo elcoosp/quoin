@@ -27,15 +27,7 @@ Un compteur de profondeur thread-local suit les batches imbriqués. Les impléme
 
 ## Exemple
 
-<Code lang="rust" code={`let a = cx.create_signal(0u32);
-let b = cx.create_signal(0u32);
-
-quoin_core::batch::with(&cx, || {
-    a.set(1);
-    b.set(2);
-});
-assert_eq!((a.get(), b.get()), (1, 2));
-// Une seule demande de re-rendu au lieu de deux.`} />
+<Code lang="rust" code={"let a = cx.create_signal(0u32);\nlet b = cx.create_signal(0u32);\n\nquoin_core::batch::with(&cx, || {\n    a.set(1);\n    b.set(2);\n});\nassert_eq!((a.get(), b.get()), (1, 2));\n// Une seule demande de re-rendu au lieu de deux."} />
 
 <Aside type="note">
   La comptabilité de batch est intentionnellement bon marché (deux accès thread-locaux). L'imbrication fonctionne : ce n'est que quand le batch le plus externe se termine que la mise à jour est demandée.
