@@ -1,0 +1,25 @@
+# Curated domain glossary for @elcoosp/docs-toolkit (starlight-term-glossary)
+- term: "derived signal"
+  locale: en
+  href: "/guides/portable-hooks/"
+  definition: "Computed reactive value that automatically tracks upstream signal reads and updates lazily without manual subscriptions."
+- term: "batching"
+  locale: en
+  href: "/reference/batching/"
+  definition: "Grouping multiple signal writes into a single transaction so downstream effects and views re-run only once."
+- term: "conformance suite"
+  locale: en
+  href: "/explanation/backend-parity/"
+  definition: "Shared suite of 30+ behavioral checks that every framework adapter must pass to guarantee identical semantics."
+- term: "Universal Component Protocol"
+  locale: en
+  href: "/reference/ucp/"
+  definition: "Framework-agnostic node and variant contract allowing shared UI components to render natively on any Quoin adapter."
+- term: "suite de conformité"
+  locale: fr
+  href: "/fr/explanation/backend-parity/"
+  definition: "Batterie de plus de 30 tests partagés que chaque adaptateur doit réussir pour garantir un comportement identique."
+- term: "batching"
+  locale: fr
+  href: "/fr/explanation/reactivity-model/"
+  definition: "Regroupement de plusieurs écritures de signaux afin de ne déclencher les effets dépendants qu’une seule fois."
