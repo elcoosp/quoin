@@ -10,7 +10,7 @@ Toute l'analyse et la génération de code vivent dans `quoin-macros-core` ; la 
 
 Import : `use quoin_macros::{component, effect, quoin_element, quoin_render, run_app};` (ré-exporté à travers la façade `quoin` quand une fonctionnalité de framework est activée).
 
-## component!
+## component
 
 Définit un composant réactif agnostique vis-à-vis du framework. Blocs reconnus :
 
@@ -25,7 +25,7 @@ Définit un composant réactif agnostique vis-à-vis du framework. Blocs reconnu
 
 Sortie par framework : une `struct` avec une implémentation `Render` (GPUI), `#[component] fn … -> impl IntoView` (Leptos), `#[component] fn … -> Element` (Dioxus).
 
-## quoin_render!
+## quoin_render
 
 UI déclarative de type JSX avec transpilation de classes Tailwind.
 
@@ -39,13 +39,13 @@ UI déclarative de type JSX avec transpilation de classes Tailwind.
 
 Le vocabulaire d'éléments inclut `div`, `button`, `tabs`/`tab`, `data_table`/`column`, `virtual_list`, `dropdown_menu`, `input`, `checkbox`, `radio`, `switch`, `slider`, `icon`, `badge`, `tooltip`, `progress`, `skeleton`, `scroll_area`, `separator`, `styled_text` et `clipboard_button`.
 
-## quoin_element!
+## quoin_element
 
 Déclare un élément personnalisé nommé avec props typées et une fermeture de rendu :
 
 <Code lang="rust" code={"quoin_element!(\"my-widget\", { width: u32 }, |props| quoin_render! { div { \"w\" } });"} />
 
-## effect!
+## effect
 
 Exécute des effets de bord réactivement. Deux syntaxes :
 
@@ -56,7 +56,7 @@ Exécute des effets de bord réactivement. Deux syntaxes :
 
 Expansion par framework : `create_effect` + `on_cleanup` (Leptos), `use_effect` + `use_drop` (Dioxus), run-on-execute + cleanup-on-drop (GPUI).
 
-## run_app!
+## run_app
 
 Amorce l'application en une seule ligne.
 

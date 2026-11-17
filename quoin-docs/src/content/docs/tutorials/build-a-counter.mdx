@@ -19,15 +19,15 @@ You will build a counter application whose reactive logic lives in a framework-a
 
 2. Add Quoin to both manifests. The library depends on `quoin-core` (traits only, no framework). The binary depends on `quoin` with the `gpui` feature.
 
-    <Code lang="toml" title="counter/Cargo.toml" code={"[dependencies]\nquoin-core = \"0.1\""} />
+   <Code lang="toml" title="counter/Cargo.toml" code={"[dependencies]\nquoin-core = \"0.1\""} />
 
-    <Code lang="toml" title="counter-gpui/Cargo.toml" code={"[dependencies]\ncounter = { path = \"../counter\" }\nquoin = { version = \"0.1\", features = [\"gpui\"] }"} />
+   <Code lang="toml" title="counter-gpui/Cargo.toml" code={"[dependencies]\ncounter = { path = \"../counter\" }\nquoin = { version = \"0.1\", features = [\"gpui\"] }"} />
 
-    <Aside type="caution">
-      The version on crates.io may lag the repository. If you are building against a checkout of the [Quoin repository](https://github.com/elcoosp/quoin), use path dependencies instead, as the examples in the repository do:
+   <Aside type="caution">
+   The version on crates.io may lag the repository. If you are building against a checkout of the [Quoin repository](https://github.com/elcoosp/quoin), use path dependencies instead, as the examples in the repository do:
 
-      <Code lang="toml" code={"quoin = { path = \"../quoin\", features = [\"gpui\"] }"} />
-    </Aside>
+   <Code lang="toml" code={"quoin = { path = \"../quoin\", features = [\"gpui\"] }"} />
+   </Aside>
 </Steps>
 
 ## Write the portable hook

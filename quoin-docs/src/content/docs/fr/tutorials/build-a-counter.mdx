@@ -19,15 +19,15 @@ Vous construirez une application compteur dont la logique réactive vit dans une
 
 2. Ajoutez Quoin aux deux manifestes. La bibliothèque dépend de `quoin-core` (traits seuls, pas de framework). Le binaire dépend de `quoin` avec la fonctionnalité `gpui`.
 
-    <Code lang="toml" title="counter/Cargo.toml" code={"[dependencies]\nquoin-core = \"0.1\""} />
+   <Code lang="toml" title="counter/Cargo.toml" code={"[dependencies]\nquoin-core = \"0.1\""} />
 
-    <Code lang="toml" title="counter-gpui/Cargo.toml" code={"[dependencies]\ncounter = { path = \"../counter\" }\nquoin = { version = \"0.1\", features = [\"gpui\"] }"} />
+   <Code lang="toml" title="counter-gpui/Cargo.toml" code={"[dependencies]\ncounter = { path = \"../counter\" }\nquoin = { version = \"0.1\", features = [\"gpui\"] }"} />
 
-    <Aside type="caution">
-      La version sur crates.io peut être en retard sur le dépôt. Si vous construisez contre un checkout du [dépôt Quoin](https://github.com/elcoosp/quoin), utilisez plutôt des dépendances de chemin, comme le font les exemples du dépôt :
+   <Aside type="caution">
+   La version sur crates.io peut être en retard sur le dépôt. Si vous construisez contre un checkout du [dépôt Quoin](https://github.com/elcoosp/quoin), utilisez plutôt des dépendances de chemin, comme le font les exemples du dépôt :
 
-      <Code lang="toml" code={"quoin = { path = \"../quoin\", features = [\"gpui\"] }"} />
-    </Aside>
+   <Code lang="toml" code={"quoin = { path = \"../quoin\", features = [\"gpui\"] }"} />
+   </Aside>
 </Steps>
 
 ## Écrire le hook portable
