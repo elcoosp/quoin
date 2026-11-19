@@ -29,7 +29,7 @@ Votre code parle aux traits ; la fonctionnalité de framework tire l'implémenta
 
 À l'intérieur de `quoin_render!`, l'élément `data_table` déclare des colonnes avec clés, libellés et fermetures de rendu ; le tri et le zébrage viennent des attributs :
 
-<Code lang="rust" code={"data_table(rows: people, striped: true) {\n    column(key: \"name\", label: \"Name\", render: |p: &Person| p.name.clone())\n    column(key: \"age\",  label: \"Age\",  render: |p: &Person| p.age.to_string())\n}"} />
+<Code lang="rust" code={"quoin_render! {\n    data_table(rows: people, striped: true) {\n        column(key: \"name\", label: \"Name\", render: |p: &Person| p.name.clone())\n        column(key: \"age\",  label: \"Age\",  render: |p: &Person| p.age.to_string())\n    }\n}"} />
 
 `SortDirection` (`None | Asc | Desc`) modélise l'état de tri par colonne côté `TableAdapter`.
 
@@ -41,7 +41,7 @@ Votre code parle aux traits ; la fonctionnalité de framework tire l'implémenta
 
 Le trait `Clipboard` abstrait le presse-papiers système ; l'élément `clipboard_button` câble un bouton qui copie du texte et rapporte le succès :
 
-<Code lang="rust" code={"clipboard_button(copy_text: \"Copied!\") { \"Copy\" }"} />
+<Code lang="rust" code={"quoin_render! {\n    clipboard_button(copy_text: \"Copied!\") { \"Copy\" }\n}"} />
 
 ## Jetons de thème
 
