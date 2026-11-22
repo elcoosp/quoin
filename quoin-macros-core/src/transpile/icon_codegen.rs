@@ -305,8 +305,7 @@ pub fn icon_variant_ident(name: &str) -> proc_macro2::Ident {
             let mut chars = part.chars();
             chars
                 .next()
-                .map(|first| first.to_ascii_uppercase().to_string())
-                .unwrap_or_default()
+                .map_or_default(|first| first.to_ascii_uppercase().to_string())
                 + chars.as_str()
         })
         .collect();
