@@ -10,7 +10,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-quoin = { git = "https://github.com/elcoosp/quoin" }
+quoin = { path = "../../quoin" }
 quoin-macros = { path = "../../quoin-macros" }
 quoin-ui = { path = "../../quoin-ui" }
 
