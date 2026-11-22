@@ -658,9 +658,9 @@ dependencies = [
 
 [[package]]
 name = "gloo-timers"
-version = "0.3.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bbb143cf96099802033e0d4f4963b19fd2e0b728bcf076cd9cf7f6634f092994"
+checksum = "a4460540da666acdb5722b2a62ac47d18f627fcfc0c728d04dc7226b3f6d40a7"
 dependencies = [
  "futures-channel",
  "futures-core",
@@ -1243,9 +1243,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.29"
+version = "0.4.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e5032e24019045c762d3c0f28f5b6b8bbf38563a65908389bf7978758920897"
+checksum = "5d15f86d12da44cd8d4ec3c73984537eb7f4cadcb9776a575a0a8a05ca11005c"
 
 [[package]]
 name = "lru"
@@ -1505,7 +1505,7 @@ dependencies = [
 
 [[package]]
 name = "quoin"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "futures-core",
  "quoin-core",
@@ -1515,20 +1515,23 @@ dependencies = [
 
 [[package]]
 name = "quoin-core"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "futures-channel",
  "futures-core",
  "futures-timer",
  "futures-util",
  "gloo-timers",
+ "js-sys",
  "send_wrapper",
+ "wasm-bindgen",
  "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]
 name = "quoin-leptos"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "futures",
  "leptos",
@@ -1540,7 +1543,7 @@ dependencies = [
 
 [[package]]
 name = "quoin-macros"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "proc-macro2",
  "quoin-macros-core",
@@ -1553,11 +1556,16 @@ name = "quoin-macros-core"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",
+ "quoin-style",
  "quote",
  "syn 3.0.9",
  "thiserror",
  "uuid",
 ]
+
+[[package]]
+name = "quoin-style"
+version = "0.4.0"
 
 [[package]]
 name = "quote"
