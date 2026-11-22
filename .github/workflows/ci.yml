@@ -157,7 +157,7 @@ jobs:
         if: matrix.features == 'gpui'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libxkbcommon-dev libxkbcommon-x11-dev
+          sudo apt-get install -y libxkbcommon-dev libxkbcommon-x11-dev libfontconfig1-dev libfreetype6-dev
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
@@ -336,6 +336,11 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           key: examples
+
+      - name: Install just
+        uses: taiki-e/install-action@v2
+        with:
+          tool: just
 
       - name: Build all examples
         run: just build-examples

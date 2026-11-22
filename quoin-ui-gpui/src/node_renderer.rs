@@ -325,8 +325,7 @@ impl NodeRenderer {
             .inputs
             .borrow()
             .get(id)
-            .map(|entry| entry.entity.read(cx).value().to_string())
-            .unwrap_or_default()
+            .map_or_default(|entry| entry.entity.read(cx).value().to_string())
     }
 
     /// An [`quoin_ui::InputValues`] view over this renderer's live inputs;
@@ -390,8 +389,7 @@ impl quoin_ui::InputValues for GpuiInputValues<'_> {
         self.inputs
             .borrow()
             .get(id)
-            .map(|entry| entry.entity.read(self.cx).value().to_string())
-            .unwrap_or_default()
+            .map_or_default(|entry| entry.entity.read(self.cx).value().to_string())
     }
 }
 
