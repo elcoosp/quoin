@@ -9145,7 +9145,6 @@ dependencies = [
  "proc-macro2",
  "quoin-style",
  "quote",
- "syn 2.0.119",
  "syn 3.0.9",
  "thiserror 2.0.21",
  "uuid",
