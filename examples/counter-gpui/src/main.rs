@@ -1,4 +1,3 @@
-use counter_lib::use_counter;
 use gpui::*;
 use quoin::prelude::*;
 
