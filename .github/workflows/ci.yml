@@ -330,6 +330,7 @@ jobs:
             libglib2.0-dev \
             libatk1.0-dev \
             libgtk-3-dev \
+            libjavascriptcoregtk-4.1-dev \
             libx11-dev \
             libxcb1-dev \
             libwayland-dev \
