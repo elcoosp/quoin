@@ -305,7 +305,6 @@ build-examples:
     cargo build --manifest-path examples/ucp-demo-dioxus/Cargo.toml
     cargo build --manifest-path examples/ucp-demo-leptos/Cargo.toml
     cargo build --manifest-path examples/ucp-demo-leptos-shadcn/Cargo.toml
-    cargo build --manifest-path examples/mini-devtools-gpui/Cargo.toml
     cargo build --manifest-path examples/ucp-lib/Cargo.toml --features gpui
     cargo build --manifest-path examples/ucp-lib/Cargo.toml --features leptos
     cargo build --manifest-path examples/ucp-lib/Cargo.toml --features dioxus
