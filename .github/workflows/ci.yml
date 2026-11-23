@@ -331,7 +331,6 @@ jobs:
             libatk1.0-dev \
             libgtk-3-dev \
             libjavascriptcoregtk-4.1-dev \
-            libwebkit2gtk-4.0-dev \
             libsoup-3.0-dev \
             libx11-dev \
             libxcb1-dev \
