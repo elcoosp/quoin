@@ -417,7 +417,7 @@ name = "counter-floem"
 version = "0.1.0"
 dependencies = [
  "counter-lib",
- "floem",
+ "floem 0.2.0 (git+https://github.com/lapce/floem?branch=main)",
  "quoin",
 ]
 
@@ -727,12 +727,12 @@ dependencies = [
  "dispatch2",
  "dpi 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "educe",
- "floem-editor-core",
+ "floem-editor-core 0.2.0 (git+https://github.com/lapce/floem?branch=main)",
  "floem-winit",
- "floem_reactive",
- "floem_renderer",
- "floem_tiny_skia_renderer",
- "floem_vger_renderer",
+ "floem_reactive 0.2.0 (git+https://github.com/lapce/floem?branch=main)",
+ "floem_renderer 0.2.0 (git+https://github.com/lapce/floem?branch=main)",
+ "floem_tiny_skia_renderer 0.2.0 (git+https://github.com/lapce/floem?branch=main)",
+ "floem_vger_renderer 0.2.0 (git+https://github.com/lapce/floem?branch=main)",
  "futures",
  "image",
  "imbl",
@@ -758,7 +758,61 @@ dependencies = [
  "strum_macros",
  "taffy",
  "ui-events",
- "ui-events-floem-winit",
+ "ui-events-floem-winit 0.2.0 (git+https://github.com/lapce/floem?branch=main)",
+ "understory_box_tree",
+ "understory_event_state",
+ "understory_focus",
+ "understory_index",
+ "understory_virtual_list",
+ "unicode-segmentation",
+ "wasm-bindgen-futures",
+ "web-time",
+ "wgpu",
+]
+
+[[package]]
+name = "floem"
+version = "0.2.0"
+source = "git+https://github.com/lapce/floem#1351ffb162faeb8be983f1301d718a0d5fb59c27"
+dependencies = [
+ "bitflags 2.13.2",
+ "clipboard-win",
+ "copypasta",
+ "dispatch2",
+ "dpi 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "educe",
+ "floem-editor-core 0.2.0 (git+https://github.com/lapce/floem)",
+ "floem-winit",
+ "floem_reactive 0.2.0 (git+https://github.com/lapce/floem)",
+ "floem_renderer 0.2.0 (git+https://github.com/lapce/floem)",
+ "floem_tiny_skia_renderer 0.2.0 (git+https://github.com/lapce/floem)",
+ "floem_vger_renderer 0.2.0 (git+https://github.com/lapce/floem)",
+ "futures",
+ "image",
+ "imbl",
+ "indexmap",
+ "lapce-xi-rope",
+ "muda",
+ "objc2 0.6.5",
+ "objc2-app-kit 0.3.2",
+ "objc2-foundation 0.3.2",
+ "parking_lot",
+ "parley",
+ "paste",
+ "peniko",
+ "raw-window-handle",
+ "rfd",
+ "rustc-hash 2.1.3",
+ "serde",
+ "serde_json",
+ "sha2",
+ "slotmap",
+ "smallvec",
+ "strum",
+ "strum_macros",
+ "taffy",
+ "ui-events",
+ "ui-events-floem-winit 0.2.0 (git+https://github.com/lapce/floem)",
  "understory_box_tree",
  "understory_event_state",
  "understory_focus",
@@ -774,6 +828,21 @@ dependencies = [
 name = "floem-editor-core"
 version = "0.2.0"
 source = "git+https://github.com/lapce/floem?branch=main#1351ffb162faeb8be983f1301d718a0d5fb59c27"
+dependencies = [
+ "bitflags 2.13.2",
+ "itertools",
+ "lapce-xi-rope",
+ "memchr",
+ "serde",
+ "strum",
+ "strum_macros",
+ "ui-events",
+]
+
+[[package]]
+name = "floem-editor-core"
+version = "0.2.0"
+source = "git+https://github.com/lapce/floem#1351ffb162faeb8be983f1301d718a0d5fb59c27"
 dependencies = [
  "bitflags 2.13.2",
  "itertools",
@@ -884,7 +953,7 @@ dependencies = [
  "bitflags 2.13.2",
  "cursor-icon",
  "dpi 0.1.2 (git+https://github.com/lapce/winit?rev=133268de675a4fda70816d78a7a1435eb972fea1)",
- "keyboard-types 0.8.3",
+ "keyboard-types",
  "raw-window-handle",
  "serde",
  "smol_str",
@@ -1024,9 +1093,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "floem_reactive"
+version = "0.2.0"
+source = "git+https://github.com/lapce/floem#1351ffb162faeb8be983f1301d718a0d5fb59c27"
+dependencies = [
+ "parking_lot",
+ "smallvec",
+]
+
+[[package]]
 name = "floem_renderer"
 version = "0.2.0"
 source = "git+https://github.com/lapce/floem?branch=main#1351ffb162faeb8be983f1301d718a0d5fb59c27"
+dependencies = [
+ "floem-winit",
+ "fontique",
+ "futures",
+ "parking_lot",
+ "parley",
+ "peniko",
+ "resvg",
+ "wasm-bindgen-futures",
+ "wgpu",
+]
+
+[[package]]
+name = "floem_renderer"
+version = "0.2.0"
+source = "git+https://github.com/lapce/floem#1351ffb162faeb8be983f1301d718a0d5fb59c27"
 dependencies = [
  "floem-winit",
  "fontique",
@@ -1045,7 +1139,23 @@ version = "0.2.0"
 source = "git+https://github.com/lapce/floem?branch=main#1351ffb162faeb8be983f1301d718a0d5fb59c27"
 dependencies = [
  "anyhow",
- "floem_renderer",
+ "floem_renderer 0.2.0 (git+https://github.com/lapce/floem?branch=main)",
+ "parley",
+ "peniko",
+ "raw-window-handle",
+ "resvg",
+ "rustc-hash 2.1.3",
+ "softbuffer",
+ "swash",
+]
+
+[[package]]
+name = "floem_tiny_skia_renderer"
+version = "0.2.0"
+source = "git+https://github.com/lapce/floem#1351ffb162faeb8be983f1301d718a0d5fb59c27"
+dependencies = [
+ "anyhow",
+ "floem_renderer 0.2.0 (git+https://github.com/lapce/floem)",
  "parley",
  "peniko",
  "raw-window-handle",
@@ -1062,7 +1172,23 @@ source = "git+https://github.com/lapce/floem?branch=main#1351ffb162faeb8be983f13
 dependencies = [
  "anyhow",
  "floem-vger",
- "floem_renderer",
+ "floem_renderer 0.2.0 (git+https://github.com/lapce/floem?branch=main)",
+ "image",
+ "parley",
+ "peniko",
+ "resvg",
+ "swash",
+ "wgpu",
+]
+
+[[package]]
+name = "floem_vger_renderer"
+version = "0.2.0"
+source = "git+https://github.com/lapce/floem#1351ffb162faeb8be983f1301d718a0d5fb59c27"
+dependencies = [
+ "anyhow",
+ "floem-vger",
+ "floem_renderer 0.2.0 (git+https://github.com/lapce/floem)",
  "image",
  "parley",
  "peniko",
@@ -1344,9 +1470,9 @@ dependencies = [
 
 [[package]]
 name = "gloo-timers"
-version = "0.3.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bbb143cf96099802033e0d4f4963b19fd2e0b728bcf076cd9cf7f6634f092994"
+checksum = "a4460540da666acdb5722b2a62ac47d18f627fcfc0c728d04dc7226b3f6d40a7"
 dependencies = [
  "futures-channel",
  "futures-core",
@@ -1675,17 +1801,6 @@ dependencies = [
 
 [[package]]
 name = "keyboard-types"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b750dcadc39a09dbadd74e118f6dd6598df77fa01df0cfcdc52c28dece74528a"
-dependencies = [
- "bitflags 2.13.2",
- "serde",
- "unicode-segmentation",
-]
-
-[[package]]
-name = "keyboard-types"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fbe853b403ae61a04233030ae8a79d94975281ed9770a1f9e246732b534b28d"
@@ -1899,7 +2014,7 @@ dependencies = [
 name = "muda"
 version = "0.17.1"
 dependencies = [
- "keyboard-types 0.7.0",
+ "keyboard-types",
 ]
 
 [[package]]
@@ -2521,7 +2636,7 @@ dependencies = [
 
 [[package]]
 name = "quoin"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "futures-core",
  "quoin-core",
@@ -2531,23 +2646,26 @@ dependencies = [
 
 [[package]]
 name = "quoin-core"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "futures-channel",
  "futures-core",
  "futures-timer",
  "futures-util",
  "gloo-timers",
+ "js-sys",
  "send_wrapper",
+ "wasm-bindgen",
  "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]
 name = "quoin-floem"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
- "floem",
- "floem_reactive",
+ "floem 0.2.0 (git+https://github.com/lapce/floem)",
+ "floem_reactive 0.2.0 (git+https://github.com/lapce/floem)",
  "futures",
  "futures-timer",
  "quoin-core",
@@ -2557,7 +2675,7 @@ dependencies = [
 
 [[package]]
 name = "quoin-macros"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "proc-macro2",
  "quoin-macros-core",
@@ -2579,7 +2697,7 @@ dependencies = [
 
 [[package]]
 name = "quoin-style"
-version = "0.1.0"
+version = "0.4.0"
 
 [[package]]
 name = "quote"
@@ -3443,7 +3561,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3e29e3e199888d594edd191c5917a2d5c1893b8bf20076c2bf4df7a40a2ee71"
 dependencies = [
  "dpi 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "keyboard-types 0.8.3",
+ "keyboard-types",
  "kurbo",
 ]
 
@@ -3451,6 +3569,17 @@ dependencies = [
 name = "ui-events-floem-winit"
 version = "0.2.0"
 source = "git+https://github.com/lapce/floem?branch=main#1351ffb162faeb8be983f1301d718a0d5fb59c27"
+dependencies = [
+ "dpi 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "floem-winit",
+ "ui-events",
+ "web-time",
+]
+
+[[package]]
+name = "ui-events-floem-winit"
+version = "0.2.0"
+source = "git+https://github.com/lapce/floem#1351ffb162faeb8be983f1301d718a0d5fb59c27"
 dependencies = [
  "dpi 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "floem-winit",

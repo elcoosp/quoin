@@ -6,8 +6,8 @@ edition = "2024"
 publish = false
 
 [dependencies]
-gpui = { package = "gpui-pre", version = "=0.3.12" }
-gpui_platform = { package = "gpui-pre-platform", version = "=0.3.12", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
+gpui = { package = "gpui-pre", version = "=0.3.14" }
+gpui_platform = { package = "gpui-pre-platform", version = "=0.3.14", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
 counter-lib = { path = "../counter" }
 quoin = { path = "../../quoin", features = ["gpui"] }
 send_wrapper = "0.6"

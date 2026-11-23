@@ -258,9 +258,9 @@ dependencies = [
 
 [[package]]
 name = "console_log"
-version = "1.0.0"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be8aed40e4edbf4d3b4431ab260b63fdc40f5780a4766824329ea0f1eefe3c0f"
+checksum = "86919cef3e37b9356ccf54d4421208c17ecfda01beae61393e7ffd72916c0ef1"
 dependencies = [
  "log",
  "web-sys",
@@ -331,7 +331,7 @@ dependencies = [
  "quoin",
  "tokio",
  "tower",
- "tower-http 0.6.8",
+ "tower-http",
  "wasm-bindgen",
 ]
 
@@ -658,9 +658,9 @@ dependencies = [
 
 [[package]]
 name = "gloo-timers"
-version = "0.3.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bbb143cf96099802033e0d4f4963b19fd2e0b728bcf076cd9cf7f6634f092994"
+checksum = "a4460540da666acdb5722b2a62ac47d18f627fcfc0c728d04dc7226b3f6d40a7"
 dependencies = [
  "futures-channel",
  "futures-core",
@@ -1062,7 +1062,7 @@ dependencies = [
  "tachys",
  "tokio",
  "tower",
- "tower-http 0.7.1",
+ "tower-http",
 ]
 
 [[package]]
@@ -1505,7 +1505,7 @@ dependencies = [
 
 [[package]]
 name = "quoin"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "futures-core",
  "quoin-core",
@@ -1515,20 +1515,23 @@ dependencies = [
 
 [[package]]
 name = "quoin-core"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "futures-channel",
  "futures-core",
  "futures-timer",
  "futures-util",
  "gloo-timers",
+ "js-sys",
  "send_wrapper",
+ "wasm-bindgen",
  "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]
 name = "quoin-leptos"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "futures",
  "leptos",
@@ -1540,7 +1543,7 @@ dependencies = [
 
 [[package]]
 name = "quoin-macros"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "proc-macro2",
  "quoin-macros-core",
@@ -1553,11 +1556,16 @@ name = "quoin-macros-core"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",
+ "quoin-style",
  "quote",
  "syn 3.0.9",
  "thiserror",
  "uuid",
 ]
+
+[[package]]
+name = "quoin-style"
+version = "0.4.0"
 
 [[package]]
 name = "quote"
@@ -2222,32 +2230,6 @@ dependencies = [
 
 [[package]]
 name = "tower-http"
-version = "0.6.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4e6559d53cc268e5031cd8429d05415bc4cb4aefc4aa5d6cc35fbf5b924a1f8"
-dependencies = [
- "bitflags",
- "bytes",
- "futures-core",
- "futures-util",
- "http",
- "http-body",
- "http-body-util",
- "http-range-header",
- "httpdate",
- "mime",
- "mime_guess",
- "percent-encoding",
- "pin-project-lite",
- "tokio",
- "tokio-util",
- "tower-layer",
- "tower-service",
- "tracing",
-]
-
-[[package]]
-name = "tower-http"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "08a05a66a4fdd61cbbe0a1d755ffe0ca6aba159dd4820936a0ff8a8278245b9c"
@@ -2389,9 +2371,9 @@ checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
 
 [[package]]
 name = "uuid"
-version = "1.23.1"
+version = "1.29.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ddd74a9687298c6858e9b88ec8935ec45d22e8fd5e6394fa1bd4e99a87789c76"
+checksum = "3c14b15dffa2f4bd712103e857140aa04a4f2ff6e955c77d7eb8e53ee02a3b64"
 dependencies = [
  "getrandom 0.4.2",
  "js-sys",

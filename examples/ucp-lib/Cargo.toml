@@ -15,8 +15,8 @@ quoin-macros = { path = "../../quoin-macros" }
 quoin-ui = { path = "../../quoin-ui" }
 
 # Framework-specific dependencies (optional)
-gpui = { package = "gpui-pre", version = "=0.3.12", optional = true }
-gpui-component = "0.9.0"
+gpui = { package = "gpui-pre", version = "=0.3.14", optional = true }
+gpui-component = "0.11.0"
 leptos = { version = "0.9.0-rc1", optional = true }
 dioxus = { version = "0.7", optional = true }
 dioxus-core = { version = "0.7", optional = true }

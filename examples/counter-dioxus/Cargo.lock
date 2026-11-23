@@ -1078,7 +1078,7 @@ dependencies = [
  "futures-channel",
  "futures-util",
  "generational-box",
- "gloo-timers",
+ "gloo-timers 0.3.0",
  "js-sys",
  "lazy-js-bundle",
  "rustc-hash 2.1.2",
@@ -1481,6 +1481,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "037711b3d59c33004d3856fbdc83b99d4ff37a24768fa1be9ce3538a1cde4393"
 
 [[package]]
+name = "futures-timer"
+version = "3.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af43fadb8a98512d547e37b4e92e0ced13e205c061b87b4623eff01d918d6968"
+
+[[package]]
 name = "futures-util"
 version = "0.3.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1779,6 +1785,18 @@ name = "gloo-timers"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbb143cf96099802033e0d4f4963b19fd2e0b728bcf076cd9cf7f6634f092994"
+dependencies = [
+ "futures-channel",
+ "futures-core",
+ "js-sys",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "gloo-timers"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a4460540da666acdb5722b2a62ac47d18f627fcfc0c728d04dc7226b3f6d40a7"
 dependencies = [
  "futures-channel",
  "futures-core",
@@ -3366,7 +3384,7 @@ checksum = "a993555f31e5a609f617c12db6250dedcac1b0a85076912c436e6fc9b2c8e6a3"
 
 [[package]]
 name = "quoin"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "futures-core",
  "quoin-core",
@@ -3376,44 +3394,58 @@ dependencies = [
 
 [[package]]
 name = "quoin-core"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
+ "futures-channel",
  "futures-core",
+ "futures-timer",
+ "futures-util",
+ "gloo-timers 0.4.1",
+ "js-sys",
+ "send_wrapper",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]
 name = "quoin-dioxus"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "dioxus",
  "dioxus-core",
  "futures",
  "quoin-core",
  "send_wrapper",
+ "wasm-bindgen-futures",
  "web-sys",
 ]
 
 [[package]]
 name = "quoin-macros"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "proc-macro2",
  "quoin-macros-core",
  "quote",
- "syn 2.0.117",
+ "syn 3.0.10",
 ]
 
 [[package]]
 name = "quoin-macros-core"
 version = "0.1.0"
 dependencies = [
- "dioxus",
  "proc-macro2",
+ "quoin-style",
  "quote",
- "syn 2.0.117",
+ "syn 3.0.10",
  "thiserror 2.0.18",
  "uuid",
 ]
+
+[[package]]
+name = "quoin-style"
+version = "0.4.0"
 
 [[package]]
 name = "quote"
@@ -4211,6 +4243,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "syn"
+version = "3.0.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ae9ccbea3a7b0b09443036490c8f34a8b1b760fd345e5c0dae0aac718faea79"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "unicode-ident",
+]
+
+[[package]]
 name = "synstructure"
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4668,9 +4711,9 @@ checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
 
 [[package]]
 name = "uuid"
-version = "1.23.1"
+version = "1.29.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ddd74a9687298c6858e9b88ec8935ec45d22e8fd5e6394fa1bd4e99a87789c76"
+checksum = "3c14b15dffa2f4bd712103e857140aa04a4f2ff6e955c77d7eb8e53ee02a3b64"
 dependencies = [
  "getrandom 0.4.2",
  "js-sys",

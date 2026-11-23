@@ -1145,14 +1145,6 @@ impl gpui::Element for NodeScrollRestorationElement {
     }
 }
 
-impl gpui::IntoElement for NodeScrollRestorationElement {
-    type Element = Self;
-
-    fn into_element(self) -> Self {
-        self
-    }
-}
-
 // -----------------------------------------------------------------------------
 // Framework-side wrapper: render a Node inside framework-native code
 // -----------------------------------------------------------------------------
@@ -1216,14 +1208,6 @@ impl gpui::IntoElement for NodeElement {
 pub struct NodeElementRenderer {
     node: Node,
     element: Option<AnyElement>,
-}
-
-impl gpui::IntoElement for NodeElementRenderer {
-    type Element = Self;
-
-    fn into_element(self) -> Self {
-        self
-    }
 }
 
 impl gpui::Element for NodeElementRenderer {

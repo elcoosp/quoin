@@ -15,7 +15,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 leptos = { version = "0.9.0-rc1", features = ["csr"] }
 console_error_panic_hook = "0.1"
-console_log = "1.0"
+console_log = "1.1"
 log = "0.4"
 wasm-bindgen = "0.2"
 quoin = { path = "../../quoin", features = ["leptos"] }
